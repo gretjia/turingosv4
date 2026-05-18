@@ -510,11 +510,293 @@ fn real13_candidate_amount_micro(
     (cap > 0).then_some(cap)
 }
 
+#[derive(Debug, Clone, Default)]
+struct Real17P18EventSalience {
+    recent_positive_ev_ignored_count: u64,
+    recent_ev_positive_count: u64,
+    recent_market_action_count: u64,
+    recent_rejection_count: u64,
+    recent_partial_progress_count: u64,
+    recent_verified_success_count: u64,
+    provenance_cid_count: u64,
+}
+
+impl Real17P18EventSalience {
+    fn has_public_salience(&self) -> bool {
+        self.provenance_cid_count > 0
+    }
+
+    fn role_relevant_salience_bps(&self) -> u64 {
+        let positive_ev_signal = self
+            .recent_positive_ev_ignored_count
+            .saturating_add(self.recent_ev_positive_count)
+            .saturating_mul(1_500);
+        let action_signal = self.recent_market_action_count.saturating_mul(1_000);
+        let proof_pressure_signal = self.recent_rejection_count.saturating_mul(250);
+        let partial_progress_signal = self.recent_partial_progress_count.saturating_mul(750);
+        let verified_signal = self.recent_verified_success_count.saturating_mul(500);
+        positive_ev_signal
+            .saturating_add(action_signal)
+            .saturating_add(proof_pressure_signal)
+            .saturating_add(partial_progress_signal)
+            .saturating_add(verified_signal)
+            .min(10_000)
+    }
+}
+
+fn real17p18_salience_by_event(
+    cas_path: Option<&std::path::Path>,
+) -> std::collections::BTreeMap<String, Real17P18EventSalience> {
+    use turingosv4::runtime::attempt_telemetry::{
+        read_attempt_telemetry_from_cas, AttemptOutcome, ATTEMPT_TELEMETRY_SCHEMA_ID,
+    };
+    use turingosv4::runtime::ev_decision_trace::{
+        ev_decision_trace_cids, read_ev_decision_trace_from_cas, EVAction, EVReason,
+    };
+
+    let mut by_event: std::collections::BTreeMap<String, Real17P18EventSalience> =
+        std::collections::BTreeMap::new();
+    let Some(cas_path) = cas_path else {
+        return by_event;
+    };
+    let Ok(cas) = turingosv4::bottom_white::cas::store::CasStore::open(cas_path) else {
+        return by_event;
+    };
+
+    for cid in ev_decision_trace_cids(&cas) {
+        let Ok(trace) = read_ev_decision_trace_from_cas(&cas, &cid) else {
+            continue;
+        };
+        let entry = by_event.entry(trace.event_id.0 .0.clone()).or_default();
+        entry.provenance_cid_count = entry.provenance_cid_count.saturating_add(1);
+        if matches!(trace.action, EVAction::BuyYes | EVAction::BuyNo) {
+            entry.recent_market_action_count = entry.recent_market_action_count.saturating_add(1);
+        }
+        if matches!(trace.reason, EVReason::PositiveEVIgnored) {
+            entry.recent_positive_ev_ignored_count =
+                entry.recent_positive_ev_ignored_count.saturating_add(1);
+        }
+        if matches!(trace.reason, EVReason::PositiveEV)
+            || trace
+                .expected_value_micro
+                .zip(trace.edge_bps)
+                .map(|(ev, edge)| ev > 0 && edge > 0)
+                .unwrap_or(false)
+        {
+            entry.recent_ev_positive_count = entry.recent_ev_positive_count.saturating_add(1);
+        }
+    }
+
+    for cid in cas.list_cids_by_schema_id(ATTEMPT_TELEMETRY_SCHEMA_ID) {
+        let Ok(attempt) = read_attempt_telemetry_from_cas(&cas, &cid) else {
+            continue;
+        };
+        let event_id = format!("task-{}", attempt.run_id);
+        let entry = by_event.entry(event_id).or_default();
+        entry.provenance_cid_count = entry.provenance_cid_count.saturating_add(1);
+        match attempt.outcome {
+            AttemptOutcome::LeanFail
+            | AttemptOutcome::ParseFail
+            | AttemptOutcome::SorryBlock
+            | AttemptOutcome::LlmErr
+            | AttemptOutcome::Aborted => {
+                entry.recent_rejection_count = entry.recent_rejection_count.saturating_add(1);
+            }
+            AttemptOutcome::PartialAccepted => {
+                entry.recent_partial_progress_count =
+                    entry.recent_partial_progress_count.saturating_add(1);
+            }
+            AttemptOutcome::LeanPass => {
+                entry.recent_verified_success_count =
+                    entry.recent_verified_success_count.saturating_add(1);
+            }
+        }
+    }
+
+    by_event
+}
+
+fn real17p16_cross_market_opportunity_board(
+    q: &turingosv4::state::q_state::QState,
+    role: turingosv4::runtime::real5_roles::AgentRole,
+    cas_path: Option<&std::path::Path>,
+    candidate_amount: i64,
+    budget: Option<&turingosv4::runtime::real6_conviction_budget::ConvictionBudget>,
+) -> String {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::real5_roles::AgentRole;
+    use turingosv4::state::q_state::PoolStatus;
+    use turingosv4::state::router_quote::{
+        quote_buy_with_coin_router, LiquidityWarning, QuoteDirection, RouterQuote,
+    };
+
+    let top_k = std::env::var("TURINGOS_REAL17P16_MARKET_BOARD_TOP_K")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(8);
+    if top_k == 0 {
+        return String::new();
+    }
+
+    let (role_hint, role_allowed_action, quote_direction) = match role {
+        AgentRole::BearTrader => (
+            "For BearTrader, scan NO-side rows for overpriced-success or underpriced-failure opportunities.",
+            "buy_no",
+            QuoteDirection::BuyNo,
+        ),
+        AgentRole::BullTrader => (
+            "For BullTrader, scan YES-side rows for underpriced-success opportunities.",
+            "buy_yes",
+            QuoteDirection::BuyYes,
+        ),
+        _ => return String::new(),
+    };
+    let quote_direction_label = match quote_direction {
+        QuoteDirection::BuyYes => "buy_yes",
+        QuoteDirection::BuyNo => "buy_no",
+    };
+    let candidate_pay = MicroCoin::from_micro_units(candidate_amount);
+
+    let mut rows: Vec<(String, u128, u128, u128, Option<RouterQuote>)> = q
+        .economic_state_t
+        .cpmm_pools_t
+        .0
+        .values()
+        .filter(|pool| matches!(pool.status, PoolStatus::Active))
+        .filter_map(|pool| {
+            let depth = pool.pool_yes.units.saturating_add(pool.pool_no.units);
+            (depth > 0).then(|| {
+                (
+                    pool.event_id.0 .0.clone(),
+                    pool.pool_no.units,
+                    pool.pool_yes.units,
+                    depth,
+                    quote_buy_with_coin_router(pool, candidate_pay, quote_direction),
+                )
+            })
+        })
+        .collect();
+    rows.sort_by(|a, b| b.3.cmp(&a.3).then_with(|| a.0.cmp(&b.0)));
+    if rows.len() < 2 {
+        return String::new();
+    }
+    rows.truncate(top_k);
+    let salience_by_event = real17p18_salience_by_event(cas_path);
+
+    let balance_ok = budget
+        .map(|budget| budget.available_micro >= candidate_amount)
+        .unwrap_or(false);
+    let risk_ok = budget
+        .map(|budget| budget.risk_cap >= candidate_amount)
+        .unwrap_or(false);
+
+    let mut block = String::new();
+    block.push_str("=== REAL-17P16 Cross-Market Opportunity Board ===\n");
+    block.push_str("Bounded QState-derived board of active market prices and depths.\n");
+    block.push_str("Use this board to compare opportunity salience across visible markets before choosing a role-allowed action.\n");
+    block.push_str("Board rows are price/depth signals only; ChainTape/CAS evidence remains the source of truth.\n");
+    block.push_str("Board renders only when at least two active markets are visible.\n");
+    block.push_str("=== REAL-17P18 Hayekian Price-Discovery Boundary ===\n");
+    block.push_str("Prices compress dispersed public evidence into discovery signals; they do not decide truth.\n");
+    block.push_str("Constitutional boundary: ChainTape/CAS/Lean predicates remain authoritative.\n");
+    block.push_str("Use price and salience to decide where to look, not what is true.\n");
+    block.push_str("salience_basis=ChainTape/CAS when public salience evidence is available; salience_unknown means do not fabricate an edge.\n");
+    block.push_str("recommendation_observe_only=true\n");
+    block.push_str(role_hint);
+    block.push('\n');
+    block.push_str("=== REAL-17P19 Row-Level Voluntary Action Affordance ===\n");
+    block.push_str("action_affordance_basis=ChainTape/CAS+QState\n");
+    block.push_str("Do not trade from row salience alone; compute row probability, edge, EV, and constraints first.\n");
+    block.push_str("row_edge_bps=<compute_from_your_probability_band> row_expected_value_micro=<compute_integer_ev> row_action_affordance=voluntary\n");
+    block.push_str("=== REAL-17P20 Integer Router Quote Preview ===\n");
+    block.push_str("router_quote_basis=QState+integer_cpmm_router_quote; quote preview is a signal, not an admission guarantee.\n");
+    block.push_str("=== REAL-17P21 Voluntary MarketOrderTicket ===\n");
+    block.push_str("Each Trader turn must externalize a structured market_order_ticket.\n");
+    block.push_str("amount_micro=0 is a valid voluntary abstain.\n");
+    block.push_str("No minimum non-zero trade exists in the constitutional track.\n");
+    block.push_str("market_order_ticket.choice: buy_yes|buy_no|abstain\n");
+    block.push_str("market_order_ticket.selected_board_row: choose the public board row you used, or same_task_market\n");
+    block.push_str("market_order_ticket.quote_preview: quote_direction, quoted_out_shares_micro, quoted_get_shares_micro, router_liquidity_warning\n");
+    block.push_str("market_order_ticket.blocking_constraints: confidence|risk|balance|liquidity|slippage|model_abstention\n");
+    block.push_str(&format!("cross_market_board_top_k: {top_k}\n"));
+    for (idx, (event_id, yes_num, no_num, den, quote)) in rows.iter().enumerate() {
+        let liquidity_ok = real13_u128_to_i64_saturating(*den) >= candidate_amount;
+        let constraint_summary = if balance_ok && risk_ok && liquidity_ok {
+            "confidence|slippage"
+        } else {
+            "confidence|risk|balance|liquidity|slippage"
+        };
+        let quote_fields = if let Some(quote) = quote {
+            let liquidity_warning = match quote.liquidity_warning {
+                LiquidityWarning::None => "none",
+                LiquidityWarning::LowLiquidity => "low_liquidity",
+                LiquidityWarning::NoOutput => "no_output",
+            };
+            let (effective_num, effective_den) = quote
+                .price_effective
+                .map(|price| (price.numerator.to_string(), price.denominator.to_string()))
+                .unwrap_or_else(|| ("quote_unavailable".to_string(), "quote_unavailable".to_string()));
+            format!(
+                "router_quote_basis=QState+integer_cpmm_router_quote quote_direction={} quoted_out_shares_micro={} quoted_get_shares_micro={} quoted_effective_price_num={} quoted_effective_price_den={} router_liquidity_warning={} slippage_ok=quote_preview_available",
+                quote_direction_label,
+                real13_u128_to_i64_saturating(quote.out_shares.units),
+                real13_u128_to_i64_saturating(quote.get_shares.units),
+                effective_num,
+                effective_den,
+                liquidity_warning
+            )
+        } else {
+            format!(
+                "router_quote_basis=QState+integer_cpmm_router_quote quote_direction={} quoted_out_shares_micro=quote_unavailable quoted_get_shares_micro=quote_unavailable quoted_effective_price_num=quote_unavailable quoted_effective_price_den=quote_unavailable router_liquidity_warning=quote_unavailable slippage_ok=quote_unavailable",
+                quote_direction_label
+            )
+        };
+        let price_fields = format!(
+            "board_row_{}: event_id={} yes_price_num={} no_price_num={} price_den={} liquidity_depth_micro={}",
+            idx + 1,
+            event_id,
+            real13_u128_to_i64_saturating(*yes_num),
+            real13_u128_to_i64_saturating(*no_num),
+            real13_u128_to_i64_saturating(*den),
+            real13_u128_to_i64_saturating(*den)
+        );
+        if let Some(salience) = salience_by_event
+            .get(event_id)
+            .filter(|salience| salience.has_public_salience())
+        {
+            block.push_str(&format!(
+                "{price_fields} recent_positive_ev_ignored_count={} recent_ev_positive_count={} recent_market_action_count={} recent_rejection_count={} recent_partial_progress_count={} recent_verified_success_count={} role_relevant_salience_bps={} provenance_cid_count={} salience_unknown=false recommendation_observe_only=true action_affordance_basis=ChainTape/CAS+QState row_action_affordance=voluntary role_allowed_action={} candidate_amount_micro={} liquidity_ok={} balance_ok={} risk_ok={} {quote_fields} row_edge_bps=<compute_from_your_probability_band> row_expected_value_micro=<compute_integer_ev> prior_positive_ev_ignored_count={} row_blocking_constraints={}\n",
+                salience.recent_positive_ev_ignored_count,
+                salience.recent_ev_positive_count,
+                salience.recent_market_action_count,
+                salience.recent_rejection_count,
+                salience.recent_partial_progress_count,
+                salience.recent_verified_success_count,
+                salience.role_relevant_salience_bps(),
+                salience.provenance_cid_count,
+                role_allowed_action,
+                candidate_amount,
+                liquidity_ok,
+                balance_ok,
+                risk_ok,
+                salience.recent_positive_ev_ignored_count,
+                constraint_summary
+            ));
+        } else {
+            block.push_str(&format!(
+                "{price_fields} recent_positive_ev_ignored_count=salience_unknown recent_ev_positive_count=salience_unknown recent_market_action_count=salience_unknown recent_rejection_count=salience_unknown recent_partial_progress_count=salience_unknown recent_verified_success_count=salience_unknown role_relevant_salience_bps=salience_unknown provenance_cid_count=0 salience_unknown=true recommendation_observe_only=true action_affordance_basis=ChainTape/CAS+QState row_action_affordance=voluntary role_allowed_action={role_allowed_action} candidate_amount_micro={candidate_amount} liquidity_ok={liquidity_ok} balance_ok={balance_ok} risk_ok={risk_ok} {quote_fields} row_edge_bps=<compute_from_your_probability_band> row_expected_value_micro=<compute_integer_ev> prior_positive_ev_ignored_count=salience_unknown row_blocking_constraints={constraint_summary}\n"
+            ));
+        }
+    }
+    block
+}
+
 fn real13_trader_ev_scaffold_block(
     q: Option<&turingosv4::state::q_state::QState>,
     run_id: &str,
     role: turingosv4::runtime::real5_roles::AgentRole,
     budget: Option<&turingosv4::runtime::real6_conviction_budget::ConvictionBudget>,
+    cas_path: Option<&std::path::Path>,
 ) -> String {
     use turingosv4::runtime::real5_roles::AgentRole;
     use turingosv4::state::q_state::{PoolStatus, TaskId};
@@ -591,10 +873,32 @@ fn real13_trader_ev_scaffold_block(
         implied_probability_bps,
         liquidity_depth_micro
     ));
+    block.push_str(&real17p16_cross_market_opportunity_board(
+        q,
+        role,
+        cas_path,
+        candidate_amount,
+        budget,
+    ));
     block.push_str("=== REAL-13 Voluntary Positive EV Action Check ===\n");
     block.push_str("Compute midpoint_bps = (estimated_probability_lower_bps + estimated_probability_upper_bps) / 2 using integer bps.\n");
+    block.push_str("expected_value_sign is the public arithmetic EV sign, not a commitment to trade.\n");
     block.push_str("If midpoint_bps > implied_probability_bps and candidate amount fits balance/risk/liquidity, this is public positive EV; buy remains voluntary.\n");
+    block.push_str("If midpoint_bps > implied_probability_bps, keep expected_value_sign=\"positive\" even when choosing voluntary abstain.\n");
     block.push_str("If you abstain despite public positive EV, start payload with positive_ev_override: and give the public reason.\n");
+    block.push_str("=== REAL-17P13 Prediction-Market Payoff Primer ===\n");
+    block.push_str("Polymarket-style analogy only; TuringOS ChainTape/CAS remains the source of truth.\n");
+    block.push_str("You buy outcome shares below the full settlement value and later profit only if the selected outcome wins.\n");
+    block.push_str("If your side wins, approximate profit_micro = shares_redeemed_micro - amount_spent_micro.\n");
+    block.push_str("If your side loses, the spent amount is at risk.\n");
+    block.push_str("Price is market-implied odds signal, not truth.\n");
+    block.push_str("A clear positive EV may justify a voluntary buy_yes or buy_no, but abstain remains valid.\n");
+    block.push_str("=== REAL-17P14 Two-Stage Voluntary Action Selector ===\n");
+    block.push_str("Stage 1 EVArithmeticReview: first compute public midpoint_bps, edge_bps, expected_value_micro, and risk_ok.\n");
+    block.push_str("Stage 2 VoluntaryMarketActionChoice: then choose buy_yes, buy_no, or abstain according to your role.\n");
+    block.push_str("Do not collapse positive EV into abstain without naming the blocking constraint.\n");
+    block.push_str("If risk_ok=true and expected_value_micro>0, a role-allowed buy is the salient action, but still voluntary.\n");
+    block.push_str("If you abstain when risk_ok=true and expected_value_micro>0, payload must start with positive_ev_override:.\n");
     block.push_str("=== REAL-14G Action Conversion View ===\n");
     block.push_str("You may buy when public positive EV is clear and risk checks pass.\n");
     block.push_str("You may abstain with a public reason; abstain remains valid.\n");
@@ -616,6 +920,11 @@ fn real13_trader_ev_scaffold_block(
             "`abstain` remains valid for weak confidence, liquidity, balance, or risk checks.\n",
         );
         block.push_str("Do not convert a NO-side positive EV edge into a YES-side action.\n");
+        block.push_str("=== REAL-17P9 BearTrader NO Probability Calibration ===\n");
+        block.push_str("Use public progress signals, not theorem falsehood, when estimating NO probability.\n");
+        block.push_str("repeated rejected attempts, no accepted proof, shrinking time budget, or weak solver progress may justify a NO probability band above even.\n");
+        block.push_str("Do not default to 5000 bps when the visible public evidence is asymmetric.\n");
+        block.push_str("`buy_no` remains voluntary; `abstain` remains valid when the edge is weak or risk checks fail.\n");
     }
     match role {
         AgentRole::BullTrader => block.push_str(&format!(
@@ -635,7 +944,7 @@ fn real13_trader_ev_scaffold_block(
         _ => {}
     }
     block.push_str(&format!(
-        "If no edge or confidence is insufficient: <action>{{\"tool\":\"abstain\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<calibrated_lower_bps>,\"estimated_probability_upper_bps\":<calibrated_upper_bps>,\"expected_value_sign\":\"negative|zero|unknown\",\"liquidity_depth_micro\":{},\"payload\":\"<public no-trade reason>\"}}</action>\n",
+        "If no edge, confidence is insufficient, or you voluntarily abstain despite edge: <action>{{\"tool\":\"abstain\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<calibrated_lower_bps>,\"estimated_probability_upper_bps\":<calibrated_upper_bps>,\"expected_value_sign\":\"positive|negative|zero|unknown\",\"liquidity_depth_micro\":{},\"payload\":\"<public no-trade reason>\"}}</action>\n",
         candidate_amount,
         price_num_i64,
         price_den_i64,
@@ -1516,6 +1825,191 @@ fn write_policy_trader_trace_to_cas_or_exit(
         Ok(cid) => cid,
         Err(e) => {
             error!("PolicyTraderTrace CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn real17p21_build_market_order_ticket(
+    ev_decision_trace_cid: turingosv4::bottom_white::cas::schema::Cid,
+    ev_trace: &turingosv4::runtime::ev_decision_trace::EVDecisionTrace,
+    q: &turingosv4::state::q_state::QState,
+) -> Option<turingosv4::runtime::market_order_ticket::MarketOrderTicket> {
+    use turingosv4::economy::money::MicroCoin;
+    use turingosv4::runtime::ev_decision_trace::{EVAction, EVReason};
+    use turingosv4::runtime::market_order_ticket::{MarketOrderTicket, MarketOrderTicketChoice};
+    use turingosv4::runtime::real5_roles::{AgentRole, MarketSide};
+    use turingosv4::state::router_quote::{
+        quote_buy_with_coin_router, LiquidityWarning, QuoteDirection,
+    };
+    use turingosv4::state::q_state::TxId;
+
+    let (role_allowed_action, expected_side, quote_direction, choice_for_buy) = match ev_trace.role
+    {
+        AgentRole::BullTrader => (
+            "buy_yes",
+            MarketSide::Yes,
+            QuoteDirection::BuyYes,
+            MarketOrderTicketChoice::BuyYes,
+        ),
+        AgentRole::BearTrader => (
+            "buy_no",
+            MarketSide::No,
+            QuoteDirection::BuyNo,
+            MarketOrderTicketChoice::BuyNo,
+        ),
+        _ => return None,
+    };
+    if ev_trace.side != expected_side {
+        return None;
+    }
+
+    let candidate_amount_micro = ev_trace
+        .amount
+        .map(|amount| amount.micro_units())
+        .unwrap_or(0)
+        .max(0);
+    let candidate_pay = MicroCoin::from_micro_units(candidate_amount_micro);
+    let quote = q
+        .economic_state_t
+        .cpmm_pools_t
+        .0
+        .get(&ev_trace.event_id)
+        .and_then(|pool| quote_buy_with_coin_router(pool, candidate_pay, quote_direction));
+
+    let choice = match ev_trace.action {
+        EVAction::BuyYes | EVAction::BuyNo => choice_for_buy,
+        EVAction::Abstain => MarketOrderTicketChoice::Abstain,
+    };
+    let final_amount_micro = if choice == MarketOrderTicketChoice::Abstain {
+        0
+    } else {
+        candidate_amount_micro
+    };
+    let liquidity_depth_micro = ev_trace
+        .liquidity_depth
+        .map(|depth| depth.micro_units())
+        .unwrap_or(0);
+    let balance_ok = ev_trace.available_balance.micro_units() >= candidate_amount_micro;
+    let risk_ok =
+        ev_trace.risk_cap.micro_units() >= candidate_amount_micro && !ev_trace.risk_cap_triggered;
+    let liquidity_ok = liquidity_depth_micro >= candidate_amount_micro && candidate_amount_micro > 0;
+    let (quoted_out_shares_micro, quoted_get_shares_micro, quoted_effective_price_num, quoted_effective_price_den, router_liquidity_warning, slippage_ok) =
+        match quote {
+            Some(quote) => {
+                let warning = match quote.liquidity_warning {
+                    LiquidityWarning::None => "none",
+                    LiquidityWarning::LowLiquidity => "low_liquidity",
+                    LiquidityWarning::NoOutput => "no_output",
+                }
+                .to_string();
+                let (price_num, price_den) = quote
+                    .price_effective
+                    .map(|price| {
+                        (
+                            Some(real13_u128_to_i64_saturating(price.numerator)),
+                            Some(real13_u128_to_i64_saturating(price.denominator)),
+                        )
+                    })
+                    .unwrap_or((None, None));
+                (
+                    Some(real13_u128_to_i64_saturating(quote.out_shares.units)),
+                    Some(real13_u128_to_i64_saturating(quote.get_shares.units)),
+                    price_num,
+                    price_den,
+                    warning,
+                    Some(!matches!(quote.liquidity_warning, LiquidityWarning::NoOutput)),
+                )
+            }
+            None => (None, None, None, None, "quote_unavailable".to_string(), None),
+        };
+
+    let mut blocking_constraints = Vec::new();
+    if choice == MarketOrderTicketChoice::Abstain {
+        match ev_trace.reason {
+            EVReason::PositiveEVIgnored => blocking_constraints.push("model_abstention"),
+            EVReason::RiskCapBlocked => blocking_constraints.push("risk"),
+            EVReason::BalanceBlocked => blocking_constraints.push("balance"),
+            EVReason::LiquidityTooLow => blocking_constraints.push("liquidity"),
+            EVReason::SlippageTooHigh => blocking_constraints.push("slippage"),
+            EVReason::InsufficientConfidence
+            | EVReason::ProbabilityUncalibrated
+            | EVReason::NegativeEV
+            | EVReason::EdgeBelowThreshold => blocking_constraints.push("confidence"),
+            _ => blocking_constraints.push("unknown"),
+        }
+    }
+    if !balance_ok {
+        blocking_constraints.push("balance");
+    }
+    if !risk_ok {
+        blocking_constraints.push("risk");
+    }
+    if !liquidity_ok {
+        blocking_constraints.push("liquidity");
+    }
+    blocking_constraints.sort_unstable();
+    blocking_constraints.dedup();
+
+    Some(MarketOrderTicket {
+        schema_version: MarketOrderTicket::SCHEMA_VERSION.to_string(),
+        review_window_id: TxId(ev_trace.review_window_id.clone()),
+        review_response_id: ev_trace.review_response_id.clone(),
+        agent_id: ev_trace.agent_id.clone(),
+        role: ev_trace.role,
+        event_id: ev_trace.event_id.clone(),
+        role_allowed_action: role_allowed_action.to_string(),
+        side: ev_trace.side,
+        candidate_amount_micro,
+        final_amount_micro,
+        choice,
+        quote_direction: role_allowed_action.to_string(),
+        quoted_out_shares_micro,
+        quoted_get_shares_micro,
+        quoted_effective_price_num,
+        quoted_effective_price_den,
+        router_liquidity_warning,
+        balance_ok,
+        risk_ok,
+        liquidity_ok,
+        slippage_ok,
+        edge_bps: ev_trace.edge_bps,
+        expected_value_micro: ev_trace.expected_value_micro,
+        blocking_constraints: blocking_constraints
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        prompt_capsule_cid: ev_trace.prompt_capsule_cid,
+        ev_decision_trace_cid,
+        submitted_router_tx_id: None,
+        forced_nonzero_trade: false,
+        public_summary:
+            "REAL-17P21 structured voluntary market-order ticket from public EV basis".to_string(),
+    })
+}
+
+fn write_market_order_ticket_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    ticket: &turingosv4::runtime::market_order_ticket::MarketOrderTicket,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketOrderTicket CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_order_ticket::write_market_order_ticket_to_cas(
+        &mut cas_store,
+        ticket,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketOrderTicket CAS write FAIL-CLOSED: {e}");
             std::process::exit(3);
         }
     }
@@ -4773,6 +5267,9 @@ async fn run_swarm(
             &run_id,
             real5_prompt_role,
             real6_conviction_budget_for_turn.as_ref(),
+            chaintape_bundle
+                .as_ref()
+                .map(|bundle| bundle.cas_path.as_path()),
         );
         if !real13_trader_ev_scaffold.is_empty() {
             prompt.push('\n');
@@ -7926,6 +8423,23 @@ async fn run_swarm(
                                     *tool_dist
                                         .entry("policy_trader_trace_total".into())
                                         .or_insert(0) += 1;
+                                }
+                                if let Some(q_snapshot) = q_snapshot_for_prompt.as_ref() {
+                                    if let Some(ticket) = real17p21_build_market_order_ticket(
+                                        ev_cid.clone(),
+                                        &ev_trace,
+                                        q_snapshot,
+                                    ) {
+                                        let _ticket_cid = write_market_order_ticket_to_cas_or_exit(
+                                            &bundle.cas_path,
+                                            &ticket,
+                                            &format!("{}-{}", agent_id, tx),
+                                            logical_t,
+                                        );
+                                        *tool_dist
+                                            .entry("market_order_ticket_total".into())
+                                            .or_insert(0) += 1;
+                                    }
                                 }
 
                                 let window_id = TxId(ev_trace.review_window_id.clone());
