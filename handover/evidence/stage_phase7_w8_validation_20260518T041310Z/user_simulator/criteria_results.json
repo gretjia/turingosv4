@@ -1,0 +1,52 @@
+{
+  "stage": "phase7_w8_validation",
+  "session_id": "1779078133_badebd6a",
+  "final_artifact_path": "/Users/zephryj/work/turingosv4/sessions/1779078133_badebd6a/artifacts/index.html",
+  "final_artifact_size_bytes": 11814,
+  "final_artifact_sha256": "a857599bbc9835c85bef454ea3497f230fb97fd807c6a9df5d7a14d1fd46d666",
+  "spec_md_sha256": "b19fe1feb40c713061873edf40a7e6171dc8c6cb3d8396d75ffd706207a53a6f",
+  "spec_capsule_cid_observed_in_ui": "b19fe1fe…07a53a6f",
+  "cas_integrity_sha_matches_cid": true,
+  "tape_layout_note": "Server wrote sessions/<id>/ to cwd /Users/zephryj/work/turingosv4/ NOT tmp/phase7_active/ — workspace override appears inactive on this server PID",
+  "w8_retry_loop": {
+    "fired": true,
+    "total_attempts_observed_via_ws": 3,
+    "ws_envelopes_captured": 7,
+    "post_generate_http_status": 500,
+    "post_generate_kind": "generate_quality_failed",
+    "post_generate_total_attempts_in_body": null,
+    "post_generate_reason": "missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布 | last_artifact=1779078133_badebd6a/artifacts/index.html",
+    "attempt_durations_seconds_approximate": [58, 42, 51]
+  },
+  "heuristic_verifier_judgment": {
+    "outcome": "FALSE_POSITIVE",
+    "all_3_attempts_rejected_for": "missing_canvas (verify.rs Check 2)",
+    "actual_artifact_state": "fully functional DOM-grid Tetris with 200 cells (10x20), document keydown handler, setInterval game loop, TETROMINOES, clearLines, localStorage high-score persistence, game-over state",
+    "why_verifier_misfired": "verify.rs:118 hardcodes `lower.contains(\"<canvas\")` — Qwen rendered via <div id=\"game-board\"> + 200 .cell divs which is an equally valid game rendering technique"
+  },
+  "8_mechanical_tests": {
+    "test_1_http200_body_nonempty": {"result": "PASS", "http_status": 200, "size_bytes": 11814, "note": "served via top-level /api/artifact/... since viewer didn't mount"},
+    "test_2_canvas_10x20": {"result": "FAIL_LITERAL_PASS_FUNCTIONAL", "literal_canvas_element": false, "dom_grid_cells": 200, "rows": 20, "cols": 10, "note": "DOM grid implementation is functionally equivalent"},
+    "test_3_score_visible": {"result": "PASS", "score_text": "分数 0", "high_score_text": "最高分 0"},
+    "test_4_sandbox_allow_scripts_only": {"result": "N/A", "reason": "<tos-artifact-viewer> never mounted (W8 returned 500); user accessed via top-level page navigation, sandbox not applied"},
+    "test_5_keyboard_reactive_arrowdown": {"result": "PASS", "before_state_hash_differs_from_after": true},
+    "test_6_rotation_arrowup": {"result": "PASS", "board_snapshot_changed_after_arrowup": true},
+    "test_7_no_app_origin_console_errors": {"result": "PASS", "errors_observed": 5, "all_classified_as": "Chrome MCP extension async-listener artifact (not app-origin)"},
+    "test_8_30_random_keys_no_crash": {"result": "PASS", "post_playthrough_state": "pieces stacked at bottom, board still rendering, no white-screen, no crash"}
+  },
+  "user_experience_summary": {
+    "single_shot_success": false,
+    "auto_retry_resolution": false,
+    "manual_intervention_required_to_play": true,
+    "manual_intervention_steps": ["user must click '查看最后一次产物 ↗' link to access the (working) artifact"],
+    "retry_button_still_visible": true,
+    "clean_handoff_achieved": false,
+    "artifact_actually_works": true
+  },
+  "architect_pass_criteria_check": {
+    "no_retry_button_click_required": false,
+    "no_debug_required": "partial — verifier failure reason is human-readable Chinese which user can ignore by clicking inspect link",
+    "no_half_finished_handoff": false,
+    "result": "FAIL on stated bar; the W8 retry loop functioned correctly but the verifier itself misjudged the artifact 3x in a row"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "stage": "phase7_w8_validation",
+  "verdict": "CHALLENGE_FIXABLE",
+  "summary": "W8 retry mechanism (server-side retry loop + WS broadcasts + UI progress chip + last_artifact inspect link) all functioned correctly end-to-end. However the heuristic verifier produced a FALSE POSITIVE: it rejected 3 consecutive functionally-complete Tetris artifacts because Qwen3-Coder chose DOM-grid rendering instead of <canvas>. The architect's pass criterion ('NO retry button click, NO debug, NO half-finished hand-off') was NOT met for this run.",
+  "what_worked": [
+    "W8 retry loop fired exactly as designed (3 attempts, with attempt-2 + attempt-3 clearing prior artifacts/)",
+    "WS envelopes broadcast correctly (generate_attempt_started, generate_attempt_failed) and frontend rendered live progress chip 正在生成... (尝试 N/M)",
+    "Failure reasons surfaced in user-readable Chinese (missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布)",
+    "On terminal failure, last_artifact inspect link was synthesized into the failure message and exposed in UI as 查看最后一次产物 ↗",
+    "POST /api/generate response shape on failure matches W8 spec: HTTP 500 + {kind: generate_quality_failed, reason: <joined reasons | last_artifact=path>}",
+    "Tape + CAS integrity holds: spec.md sha256 b19fe1fe… matches the CAS CAPSULE cid b19fe1fe…07a53a6f shown in UI",
+    "EvidenceCapsule schema_id turingos-spec-capsule-v1 persisted in sessions/<id>/cas/.turingos_cas_index.jsonl",
+    "Server did NOT crash, did NOT panic, did NOT leak the API key, did NOT loop infinitely"
+  ],
+  "what_failed": [
+    "Heuristic Check 2 (has_canvas: lower.contains(\"<canvas\")) is too strict — game frameworks routinely render via DOM grids, Three.js, WebGL, SVG, or other non-canvas surfaces",
+    "All 3 Qwen attempts consistently used DOM grid rendering; the verifier rejected all 3 even though each was a fully playable Tetris (200 cells, 7 tetrominoes, keyboard handler, animation loop, localStorage, game-over)",
+    "User-facing outcome: failure UI is shown despite the artifact being functional. User must click 查看最后一次产物 link to discover working game — this is NOT a 'clean delivery'",
+    "Final 500 response body does NOT include total_attempts field (only the success path includes it); frontend recovers attempts from WS log, but the API contract is asymmetric",
+    "Tape layout side-finding: sessions/<id>/ was written to cwd /Users/zephryj/work/turingosv4/ not tmp/phase7_active/ — workspace override appears not effective for this server PID. Suggests environment-variable plumbing for TURINGOS_WEB_WORKSPACE may need verification (out of W8 scope)"
+  ],
+  "comparative_round1_vs_w8": {
+    "round_1": {
+      "qwen_first_attempt": "produced broken Tetris with player.matrix === null inverted nullish guard pattern (top-of-game frozen)",
+      "user_recovery": "user-simulator manually triggered POST /api/generate a second time and got a working Tetris on attempt 2",
+      "total_qwen_calls": 2,
+      "user_experience": "manual retry required"
+    },
+    "w8_round": {
+      "qwen_first_attempt": "DOM-grid Tetris (functionally complete but no <canvas>)",
+      "qwen_second_attempt": "DOM-grid Tetris (same pattern)",
+      "qwen_third_attempt": "DOM-grid Tetris (same pattern)",
+      "w8_outcome": "all 3 rejected by heuristic; 500 returned; user sees failure UI + inspect link",
+      "total_qwen_calls": 3,
+      "user_experience": "no manual retry needed to SEE the artifact (inspect link works), but the user is shown a failure UI for a working artifact — confusing"
+    },
+    "qualitative_assessment": "W8 substrate is sound but the heuristic verifier needs Check 2 relaxed. Round 1 ended with a working Tetris (after manual retry). W8 ended with a working Tetris (accessible via inspect link) AND a misleading failure UI. Net UX: arguably WORSE for non-developer end users because the failure message would lead them to either click 重试生成代码 (burning more SiliconFlow ¥) or abandon the task."
+  },
+  "false_positive_evidence": {
+    "rejected_artifact": "/Users/zephryj/work/turingosv4/sessions/1779078133_badebd6a/artifacts/index.html",
+    "rejected_artifact_sha256": "a857599bbc9835c85bef454ea3497f230fb97fd807c6a9df5d7a14d1fd46d666",
+    "rejected_artifact_size_bytes": 11814,
+    "functional_attributes_present": ["TETROMINOES (7 pieces)", "document.addEventListener('keydown')", "setInterval game loop", "localStorage high-score", "clearLines() function", "game-over UI", "10x20 grid via DOM"],
+    "missing_attribute_per_verifier": "<canvas element"
+  },
+  "recommendation_to_architect": "Do not ship W8 in current form. Specific follow-ups: (1) relax verify.rs Check 2 to accept either <canvas OR a DOM grid with sufficient cells (e.g., a div with >= 100 .cell descendants), OR a <svg> root, OR a WebGL context. (2) ensure final POST /api/generate failure response includes total_attempts field for symmetry. (3) when terminal failure occurs but last_artifact exists, consider passing the artifact through the iframe sandbox viewer with a warning chip instead of dumping user to a top-level page (W6 sandbox invariant). (4) separate concern: investigate why TURINGOS_WEB_WORKSPACE was not honored — sessions/ went to cwd."
+}

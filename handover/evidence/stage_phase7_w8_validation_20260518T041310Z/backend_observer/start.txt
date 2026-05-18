@@ -1,0 +1,6 @@
+=== W8 backend observer start: 2026-05-18T04:14:04Z ===
+Server PID 89066 expected
+  PID ELAPSED COMMAND
+89066   02:24 target/debug/turingos_web
+Binary mtime:
+-rwxr-xr-x@ 1 zephryj  staff  9401808 May 18 12:07 /Users/zephryj/work/turingosv4/target/debug/turingos_web

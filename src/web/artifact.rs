@@ -217,7 +217,11 @@ fn mime_by_extension(path: &std::path::Path) -> &'static str {
 // ---------------------------------------------------------------------------
 
 /// Resolve the TuringOS workspace directory.
-/// Resolution order: TURINGOS_WEB_WORKSPACE → current_dir.
+/// Resolution order:
+///   1. `TURINGOS_WEB_WORKSPACE` env var (explicit operator config)
+///   2. `tmp/phase7_active` (W8.1: harmonized with welcome.rs default;
+///      previously fell back to `current_dir()` which caused artifact
+///      serves to miss session dirs created by spec/generate.)
 #[cfg(feature = "web")]
 fn resolve_workspace() -> String {
     if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
@@ -225,9 +229,7 @@ fn resolve_workspace() -> String {
             return v;
         }
     }
-    std::env::current_dir()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| ".".to_string())
+    "tmp/phase7_active".to_string()
 }
 
 // ---------------------------------------------------------------------------

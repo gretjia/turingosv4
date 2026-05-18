@@ -85,6 +85,52 @@ pub(crate) fn verify_artifact_html(path: &Path) -> std::io::Result<VerifyOutcome
     Ok(verify_html_contents(&html, size_bytes))
 }
 
+/// TRACE_MATRIX FC1-N5: detect a visible game-surface rendering technology.
+///
+/// Accepts ANY of:
+/// 1. `<canvas` — classic 2D/3D canvas games (Tetris, Breakout, etc.)
+/// 2. CSS Grid playfield — `display: grid` + `grid-template-*` + `repeat()`
+/// 3. `<svg` — vector graphics games
+/// 4. `<table>` with `<tr>` — old-school table-based grid
+/// 5. cell-class pattern — `class="cell"` literally OR `classList.add('cell')`
+///    in JS (dynamically created cell divs, common Tetris idiom)
+///
+/// Input is lowercased HTML (caller passes `&lower`).
+#[cfg(feature = "web")]
+fn has_playfield(lower: &str) -> bool {
+    // 1. Canvas (classic)
+    if lower.contains("<canvas") {
+        return true;
+    }
+    // 2. CSS Grid playfield (modern; what tripped W8 v1)
+    let has_grid_display = lower.contains("display: grid") || lower.contains("display:grid");
+    let has_grid_template =
+        lower.contains("grid-template-columns") || lower.contains("grid-template-rows");
+    let has_repeat = lower.contains("repeat(");
+    if has_grid_display && has_grid_template && has_repeat {
+        return true;
+    }
+    // 3. SVG
+    if lower.contains("<svg") {
+        return true;
+    }
+    // 4. HTML table (old-school)
+    if lower.contains("<table") && lower.contains("<tr") {
+        return true;
+    }
+    // 5. Cell-class pattern (dynamically created divs)
+    if lower.contains("class=\"cell\"")
+        || lower.contains("class='cell'")
+        || lower.contains("classlist.add('cell')")
+        || lower.contains("classlist.add(\"cell\")")
+        || lower.contains(".classname = 'cell'")
+        || lower.contains(".classname = \"cell\"")
+    {
+        return true;
+    }
+    false
+}
+
 // ---------------------------------------------------------------------------
 // Pure logic (separated for unit testability)
 // ---------------------------------------------------------------------------
@@ -113,10 +159,18 @@ pub(crate) fn verify_html_contents(html: &str, size_bytes: u64) -> VerifyOutcome
 
     let lower = html.to_ascii_lowercase();
 
-    // Check 2: has_canvas — substring match on `<canvas`.
-    if !lower.contains("<canvas") {
-        failure_reasons
-            .push("missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布".to_string());
+    // Check 2: has_playfield — any visible game-surface technology.
+    //
+    // W8 v1 originally hardcoded `<canvas`, which the W8 Validation Round 1
+    // (handover/evidence/stage_phase7_w8_validation_20260518T041310Z) revealed
+    // as overfit: Qwen3-Coder produced 3 consecutive functional Tetris
+    // implementations using `display: grid` + dynamically-created `.cell`
+    // divs — all 3 were false-positive-rejected. W8.1 relaxes the check to
+    // accept any of the common playfield rendering technologies.
+    if !has_playfield(&lower) {
+        failure_reasons.push(
+            "missing_playfield: 找不到游戏面板 — 期望 <canvas>、CSS grid (display: grid + grid-template-* + repeat())、<svg>、<table>、或 cell-class 网格之一".to_string()
+        );
     }
 
     // Check 3: has_keyboard_handler — addEventListener + key event.

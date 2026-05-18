@@ -1,0 +1,8 @@
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json

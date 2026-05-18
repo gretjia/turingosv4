@@ -131,26 +131,33 @@ fn verify_rejects_oversized_artifact() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 3: verify_rejects_missing_canvas
+// Test 3: verify_rejects_missing_playfield (W8.1: renamed from missing_canvas)
+//
+// W8 v1 hardcoded `<canvas` substring; W8 Validation Round 1 caught 3 false
+// positives where Qwen produced functional Tetris with `display: grid` +
+// `.cell` divs. W8.1 broadens to has_playfield(canvas|grid|svg|table|cell).
+// This test now strips ALL playfield indicators to confirm rejection.
 // ---------------------------------------------------------------------------
 
 #[test]
-fn verify_rejects_missing_canvas() {
+fn verify_rejects_missing_playfield() {
     let mut html = baseline_good_html();
-    // Strip the canvas tag.
+    // Strip the canvas tag. (baseline_good_html() uses <canvas> exclusively;
+    // no CSS-grid/SVG/table/cell-class is present, so removing canvas is
+    // sufficient to remove ALL playfield indicators.)
     html = html.replace(
         "<canvas id=\"c\" width=\"200\" height=\"400\"></canvas>",
         "",
     );
-    let (dir, path) = write_temp_html("nocanvas.html", &html);
+    let (dir, path) = write_temp_html("noplayfield.html", &html);
     let outcome = web::verify::verify_artifact_html(&path).expect("verify ok");
-    assert!(!outcome.passed, "no-canvas artifact must fail");
+    assert!(!outcome.passed, "no-playfield artifact must fail");
     assert!(
         outcome
             .failure_reasons
             .iter()
-            .any(|r| r.contains("missing_canvas")),
-        "must flag missing_canvas; reasons={:?}",
+            .any(|r| r.contains("missing_playfield")),
+        "must flag missing_playfield; reasons={:?}",
         outcome.failure_reasons
     );
     drop(dir);
@@ -329,6 +336,43 @@ fn verify_accepts_good_artifact() {
     assert!(
         outcome.failure_reasons.is_empty(),
         "no failure reasons expected for the good artifact; got {:?}",
+        outcome.failure_reasons
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 10 — LOAD-BEARING: W8.1 regression — DOM-grid Tetris accepted
+//
+// W8 v1 hardcoded `<canvas` substring; W8 Validation Round 1 caught Qwen
+// producing functional Tetris using `display: grid` + dynamically-created
+// `.cell` divs (3 consecutive false positives, all rejected). W8.1 broadens
+// `has_playfield()` to accept CSS-grid signature. This test uses the EXACT
+// 11814-byte W8-validation artifact (sha256 a857599b…d666) as a fixture and
+// asserts it now PASSES.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn verify_accepts_dom_grid_tetris_w8_1_regression() {
+    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    p.push("handover");
+    p.push("evidence");
+    p.push("stage_phase7_w8_validation_20260518T041310Z");
+    p.push("dom_grid_tetris_fixture.html");
+    assert!(
+        p.exists(),
+        "W8 validation DOM-grid Tetris fixture must exist at {:?}",
+        p
+    );
+
+    let outcome = web::verify::verify_artifact_html(&p).expect("verify ok");
+    assert!(
+        outcome.passed,
+        "the REAL DOM-grid Tetris from W8 Validation Round 1 MUST pass after W8.1; reasons={:?}",
+        outcome.failure_reasons
+    );
+    assert!(
+        outcome.failure_reasons.is_empty(),
+        "no failure reasons expected for the DOM-grid Tetris; got {:?}",
         outcome.failure_reasons
     );
 }
