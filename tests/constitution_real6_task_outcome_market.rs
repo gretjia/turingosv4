@@ -726,7 +726,9 @@ fn sg_6a_success_worktx_accept_uses_configured_poll_budget() {
         .expect("read evaluator");
 
     let full_path = evaluator_src
-        .split("[chaintape/real6a] WorkTx accept poll expired after task outcome was already resolved")
+        .split(
+            "[chaintape/real6a] WorkTx accept poll expired after task outcome was already resolved",
+        )
         .next()
         .expect("full WorkTx accept path prefix exists");
     let full_path = full_path
@@ -924,6 +926,41 @@ fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
             && build_block.contains("exit 6")
             && build_block.contains("release binary build failed"),
         "REAL-6A smoke evidence must fail closed on cargo build failure, not continue with stale release binaries"
+    );
+}
+
+#[test]
+fn sg_6a_task_outcome_seed_uses_configured_poll_budget() {
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("read evaluator");
+    let seed_path = evaluator_src
+        .split("TaskOutcomeMarket seed FAIL-CLOSED: await for EscrowLock commit failed before seed")
+        .next()
+        .expect("TaskOutcomeMarket seed pre-escrow await path exists");
+    let seed_path = seed_path
+        .rsplit("tb_real6a_seed_task_outcome_market_after_escrow(")
+        .next()
+        .expect("TaskOutcomeMarket seed helper call exists");
+    assert!(
+        seed_path.contains("real6a_poll_budget_ms()"),
+        "TaskOutcomeMarket pre-seed EscrowLock await must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+
+    let helper_call = evaluator_src
+        .split("tb_real6a_seed_task_outcome_market_after_escrow(")
+        .nth(1)
+        .expect("TaskOutcomeMarket seed helper call exists");
+    let helper_call = helper_call
+        .split("TaskOutcomeMarket seeded event=")
+        .next()
+        .expect("TaskOutcomeMarket seed helper call has success marker");
+    assert!(
+        helper_call.contains("real6a_poll_budget_ms()"),
+        "TaskOutcomeMarket MarketSeed/CpmmPool helper must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+    assert!(
+        !helper_call.contains("\"evaluator-pre-work\",\n                        5000"),
+        "TaskOutcomeMarket seed helper must not hard-code a 5000ms MarketSeed/CpmmPool await budget"
     );
 }
 

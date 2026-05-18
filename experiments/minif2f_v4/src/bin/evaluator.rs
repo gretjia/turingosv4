@@ -2885,7 +2885,7 @@ async fn run_swarm(
                     if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
                         &bundle.sequencer,
                         parent_for_escrow,
-                        5000,
+                        real6a_poll_budget_ms(),
                     )
                     .await
                     {
@@ -2906,7 +2906,7 @@ async fn run_swarm(
                         &provider,
                         seed_micro,
                         "evaluator-pre-work",
-                        5000,
+                        real6a_poll_budget_ms(),
                     )
                     .await
                     {
