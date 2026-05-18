@@ -1,0 +1,21 @@
+turingos welcome — Onboarding status + next-step guide
+
+USAGE:
+    turingos welcome [--workspace <PATH>]
+
+DESCRIPTION:
+    Read-only filesystem inspection of an existing TuringOS workspace (or
+    the current directory if --workspace is omitted). Reports which
+    onboarding steps are complete and prints the next-step command.
+
+    The 5-step onboarding flow:
+      1. `turingos init`             — scaffold a workspace
+      2. `turingos llm config`       — set LLM API credentials (Meta + Blackbox)
+      3. `turingos agent deploy`     — register at least one agent
+      4. `turingos spec`             — interactively decompose your task
+      5. `turingos generate`         — generate + deliver
+
+OPTIONS:
+    --workspace <PATH>   Workspace directory (default: current directory).
+    -h, --help           Print this help.
+

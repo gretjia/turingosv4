@@ -1,0 +1,13 @@
+turingos — TuringOS user CLI (Phase 6.3 demo)
+
+Workspace: .
+
+Onboarding status:
+  [ ] 1. turingos init
+  [ ] 2. turingos llm config
+  [ ] 3. turingos agent deploy (0 registered)
+  [ ] 4. turingos spec (task decomposition)
+  [ ] 5. turingos generate (deliverable)
+
+Next step:
+  turingos init --project . --template proof

@@ -1,0 +1,17 @@
+=== Step 1: POST /api/welcome/init ===
+HTTP=200 t=0.013798s
+=== Step 2: POST /api/welcome/llm-config ===
+HTTP=200 t=0.006767s
+=== Step 3: POST /api/welcome/api-key (key=sk-bokl...dxnck) ===
+HTTP=200 t=0.000849s
+=== Step 4: POST /api/welcome/agent-deploy ===
+HTTP=200 t=0.008129s
+=== Step 5a: GET /api/spec/questions ===
+HTTP=200 t=0.001064s
+=== Step 5b: POST /api/spec/submit ===
+HTTP=200 t=31.822363s
+spec submit elapsed=31s
+=== Step 6: POST /api/generate ===
+2026-05-18T05:18:45Z
+HTTP=200 t=69.236198s
+generate elapsed=70s
