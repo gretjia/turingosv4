@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>俄罗斯方块</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        #game-container {
+            display: flex;
+            gap: 20px;
+        }
+        #game-board {
+            border: 2px solid white;
+            background-color: #111;
+        }
+        #info-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #score, #high-score {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        #instructions {
+            margin-top: 20px;
+            font-size: 16px;
+            text-align: center;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-board" width="200" height="400"></canvas>
+        <div id="info-panel">
+            <div id="score">分数: 0</div>
+            <div id="high-score">最高分: 0</div>
+        </div>
+    </div>
+    <div id="instructions">按空格开始</div>
+    <div id="game-over">游戏结束<br>按空格再来一次</div>
+
+    <script>
+        // 游戏常量
+        const COLS = 10;
+        const ROWS = 20;
+        const BLOCK_SIZE = 20;
+        const COLORS = [
+            null,
+            '#FF0D72', // I
+            '#0DC2FF', // J
+            '#0DFF72', // L
+            '#F538FF', // O
+            '#FF8E0D', // S
+            '#FFE138', // T
+            '#3877FF'  // Z
+        ];
+
+        // 七种方块形状
+        const SHAPES = [
+            null,
+            [[0,0,0,0], [1,1,1,1], [0,0,0,0], [0,0,0,0]], // I
+            [[2,0,0], [2,2,2], [0,0,0]],                   // J
+            [[0,0,3], [3,3,3], [0,0,0]],                   // L
+            [[4,4], [4,4]],                                // O
+            [[0,5,5], [5,5,0], [0,0,0]],                   // S
+            [[0,6,0], [6,6,6], [0,0,0]],                   // T
+            [[7,7,0], [0,7,7], [0,0,0]]                    // Z
+        ];
+
+        // 游戏变量
+        let canvas = document.getElementById('game-board');
+        let ctx = canvas.getContext('2d');
+        let scoreElement = document.getElementById('score');
+        let highScoreElement = document.getElementById('high-score');
+        let instructions = document.getElementById('instructions');
+        let gameOverScreen = document.getElementById('game-over');
+        let board = createBoard();
+        let score = 0;
+        let highScore = localStorage.getItem('tetrisHighScore') || 0;
+        let gameOver = false;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let player = {
+            pos: {x: 0, y: 0},
+            matrix: null,
+            score: 0
+        };
+
+        // 初始化游戏
+        function init() {
+            highScore = localStorage.getItem('tetrisHighScore') || 0;
+            highScoreElement.textContent = `最高分: ${highScore}`;
+            resetGame();
+        }
+
+        // 创建游戏板
+        function createBoard() {
+            return Array.from(Array(ROWS), () => Array(COLS).fill(0));
+        }
+
+        // 重置游戏
+        function resetGame() {
+            board = createBoard();
+            score = 0;
+            scoreElement.textContent = `分数: ${score}`;
+            gameOver = false;
+            gameOverScreen.style.display = 'none';
+            instructions.style.display = 'block';
+            player.pos.y = 0;
+            player.pos.x = Math.floor(COLS / 2) - 1;
+            player.matrix = createPiece();
+            dropInterval = 1000;
+        }
+
+        // 创建随机方块
+        function createPiece() {
+            const rand = Math.floor(Math.random() * 7) + 1;
+            return SHAPES[rand];
+        }
+
+        // 绘制方块
+        function draw() {
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawMatrix(board, {x: 0, y: 0});
+            drawMatrix(player.matrix, player.pos);
+        }
+
+        // 绘制矩阵
+        function drawMatrix(matrix, offset) {
+            matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        ctx.fillStyle = COLORS[value];
+                        ctx.fillRect(
+                            (x + offset.x) * BLOCK_SIZE,
+                            (y + offset.y) * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                    }
+                });
+            });
+        }
+
+        // 检查碰撞
+        function collide(board, player) {
+            const [m, o] = [player.matrix, player.pos];
+            for (let y = 0; y < m.length; y++) {
+                for (let x = 0; x < m[y].length; x++) {
+                    if (m[y][x] !== 0 &&
+                        (board[y + o.y] &&
+                        board[y + o.y][x + o.x]) !== 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 合并方块到游戏板
+        function merge(board, player) {
+            player.matrix.forEach((row, y) => {
+                row.forEach((value, x) => {
+                    if (value !== 0) {
+                        board[y + player.pos.y][x + player.pos.x] = value;
+                    }
+                });
+            });
+        }
+
+        // 旋转方块
+        function rotate(matrix, dir) {
+            for (let y = 0; y < matrix.length; y++) {
+                for (let x = 0; x < y; x++) {
+                    [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+                }
+            }
+            
+            if (dir > 0) {
+                matrix.forEach(row => row.reverse());
+            } else {
+                matrix.reverse();
+            }
+        }
+
+        // 清除完整行
+        function clearLines() {
+            let linesCleared = 0;
+            outer: for (let y = board.length - 1; y >= 0; y--) {
+                for (let x = 0; x < board[y].length; x++) {
+                    if (board[y][x] === 0) {
+                        continue outer;
+                    }
+                }
+                
+                const row = board.splice(y, 1)[0].fill(0);
+                board.unshift(row);
+                linesCleared++;
+                y++;
+            }
+            
+            if (linesCleared > 0) {
+                // 计分规则：1行100分，2行300分，3行500分，4行800分
+                const points = [0, 100, 300, 500, 800];
+                score += points[linesCleared];
+                scoreElement.textContent = `分数: ${score}`;
+                
+                // 每消除10行提升速度
+                dropInterval = Math.max(100, 1000 - Math.floor(score / 1000) * 100);
+            }
+        }
+
+        // 更新游戏状态
+        function update(time = 0) {
+            if (gameOver) return;
+            
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            
+            dropCounter += deltaTime;
+            if (dropCounter > dropInterval) {
+                player.pos.y++;
+                if (collide(board, player)) {
+                    player.pos.y--;
+                    merge(board, player);
+                    clearLines();
+                    resetPlayer();
+                    if (collide(board, player)) {
+                        gameOver = true;
+                        if (score > highScore) {
+                            highScore = score;
+                            localStorage.setItem('tetrisHighScore', highScore);
+                            highScoreElement.textContent = `最高分: ${highScore}`;
+                        }
+                        gameOverScreen.style.display = 'block';
+                        instructions.style.display = 'none';
+                    }
+                }
+                dropCounter = 0;
+            }
+            
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // 重置玩家位置
+        function resetPlayer() {
+            player.pos.y = 0;
+            player.pos.x = Math.floor(COLS / 2) - 1;
+            player.matrix = createPiece();
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', event => {
+            if (gameOver) {
+                if (event.code === 'Space') {
+                    resetGame();
+                    instructions.style.display = 'none';
+                    update();
+                }
+                return;
+            }
+            
+            if (event.code === 'Space') {
+                if (player.matrix === null) {
+                    player.matrix = createPiece();
+                    player.pos.y = 0;
+                    player.pos.x = Math.floor(COLS / 2) - 1;
+                    instructions.style.display = 'none';
+                    update();
+                }
+                return;
+            }
+            
+            if (player.matrix === null) return;
+            
+            switch (event.code) {
+                case 'ArrowLeft':
+                    player.pos.x--;
+                    if (collide(board, player)) {
+                        player.pos.x++;
+                    }
+                    break;
+                case 'ArrowRight':
+                    player.pos.x++;
+                    if (collide(board, player)) {
+                        player.pos.x--;
+                    }
+                    break;
+                case 'ArrowDown':
+                    player.pos.y++;
+                    if (collide(board, player)) {
+                        player.pos.y--;
+                        merge(board, player);
+                        clearLines();
+                        resetPlayer();
+                        if (collide(board, player)) {
+                            gameOver = true;
+                            if (score > highScore) {
+                                highScore = score;
+                                localStorage.setItem('tetrisHighScore', highScore);
+                                highScoreElement.textContent = `最高分: ${highScore}`;
+                            }
+                            gameOverScreen.style.display = 'block';
+                            instructions.style.display = 'none';
+                        }
+                    }
+                    break;
+                case 'ArrowUp':
+                    rotate(player.matrix, 1);
+                    if (collide(board, player)) {
+                        rotate(player.matrix, -1);
+                    }
+                    break;
+            }
+        });
+
+        // 初始化游戏
+        init();
+    </script>
+</body>
+</html>

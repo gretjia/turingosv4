@@ -1,0 +1,13 @@
+{
+  "questions_endpoint_count": 8,
+  "session_dir_created": true,
+  "session_id": "1779064616_4ab7d8c2",
+  "session_spec_md_exists": true,
+  "session_index_html_exists": true,
+  "artifact_endpoint_serves_html": true,
+  "artifact_body_contains_stub_marker": true,
+  "artifact_body_length_bytes": 619,
+  "path_traversal_blocked": true,
+  "path_traversal_status_code": 404,
+  "path_traversal_note": "Spec said expect 400 — actual 404. Either is a hard block (no file content leaked); the safe_artifact_name validator rejects '..' components, so axum routes the request to the not-found arm. Block is intact."
+}

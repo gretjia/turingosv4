@@ -1,0 +1,288 @@
+=== poll 1 @ 2026-05-18T03:18:48Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 2 @ 2026-05-18T03:19:03Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 3 @ 2026-05-18T03:19:18Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 4 @ 2026-05-18T03:19:33Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 5 @ 2026-05-18T03:19:48Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 6 @ 2026-05-18T03:20:03Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 7 @ 2026-05-18T03:20:18Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 8 @ 2026-05-18T03:20:33Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 9 @ 2026-05-18T03:20:48Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 10 @ 2026-05-18T03:21:03Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 11 @ 2026-05-18T03:21:18Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 12 @ 2026-05-18T03:21:34Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 13 @ 2026-05-18T03:21:49Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 14 @ 2026-05-18T03:22:04Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 15 @ 2026-05-18T03:22:19Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 16 @ 2026-05-18T03:22:34Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 17 @ 2026-05-18T03:22:49Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 18 @ 2026-05-18T03:23:04Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 19 @ 2026-05-18T03:23:19Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 20 @ 2026-05-18T03:23:34Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 21 @ 2026-05-18T03:23:49Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 22 @ 2026-05-18T03:24:04Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 23 @ 2026-05-18T03:24:19Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 24 @ 2026-05-18T03:24:34Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 25 @ 2026-05-18T03:24:49Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 26 @ 2026-05-18T03:25:05Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 27 @ 2026-05-18T03:25:20Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 28 @ 2026-05-18T03:25:35Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 29 @ 2026-05-18T03:25:50Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 30 @ 2026-05-18T03:26:05Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 31 @ 2026-05-18T03:26:20Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 32 @ 2026-05-18T03:26:35Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 33 @ 2026-05-18T03:26:50Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 34 @ 2026-05-18T03:27:05Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 35 @ 2026-05-18T03:27:20Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 36 @ 2026-05-18T03:27:35Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 37 @ 2026-05-18T03:27:50Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 38 @ 2026-05-18T03:28:05Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 39 @ 2026-05-18T03:28:21Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 40 @ 2026-05-18T03:28:36Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 41 @ 2026-05-18T03:28:51Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 42 @ 2026-05-18T03:29:06Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 43 @ 2026-05-18T03:29:21Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 44 @ 2026-05-18T03:29:36Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 45 @ 2026-05-18T03:29:51Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 46 @ 2026-05-18T03:30:06Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 47 @ 2026-05-18T03:30:21Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 48 @ 2026-05-18T03:30:36Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 49 @ 2026-05-18T03:30:51Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 50 @ 2026-05-18T03:31:06Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 51 @ 2026-05-18T03:31:21Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 52 @ 2026-05-18T03:31:37Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 53 @ 2026-05-18T03:31:52Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 54 @ 2026-05-18T03:32:07Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 55 @ 2026-05-18T03:32:22Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 56 @ 2026-05-18T03:32:37Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 57 @ 2026-05-18T03:32:52Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 58 @ 2026-05-18T03:33:07Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 59 @ 2026-05-18T03:33:22Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 60 @ 2026-05-18T03:33:37Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 61 @ 2026-05-18T03:33:52Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 62 @ 2026-05-18T03:34:07Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 63 @ 2026-05-18T03:34:22Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 64 @ 2026-05-18T03:34:37Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 65 @ 2026-05-18T03:34:53Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 66 @ 2026-05-18T03:35:08Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 67 @ 2026-05-18T03:35:23Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 68 @ 2026-05-18T03:35:38Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 69 @ 2026-05-18T03:35:53Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 70 @ 2026-05-18T03:36:08Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 71 @ 2026-05-18T03:36:23Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+=== poll 72 @ 2026-05-18T03:36:38Z ===
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/phase7_active
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080

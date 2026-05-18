@@ -1,0 +1,68 @@
+[setup] workspace target: /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+[setup] turingos CLI up to date: /Users/zephryj/work/turingosv4/target/debug/turingos
+[setup] turingos_web up to date: /Users/zephryj/work/turingosv4/target/debug/turingos_web
+[setup] building lean_market (experiments/minif2f_v4)...
+error: package ID specification `minif2f_v4` did not match any packages
+[setup] workspace target: /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+[setup] turingos CLI up to date: /Users/zephryj/work/turingosv4/target/debug/turingos
+[setup] turingos_web up to date: /Users/zephryj/work/turingosv4/target/debug/turingos_web
+[setup] building lean_market (experiments/minif2f_v4)...
+error: package ID specification `minif2f_v4` did not match any packages
+[setup] workspace target: /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+[setup] turingos CLI up to date: /Users/zephryj/work/turingosv4/target/debug/turingos
+[setup] turingos_web up to date: /Users/zephryj/work/turingosv4/target/debug/turingos_web
+[setup] lean_market up to date: /Users/zephryj/work/turingosv4/target/debug/lean_market
+[setup] frontend up to date: /Users/zephryj/work/turingosv4/frontend/dist/main.js
+[setup] creating workspace dir: /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+[setup] running: turingos init --project /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2 --template multi-agent
+Initialized TuringOS workspace at /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2 (template: multi-agent)
+
+Scaffold files created:
+  /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2/runtime_repo
+  /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2/cas
+  /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2/genesis_payload.toml
+  /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2/agent_pubkeys.json  (map agent_id -> ed25519 pubkey; Phase 6.1+ schema)
+
+Next steps:
+  cd /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+
+Phase 6.3 — build something from a spec (no developer required):
+  turingos llm config --workspace /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2     # 1. set up the two LLMs (uses SiliconFlow + DeepSeek + Qwen3-Coder defaults)
+  export SILICONFLOW_API_KEY=sk-...               # 2. provide your API key
+  turingos spec --workspace /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2           # 3. 8-question grill -> spec.md (CAS-anchored)
+  turingos generate --workspace /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2       # 4. emit working code into artifacts/
+  turingos welcome --workspace /Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2        # check progress anytime
+
+Or, for the established multi-agent benchmark path (Phase 6.1):
+  turingos --help                         # full subcommand list
+  turingos agent deploy --id <ID> ...     # register an agent's pubkey + role
+  turingos config set <key> <value>       # workspace-local config
+  turingos task open --problem <ID> ...   # open a task on a fresh ChainTape
+  turingos task view --task-id <ID>       # replay task status
+  turingos report wallet                  # replay agent wallet balances
+  turingos audit dashboard                # regenerate audit views
+  turingos export evidence --source ...   # bundle an evidence directory
+
+Task-type backends (Phase 6.1 ships the proof/Lean backend; more in Phase 7+):
+  # From the turingosv4 project root (NOT this scaffold):
+  cargo build --release --workspace --bins
+  See: handover/research/interaction_substrate/50_deliverables/00_UNIFIED_CLI_SPEC.md
+[setup] workspace initialized
+[setup] deploying agent: --id agent_001 --role Solver
+deployed agent_001 (Solver)
+[setup] agent deployed
+
+[setup] === ENVIRONMENT VARS FOR VERIFIER ===
+TURINGOS_WEB_WORKSPACE=/Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+TURINGOS_WEB_BIN=/Users/zephryj/work/turingosv4/target/debug/turingos_web
+[setup] === WORKSPACE CONTENTS ===
+total 16
+drwxr-xr-x@ 6 zephryj  staff   192 May 18 08:30 .
+drwxr-xr-x@ 5 zephryj  staff   160 May 18 08:30 ..
+-rw-r--r--@ 1 zephryj  staff   128 May 18 08:30 agent_pubkeys.json
+drwxr-xr-x@ 2 zephryj  staff    64 May 18 08:30 cas
+-rw-r--r--@ 1 zephryj  staff  1162 May 18 08:30 genesis_payload.toml
+drwxr-xr-x@ 2 zephryj  staff    64 May 18 08:30 runtime_repo
+
+[setup] DONE. Start the web server with:
+  TURINGOS_WEB_WORKSPACE=/Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2 /Users/zephryj/work/turingosv4/target/debug/turingos_web

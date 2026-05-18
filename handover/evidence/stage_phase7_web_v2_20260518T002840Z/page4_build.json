@@ -1,0 +1,72 @@
+{
+  "page": "build",
+  "url": "http://127.0.0.1:8080/build",
+  "steps": {
+    "4a_page_load": {
+      "spec_grill_exists": true,
+      "spec_grill_data_block_type": "spec_grill",
+      "spec_grill_initial_state": "idle",
+      "turingos_root_in_main": true,
+      "network_get_build_200": true,
+      "network_get_static_main_js_200": true,
+      "console_errors_initial": 0
+    },
+    "4b_questions_fetched": {
+      "trigger": "click 开始访谈 button",
+      "network_get_api_spec_questions_200": true,
+      "questions_count": 8,
+      "first_question_rendered": true,
+      "state_after_click": "interviewing"
+    },
+    "4c_fill_8_answers": {
+      "method": "DOM textarea value + input event + click 下一题/完成访谈",
+      "all_8_answered": true,
+      "final_button_text": "完成访谈 →",
+      "advance_observed": ["Q1->Q2", "Q2->Q3", "Q3->Q4", "Q4->Q5", "Q5->Q6", "Q6->Q7", "Q7->Q8"]
+    },
+    "4d_spec_submission": {
+      "network_post_api_spec_submit_200": true,
+      "stub_invoked_with_correct_args": true,
+      "stub_argv_recorded": "spec --workspace .../sessions/1779064616_4ab7d8c2 --answers-file .../answers.json --lang zh",
+      "session_id_assigned": "1779064616_4ab7d8c2",
+      "session_dir_created": true,
+      "spec_md_written_by_stub": true,
+      "state_after_submit": "spec_ready",
+      "spec_result_mounted": true,
+      "spec_result_data_block_type": "spec_result",
+      "spec_md_rendered_in_dom": true
+    },
+    "4e_generate_code": {
+      "cta_button_text": "生成代码 →",
+      "frontend_post_payload": "{ session_id }",
+      "backend_required_payload": "{ session_id, from_capsule: bool }",
+      "frontend_post_result_via_ui": "HTTP 422 — missing field `from_capsule`",
+      "contract_mismatch_detected": true,
+      "verifier_workaround": "POSTed corrected payload via fetch() in dev console; backend returned 200 + artifacts: [{path:'index.html', size_bytes:620, content_type:'text/html'}]",
+      "stub_invoked_for_generate_via_workaround": true,
+      "artifact_viewer_mounted_after_workaround": true,
+      "artifact_viewer_data_block_type": "artifact_viewer",
+      "iframe_renders_stub_html_with_dynamic_timestamp": true
+    },
+    "4f_iframe_sandbox_verification": {
+      "iframe_exists": true,
+      "sandbox_value": "allow-scripts",
+      "has_allow_scripts": true,
+      "has_allow_same_origin": false,
+      "is_xss_safe": true,
+      "iframe_src": "/api/artifact/1779064616_4ab7d8c2/index.html",
+      "iframe_srcdoc_present": false,
+      "src_or_srcdoc_present": true
+    },
+    "4g_artifact_curl_check": {
+      "url": "http://127.0.0.1:8080/api/artifact/1779064616_4ab7d8c2/index.html",
+      "status": 200,
+      "body_contains_stub_marker": true
+    }
+  },
+  "verdict": "PARTIAL",
+  "partial_reasons": [
+    "Frontend POST /api/generate sends only { session_id } but backend GenerateRequest requires from_capsule: bool (no #[serde(default)]) — POST returns HTTP 422 'missing field `from_capsule`'. This is a genuine W6 frontend/backend contract mismatch in spec-result.ts line 71 vs generate.rs line 61. Backend works correctly when the proper payload is sent; the iframe + sandbox security all hold. The spec→generate substrate is proven end-to-end via the curl + manual mount workaround, but the click-through CTA path is broken."
+  ],
+  "iframe_security_holds": true
+}

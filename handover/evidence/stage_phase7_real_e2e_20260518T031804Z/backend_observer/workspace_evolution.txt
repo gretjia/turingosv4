@@ -1,0 +1,1052 @@
+=== poll 1 @ 2026-05-18T03:18:48Z ===
+(workspace not yet created)
+=== poll 2 @ 2026-05-18T03:19:03Z ===
+(workspace not yet created)
+=== poll 3 @ 2026-05-18T03:19:18Z ===
+(workspace not yet created)
+=== poll 4 @ 2026-05-18T03:19:33Z ===
+(workspace not yet created)
+=== poll 5 @ 2026-05-18T03:19:48Z ===
+(workspace not yet created)
+=== poll 6 @ 2026-05-18T03:20:03Z ===
+(workspace not yet created)
+=== poll 7 @ 2026-05-18T03:20:18Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+8.0K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 8 @ 2026-05-18T03:20:33Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 9 @ 2026-05-18T03:20:48Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 10 @ 2026-05-18T03:21:03Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 11 @ 2026-05-18T03:21:18Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 12 @ 2026-05-18T03:21:34Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 13 @ 2026-05-18T03:21:49Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 14 @ 2026-05-18T03:22:04Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 15 @ 2026-05-18T03:22:19Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 16 @ 2026-05-18T03:22:34Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 17 @ 2026-05-18T03:22:49Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 18 @ 2026-05-18T03:23:04Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 19 @ 2026-05-18T03:23:19Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 20 @ 2026-05-18T03:23:34Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 21 @ 2026-05-18T03:23:49Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 22 @ 2026-05-18T03:24:04Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 23 @ 2026-05-18T03:24:19Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 24 @ 2026-05-18T03:24:34Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 25 @ 2026-05-18T03:24:49Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 26 @ 2026-05-18T03:25:05Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 27 @ 2026-05-18T03:25:20Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 28 @ 2026-05-18T03:25:35Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 29 @ 2026-05-18T03:25:50Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 30 @ 2026-05-18T03:26:05Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 12K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 31 @ 2026-05-18T03:26:20Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 16K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 32 @ 2026-05-18T03:26:35Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 16K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 33 @ 2026-05-18T03:26:50Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 34 @ 2026-05-18T03:27:05Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 35 @ 2026-05-18T03:27:20Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 36 @ 2026-05-18T03:27:35Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 37 @ 2026-05-18T03:27:50Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 38 @ 2026-05-18T03:28:05Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 39 @ 2026-05-18T03:28:21Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+ 92K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 40 @ 2026-05-18T03:28:36Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 41 @ 2026-05-18T03:28:51Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 42 @ 2026-05-18T03:29:06Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 43 @ 2026-05-18T03:29:21Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 44 @ 2026-05-18T03:29:36Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 45 @ 2026-05-18T03:29:51Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 46 @ 2026-05-18T03:30:06Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 47 @ 2026-05-18T03:30:21Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 48 @ 2026-05-18T03:30:36Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 49 @ 2026-05-18T03:30:51Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 50 @ 2026-05-18T03:31:06Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 51 @ 2026-05-18T03:31:21Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 52 @ 2026-05-18T03:31:37Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 53 @ 2026-05-18T03:31:52Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 54 @ 2026-05-18T03:32:07Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 55 @ 2026-05-18T03:32:22Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 56 @ 2026-05-18T03:32:37Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 57 @ 2026-05-18T03:32:52Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 58 @ 2026-05-18T03:33:07Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 59 @ 2026-05-18T03:33:22Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 60 @ 2026-05-18T03:33:37Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 61 @ 2026-05-18T03:33:52Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 62 @ 2026-05-18T03:34:07Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 63 @ 2026-05-18T03:34:22Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 64 @ 2026-05-18T03:34:37Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 65 @ 2026-05-18T03:34:53Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 66 @ 2026-05-18T03:35:08Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 67 @ 2026-05-18T03:35:23Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 68 @ 2026-05-18T03:35:38Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 69 @ 2026-05-18T03:35:53Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 70 @ 2026-05-18T03:36:08Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+104K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 71 @ 2026-05-18T03:36:23Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+124K	/Users/zephryj/work/turingosv4/tmp/phase7_active
+=== poll 72 @ 2026-05-18T03:36:38Z ===
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/genesis_payload.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/4d/2511915026b95f202889683360e7fdc5d03e56
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/c3/e0fabe2f64f6b56d05a75bc1514fa5a2239c39
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/cd/3d493197de2c2ebce1a12ccf641859963025e3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/e0/7106b6f8f738e8dc01c655d55f451a93045e2d
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/objects/76/4207b9fe7a805db55ea12cbd497aec0df256f0
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/artifacts/index.html
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec_transcript.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/spec.md
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779074775_6d96a209/answers.json
+/Users/zephryj/work/turingosv4/tmp/phase7_active/turingos.toml
+/Users/zephryj/work/turingosv4/tmp/phase7_active/agent_pubkeys.json
+--- du ---
+124K	/Users/zephryj/work/turingosv4/tmp/phase7_active

@@ -1,0 +1,22 @@
+{
+  "page": "agents",
+  "url": "http://127.0.0.1:8080/agents",
+  "criteria": {
+    "contains_data_block_type": true,
+    "data_block_type_count": 17,
+    "contains_agent_role_set_text": false,
+    "agent_roles_present": ["MarketMaker"],
+    "agent_roles_count": 1,
+    "agent_types_observed_in_fixture": ["ProofAgent", "LibrarianAgent", "MarketMakerAgent"],
+    "contains_agent_001_text": false,
+    "console_error_count_zero": false,
+    "console_errors_observed": ["chrome-extension async-response benign noise (x2)"],
+    "network_api_agents_200": true,
+    "api_agents_status": 200
+  },
+  "verdict": "PARTIAL",
+  "partial_reasons": [
+    "Page 2 is fixture-mode: only 1 of 10 AgentRole tokens (MarketMaker) appears; the fixture displays ProofAgent/LibrarianAgent/MarketMakerAgent rather than the canonical role taxonomy (Solver/Verifier/Challenger/...). This is a known limitation: agents page is W1-era materialized view, not Phase-6.1 ChainTape live data.",
+    "agent_001 (deployed by setup) not present in fixture data — also a known limitation: /api/agents serves a static fixture, not the workspace registry."
+  ]
+}
