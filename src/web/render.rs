@@ -32,6 +32,7 @@ use super::ir::{Block, CellValue, IRRoot, MetricValue};
 /// W6: adds the `Build` variant. The /build page renders the same chrome as
 /// the other views but its `<main>` contains only a `<tos-spec-grill>`
 /// placeholder; the Web Component owns the interview flow.
+/// TRACE_MATRIX FC2-N16: Phase 7 web — page view discriminant for render dispatch.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub(crate) enum ViewKind {
@@ -173,6 +174,8 @@ pub(crate) fn render_page(ir: &IRRoot, title: &str, show_task_form: bool) -> Str
 /// W4.4: explicit-view variant. The 3-arg `render_page` defaults to
 /// `ViewKind::Dashboard` for backwards compatibility; the router uses
 /// this 4-arg form so the active-nav indicator is correct.
+///
+/// TRACE_MATRIX FC2-N16: Phase 7 web — render a page from IR + ViewKind into HTML.
 pub(crate) fn render_page_with_view(
     ir: &IRRoot,
     title: &str,

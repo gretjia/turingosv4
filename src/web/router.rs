@@ -154,11 +154,15 @@ async fn serve_main_js() -> impl IntoResponse {
 }
 
 /// Build the router. Uses `build_with_state` with production capacity = 64.
+///
+/// TRACE_MATRIX FC2-N16: Phase 7 web — build axum Router (production entry).
 pub(crate) fn build() -> Router {
     build_with_state(64)
 }
 
 /// Compatibility alias: W0 tests call `build_router()`; keep it working.
+///
+/// TRACE_MATRIX FC2-N16: Phase 7 web — build_router alias for W0-era tests.
 pub(crate) fn build_router() -> Router {
     build()
 }

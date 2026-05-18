@@ -258,6 +258,8 @@ pub(crate) fn next_step_for(workspace: &Path, api_key_set: bool) -> NextStep {
 /// Resolution order (matches spec.rs / generate.rs):
 ///   1. `TURINGOS_WEB_WORKSPACE` env var (operator override)
 ///   2. `tmp/phase7_active` relative to the current working directory.
+///
+/// TRACE_MATRIX FC2-N16: Phase 7 web — workspace path resolution for welcome/spec/generate.
 #[cfg(feature = "web")]
 pub(crate) fn resolve_workspace_path() -> PathBuf {
     if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {

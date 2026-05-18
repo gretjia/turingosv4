@@ -60,6 +60,8 @@ pub(crate) struct TaskMemoryStore {
 #[cfg(feature = "web")]
 impl TaskMemoryStore {
     /// Create a new, empty store.
+    ///
+    /// TRACE_MATRIX FC2-N16: Phase 7 web — TaskMemoryStore::new (AppState init).
     pub(crate) fn new() -> Self {
         Self {
             entries: Mutex::new(Vec::new()),
@@ -71,6 +73,8 @@ impl TaskMemoryStore {
     /// If the store exceeds 1 000 entries after the push, the oldest 500
     /// entries are dropped.  This is the only write operation; no deduplication
     /// is performed.
+    ///
+    /// TRACE_MATRIX FC2-N16: Phase 7 web — TaskMemoryStore::push (bounded FIFO).
     pub(crate) fn push(&self, entry: TaskEntry) {
         let mut guard = self.entries.lock().expect("TaskMemoryStore mutex poisoned");
         guard.push(entry);
@@ -84,6 +88,8 @@ impl TaskMemoryStore {
     ///
     /// Entries are returned in insertion order (oldest first); callers that
     /// want newest-first should reverse the result.
+    ///
+    /// TRACE_MATRIX FC2-N16: Phase 7 web — TaskMemoryStore::snapshot (read-view).
     pub(crate) fn snapshot(&self) -> Vec<TaskEntry> {
         self.entries
             .lock()
@@ -94,6 +100,8 @@ impl TaskMemoryStore {
     /// Return the current number of stored entries.
     ///
     /// Primarily used in tests to assert cap behaviour.
+    ///
+    /// TRACE_MATRIX FC2-N16: Phase 7 web — TaskMemoryStore::len (test cap assertion).
     pub(crate) fn len(&self) -> usize {
         self.entries
             .lock()
