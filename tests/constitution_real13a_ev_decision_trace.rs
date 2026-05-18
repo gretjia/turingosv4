@@ -575,6 +575,339 @@ fn trader_ev_scaffold_includes_non_forcing_positive_ev_action_check() {
 }
 
 #[test]
+fn trader_ev_scaffold_preserves_positive_ev_sign_for_voluntary_abstain() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "expected_value_sign is the public arithmetic EV sign, not a commitment to trade",
+        "If midpoint_bps > implied_probability_bps, keep expected_value_sign=\\\"positive\\\" even when choosing voluntary abstain",
+        "\\\"expected_value_sign\\\":\\\"positive|negative|zero|unknown\\\"",
+        "positive_ev_override:",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "Trader EV scaffold must preserve positive EV sign even when abstain remains voluntary: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "Positive-EV sign preservation must not force market action: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn trader_ev_scaffold_explains_prediction_market_payoff_without_forcing_trade() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P13 Prediction-Market Payoff Primer ===",
+        "Polymarket-style analogy only; TuringOS ChainTape/CAS remains the source of truth",
+        "You buy outcome shares below the full settlement value and later profit only if the selected outcome wins",
+        "If your side wins, approximate profit_micro = shares_redeemed_micro - amount_spent_micro",
+        "If your side loses, the spent amount is at risk",
+        "Price is market-implied odds signal, not truth",
+        "A clear positive EV may justify a voluntary buy_yes or buy_no, but abstain remains valid",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "Trader EV scaffold must explain prediction-market payoff mechanics without forcing trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+        "price is truth",
+        "price determines truth",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "Prediction-market payoff primer must not force action or promote price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn trader_ev_scaffold_separates_ev_arithmetic_from_voluntary_action_choice() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P14 Two-Stage Voluntary Action Selector ===",
+        "Stage 1 EVArithmeticReview: first compute public midpoint_bps, edge_bps, expected_value_micro, and risk_ok",
+        "Stage 2 VoluntaryMarketActionChoice: then choose buy_yes, buy_no, or abstain according to your role",
+        "Do not collapse positive EV into abstain without naming the blocking constraint",
+        "If risk_ok=true and expected_value_micro>0, a role-allowed buy is the salient action, but still voluntary",
+        "If you abstain when risk_ok=true and expected_value_micro>0, payload must start with positive_ev_override:",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "Trader EV scaffold must separate arithmetic review from voluntary action choice without forcing trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+        "forced buy",
+        "forced short",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "Two-stage action selector must not force market action: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn trader_view_includes_bounded_cross_market_opportunity_board_without_price_as_truth() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P16 Cross-Market Opportunity Board ===",
+        "Bounded QState-derived board of active market prices and depths",
+        "Use this board to compare opportunity salience across visible markets before choosing a role-allowed action",
+        "Board rows are price/depth signals only; ChainTape/CAS evidence remains the source of truth",
+        "For BearTrader, scan NO-side rows for overpriced-success or underpriced-failure opportunities",
+        "For BullTrader, scan YES-side rows for underpriced-success opportunities",
+        "Board renders only when at least two active markets are visible",
+        "cross_market_board_top_k",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "TraderView must expose a bounded cross-market opportunity board without forcing trades: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "price is truth",
+        "price determines truth",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "Cross-market opportunity board must remain non-forcing and not price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn trader_view_uses_hayekian_price_discovery_under_constitutional_truth_boundary() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P18 Hayekian Price-Discovery Boundary ===",
+        "Prices compress dispersed public evidence into discovery signals; they do not decide truth",
+        "Constitutional boundary: ChainTape/CAS/Lean predicates remain authoritative",
+        "Use price and salience to decide where to look, not what is true",
+        "recommendation_observe_only=true",
+        "salience_basis=ChainTape/CAS",
+        "recent_positive_ev_ignored_count",
+        "recent_rejection_count",
+        "recent_partial_progress_count",
+        "role_relevant_salience_bps",
+        "salience_unknown",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "TraderView must use Hayekian price discovery only inside constitutional truth boundaries: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "price is truth",
+        "price determines truth",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "Hayekian board guidance must not become forced trade or price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn opportunity_board_reads_cas_derived_non_price_salience() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "struct Real17P18EventSalience",
+        "fn real17p18_salience_by_event",
+        "ev_decision_trace_cids(&cas)",
+        "ATTEMPT_TELEMETRY_SCHEMA_ID",
+        "read_attempt_telemetry_from_cas",
+        "recent_market_action_count",
+        "recent_ev_positive_count",
+        "recent_verified_success_count",
+        "provenance_cid_count",
+        "salience_unknown=false",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "P18 board must use CAS-derived non-price salience rather than price/depth only: {required}"
+        );
+    }
+
+    for forbidden in [
+        "dashboard",
+        "stdout",
+        "raw prompt",
+        "raw completion",
+        "raw CoT",
+        "raw log",
+    ] {
+        assert!(
+            !evaluator
+                .to_ascii_lowercase()
+                .contains(&format!("p18 {forbidden}")),
+            "P18 board salience must not depend on non-authoritative or raw material: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn opportunity_board_exposes_row_level_voluntary_action_affordance() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P19 Row-Level Voluntary Action Affordance ===",
+        "action_affordance_basis=ChainTape/CAS+QState",
+        "row_action_affordance=voluntary",
+        "role_allowed_action",
+        "candidate_amount_micro",
+        "liquidity_ok",
+        "balance_ok",
+        "risk_ok",
+        "slippage_ok=quote_preview_available",
+        "row_edge_bps=<compute_from_your_probability_band>",
+        "row_expected_value_micro=<compute_integer_ev>",
+        "prior_positive_ev_ignored_count",
+        "row_blocking_constraints",
+        "Do not trade from row salience alone",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "P19 board rows must expose voluntary row-level action affordance without forcing trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "price is truth",
+        "price determines truth",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "P19 row-level action affordance must stay voluntary and non-price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn opportunity_board_includes_integer_router_quote_preview_without_admission_claim() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P20 Integer Router Quote Preview ===",
+        "router_quote_basis=QState+integer_cpmm_router_quote",
+        "quote preview is a signal, not an admission guarantee",
+        "quote_buy_with_coin_router(",
+        "QuoteDirection::BuyYes",
+        "QuoteDirection::BuyNo",
+        "quote_direction",
+        "quoted_out_shares_micro",
+        "quoted_get_shares_micro",
+        "quoted_effective_price_num",
+        "quoted_effective_price_den",
+        "router_liquidity_warning",
+        "slippage_ok=quote_preview_available",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "P20 board rows must expose integer router quote previews without admission or truth claims: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "price is truth",
+        "price determines truth",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "P20 quote preview must stay voluntary and non-price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn trader_view_requires_voluntary_market_order_ticket_without_minimum_nonzero_trade() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P21 Voluntary MarketOrderTicket ===",
+        "Each Trader turn must externalize a structured market_order_ticket",
+        "amount_micro=0 is a valid voluntary abstain",
+        "No minimum non-zero trade exists in the constitutional track",
+        "market_order_ticket.choice",
+        "market_order_ticket.selected_board_row",
+        "market_order_ticket.quote_preview",
+        "market_order_ticket.blocking_constraints",
+        "write_market_order_ticket_to_cas_or_exit",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "P21 TraderView/wiring must require structured voluntary tickets without forced nonzero trades: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "price is truth",
+        "price determines truth",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "P21 ticket wording must stay voluntary and non-price-as-truth: {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn bear_trader_positive_no_edge_has_symmetric_non_forcing_action_salience() {
     let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
 
@@ -632,6 +965,37 @@ fn bear_trader_no_side_prompt_defines_no_as_task_outcome_not_theorem_false() {
         assert!(
             !evaluator.to_ascii_lowercase().contains(forbidden),
             "BearTrader NO-side semantic scaffold must remain non-forcing: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn bear_trader_no_side_prompt_calibrates_failure_probability_from_public_progress() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17P9 BearTrader NO Probability Calibration ===",
+        "Use public progress signals, not theorem falsehood, when estimating NO probability",
+        "repeated rejected attempts, no accepted proof, shrinking time budget, or weak solver progress may justify a NO probability band above even",
+        "Do not default to 5000 bps when the visible public evidence is asymmetric",
+        "`buy_no` remains voluntary; `abstain` remains valid when the edge is weak or risk checks fail",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "BearTrader NO-side calibration must make public failure-probability evidence salient without forcing a trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "BearTrader NO-side calibration must remain non-forcing: {forbidden}"
         );
     }
 }

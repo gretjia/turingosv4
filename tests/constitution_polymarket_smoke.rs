@@ -60,10 +60,10 @@ use turingosv4::state::q_state::{
 use turingosv4::state::router_quote::{
     quote_buy_with_coin_router, LiquidityWarning, QuoteDirection,
 };
-use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope};
+use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CpmmPoolTx, EventId,
-    ShareAmount, TypedTx,
+    AgentSignature, BuyDirection, BuyWithCoinRouterTx, CompleteSetMintTx, CompleteSetRedeemTx,
+    CpmmPoolTx, EventId, OutcomeSide, ShareAmount, TypedTx,
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -139,6 +139,61 @@ async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
         .map_err(|e| format!("apply error: {e:?}"))
 }
 
+async fn expect_router_rejection_preserves_state(
+    h: &mut Harness,
+    tx: TypedTx,
+    expected_error: &str,
+) {
+    let q_pre = h.seq.q_snapshot().expect("snapshot before rejection");
+    let coin_pre = total_coin_micro(&q_pre.economic_state_t);
+    let err = submit_and_apply(h, tx)
+        .await
+        .expect_err("router tx must reject");
+    assert!(
+        err.contains(expected_error),
+        "expected {expected_error}, got {err}"
+    );
+    let q_post = h.seq.q_snapshot().expect("snapshot after rejection");
+    assert_eq!(
+        q_post.state_root_t, q_pre.state_root_t,
+        "rejected router tx must not advance state root"
+    );
+    assert_eq!(
+        total_coin_micro(&q_post.economic_state_t),
+        coin_pre,
+        "rejected router tx must not mutate total Coin supply"
+    );
+}
+
+async fn expect_redeem_rejection_preserves_state(
+    h: &mut Harness,
+    tx: TypedTx,
+    expected_error: &str,
+) {
+    let q_pre = h
+        .seq
+        .q_snapshot()
+        .expect("snapshot before redeem rejection");
+    let coin_pre = total_coin_micro(&q_pre.economic_state_t);
+    let err = submit_and_apply(h, tx)
+        .await
+        .expect_err("redeem tx must reject");
+    assert!(
+        err.contains(expected_error),
+        "expected {expected_error}, got {err}"
+    );
+    let q_post = h.seq.q_snapshot().expect("snapshot after redeem rejection");
+    assert_eq!(
+        q_post.state_root_t, q_pre.state_root_t,
+        "rejected redeem tx must not advance state root"
+    );
+    assert_eq!(
+        total_coin_micro(&q_post.economic_state_t),
+        coin_pre,
+        "rejected redeem tx must not mutate total Coin supply"
+    );
+}
+
 fn build_mint(
     parent: turingosv4::state::q_state::Hash,
     owner: &str,
@@ -172,6 +227,26 @@ fn build_pool(
         seed_yes: ShareAmount::from_units(seed_units),
         seed_no: ShareAmount::from_units(seed_units),
         signature: AgentSignature::from_bytes([0u8; 64]),
+    })
+}
+
+fn build_redeem(
+    parent: turingosv4::state::q_state::Hash,
+    owner: &str,
+    task: &str,
+    outcome: OutcomeSide,
+    units: u128,
+    seq_no: u64,
+) -> TypedTx {
+    TypedTx::CompleteSetRedeem(CompleteSetRedeemTx {
+        tx_id: TxId(format!("redeem-{owner}-{task}-{seq_no}")),
+        parent_state_root: parent,
+        event_id: EventId(TaskId(task.into())),
+        owner: AgentId(owner.into()),
+        outcome,
+        share_amount: ShareAmount::from_units(units),
+        signature: AgentSignature::from_bytes([0u8; 64]),
+        timestamp_logical: 2000 + seq_no,
     })
 }
 
@@ -221,6 +296,111 @@ fn sum_no_for_event(econ: &EconomicState, task: &str) -> u128 {
         s += pool.pool_no.units;
     }
     s
+}
+
+fn agent_side_units(
+    econ: &EconomicState,
+    owner: &str,
+    task: &str,
+    direction: BuyDirection,
+) -> u128 {
+    let event_id = EventId(TaskId(task.into()));
+    let owner = AgentId(owner.into());
+    econ.conditional_share_balances_t
+        .0
+        .get(&owner)
+        .and_then(|by_event| by_event.get(&event_id))
+        .map(|pair| match direction {
+            BuyDirection::BuyYes => pair.yes.units,
+            BuyDirection::BuyNo => pair.no.units,
+        })
+        .unwrap_or(0)
+}
+
+fn pool_k(econ: &EconomicState, task: &str) -> u128 {
+    let event_id = EventId(TaskId(task.into()));
+    let pool = econ.cpmm_pools_t.0.get(&event_id).expect("pool present");
+    pool.pool_yes.units * pool.pool_no.units
+}
+
+async fn redeem_and_assert_payout(
+    h: &mut Harness,
+    owner: &str,
+    task: &str,
+    outcome: OutcomeSide,
+    direction: BuyDirection,
+    share_units: u128,
+    seq_no: u64,
+) {
+    let event_id = EventId(TaskId(task.into()));
+    let q_pre = h.seq.q_snapshot().expect("snapshot before redeem");
+    let coin_pre = total_coin_micro(&q_pre.economic_state_t);
+    let balance_pre = q_pre
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId(owner.into()))
+        .copied()
+        .expect("owner balance before redeem");
+    let collateral_pre = q_pre
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&event_id)
+        .copied()
+        .expect("collateral before redeem");
+    let side_pre = agent_side_units(&q_pre.economic_state_t, owner, task, direction);
+
+    submit_and_apply(
+        h,
+        build_redeem(
+            q_pre.state_root_t,
+            owner,
+            task,
+            outcome,
+            share_units,
+            seq_no,
+        ),
+    )
+    .await
+    .expect("winning shares redeem accepted");
+
+    let q_post = h.seq.q_snapshot().expect("snapshot after redeem");
+    assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+        .expect("Coin conserved across redeem");
+    assert_complete_set_balanced(&q_post.economic_state_t)
+        .expect("complete-set balanced after redeem");
+    let balance_post = q_post
+        .economic_state_t
+        .balances_t
+        .0
+        .get(&AgentId(owner.into()))
+        .copied()
+        .expect("owner balance after redeem");
+    assert_eq!(
+        balance_post.micro_units() - balance_pre.micro_units(),
+        share_units as i64,
+        "winning shares redeem 1:1 to Coin"
+    );
+    let collateral_post = q_post
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&event_id)
+        .copied()
+        .expect("collateral after redeem");
+    assert_eq!(
+        collateral_pre.micro_units() - collateral_post.micro_units(),
+        share_units as i64,
+        "redeem debits event collateral 1:1"
+    );
+    let side_post = agent_side_units(&q_post.economic_state_t, owner, task, direction);
+    assert_eq!(
+        side_pre - side_post,
+        share_units,
+        "redeem burns winning-side shares"
+    );
+    assert_eq!(total_coin_micro(&q_post.economic_state_t), coin_pre);
 }
 
 // ── Architect §7.10 verbatim smoke + 5 gate-invariant battery ───────────────
@@ -529,6 +709,730 @@ async fn polymarket_controlled_market_smoke() {
         ],
     );
     assert_eq!(view_prices, view_prices_again);
+}
+
+/// REAL-17 robustness positive-control: deterministic Bull/Bear role pressure
+/// drives both router directions through tiny, medium, and large orders. This
+/// is a code robustness gate only. Because the sequence is harness-forced, it
+/// is not E2, not voluntary emergence evidence, and not a ship claim.
+#[tokio::test]
+async fn red_track_forced_bull_bear_router_sequence_preserves_polymarket_invariants() {
+    let task = "polymarket-forced-robustness";
+    let event_id = EventId(TaskId(task.into()));
+    let q0 = genesis_with_balances_and_open_task(
+        &[("maker", 500), ("forced_bull", 200), ("forced_bear", 200)],
+        task,
+    );
+    let mut h = fresh_harness(q0);
+
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_mint(p, "maker", task, 100_000_000, 1))
+        .await
+        .expect("maker mint accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_pool(p, "maker", task, 50_000_000, 1))
+        .await
+        .expect("maker pool accepted");
+
+    let q_seed = h.seq.q_snapshot().unwrap();
+    let total_coin_pre = total_coin_micro(&q_seed.economic_state_t);
+    assert_complete_set_balanced(&q_seed.economic_state_t).expect("seed balanced");
+
+    let forced_sequence: [(&str, BuyDirection, i64); 12] = [
+        ("forced_bull", BuyDirection::BuyYes, 1),
+        ("forced_bear", BuyDirection::BuyNo, 1),
+        ("forced_bull", BuyDirection::BuyYes, 10_000),
+        ("forced_bear", BuyDirection::BuyNo, 10_000),
+        ("forced_bull", BuyDirection::BuyYes, 100_000),
+        ("forced_bear", BuyDirection::BuyNo, 100_000),
+        ("forced_bull", BuyDirection::BuyYes, 1_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 1_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 5_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 5_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 10_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 10_000_000),
+    ];
+
+    let mut previous_k = pool_k(&q_seed.economic_state_t, task);
+    for (idx, (actor, direction, pay_micro)) in forced_sequence.into_iter().enumerate() {
+        let q_pre = h.seq.q_snapshot().unwrap();
+        let balance_pre = q_pre
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId(actor.into()))
+            .copied()
+            .expect("actor balance");
+        let side_units_pre = agent_side_units(&q_pre.economic_state_t, actor, task, direction);
+        let pool_pre = q_pre
+            .economic_state_t
+            .cpmm_pools_t
+            .0
+            .get(&event_id)
+            .cloned()
+            .expect("pool before forced router");
+        let quote_direction = match direction {
+            BuyDirection::BuyYes => QuoteDirection::BuyYes,
+            BuyDirection::BuyNo => QuoteDirection::BuyNo,
+        };
+        let quote = quote_buy_with_coin_router(
+            &pool_pre,
+            MicroCoin::from_micro_units(pay_micro),
+            quote_direction,
+        )
+        .expect("forced robustness quote available");
+
+        let parent = q_pre.state_root_t;
+        let apply_result = submit_and_apply(
+            &mut h,
+            build_router(parent, actor, task, direction, pay_micro, idx as u64 + 1),
+        )
+        .await;
+
+        if quote.liquidity_warning == LiquidityWarning::NoOutput {
+            let err = apply_result.expect_err("no-output forced robustness router rejects");
+            assert!(
+                err.contains("RouterSwapInsufficientPoolOutput"),
+                "tiny forced router should fail closed on insufficient pool output: {err}"
+            );
+            let q_after_reject = h.seq.q_snapshot().unwrap();
+            assert_eq!(
+                q_after_reject.state_root_t, q_pre.state_root_t,
+                "rejected tiny forced router must not mutate state"
+            );
+            assert_total_ctf_conserved(
+                &q_pre.economic_state_t,
+                &q_after_reject.economic_state_t,
+                &[],
+            )
+            .expect("Coin conserved across rejected forced robustness router");
+            continue;
+        }
+        apply_result.expect("forced robustness router accepted");
+
+        let q_post = h.seq.q_snapshot().unwrap();
+        assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+            .expect("Coin conserved across forced robustness router");
+        assert_complete_set_balanced(&q_post.economic_state_t)
+            .expect("complete-set balanced after forced robustness router");
+
+        let balance_post = q_post
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId(actor.into()))
+            .copied()
+            .expect("actor balance post");
+        assert_eq!(
+            balance_pre.micro_units() - balance_post.micro_units(),
+            pay_micro,
+            "router debits exactly pay_coin for {actor} {direction:?}"
+        );
+        let side_units_post = agent_side_units(&q_post.economic_state_t, actor, task, direction);
+        assert_eq!(
+            side_units_post - side_units_pre,
+            quote.get_shares.units,
+            "router credits pay_coin + CPMM out_shares for {actor} {direction:?}"
+        );
+
+        let pool_post = q_post
+            .economic_state_t
+            .cpmm_pools_t
+            .0
+            .get(&event_id)
+            .expect("pool after forced router");
+        match direction {
+            BuyDirection::BuyYes => {
+                assert_eq!(
+                    pool_post.pool_no.units,
+                    pool_pre.pool_no.units + pay_micro as u128
+                );
+                assert_eq!(
+                    pool_post.pool_yes.units,
+                    pool_pre.pool_yes.units - quote.out_shares.units
+                );
+            }
+            BuyDirection::BuyNo => {
+                assert_eq!(
+                    pool_post.pool_yes.units,
+                    pool_pre.pool_yes.units + pay_micro as u128
+                );
+                assert_eq!(
+                    pool_post.pool_no.units,
+                    pool_pre.pool_no.units - quote.out_shares.units
+                );
+            }
+        }
+        let next_k = pool_k(&q_post.economic_state_t, task);
+        assert!(
+            next_k >= previous_k,
+            "integer CPMM k must be non-decreasing across forced router sequence"
+        );
+        previous_k = next_k;
+    }
+
+    let q_post = h.seq.q_snapshot().unwrap();
+    assert_eq!(total_coin_micro(&q_post.economic_state_t), total_coin_pre);
+    let coll = q_post
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&event_id)
+        .copied()
+        .expect("collateral present");
+    assert_eq!(
+        sum_yes_for_event(&q_post.economic_state_t, task),
+        sum_no_for_event(&q_post.economic_state_t, task)
+    );
+    assert_eq!(
+        sum_yes_for_event(&q_post.economic_state_t, task),
+        coll.micro_units() as u128
+    );
+
+    let quotes = audit_view_prices(
+        &q_post.economic_state_t,
+        &[
+            MicroCoin::from_micro_units(1),
+            MicroCoin::from_micro_units(1_000_000),
+        ],
+    );
+    assert_eq!(quotes.price_quotes.len(), 4);
+    assert_eq!(
+        h.seq.q_snapshot().unwrap().state_root_t,
+        q_post.state_root_t,
+        "price/quote audit views must not mutate truth state"
+    );
+}
+
+#[tokio::test]
+async fn extreme_forced_router_sequence_near_depletion_preserves_invariants() {
+    let task = "polymarket-extreme-robustness";
+    let event_id = EventId(TaskId(task.into()));
+    let q0 = genesis_with_balances_and_open_task(
+        &[
+            ("maker", 1_000),
+            ("forced_bull", 1_000),
+            ("forced_bear", 1_000),
+        ],
+        task,
+    );
+    let mut h = fresh_harness(q0);
+
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_mint(p, "maker", task, 200_000_000, 1))
+        .await
+        .expect("maker mint accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_pool(p, "maker", task, 100_000_000, 1))
+        .await
+        .expect("maker pool accepted");
+
+    let q_seed = h.seq.q_snapshot().unwrap();
+    let total_coin_pre = total_coin_micro(&q_seed.economic_state_t);
+    let mut previous_k = pool_k(&q_seed.economic_state_t, task);
+    let mut accepted_count = 0usize;
+    let mut no_output_rejection_count = 0usize;
+
+    let stress_sequence: [(&str, BuyDirection, i64); 12] = [
+        ("forced_bull", BuyDirection::BuyYes, 75_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 125_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 1),
+        ("forced_bear", BuyDirection::BuyNo, 75_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 125_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 1),
+        ("forced_bull", BuyDirection::BuyYes, 50_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 50_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 25_000_000),
+        ("forced_bear", BuyDirection::BuyNo, 25_000_000),
+        ("forced_bull", BuyDirection::BuyYes, 1),
+        ("forced_bear", BuyDirection::BuyNo, 1),
+    ];
+
+    for (idx, (actor, direction, pay_micro)) in stress_sequence.into_iter().enumerate() {
+        let q_pre = h.seq.q_snapshot().unwrap();
+        let balance_pre = q_pre
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId(actor.into()))
+            .copied()
+            .expect("actor balance");
+        let side_units_pre = agent_side_units(&q_pre.economic_state_t, actor, task, direction);
+        let pool_pre = q_pre
+            .economic_state_t
+            .cpmm_pools_t
+            .0
+            .get(&event_id)
+            .cloned()
+            .expect("pool before stress router");
+        let quote_direction = match direction {
+            BuyDirection::BuyYes => QuoteDirection::BuyYes,
+            BuyDirection::BuyNo => QuoteDirection::BuyNo,
+        };
+        let quote = quote_buy_with_coin_router(
+            &pool_pre,
+            MicroCoin::from_micro_units(pay_micro),
+            quote_direction,
+        )
+        .expect("stress quote available");
+
+        let apply_result = submit_and_apply(
+            &mut h,
+            build_router(
+                q_pre.state_root_t,
+                actor,
+                task,
+                direction,
+                pay_micro,
+                idx as u64 + 1,
+            ),
+        )
+        .await;
+
+        if quote.liquidity_warning == LiquidityWarning::NoOutput {
+            let err = apply_result.expect_err("no-output stress router rejects");
+            assert!(
+                err.contains("RouterSwapInsufficientPoolOutput"),
+                "near-depletion/no-output router should fail closed: {err}"
+            );
+            let q_after_reject = h.seq.q_snapshot().unwrap();
+            assert_eq!(
+                q_after_reject.state_root_t, q_pre.state_root_t,
+                "rejected extreme router must not mutate state"
+            );
+            assert_eq!(
+                total_coin_micro(&q_after_reject.economic_state_t),
+                total_coin_micro(&q_pre.economic_state_t),
+                "rejected extreme router preserves total Coin"
+            );
+            no_output_rejection_count += 1;
+            continue;
+        }
+        apply_result.expect("stress router accepted");
+        accepted_count += 1;
+
+        let q_post = h.seq.q_snapshot().unwrap();
+        assert_total_ctf_conserved(&q_pre.economic_state_t, &q_post.economic_state_t, &[])
+            .expect("Coin conserved across extreme forced router");
+        assert_complete_set_balanced(&q_post.economic_state_t)
+            .expect("complete-set balanced after extreme forced router");
+
+        let balance_post = q_post
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId(actor.into()))
+            .copied()
+            .expect("actor balance post");
+        assert_eq!(
+            balance_pre.micro_units() - balance_post.micro_units(),
+            pay_micro,
+            "extreme router debits exactly pay_coin"
+        );
+        let side_units_post = agent_side_units(&q_post.economic_state_t, actor, task, direction);
+        assert_eq!(
+            side_units_post - side_units_pre,
+            quote.get_shares.units,
+            "extreme router credits pay_coin + CPMM out_shares"
+        );
+
+        let pool_post = q_post
+            .economic_state_t
+            .cpmm_pools_t
+            .0
+            .get(&event_id)
+            .expect("pool after stress router");
+        match direction {
+            BuyDirection::BuyYes => {
+                assert_eq!(
+                    pool_post.pool_no.units,
+                    pool_pre.pool_no.units + pay_micro as u128
+                );
+                assert_eq!(
+                    pool_post.pool_yes.units,
+                    pool_pre.pool_yes.units - quote.out_shares.units
+                );
+            }
+            BuyDirection::BuyNo => {
+                assert_eq!(
+                    pool_post.pool_yes.units,
+                    pool_pre.pool_yes.units + pay_micro as u128
+                );
+                assert_eq!(
+                    pool_post.pool_no.units,
+                    pool_pre.pool_no.units - quote.out_shares.units
+                );
+            }
+        }
+        let next_k = pool_k(&q_post.economic_state_t, task);
+        assert!(
+            next_k >= previous_k,
+            "integer CPMM k must be non-decreasing under extreme sequence"
+        );
+        previous_k = next_k;
+    }
+
+    assert!(
+        accepted_count >= 6,
+        "extreme stress should exercise multiple accepted YES/NO buys"
+    );
+    assert!(
+        no_output_rejection_count >= 2,
+        "extreme stress should exercise fail-closed no-output buys"
+    );
+    let q_post = h.seq.q_snapshot().unwrap();
+    assert_eq!(total_coin_micro(&q_post.economic_state_t), total_coin_pre);
+    let coll = q_post
+        .economic_state_t
+        .conditional_collateral_t
+        .0
+        .get(&event_id)
+        .copied()
+        .expect("collateral present");
+    assert_eq!(
+        sum_yes_for_event(&q_post.economic_state_t, task),
+        sum_no_for_event(&q_post.economic_state_t, task)
+    );
+    assert_eq!(
+        sum_yes_for_event(&q_post.economic_state_t, task),
+        coll.micro_units() as u128
+    );
+}
+
+#[tokio::test]
+async fn router_rejection_paths_preserve_state_and_report_specific_errors() {
+    let task = "polymarket-router-rejects";
+    let q0 =
+        genesis_with_balances_and_open_task(&[("maker", 200), ("trader", 10), ("poor", 1)], task);
+    let mut h = fresh_harness(q0);
+
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_mint(p, "maker", task, 20_000_000, 1))
+        .await
+        .expect("maker mint accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_pool(p, "maker", task, 10_000_000, 1))
+        .await
+        .expect("maker pool accepted");
+
+    let q_pre_slippage = h.seq.q_snapshot().unwrap();
+    let pool = q_pre_slippage
+        .economic_state_t
+        .cpmm_pools_t
+        .0
+        .get(&EventId(TaskId(task.into())))
+        .cloned()
+        .expect("pool exists");
+    let quote = quote_buy_with_coin_router(
+        &pool,
+        MicroCoin::from_micro_units(1_000_000),
+        QuoteDirection::BuyYes,
+    )
+    .expect("quote exists");
+    expect_router_rejection_preserves_state(
+        &mut h,
+        TypedTx::BuyWithCoinRouter(BuyWithCoinRouterTx {
+            tx_id: TxId("router-slippage-reject".into()),
+            parent_state_root: q_pre_slippage.state_root_t,
+            event_id: EventId(TaskId(task.into())),
+            buyer: AgentId("trader".into()),
+            direction: BuyDirection::BuyYes,
+            pay_coin: MicroCoin::from_micro_units(1_000_000),
+            min_out_shares: ShareAmount::from_units(quote.out_shares.units + 1),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+        }),
+        "RouterSlippageExceeded",
+    )
+    .await;
+
+    let q_pre_balance = h.seq.q_snapshot().unwrap();
+    expect_router_rejection_preserves_state(
+        &mut h,
+        build_router(
+            q_pre_balance.state_root_t,
+            "poor",
+            task,
+            BuyDirection::BuyNo,
+            2_000_000,
+            7,
+        ),
+        "RouterInsufficientCoinBalance",
+    )
+    .await;
+
+    let mut q_closed = genesis_with_balances_and_open_task(&[("trader", 10)], task);
+    q_closed
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get_mut(&TaskId(task.into()))
+        .expect("task market exists")
+        .state = TaskMarketState::Finalized;
+    let mut closed_h = fresh_harness(q_closed);
+    let closed_parent = closed_h.seq.q_snapshot().unwrap().state_root_t;
+    expect_router_rejection_preserves_state(
+        &mut closed_h,
+        build_router(
+            closed_parent,
+            "trader",
+            task,
+            BuyDirection::BuyYes,
+            100_000,
+            8,
+        ),
+        "EventNotOpen",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn forced_router_holdings_redeem_on_yes_and_no_resolution() {
+    async fn setup_forced_position(actor: &str, direction: BuyDirection, task: &str) -> Harness {
+        let q0 = genesis_with_balances_and_open_task(&[("maker", 100), (actor, 20)], task);
+        let mut h = fresh_harness(q0);
+        let p = h.seq.q_snapshot().unwrap().state_root_t;
+        submit_and_apply(&mut h, build_mint(p, "maker", task, 10_000_000, 1))
+            .await
+            .expect("maker mint accepted");
+        let p = h.seq.q_snapshot().unwrap().state_root_t;
+        submit_and_apply(&mut h, build_pool(p, "maker", task, 5_000_000, 1))
+            .await
+            .expect("maker pool accepted");
+        let p = h.seq.q_snapshot().unwrap().state_root_t;
+        submit_and_apply(
+            &mut h,
+            build_router(p, actor, task, direction, 1_000_000, 1),
+        )
+        .await
+        .expect("forced router position accepted");
+        h
+    }
+
+    let mut yes_h = setup_forced_position("forced_bull", BuyDirection::BuyYes, "robust-yes").await;
+    let yes_pre_resolve = yes_h.seq.q_snapshot().unwrap();
+    let yes_units = agent_side_units(
+        &yes_pre_resolve.economic_state_t,
+        "forced_bull",
+        "robust-yes",
+        BuyDirection::BuyYes,
+    );
+    assert!(yes_units > 1_000_000);
+    yes_h
+        .seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId("robust-yes".into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("YES EventResolve emitted");
+    yes_h
+        .seq
+        .try_apply_one(&mut yes_h.rx)
+        .expect("YES EventResolve envelope")
+        .expect("YES EventResolve accepted");
+    redeem_and_assert_payout(
+        &mut yes_h,
+        "forced_bull",
+        "robust-yes",
+        OutcomeSide::Yes,
+        BuyDirection::BuyYes,
+        yes_units,
+        1,
+    )
+    .await;
+
+    let mut no_h = setup_forced_position("forced_bear", BuyDirection::BuyNo, "robust-no").await;
+    let no_pre_resolve = no_h.seq.q_snapshot().unwrap();
+    let no_units = agent_side_units(
+        &no_pre_resolve.economic_state_t,
+        "forced_bear",
+        "robust-no",
+        BuyDirection::BuyNo,
+    );
+    assert!(no_units > 1_000_000);
+    no_h.seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId("robust-no".into()),
+            outcome: OutcomeSide::No,
+        })
+        .await
+        .expect("NO EventResolve emitted");
+    no_h.seq
+        .try_apply_one(&mut no_h.rx)
+        .expect("NO EventResolve envelope")
+        .expect("NO EventResolve accepted");
+    redeem_and_assert_payout(
+        &mut no_h,
+        "forced_bear",
+        "robust-no",
+        OutcomeSide::No,
+        BuyDirection::BuyNo,
+        no_units,
+        1,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn settlement_rejects_wrong_side_and_double_redeem_without_state_mutation() {
+    let task = "robust-redeem-negative";
+    let q0 = genesis_with_balances_and_open_task(&[("maker", 100), ("forced_bull", 20)], task);
+    let mut h = fresh_harness(q0);
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_mint(p, "maker", task, 10_000_000, 1))
+        .await
+        .expect("maker mint accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_pool(p, "maker", task, 5_000_000, 1))
+        .await
+        .expect("maker pool accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(
+        &mut h,
+        build_router(p, "forced_bull", task, BuyDirection::BuyYes, 1_000_000, 1),
+    )
+    .await
+    .expect("forced YES router accepted");
+
+    let pre_resolve = h.seq.q_snapshot().unwrap();
+    let yes_units = agent_side_units(
+        &pre_resolve.economic_state_t,
+        "forced_bull",
+        task,
+        BuyDirection::BuyYes,
+    );
+    h.seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("YES EventResolve emitted");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("YES EventResolve envelope")
+        .expect("YES EventResolve accepted");
+
+    let parent_wrong_side = h.seq.q_snapshot().unwrap().state_root_t;
+    expect_redeem_rejection_preserves_state(
+        &mut h,
+        build_redeem(
+            parent_wrong_side,
+            "forced_bull",
+            task,
+            OutcomeSide::No,
+            1,
+            1,
+        ),
+        "InvalidResolutionRef",
+    )
+    .await;
+
+    redeem_and_assert_payout(
+        &mut h,
+        "forced_bull",
+        task,
+        OutcomeSide::Yes,
+        BuyDirection::BuyYes,
+        yes_units,
+        1,
+    )
+    .await;
+
+    let parent_double = h.seq.q_snapshot().unwrap().state_root_t;
+    expect_redeem_rejection_preserves_state(
+        &mut h,
+        build_redeem(parent_double, "forced_bull", task, OutcomeSide::Yes, 1, 2),
+        "RedeemMoreThanOwned",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn settlement_partial_redeems_preserve_conservation_until_position_empty() {
+    let task = "robust-partial-redeem";
+    let q0 = genesis_with_balances_and_open_task(&[("maker", 100), ("forced_bull", 20)], task);
+    let mut h = fresh_harness(q0);
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_mint(p, "maker", task, 10_000_000, 1))
+        .await
+        .expect("maker mint accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(&mut h, build_pool(p, "maker", task, 5_000_000, 1))
+        .await
+        .expect("maker pool accepted");
+    let p = h.seq.q_snapshot().unwrap().state_root_t;
+    submit_and_apply(
+        &mut h,
+        build_router(p, "forced_bull", task, BuyDirection::BuyYes, 1_000_000, 1),
+    )
+    .await
+    .expect("forced YES router accepted");
+
+    let pre_resolve = h.seq.q_snapshot().unwrap();
+    let yes_units = agent_side_units(
+        &pre_resolve.economic_state_t,
+        "forced_bull",
+        task,
+        BuyDirection::BuyYes,
+    );
+    assert!(yes_units > 2);
+    h.seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(task.into()),
+            outcome: OutcomeSide::Yes,
+        })
+        .await
+        .expect("YES EventResolve emitted");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("YES EventResolve envelope")
+        .expect("YES EventResolve accepted");
+
+    let first_slice = yes_units / 2;
+    let second_slice = yes_units - first_slice;
+    redeem_and_assert_payout(
+        &mut h,
+        "forced_bull",
+        task,
+        OutcomeSide::Yes,
+        BuyDirection::BuyYes,
+        first_slice,
+        1,
+    )
+    .await;
+    let after_first = h.seq.q_snapshot().unwrap();
+    assert_eq!(
+        agent_side_units(
+            &after_first.economic_state_t,
+            "forced_bull",
+            task,
+            BuyDirection::BuyYes
+        ),
+        second_slice,
+        "partial redeem leaves exact residual winning shares"
+    );
+    redeem_and_assert_payout(
+        &mut h,
+        "forced_bull",
+        task,
+        OutcomeSide::Yes,
+        BuyDirection::BuyYes,
+        second_slice,
+        2,
+    )
+    .await;
+    let after_second = h.seq.q_snapshot().unwrap();
+    assert_eq!(
+        agent_side_units(
+            &after_second.economic_state_t,
+            "forced_bull",
+            task,
+            BuyDirection::BuyYes
+        ),
+        0,
+        "second partial redeem empties winning position exactly"
+    );
 }
 
 // total_coin_micro — sum of the 5 Coin-bearing holdings in EconomicState
