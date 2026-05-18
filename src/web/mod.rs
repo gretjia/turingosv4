@@ -26,3 +26,6 @@ pub(crate) mod welcome;
 pub(crate) mod write;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — WebSocket handler + WsBroadcastMsg tagged union.
 pub(crate) mod ws;
+
+// W7: re-export driven-mode session types so integration tests can construct them.
+pub use ws::{GrillSession, SlotState, WsBroadcastMsg};

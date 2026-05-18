@@ -527,6 +527,844 @@ fn resolve_workspace() -> String {
     "tmp/phase7_active".to_string()
 }
 
+// ===========================================================================
+// Phase 6.3.x: POST /api/spec/turn — driven-mode grill turn handler (W7)
+// ===========================================================================
+//
+// TRACE_MATRIX FC2-N16 + FC1-N5: W7 atom. Web-layer driven-mode turn loop.
+// Mirrors W6 (cmd_spec.rs run_driven_mode) at the HTTP layer, using
+// AppState.sessions for process-local session state and shelling out to the
+// turingos binary for all LLM + CAS operations.
+// Risk class: Class 2.
+
+// ---------------------------------------------------------------------------
+// W7 request / response / error types
+// ---------------------------------------------------------------------------
+
+/// POST /api/spec/turn request body.
+#[cfg(feature = "web")]
+#[derive(Debug, Deserialize)]
+pub(crate) struct SpecTurnRequest {
+    pub(crate) session_id: String,
+    /// None on turn-1 setup call (server creates the session and emits Q1).
+    pub(crate) user_answer: Option<String>,
+    /// Only honoured on session creation. "zh" | "en". Default: "zh".
+    pub(crate) lang: Option<String>,
+}
+
+/// POST /api/spec/turn success response body.
+#[cfg(feature = "web")]
+#[derive(Debug, Serialize)]
+pub(crate) struct SpecTurnResponse {
+    pub(crate) turn_index: u32,
+    pub(crate) question_text: String,
+    pub(crate) covered_slots: Vec<String>,
+    pub(crate) open_slots: Vec<String>,
+    pub(crate) confidence: f64,
+    pub(crate) done: bool,
+    /// Populated only when done == true.
+    pub(crate) playback: Option<serde_json::Value>,
+    pub(crate) terminated: bool,
+    /// Populated only when terminated == true (clean synthesis).
+    pub(crate) spec_capsule_cid: Option<String>,
+    /// CID of the turn capsule just written (shell-out produces this).
+    pub(crate) turn_capsule_cid: Option<String>,
+}
+
+/// Error body for /api/spec/turn.
+#[cfg(feature = "web")]
+#[derive(Debug, Serialize)]
+pub(crate) struct ErrorBody {
+    pub(crate) error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) kind: Option<&'static str>,
+}
+
+// Convenience constructor
+#[cfg(feature = "web")]
+impl ErrorBody {
+    fn new(error: impl Into<String>) -> Self {
+        Self {
+            error: error.into(),
+            kind: None,
+        }
+    }
+    fn with_kind(error: impl Into<String>, kind: &'static str) -> Self {
+        Self {
+            error: error.into(),
+            kind: Some(kind),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helper: parse TurnPayload from turingos llm complete stdout
+// ---------------------------------------------------------------------------
+
+/// Parse a TurnPayload out of the JSON blob emitted by `turingos llm complete`.
+/// The blob has shape: `{ ok: bool, content: "...<json>...", parsed_envelope: {...}, ... }`.
+/// We first try `parsed_envelope` (the pre-parsed form), then fall back to
+/// parsing `content` directly.
+#[cfg(feature = "web")]
+fn parse_turn_payload_from_llm_output(stdout: &str) -> Result<serde_json::Value, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).map_err(|e| format!("parse llm complete JSON: {e}"))?;
+
+    // Check ok flag
+    let ok = v.get("ok").and_then(|x| x.as_bool()).unwrap_or(false);
+    if !ok {
+        let content = v
+            .get("content")
+            .and_then(|x| x.as_str())
+            .unwrap_or("<empty>");
+        return Err(format!(
+            "llm complete returned ok=false; content={}",
+            &content[..content.len().min(200)]
+        ));
+    }
+
+    // Prefer pre-parsed envelope
+    if let Some(env) = v.get("parsed_envelope") {
+        if !env.is_null() {
+            return Ok(env.clone());
+        }
+    }
+
+    // Fall back: parse content string as JSON
+    let content = v
+        .get("content")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| "llm complete: missing content field".to_string())?;
+    serde_json::from_str(content.trim()).map_err(|e| format!("parse content as envelope JSON: {e}"))
+}
+
+/// Parse the triage class from `turingos llm triage` stdout JSON.
+/// Shape: `{ ok: bool, class: "relevant"|"off_topic"|"abusive"|"gibberish" }`.
+#[cfg(feature = "web")]
+fn parse_triage_class_from_output(stdout: &str) -> Result<String, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(stdout.trim()).map_err(|e| format!("parse triage JSON: {e}"))?;
+    let class = v
+        .get("class")
+        .and_then(|x| x.as_str())
+        .unwrap_or("gibberish")
+        .to_string();
+    Ok(class)
+}
+
+/// Parse the turn CID emitted by `turingos llm complete`.
+/// Looks for `"turn_capsule_cid"` in the JSON blob.
+#[cfg(feature = "web")]
+fn parse_turn_cid_from_llm_output(stdout: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(stdout.trim()).ok()?;
+    v.get("turn_capsule_cid")
+        .or_else(|| v.get("capsule_cid"))
+        .and_then(|x| x.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Extract a string field from a JSON value, with a default.
+#[cfg(feature = "web")]
+fn jstr<'a>(v: &'a serde_json::Value, key: &str, default: &'a str) -> &'a str {
+    v.get(key).and_then(|x| x.as_str()).unwrap_or(default)
+}
+
+// ---------------------------------------------------------------------------
+// Helper: build a fake-CID placeholder for shell-out failures
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "web")]
+fn placeholder_cid() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    format!("placeholder_{t:016x}")
+}
+
+// ---------------------------------------------------------------------------
+// Helper: extract covered/open slots from parsed envelope
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "web")]
+fn extract_slots(envelope: &serde_json::Value) -> (Vec<String>, Vec<String>) {
+    // CANONICAL_SLOTS from grill_envelope (8 slots)
+    let all_slots = [
+        "job_story",
+        "anchor",
+        "data_model",
+        "first_click",
+        "weird_user",
+        "disappointment_boundary",
+        "success_test",
+        "playback",
+    ];
+
+    let covered: Vec<String> = envelope
+        .get("covered_slots")
+        .and_then(|x| x.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let open: Vec<String> = all_slots
+        .iter()
+        .filter(|s| !covered.iter().any(|c| c.as_str() == **s))
+        .map(|s| s.to_string())
+        .collect();
+
+    (covered, open)
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/spec/turn handler
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC2-N16 + FC1-N5: Phase 6.3.x W7 — POST /api/spec/turn handler.
+///
+/// Implements the per-request driven-mode turn state machine. Session state is
+/// held in `AppState.sessions` (process-local). CAS capsules are written via
+/// shell-out to `turingos llm complete` / `turingos spec --synthesize-only`.
+/// Per R2 §A14: no session-resume on server restart (sessions HashMap is empty
+/// after restart; client receives 404).
+#[cfg(feature = "web")]
+pub(crate) async fn spec_turn_handler(
+    State(state): State<AppState>,
+    Json(req): Json<SpecTurnRequest>,
+) -> Result<Json<SpecTurnResponse>, (StatusCode, Json<ErrorBody>)> {
+    use super::ws::{GrillSession, SlotState};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    // ── Step 1: validate session_id ───────────────────────────────────────────
+    if !is_safe_session_id(&req.session_id) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorBody::with_kind(
+                format!(
+                    "session_id {:?} is invalid; must match ^[a-zA-Z0-9_-]{{1,128}}$",
+                    req.session_id
+                ),
+                "invalid_input",
+            )),
+        ));
+    }
+
+    // ── Step 2: validate user_answer length if present ───────────────────────
+    if let Some(ans) = req.user_answer.as_deref() {
+        if ans.len() > 4096 {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(ErrorBody::with_kind(
+                    format!("user_answer is too long ({} chars); max is 4096", ans.len()),
+                    "invalid_input",
+                )),
+            ));
+        }
+    }
+
+    // ── Step 3: resolve workspace and binary ─────────────────────────────────
+    let workspace = resolve_workspace();
+    let bin = resolve_turingos_bin();
+
+    // ── Step 4: fetch or create GrillSession ─────────────────────────────────
+    let is_new_session;
+    {
+        let mut sessions = state.sessions.lock().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::new(format!("sessions lock poisoned: {e}"))),
+            )
+        })?;
+
+        is_new_session = !sessions.contains_key(&req.session_id);
+        if is_new_session {
+            let lang = req.lang.as_deref().unwrap_or("zh").to_string();
+            let now_unix = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            sessions.insert(
+                req.session_id.clone(),
+                GrillSession {
+                    session_id: req.session_id.clone(),
+                    turn_count: 0,
+                    lang,
+                    coverage_state: std::collections::HashMap::new(),
+                    last_3_turns: std::collections::VecDeque::new(),
+                    turn_cids: vec![],
+                    terminated: false,
+                    parent_turn_cid: None,
+                    created_at_unix: now_unix,
+                    non_relevant_count: 0,
+                    last_prev_covered: vec![],
+                    meta_turns_accepted: 0,
+                    meta_turns_rejected: 0,
+                    triage_calls_relevant: 0,
+                    triage_calls_non_relevant: 0,
+                },
+            );
+        }
+    }
+
+    // ── Step 5: check if already terminated ──────────────────────────────────
+    {
+        let sessions = state.sessions.lock().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::new(format!("sessions lock poisoned: {e}"))),
+            )
+        })?;
+        if let Some(sess) = sessions.get(&req.session_id) {
+            if sess.terminated {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorBody::with_kind(
+                        "session already terminated",
+                        "session_terminated",
+                    )),
+                ));
+            }
+        }
+    }
+
+    // ── Step 6: session-not-found guard (only fires on subsequent turns for a
+    //    session that was never created, i.e. user_answer provided but no prior
+    //    null-answer call was ever made) ───────────────────────────────────────
+    if !is_new_session && req.user_answer.is_none() {
+        // A null user_answer on an already-existing session is treated as a
+        // re-init attempt; reject it to keep the state machine unambiguous.
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorBody::with_kind(
+                "session already exists; null user_answer only valid on first turn",
+                "invalid_input",
+            )),
+        ));
+    }
+    if is_new_session && req.user_answer.is_some() {
+        // Can't provide an answer without a prior question.
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorBody::with_kind(
+                "session does not exist; send user_answer=null to start a new session",
+                "invalid_input",
+            )),
+        ));
+    }
+
+    // ── Step 7: read current session state snapshot ──────────────────────────
+    let (
+        turn_count,
+        lang,
+        last_3_turns_snap,
+        parent_turn_cid_snap,
+        non_relevant_count,
+        last_prev_covered_snap,
+    ) = {
+        let sessions = state.sessions.lock().map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::new(format!("sessions lock poisoned: {e}"))),
+            )
+        })?;
+        let sess = sessions.get(&req.session_id).unwrap(); // safe: we just inserted
+        (
+            sess.turn_count,
+            sess.lang.clone(),
+            sess.last_3_turns.clone(),
+            sess.parent_turn_cid.clone(),
+            sess.non_relevant_count,
+            sess.last_prev_covered.clone(),
+        )
+    };
+
+    // ── Step 8: hard turn ceiling check ─────────────────────────────────────
+    if turn_count >= 15 {
+        // Force terminate
+        let _ = state
+            .broadcast_tx
+            .send(super::ws::WsBroadcastMsg::SpecGrillComplete {
+                session_id: req.session_id.clone(),
+                spec_capsule_cid: String::new(),
+            });
+        {
+            let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(sess) = sessions.get_mut(&req.session_id) {
+                sess.terminated = true;
+            }
+        }
+        return Ok(Json(SpecTurnResponse {
+            turn_index: turn_count,
+            question_text: String::new(),
+            covered_slots: vec![],
+            open_slots: vec![],
+            confidence: 0.0,
+            done: false,
+            playback: None,
+            terminated: true,
+            spec_capsule_cid: None,
+            turn_capsule_cid: None,
+        }));
+    }
+
+    // ── Step 9: triage user_answer if present (subsequent turns) ─────────────
+    let prev_question: String = last_3_turns_snap
+        .back()
+        .map(|(q, _)| q.clone())
+        .unwrap_or_default();
+
+    if let Some(user_answer) = req.user_answer.as_deref() {
+        // Triage the answer
+        let session_dir = PathBuf::from(&workspace)
+            .join("sessions")
+            .join(&req.session_id);
+        let capsules_dir = session_dir.join("capsules");
+        {
+            let dir = capsules_dir.clone();
+            tokio::task::spawn_blocking(move || std::fs::create_dir_all(&dir))
+                .await
+                .ok();
+        }
+
+        let triage_turn_id = format!("turn-{}-triage", turn_count + 1);
+        let bin2 = bin.clone();
+        let ws2 = workspace.clone();
+        let user_answer_owned = user_answer.to_string();
+        let prev_q_owned = prev_question.clone();
+        let lang2 = lang.clone();
+        let sid2 = req.session_id.clone();
+        let caps_dir2 = capsules_dir.clone();
+
+        let triage_stdout = tokio::task::spawn_blocking(move || {
+            std::process::Command::new(&bin2)
+                .arg("llm")
+                .arg("triage")
+                .arg("--workspace")
+                .arg(&ws2)
+                .arg("--user-answer")
+                .arg(&user_answer_owned)
+                .arg("--question")
+                .arg(&prev_q_owned)
+                .arg("--lang")
+                .arg(&lang2)
+                .arg("--capsule-dir")
+                .arg(&caps_dir2)
+                .arg("--turn-id")
+                .arg(&triage_turn_id)
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        let triage_class = parse_triage_class_from_output(&triage_stdout)
+            .unwrap_or_else(|_| "gibberish".to_string());
+
+        if triage_class != "relevant" {
+            // Non-relevant: increment counter, maybe terminate
+            let new_non_relevant;
+            {
+                let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+                let sess = sessions.get_mut(&req.session_id).unwrap();
+                sess.non_relevant_count += 1;
+                sess.triage_calls_non_relevant += 1;
+                new_non_relevant = sess.non_relevant_count;
+            }
+
+            // Broadcast SpecTurnTriageReject
+            let _ = state
+                .broadcast_tx
+                .send(super::ws::WsBroadcastMsg::SpecTurnTriageReject {
+                    session_id: req.session_id.clone(),
+                    turn_index: turn_count + 1,
+                    triage_class: triage_class.clone(),
+                    non_relevant_count: new_non_relevant,
+                });
+
+            if new_non_relevant >= 2 {
+                // Terminate session
+                {
+                    let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+                    if let Some(sess) = sessions.get_mut(&req.session_id) {
+                        sess.terminated = true;
+                    }
+                }
+                // Shell out to write session capsule with termination_reason
+                let ws3 = workspace.clone();
+                let sid3 = req.session_id.clone();
+                let bin3 = bin.clone();
+                tokio::task::spawn_blocking(move || {
+                    let _ = std::process::Command::new(&bin3)
+                        .arg("spec")
+                        .arg("--workspace")
+                        .arg(&ws3)
+                        .arg("--session")
+                        .arg(&sid3)
+                        .arg("--mode")
+                        .arg("driven")
+                        .arg("--synthesize-only")
+                        .arg("--termination-reason")
+                        .arg("user_input_unparseable")
+                        .output();
+                })
+                .await
+                .ok();
+
+                let _ = state
+                    .broadcast_tx
+                    .send(super::ws::WsBroadcastMsg::SpecGrillComplete {
+                        session_id: req.session_id.clone(),
+                        spec_capsule_cid: String::new(),
+                    });
+
+                return Ok(Json(SpecTurnResponse {
+                    turn_index: turn_count + 1,
+                    question_text: String::new(),
+                    covered_slots: vec![],
+                    open_slots: vec![],
+                    confidence: 0.0,
+                    done: false,
+                    playback: None,
+                    terminated: true,
+                    spec_capsule_cid: None,
+                    turn_capsule_cid: None,
+                }));
+            }
+
+            // Not yet at abort threshold — just bounce back a "please try again" response
+            return Ok(Json(SpecTurnResponse {
+                turn_index: turn_count + 1,
+                question_text: prev_question.clone(),
+                covered_slots: vec![],
+                open_slots: vec![],
+                confidence: 0.0,
+                done: false,
+                playback: None,
+                terminated: false,
+                spec_capsule_cid: None,
+                turn_capsule_cid: None,
+            }));
+        }
+
+        // Relevant — record answer; update triage counter
+        {
+            let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(sess) = sessions.get_mut(&req.session_id) {
+                sess.triage_calls_relevant += 1;
+                sess.non_relevant_count = 0; // reset consecutive counter on relevant answer
+                                             // Push accepted (prev_question, answer) to rolling last-3 window
+                if sess.last_3_turns.len() == 3 {
+                    sess.last_3_turns.pop_front();
+                }
+                sess.last_3_turns
+                    .push_back((prev_question.clone(), user_answer.to_string()));
+            }
+        }
+    }
+
+    // ── Step 10: call `turingos llm complete` for next Meta turn ─────────────
+    let new_turn_index = turn_count + 1;
+    let session_dir = PathBuf::from(&workspace)
+        .join("sessions")
+        .join(&req.session_id);
+    let capsules_dir = session_dir.join("capsules");
+    {
+        let dir = capsules_dir.clone();
+        tokio::task::spawn_blocking(move || std::fs::create_dir_all(&dir))
+            .await
+            .ok();
+    }
+
+    // Build the prompt JSON and write to disk
+    let (coverage_summary, last_3_for_prompt) = {
+        let sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+        let sess = sessions.get(&req.session_id).unwrap();
+        let summary = build_coverage_summary(&sess.coverage_state, turn_count);
+        let last3 = sess.last_3_turns.clone();
+        (summary, last3)
+    };
+
+    let meta_prompt_path = PathBuf::from(&workspace).join("assets/prompts/grill_meta_v1.md");
+    let prompt_json =
+        build_web_turn_prompt_json(&coverage_summary, &last_3_for_prompt, new_turn_index, None);
+    let prompt_file_path = session_dir.join(format!("turn-{new_turn_index}-prompt.json"));
+    {
+        let pf = prompt_file_path.clone();
+        let pj = prompt_json.clone();
+        tokio::task::spawn_blocking(move || {
+            let _ = std::fs::create_dir_all(pf.parent().unwrap_or(std::path::Path::new(".")));
+            std::fs::write(&pf, &pj)
+        })
+        .await
+        .ok();
+    }
+
+    let turn_id = format!("turn-{new_turn_index}");
+    let bin2 = bin.clone();
+    let ws2 = workspace.clone();
+    let pf2 = prompt_file_path.clone();
+    let cd2 = capsules_dir.clone();
+    let tid2 = turn_id.clone();
+    let lang2 = lang.clone();
+    let mp2 = meta_prompt_path.clone();
+
+    let complete_stdout = tokio::task::spawn_blocking(move || {
+        std::process::Command::new(&bin2)
+            .arg("llm")
+            .arg("complete")
+            .arg("--workspace")
+            .arg(&ws2)
+            .arg("--role")
+            .arg("meta")
+            .arg("--prompt-file")
+            .arg(&pf2)
+            .arg("--strict-json")
+            .arg("--capsule-dir")
+            .arg(&cd2)
+            .arg("--turn-id")
+            .arg(&tid2)
+            .arg("--lang")
+            .arg(&lang2)
+            .arg("--meta-prompt")
+            .arg(&mp2)
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default()
+    })
+    .await
+    .unwrap_or_default();
+
+    // Parse the envelope
+    let envelope = match parse_turn_payload_from_llm_output(&complete_stdout) {
+        Ok(e) => e,
+        Err(e) => {
+            log::warn!("spec_turn_handler: llm complete parse error: {e}");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::with_kind(
+                    format!("llm complete failed: {e}"),
+                    "shellout_failed",
+                )),
+            ));
+        }
+    };
+
+    // Extract fields from envelope
+    let question_text = jstr(&envelope, "question", "").to_string();
+    let (covered_slots, open_slots) = extract_slots(&envelope);
+    let confidence = envelope
+        .get("confidence")
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0);
+    let done = envelope
+        .get("done")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
+    let playback = if done {
+        envelope.get("playback").cloned()
+    } else {
+        None
+    };
+
+    // Parse the turn_capsule_cid if present in stdout
+    let turn_capsule_cid = parse_turn_cid_from_llm_output(&complete_stdout);
+
+    // ── Step 11: update session state ─────────────────────────────────────────
+    {
+        let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(sess) = sessions.get_mut(&req.session_id) {
+            sess.turn_count = new_turn_index;
+            sess.meta_turns_accepted += 1;
+            sess.last_prev_covered = covered_slots.clone();
+            if let Some(ref cid) = turn_capsule_cid {
+                sess.turn_cids.push(cid.clone());
+                sess.parent_turn_cid = Some(cid.clone());
+            }
+            // Update coverage state
+            for slot in &covered_slots {
+                sess.coverage_state
+                    .insert(slot.clone(), SlotState::Satisfied);
+            }
+        }
+    }
+
+    // ── Step 12: broadcast SpecTurnAdvanced ──────────────────────────────────
+    let _ = state
+        .broadcast_tx
+        .send(super::ws::WsBroadcastMsg::SpecTurnAdvanced {
+            session_id: req.session_id.clone(),
+            turn_index: new_turn_index,
+            question_text: question_text.clone(),
+        });
+
+    // ── Step 13: termination check ────────────────────────────────────────────
+    let mut spec_capsule_cid: Option<String> = None;
+    let mut is_terminated = false;
+
+    if done {
+        // Shell out for synthesis
+        let ws3 = workspace.clone();
+        let sid3 = req.session_id.clone();
+        let bin3 = bin.clone();
+
+        let synth_stdout = tokio::task::spawn_blocking(move || {
+            std::process::Command::new(&bin3)
+                .arg("spec")
+                .arg("--workspace")
+                .arg(&ws3)
+                .arg("--session")
+                .arg(&sid3)
+                .arg("--mode")
+                .arg("driven")
+                .arg("--synthesize-only")
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        // Try to parse spec_capsule_cid from synthesis output
+        spec_capsule_cid =
+            parse_capsule_cid_from_stdout(&synth_stdout).or_else(|| Some(placeholder_cid()));
+
+        is_terminated = true;
+
+        {
+            let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(sess) = sessions.get_mut(&req.session_id) {
+                sess.terminated = true;
+            }
+        }
+
+        let _ = state
+            .broadcast_tx
+            .send(super::ws::WsBroadcastMsg::SpecGrillComplete {
+                session_id: req.session_id.clone(),
+                spec_capsule_cid: spec_capsule_cid.clone().unwrap_or_default(),
+            });
+    }
+
+    // ── Step 14: hard turn ceiling post-check ────────────────────────────────
+    if new_turn_index >= 15 && !done {
+        is_terminated = true;
+        {
+            let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some(sess) = sessions.get_mut(&req.session_id) {
+                sess.terminated = true;
+            }
+        }
+        let _ = state
+            .broadcast_tx
+            .send(super::ws::WsBroadcastMsg::SpecGrillComplete {
+                session_id: req.session_id.clone(),
+                spec_capsule_cid: String::new(),
+            });
+    }
+
+    Ok(Json(SpecTurnResponse {
+        turn_index: new_turn_index,
+        question_text,
+        covered_slots,
+        open_slots,
+        confidence,
+        done,
+        playback,
+        terminated: is_terminated,
+        spec_capsule_cid,
+        turn_capsule_cid,
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// W7 helpers
+// ---------------------------------------------------------------------------
+
+/// Build a coverage summary string (injected into the prompt JSON).
+#[cfg(feature = "web")]
+fn build_coverage_summary(
+    coverage_state: &std::collections::HashMap<String, super::ws::SlotState>,
+    turn_count: u32,
+) -> String {
+    let slots = [
+        "job_story",
+        "anchor",
+        "data_model",
+        "first_click",
+        "weird_user",
+        "disappointment_boundary",
+        "success_test",
+        "playback",
+    ];
+    let mut parts = Vec::new();
+    for slot in &slots {
+        let mark = match coverage_state.get(*slot) {
+            Some(super::ws::SlotState::Satisfied) => "[x]",
+            Some(super::ws::SlotState::Partial) => "[~]",
+            _ => "[ ]",
+        };
+        parts.push(format!("{mark} {slot}"));
+    }
+    format!(
+        "Coverage state (turn {}):\n{}\nTurns used: {}",
+        turn_count,
+        parts.join("\n"),
+        turn_count
+    )
+}
+
+/// Build the prompt JSON for a driven-mode web turn.
+/// Simplified version (no meta-prompt file read; the shell-out to
+/// `turingos llm complete --meta-prompt` handles that server-side).
+#[cfg(feature = "web")]
+fn build_web_turn_prompt_json(
+    coverage_summary: &str,
+    last_3_turns: &std::collections::VecDeque<(String, String)>,
+    turn_index: u32,
+    extra_system: Option<&str>,
+) -> String {
+    let mut messages: Vec<serde_json::Value> = Vec::new();
+
+    // Coverage state summary
+    messages.push(serde_json::json!({
+        "role": "system",
+        "content": coverage_summary,
+    }));
+
+    // Optional extra system message
+    if let Some(extra) = extra_system {
+        messages.push(serde_json::json!({
+            "role": "system",
+            "content": extra,
+        }));
+    }
+
+    // Last 3 accepted turns as alternating assistant/user pairs
+    for (q, a) in last_3_turns.iter() {
+        messages.push(serde_json::json!({
+            "role": "assistant",
+            "content": q,
+        }));
+        messages.push(serde_json::json!({
+            "role": "user",
+            "content": a,
+        }));
+    }
+
+    // Final user instruction
+    messages.push(serde_json::json!({
+        "role": "user",
+        "content": format!("Produce your turn-{turn_index} output per the contract."),
+    }));
+
+    serde_json::json!({ "messages": messages }).to_string()
+}
+
 // ---------------------------------------------------------------------------
 // Unit tests (no I/O)
 // ---------------------------------------------------------------------------

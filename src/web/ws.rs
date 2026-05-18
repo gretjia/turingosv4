@@ -38,6 +38,11 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 
 #[cfg(feature = "web")]
+use std::collections::{HashMap, VecDeque};
+#[cfg(feature = "web")]
+use std::sync::{Arc, Mutex};
+
+#[cfg(feature = "web")]
 use super::fixtures;
 #[cfg(feature = "web")]
 use super::ir::IRRoot;
@@ -64,7 +69,7 @@ use super::store::TaskMemoryStore;
 #[cfg(feature = "web")]
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "msg_type", rename_all = "snake_case")]
-pub(crate) enum WsBroadcastMsg {
+pub enum WsBroadcastMsg {
     /// Emitted by POST /api/task/open on success.
     TaskCreated {
         task_id: String,
@@ -115,6 +120,37 @@ pub(crate) enum WsBroadcastMsg {
         max_attempts: u8,
         reason: String,
     },
+
+    // ── Phase 6.3.x driven-mode grill events (W7) ────────────────────────────
+    /// TRACE_MATRIX FC2-N16 + FC1-N5: emitted by POST /api/spec/turn on each
+    /// accepted Meta turn. Allows the frontend `<tos-spec-grill>` to update
+    /// its question display without polling.
+    SpecTurnAdvanced {
+        session_id: String,
+        turn_index: u32,
+        question_text: String,
+    },
+
+    /// TRACE_MATRIX FC2-N16: emitted when a driven-mode grill session terminates
+    /// (either cleanly via done=true + synthesis, or aborted by turn-limit /
+    /// double-triage). Counterpart to the static-mode `SpecComplete`.
+    SpecGrillComplete {
+        session_id: String,
+        spec_capsule_cid: String,
+    },
+
+    /// TRACE_MATRIX FC2-N16 + FC1-N5: R2 §A5 — triage non-relevant event.
+    ///
+    /// Emitted by POST /api/spec/turn when the Blackbox triage classifier marks
+    /// the user's answer as off_topic, abusive, or gibberish. The frontend can
+    /// show a gentle redirect message without waiting for the next turn.
+    SpecTurnTriageReject {
+        session_id: String,
+        turn_index: u32,
+        /// "off_topic" | "abusive" | "gibberish"
+        triage_class: String,
+        non_relevant_count: u32,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -138,12 +174,66 @@ pub(crate) enum WsBroadcastMsg {
 /// HTTP response body. `std::sync::Mutex` is correct here (not
 /// `tokio::sync::Mutex`) because the critical section is microseconds —
 /// no `.await` is held while the lock is acquired.
+///
+/// W7 (Phase 6.3.x) adds `sessions`: process-local in-memory driven-mode
+/// session state. Per R2 §A14: in-flight session resumption is NOT supported
+/// in v1 — if the server restarts, `sessions` is empty and clients receive
+/// HTTP 404 on subsequent turns. The canonical state is in CAS via the
+/// per-turn capsules; this HashMap is a performance shortcut only.
 #[cfg(feature = "web")]
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) broadcast_tx: broadcast::Sender<WsBroadcastMsg>,
     pub(crate) task_store: std::sync::Arc<TaskMemoryStore>,
     pub(crate) api_key: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    /// Phase 6.3.x driven-mode session state (process-local; NOT canonical).
+    /// R2 §A14: no server-restart resume in v1.
+    pub(crate) sessions: Arc<Mutex<HashMap<String, GrillSession>>>,
+}
+
+// ── Phase 6.3.x driven-mode session types (W7) ───────────────────────────────
+
+/// Per-slot coverage granularity for the driven-mode grill.
+/// Grows only (Empty → Partial → Satisfied). No reversal allowed.
+#[cfg(feature = "web")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotState {
+    Empty,
+    Partial,
+    Satisfied,
+}
+
+/// Process-local in-memory state for one driven-mode grill session.
+///
+/// All fields are plain data; no I/O. Written by `spec_turn_handler` under a
+/// short-lived `Mutex` lock. The CAS capsules (written via shell-out) are the
+/// canonical record; this struct is a performance/convenience cache.
+#[cfg(feature = "web")]
+#[derive(Debug, Clone)]
+pub struct GrillSession {
+    pub session_id: String,
+    pub turn_count: u32,
+    /// "zh" | "en"
+    pub lang: String,
+    /// slot_id → coverage state (slot vocab from grill_envelope::CANONICAL_SLOTS)
+    pub coverage_state: HashMap<String, SlotState>,
+    /// Rolling last-3 accepted (question, answer) pairs for context injection.
+    pub last_3_turns: VecDeque<(String, String)>,
+    /// CIDs of each written GrillTurnCapsuleBody, in turn order.
+    pub turn_cids: Vec<String>,
+    pub terminated: bool,
+    /// CID of the previous accepted turn capsule (None on turn 1).
+    pub parent_turn_cid: Option<String>,
+    pub created_at_unix: u64,
+    /// Number of consecutive non-relevant answers (abort threshold = 2).
+    pub non_relevant_count: u32,
+    /// Covered-slot list from the previous accepted Meta turn (for P4 monotonicity).
+    pub last_prev_covered: Vec<String>,
+    // Independent grill_attempt_count tallies (R2 §A6).
+    pub meta_turns_accepted: u32,
+    pub meta_turns_rejected: u32,
+    pub triage_calls_relevant: u32,
+    pub triage_calls_non_relevant: u32,
 }
 
 // ---------------------------------------------------------------------------
