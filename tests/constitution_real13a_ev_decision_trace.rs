@@ -575,6 +575,37 @@ fn trader_ev_scaffold_includes_non_forcing_positive_ev_action_check() {
 }
 
 #[test]
+fn bear_trader_positive_no_edge_has_symmetric_non_forcing_action_salience() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17 BearTrader NO-Side Action Conversion ===",
+        "For BearTrader, positive EV on the NO side is symmetric with BullTrader YES-side positive EV",
+        "`buy_no` is the candidate economic action for clear public positive EV on NO",
+        "`abstain` remains valid when confidence, liquidity, balance, or risk checks do not pass",
+        "Do not convert a NO-side positive EV edge into a YES-side action",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "BearTrader action-conversion scaffold must make NO-side positive EV salient without forcing a trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "BearTrader action-conversion scaffold must not force market action: {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn evaluator_classifies_zero_zero_unknown_probability_as_uncalibrated() {
     let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
 

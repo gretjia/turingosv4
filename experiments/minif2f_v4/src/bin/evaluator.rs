@@ -601,6 +601,15 @@ fn real13_trader_ev_scaffold_block(
     block.push_str("missed_positive_ev_count: derived from prior PolicyTraderTrace/EvDecisionTrace summaries when available.\n");
     block.push_str("action_conversion_rate_bps: derived from executed_positive_ev / policy_positive_ev, never from dashboard-only text.\n");
     block.push_str("positive_ev_ignored_bucket_top: use the visible bucket summary, when present, to explain abstain instead of hiding it.\n");
+    if role == AgentRole::BearTrader {
+        block.push_str("=== REAL-17 BearTrader NO-Side Action Conversion ===\n");
+        block.push_str("For BearTrader, positive EV on the NO side is symmetric with BullTrader YES-side positive EV.\n");
+        block.push_str(
+            "`buy_no` is the candidate economic action for clear public positive EV on NO.\n",
+        );
+        block.push_str("`abstain` remains valid when confidence, liquidity, balance, or risk checks do not pass.\n");
+        block.push_str("Do not convert a NO-side positive EV edge into a YES-side action.\n");
+    }
     match role {
         AgentRole::BullTrader => block.push_str(&format!(
             "If positive EV and risk checks pass: <action>{{\"tool\":\"buy_yes\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<your_lower_bps>,\"estimated_probability_upper_bps\":<your_upper_bps>,\"expected_value_sign\":\"positive\",\"liquidity_depth_micro\":{}}}</action>\n",
@@ -6480,7 +6489,9 @@ async fn run_swarm(
                                                             &suffix,
                                                             tx as u64,
                                                         );
-                                                        if let Some(prompt_capsule_cid) = real5_prompt_capsule_cid_for_turn {
+                                                        if let Some(prompt_capsule_cid) =
+                                                            real5_prompt_capsule_cid_for_turn
+                                                        {
                                                             let provenance_link = turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink {
                                                                 schema_version: turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink::SCHEMA_VERSION.to_string(),
                                                                 market_decision_trace_cid,
