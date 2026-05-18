@@ -225,6 +225,10 @@ pub mod agent_role_classifier;
 /// evaluator and §K clean-negative renderer.
 pub mod g7_structural_smoke;
 
+/// TRACE_MATRIX FC1-N5 + FC1-N7: grill turn-payload schema, parser, and validator.
+/// Phase 6.3.x Software 3.0 LLM-driven grill envelope parsing and structural validation.
+pub mod grill_envelope;
+
 /// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
 /// role-scoped Librarian broadcast digest. Materialized view only; no new
 /// TypedTx, sequencer admission, signing payload, or CAS ObjectType.
