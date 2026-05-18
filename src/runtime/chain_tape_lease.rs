@@ -292,17 +292,36 @@ fn is_pid_alive(pid: i32) -> bool {
     if pid <= 0 {
         return false;
     }
-    unsafe {
-        let rc = libc::kill(pid, 0);
-        if rc == 0 {
-            return true;
-        }
-        let errno = *libc::__errno_location();
-        // ESRCH = 3 on Linux (and macOS). Conservative: treat anything
-        // else as alive.
-        errno != libc::ESRCH
+    let rc = unsafe { libc::kill(pid, 0) };
+    if rc == 0 {
+        return true;
     }
+    // ESRCH = 3 on Linux (and macOS). Conservative: treat anything
+    // else as alive.
+    last_errno() != libc::ESRCH
 }
+
+// Thread-local errno accessor. glibc exposes it via `__errno_location`,
+// Darwin via `__error`; both return a `*mut c_int` with identical
+// semantics. TuringOS targets Linux and macOS first-class — adding a
+// new Unix variant requires a deliberate arm here.
+
+#[cfg(target_os = "linux")]
+#[inline]
+fn last_errno() -> i32 {
+    unsafe { *libc::__errno_location() }
+}
+
+#[cfg(target_os = "macos")]
+#[inline]
+fn last_errno() -> i32 {
+    unsafe { *libc::__error() }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+compile_error!(
+    "TuringOS currently supports Linux and macOS only; add a libc errno accessor arm in src/runtime/chain_tape_lease.rs for this target"
+);
 
 #[cfg(test)]
 mod tests {

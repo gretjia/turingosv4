@@ -1,0 +1,18 @@
+{
+  "page": "dashboard",
+  "url": "http://127.0.0.1:8080/",
+  "criteria": {
+    "contains_turingos_text": true,
+    "contains_phase_marker": "Phase 7",
+    "contains_data_block_type": true,
+    "data_block_type_count": 11,
+    "console_error_count_zero": false,
+    "console_errors_observed": ["chrome-extension async response listener (benign extension noise, not page error)"],
+    "network_get_root_200": true,
+    "network_ws_established": true,
+    "ws_evidence": "data-state=\"connected\" on tos-conn-pill, window.__turingos_ws present, /ws referenced in DOM",
+    "nav_includes_build_link": true
+  },
+  "verdict": "PASS",
+  "notes": "Phase marker rendered via CSS uppercase as 'PHASE 7' in viewport but textContent yields 'Phase 7' which matches /Phase \\d/. Console exception is Chrome-extension message-channel noise, not application code."
+}

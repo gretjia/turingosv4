@@ -1,0 +1,2 @@
+  501 58634 58600   0  8:05AM ??         0:00.55 node /Users/zephryj/.npm/_npx/6583fba12287d067/node_modules/.bin/mcp-pdf-server --stdio
+  501 89066     1   0 12:11PM ??         0:00.04 target/debug/turingos_web

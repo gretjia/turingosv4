@@ -1,0 +1,33 @@
+=== Tape + CAS audit on session 1779080045_3e212b67 ===
+
+## 1. spec.md sha256
+7ff97a2a9796fd4460e71e46f3befd6fc78999412433d61caaca493d96679032  /Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/spec.md
+
+## 2. UI-broadcasted spec capsule CID: 7ff97a2a...96679032
+
+## 3. CAS directory walk
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.turingos_cas_index.jsonl
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/config
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/HEAD
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/description
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/info/exclude
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/hooks/README.sample
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/refs/chaintape/cas
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/objects/d2/342e59d3357cd74aaf719276d8f1f468f1bae3
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/objects/f8/de83ea08f17067e6b0143e9e97546bf6415eaa
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/objects/1e/6fed8be21fbb9e3baa57007ce66a7310261d92
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/objects/8c/da7851b3cdb04fb2ba49107ecbc189389ffb07
+/Users/zephryj/work/turingosv4/tmp/phase7_active/sessions/1779080045_3e212b67/cas/.git/objects/8c/81b56e8ab04b1c0fd93917aa58451f1b9b2da6
+
+## 4. Look up capsule CID in session CAS
+
+## 5. Workspace CAS dir
+
+## 6. Tape file in session
+total 56
+drwxr-xr-x@ 6 zephryj  staff    192 May 18 12:54 .
+drwxr-xr-x@ 3 zephryj  staff     96 May 18 12:54 ..
+-rw-r--r--@ 1 zephryj  staff   2831 May 18 12:54 answers.json
+drwxr-xr-x@ 4 zephryj  staff    128 May 18 12:54 cas
+-rw-r--r--@ 1 zephryj  staff   7894 May 18 12:54 spec.md
+-rw-r--r--@ 1 zephryj  staff  14807 May 18 12:54 spec_transcript.jsonl

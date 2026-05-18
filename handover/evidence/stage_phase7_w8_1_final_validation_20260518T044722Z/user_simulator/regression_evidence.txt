@@ -1,0 +1,56 @@
+=== REGRESSION DETECTED — W8.1 P2 fix INCOMPLETE ===
+
+## Symptom (user sees):
+After clicking "生成代码 →" the UI shows:
+  session "1779080045_3e212b67" not found at "/Users/zephryj/work/turingosv4/sessions/1779080045_3e212b67"; run spec/submit first
+
+## Cause:
+W8.1 commit message claims resolve_workspace() defaults harmonized across spec.rs/write.rs/artifact.rs
+but the diff did NOT touch src/web/generate.rs:558.
+
+Result: split-brain workspace resolution:
+  /spec/submit (spec.rs)    -> tmp/phase7_active/sessions/<sid>/  [W8.1 default]
+  /generate    (generate.rs) -> <cwd>/sessions/<sid>/             [pre-W8.1 default]
+  cwd = /Users/zephryj/work/turingosv4 (server started without TURINGOS_WEB_WORKSPACE)
+
+## Verification (filesystem):
+Session DOES exist at: tmp/phase7_active/sessions/1779080045_3e212b67/
+total 56
+drwxr-xr-x@ 6 zephryj  staff    192 May 18 12:54 .
+drwxr-xr-x@ 3 zephryj  staff     96 May 18 12:54 ..
+-rw-r--r--@ 1 zephryj  staff   2831 May 18 12:54 answers.json
+drwxr-xr-x@ 4 zephryj  staff    128 May 18 12:54 cas
+-rw-r--r--@ 1 zephryj  staff   7894 May 18 12:54 spec.md
+-rw-r--r--@ 1 zephryj  staff  14807 May 18 12:54 spec_transcript.jsonl
+
+Session does NOT exist at: /Users/zephryj/work/turingosv4/sessions/1779080045_3e212b67/
+ls: /Users/zephryj/work/turingosv4/sessions: No such file or directory
+
+## resolve_workspace() comparison:
+fn resolve_workspace() -> String {
+    if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    "tmp/phase7_active".to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests (no I/O)
+// ---------------------------------------------------------------------------
+
+---
+fn resolve_workspace() -> String {
+    if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    std::env::current_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| ".".to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests (no I/O)

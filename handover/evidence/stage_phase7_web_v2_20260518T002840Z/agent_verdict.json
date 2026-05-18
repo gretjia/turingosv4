@@ -1,0 +1,42 @@
+{
+  "agent_id": "verifier_phase7_v2_cdb7eabd",
+  "branch_head": "dd1d572410194ac38db9189cb3ade07ea50a044b",
+  "chrome_version": "unknown (Chrome MCP did not surface a version field)",
+  "verifier_version": "v2_spec_generate_reoriented",
+  "started_at_unix": 1779064120,
+  "completed_at_unix": 1779064882,
+  "wall_clock_seconds": 762,
+  "overall_verdict": "PARTIAL",
+  "page_results": [
+    { "page": "dashboard", "verdict": "PASS", "notes": "Phase marker present (textContent yields 'Phase 7'); WS connected; nav includes /build link; data-block-type=11; console exceptions are Chrome-extension noise (benign)." },
+    { "page": "agents",    "verdict": "PARTIAL", "notes": "Fixture-mode: only MarketMaker of 10 canonical role tokens present; agent_001 not in fixture; /api/agents = 200." },
+    { "page": "tasks",     "verdict": "PASS", "notes": "task_card blocks present; statuses open/accepted/rejected found; task_open_form present; /api/tasks = 200; console clean." },
+    { "page": "build",     "verdict": "PARTIAL", "notes": "Steps 4a-4d (page-load, questions fetch, 8 answers, spec submit) all PASS. Step 4e click-through CTA broken: frontend POSTs { session_id } but backend requires { session_id, from_capsule: bool } (no #[serde(default)]) -> HTTP 422. Verifier reproduced with curl-corrected payload: backend returns 200 + artifact list; artifact-viewer mounts; iframe sandbox security holds." },
+    { "page": "audit",     "verdict": "PASS", "notes": "/audit = 200, data-block-type=11, no console errors. W4 task_id correlation criterion intentionally dropped." }
+  ],
+  "iframe_sandbox_verification": {
+    "iframe_exists": true,
+    "sandbox_value": "allow-scripts",
+    "has_allow_scripts": true,
+    "has_allow_same_origin": false,
+    "is_xss_safe": true,
+    "iframe_src": "/api/artifact/1779064616_4ab7d8c2/index.html",
+    "mounted_via": "JS workaround (UI button-path blocked by 422); confirmed sandbox attribute is set verbatim to 'allow-scripts' by buildSandboxAttribute() in frontend/src/components/artifact-viewer.ts (line 16-18). Iframe rendered the stub HTML including dynamic timestamp script execution."
+  },
+  "oob_crosscheck": {
+    "questions_endpoint_count": 8,
+    "session_dir_created": true,
+    "session_spec_md_exists": true,
+    "session_index_html_exists": true,
+    "artifact_endpoint_serves_html": true,
+    "artifact_body_contains_stub_marker": true,
+    "path_traversal_blocked": true,
+    "path_traversal_status_code": 404
+  },
+  "fail_reasons": [],
+  "partial_reasons": [
+    "Page 4 (build) Step 4e: frontend/backend contract mismatch — frontend spec-result.ts line 71 POSTs { session_id } but backend generate.rs GenerateRequest requires from_capsule: bool. UI button-click returns HTTP 422 'missing field `from_capsule`'. This breaks the click-through user flow even though the underlying spec→generate substrate works correctly when the proper payload is sent. RECOMMENDED FIX: either (a) add #[serde(default)] to GenerateRequest.from_capsule, or (b) update spec-result.ts to send from_capsule: false.",
+    "Page 2 (agents) is fixture-mode: only 1 of 10 canonical AgentRole tokens (MarketMaker) appears. Agent_001 deployed by setup script is not present in the /api/agents fixture response. Known W1-era limitation, not new regression."
+  ],
+  "notes": "Phase 7 §6a v2 — re-oriented around spec→generate flow per architect 2026-05-18 ratification of 方案 A. Lean substrate (lean_market chaintape advancement) deliberately out of scope; W5/W6 substrate (POST /api/spec/submit → spec.md, POST /api/generate → artifacts, <tos-artifact-viewer> iframe sandbox security) is what was being proven here. Iframe sandbox security holds end-to-end. The 422 click-through bug is a genuine frontend↔backend contract gap that the auditor should treat as a real PARTIAL finding."
+}

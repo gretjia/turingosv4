@@ -1,0 +1,4 @@
+TURINGOS_WEB_WORKSPACE=/Users/zephryj/work/turingosv4/tmp/phase7_workspace_v2
+TURINGOS_WEB_BIN=/Users/zephryj/work/turingosv4/target/debug/turingos_web
+TURINGOS_BACKEND_OVERRIDE=/Users/zephryj/work/turingosv4/handover/evidence/stage_phase7_web_v2_20260518T002840Z/turingos_stub.sh
+EVID_ABS=/Users/zephryj/work/turingosv4/handover/evidence/stage_phase7_web_v2_20260518T002840Z

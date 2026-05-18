@@ -132,16 +132,19 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
     while let Some(arg) = iter.next() {
         match arg.as_str() {
             "--workspace" => {
-                workspace = PathBuf::from(
-                    iter.next().ok_or(LlmError::MissingFlag("--workspace"))?,
-                );
+                workspace = PathBuf::from(iter.next().ok_or(LlmError::MissingFlag("--workspace"))?);
             }
             "--provider" => {
-                provider = iter.next().ok_or(LlmError::MissingFlag("--provider"))?.clone();
+                provider = iter
+                    .next()
+                    .ok_or(LlmError::MissingFlag("--provider"))?
+                    .clone();
             }
             "--meta-model" => {
-                meta_model =
-                    iter.next().ok_or(LlmError::MissingFlag("--meta-model"))?.clone();
+                meta_model = iter
+                    .next()
+                    .ok_or(LlmError::MissingFlag("--meta-model"))?
+                    .clone();
             }
             "--blackbox-model" => {
                 blackbox_model = iter
@@ -150,8 +153,10 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
                     .clone();
             }
             "--api-key-env" => {
-                api_key_env =
-                    iter.next().ok_or(LlmError::MissingFlag("--api-key-env"))?.clone();
+                api_key_env = iter
+                    .next()
+                    .ok_or(LlmError::MissingFlag("--api-key-env"))?
+                    .clone();
             }
             "-h" | "--help" => {}
             _ => positional.push(arg.clone()),
@@ -159,15 +164,19 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
     }
 
     if !workspace.exists() {
-        return Err(LlmError::WorkspaceNotFound(
-            workspace.display().to_string(),
-        ));
+        return Err(LlmError::WorkspaceNotFound(workspace.display().to_string()));
     }
 
     let action = positional.first().ok_or(LlmError::MissingAction)?.clone();
     match action.as_str() {
         "config" => {
-            write_config(&workspace, &provider, &meta_model, &blackbox_model, &api_key_env)?;
+            write_config(
+                &workspace,
+                &provider,
+                &meta_model,
+                &blackbox_model,
+                &api_key_env,
+            )?;
             let ws_q = shell_quote_path(&workspace);
             println!("LLM config written to {}/turingos.toml", ws_q);
             println!();
@@ -227,9 +236,8 @@ fn write_config(
     set("llm.blackbox.model", blackbox_model);
     set("llm.blackbox.api_key_env", api_key_env);
 
-    let mut out = String::from(
-        "# turingos.toml — managed by `turingos config` / `turingos llm config`\n",
-    );
+    let mut out =
+        String::from("# turingos.toml — managed by `turingos config` / `turingos llm config`\n");
     for (k, v) in &existing {
         out.push_str(&format!("{k} = \"{v}\"\n"));
     }
@@ -264,8 +272,7 @@ fn read_config(workspace: &Path) -> Result<Vec<(String, String)>, LlmError> {
 /// Falls back to the Phase 6.3 default if unset (e.g., when user skipped
 /// `turingos llm config` and went straight to spec).
 pub(crate) fn read_meta_model(workspace: &Path) -> String {
-    read_config_value(workspace, "llm.meta.model")
-        .unwrap_or_else(|| DEFAULT_META_MODEL.to_string())
+    read_config_value(workspace, "llm.meta.model").unwrap_or_else(|| DEFAULT_META_MODEL.to_string())
 }
 
 /// TRACE_MATRIX FC2-N16: Blackbox-model lookup from turingos.toml (with default fallback).

@@ -18,8 +18,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 /// TRACE_MATRIX FC2-N16: SiliconFlow default API endpoint (mainland China region).
-pub(crate) const SILICONFLOW_ENDPOINT: &str =
-    "https://api.siliconflow.cn/v1/chat/completions";
+pub(crate) const SILICONFLOW_ENDPOINT: &str = "https://api.siliconflow.cn/v1/chat/completions";
 
 /// TRACE_MATRIX FC2-N16: Default reasoning model (Meta AI role).
 /// Research note: DeepSeek-V3.2 — ¥2/M in, ¥3/M out, 160K ctx, Chinese-first.
@@ -27,8 +26,7 @@ pub(crate) const DEFAULT_META_MODEL: &str = "deepseek-ai/DeepSeek-V3.2";
 
 /// TRACE_MATRIX FC2-N16: Default fast / codegen model (Blackbox AI role).
 /// Research note: Qwen3-Coder-30B-A3B-Instruct — code MoE, 256K ctx.
-pub(crate) const DEFAULT_BLACKBOX_MODEL: &str =
-    "Qwen/Qwen3-Coder-30B-A3B-Instruct";
+pub(crate) const DEFAULT_BLACKBOX_MODEL: &str = "Qwen/Qwen3-Coder-30B-A3B-Instruct";
 
 /// TRACE_MATRIX FC2-N16: Default API base — overridable via
 /// TURINGOS_SILICONFLOW_ENDPOINT env var (e.g. for the international mirror
@@ -197,7 +195,11 @@ pub(crate) async fn chat_complete(
     let parsed: ChatResponse =
         serde_json::from_str(&text).map_err(|e| LlmError::DecodeError(e.to_string()))?;
 
-    let first = parsed.choices.into_iter().next().ok_or(LlmError::NoChoices)?;
+    let first = parsed
+        .choices
+        .into_iter()
+        .next()
+        .ok_or(LlmError::NoChoices)?;
     Ok(ChatResult {
         content: first.message.content,
         usage: parsed.usage.unwrap_or_default(),
@@ -221,7 +223,13 @@ pub(crate) fn chat_complete_blocking(
         .enable_all()
         .build()
         .map_err(|e| LlmError::Transport(format!("tokio runtime: {e}")))?;
-    rt.block_on(chat_complete(api_key, model, messages, max_tokens, temperature))
+    rt.block_on(chat_complete(
+        api_key,
+        model,
+        messages,
+        max_tokens,
+        temperature,
+    ))
 }
 
 /// TRACE_MATRIX FC2-N16: env-var-only API-key read (NEVER persists to disk).

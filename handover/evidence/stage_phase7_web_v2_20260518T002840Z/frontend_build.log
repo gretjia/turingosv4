@@ -1,0 +1,8 @@
+
+> turingos-frontend@0.0.1 build
+> tsc -p tsconfig.json --noEmit && esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --target=es2020
+
+
+  dist/main.js  49.9kb
+
+⚡ Done in 2ms

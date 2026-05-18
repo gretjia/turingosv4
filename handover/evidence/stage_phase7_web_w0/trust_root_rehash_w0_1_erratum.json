@@ -1,0 +1,27 @@
+{
+  "phase": "TISR Phase 7 W0.1 erratum",
+  "supersedes_partially": "trust_root_rehash.json (W0 main entry)",
+  "timestamp_utc": "2026-05-18T02:30:00Z",
+  "branch": "codex/tisr-phase7-web",
+  "base_commit": "63187013",
+  "ratified_by": "architect (zephryj) 2026-05-18 chat: 方案 B: W0.1 补丁 + 地道 axum ws 代码",
+  "ratification_scope": "single feature flag addition to axum entry in Cargo.toml; one-shot erratum; subsequent Phase 7 atoms operate under the post-W0.1 Trust Root state",
+  "rehashed": [
+    {
+      "path": "Cargo.toml",
+      "sha256_old": "53c19680731ddc069c2d6d721b4757051d0ceb81e0eed4e5ab23e8845cce9571",
+      "sha256_new": "46c1340a94a664957a607cf899e555f13491cda45e136e2a190c2f5291eb4d9d",
+      "change_summary": "axum = { version = \"0.7\", optional = true } → axum = { version = \"0.7\", optional = true, features = [\"ws\"] }"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256_old": "60ae38b444f29048acfad24c644a627efeb92fd2b94c700a01be3f2755376677",
+      "sha256_new": "85a29755bd9a34a814d06c45ac39fe3b48e7bc34858122c1210bcc461b92dc6a",
+      "change_summary": "regenerated via cargo build --features web; adds transitive deps hyper, sha1, base64 (all pulled in by axum ws feature). tokio-tungstenite was already a direct dep since W0."
+    }
+  ],
+  "why_w0_missed_this": "W0 sonnet executor added tokio-tungstenite 0.21 as a direct dep but did not realize that axum 0.7's WebSocketUpgrade extractor lives in axum::extract::ws gated behind features = [\"ws\"]. Without that feature, the extractor is not in the compiled crate. tokio-tungstenite alone can be used via manual HTTP Upgrade hijack, but that path requires ~50-100 LOC of boilerplate per WS endpoint vs ~10-20 LOC with the axum extractor. Architect picked the cleaner long-term code-quality path (W0.1 supplementary rehash + idiomatic axum ws) over preserving the strict letter of W0 ONE-SHOT.",
+  "audit_impact": "Auditor sees Cargo.toml + Cargo.lock with two rehash events (W0 main + W0.1 erratum) instead of one. Both events are pre-W2 (no other Phase 7 work was attempted between them), so the audit window flux is minimal. genesis_payload.toml entries carry both rehash comments for full provenance.",
+  "no_class_4_surface_touched": true,
+  "subsequent_atoms_clear_to_proceed": "W2 (WebSocket wiring) and beyond. No further Cargo.toml changes anticipated for Phase 7 ship."
+}

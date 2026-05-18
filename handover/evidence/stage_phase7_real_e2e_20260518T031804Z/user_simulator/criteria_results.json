@@ -1,0 +1,69 @@
+{
+  "session_id": "1779074775_6d96a209",
+  "attempts": 2,
+  "final_artifact_attempt": 2,
+  "criteria": [
+    {
+      "id": "T1",
+      "name": "iframe HTTP 200 + body non-empty",
+      "attempt_1": "PASS",
+      "attempt_2": "PASS",
+      "evidence": "curl -sS -o /tmp/artifact2.html -w 'code=%{http_code} size=%{size_download}' /api/artifact/1779074775_6d96a209/index.html → code=200 size=11057"
+    },
+    {
+      "id": "T2",
+      "name": "Playfield exists (canvas OR 200+ cells)",
+      "attempt_1": "PASS",
+      "attempt_2": "PASS",
+      "evidence": "<canvas id=\"game-board\" width=\"200\" height=\"400\"> = 10x20 grid @ BLOCK_SIZE 20"
+    },
+    {
+      "id": "T3",
+      "name": "Score visible (分数 / Score / score)",
+      "attempt_1": "PASS",
+      "attempt_2": "PASS",
+      "evidence": "grep -oE '(分数|Score|score)' → all three found"
+    },
+    {
+      "id": "T4",
+      "name": "Sandbox safe (allow-scripts only, no allow-same-origin)",
+      "attempt_1": "PASS",
+      "attempt_2": "PASS",
+      "evidence": "iframe.getAttribute('sandbox') === 'allow-scripts' verbatim; buildSandboxAttribute() hard-coded constant"
+    },
+    {
+      "id": "T5",
+      "name": "Keyboard reactive (ArrowDown changes state)",
+      "attempt_1": "FAIL",
+      "attempt_2": "PASS",
+      "evidence_attempt_1": "Space → player.matrix === null guard never true (matrix was pre-set by init→resetGame); update() rAF loop never invoked; game frozen",
+      "evidence_attempt_2": "ArrowDown KeyboardEvent → player.pos.y advanced 1 → 2 deterministically"
+    },
+    {
+      "id": "T6",
+      "name": "Rotation works (ArrowUp mutates matrix)",
+      "attempt_1": "FAIL",
+      "attempt_2": "PASS",
+      "evidence_attempt_2": "ArrowUp KeyboardEvent → L-shape matrix [[0,0,3],[3,3,3],[0,0,0]] → rotated [[0,3,0],[0,3,0],[0,3,3]]"
+    },
+    {
+      "id": "T7",
+      "name": "No console errors from game code",
+      "attempt_1": "PASS",
+      "attempt_2": "PASS",
+      "evidence": "Console reading: 0 errors at game origin (artifact URL). 5 messages were Chrome extension noise at :0:0 ('A listener indicated an asynchronous response by returning true' — generic CDP extension lifecycle, not game-originated)"
+    },
+    {
+      "id": "T8",
+      "name": "Plays through (30 random keys / 10s, no panic)",
+      "attempt_1": "FAIL",
+      "attempt_2": "PASS",
+      "evidence_attempt_2": "30 random arrow KeyboardEvents dispatched at 200ms intervals; piece migrated posY 0→14 without game-over; no exceptions; canvas updates visible"
+    }
+  ],
+  "summary": {
+    "attempt_1_score": "5/8 (sandbox safe; gameplay fail)",
+    "attempt_2_score": "8/8 PASS",
+    "final_verdict": "CHALLENGE_FIXABLE"
+  }
+}

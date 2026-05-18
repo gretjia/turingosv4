@@ -28,9 +28,7 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cmd_llm;
-use crate::siliconflow_client::{
-    chat_complete_blocking, require_api_key, ChatMessage, LlmError,
-};
+use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use crate::spec_capsule;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
@@ -135,40 +133,31 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     while let Some(a) = iter.next() {
         match a.as_str() {
             "--workspace" => {
-                workspace = PathBuf::from(
-                    iter.next().ok_or(GenError::MissingFlag("--workspace"))?,
-                );
+                workspace = PathBuf::from(iter.next().ok_or(GenError::MissingFlag("--workspace"))?);
             }
             "--from-capsule" => from_capsule = true,
             "--max-files" => {
                 let v = iter.next().ok_or(GenError::MissingFlag("--max-files"))?;
-                max_files = v.parse().map_err(|_| {
-                    GenError::Io(format!("--max-files: not a number: {v}"))
-                })?;
+                max_files = v
+                    .parse()
+                    .map_err(|_| GenError::Io(format!("--max-files: not a number: {v}")))?;
             }
             "--emit-transcript" => emit_transcript = true,
             _ => {}
         }
     }
     if !workspace.exists() {
-        return Err(GenError::WorkspaceNotFound(
-            workspace.display().to_string(),
-        ));
+        return Err(GenError::WorkspaceNotFound(workspace.display().to_string()));
     }
 
     let (spec_md, source) = if from_capsule {
-        let cid_hex = spec_capsule::latest_spec_capsule_cid(&workspace)?
-            .ok_or_else(|| {
-                GenError::NoSpec(format!(
-                    "no spec capsule in {}/cas",
-                    workspace.display()
-                ))
-            })?;
+        let cid_hex = spec_capsule::latest_spec_capsule_cid(&workspace)?.ok_or_else(|| {
+            GenError::NoSpec(format!("no spec capsule in {}/cas", workspace.display()))
+        })?;
         let bytes = spec_capsule::read_spec_capsule(&workspace, &cid_hex)?;
         (
-            String::from_utf8(bytes).map_err(|e| {
-                GenError::Io(format!("CAS capsule is not UTF-8: {e}"))
-            })?,
+            String::from_utf8(bytes)
+                .map_err(|e| GenError::Io(format!("CAS capsule is not UTF-8: {e}")))?,
             format!("CAS capsule {cid_hex}"),
         )
     } else {
@@ -193,8 +182,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         )),
     ];
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let result =
-        chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2))?;
+    let result = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2))?;
     eprintln!(
         "[generate] LLM returned {} chars, {} tokens",
         result.content.len(),
@@ -253,15 +241,25 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     }
 
     println!();
-    println!("Generated {} file(s) under {}/", written.len(), artifacts_dir.display());
+    println!(
+        "Generated {} file(s) under {}/",
+        written.len(),
+        artifacts_dir.display()
+    );
     for p in &written {
         println!("  {}", p.display());
     }
     println!();
     println!("Open the entry file in your browser or run the entry script:");
-    if let Some(html) = written.iter().find(|p| p.extension().map(|x| x == "html").unwrap_or(false)) {
+    if let Some(html) = written
+        .iter()
+        .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
+    {
         println!("  xdg-open {}/{}", artifacts_dir.display(), html.display());
-    } else if let Some(py) = written.iter().find(|p| p.extension().map(|x| x == "py").unwrap_or(false)) {
+    } else if let Some(py) = written
+        .iter()
+        .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
+    {
         println!("  python3 {}/{}", artifacts_dir.display(), py.display());
     } else if let Some(first) = written.first() {
         println!("  {}/{}", artifacts_dir.display(), first.display());
@@ -323,7 +321,10 @@ fn parse_emitted_files(text: &str) -> Vec<EmittedFile> {
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i].trim();
-        if let Some(rest) = line.strip_prefix("### File:").or_else(|| line.strip_prefix("### file:")) {
+        if let Some(rest) = line
+            .strip_prefix("### File:")
+            .or_else(|| line.strip_prefix("### file:"))
+        {
             let path = rest.trim().trim_matches('`').trim().to_string();
             // Find next ``` fence opener
             i += 1;

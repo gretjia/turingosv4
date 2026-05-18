@@ -1,0 +1,20 @@
+{
+  "page": "tasks",
+  "url": "http://127.0.0.1:8080/tasks",
+  "criteria": {
+    "contains_data_block_type": true,
+    "data_block_type_count": 13,
+    "contains_task_id_format_or_task_card": true,
+    "task_id_hex_pattern_match": null,
+    "task_card_blocks_count": 2,
+    "contains_status_badge_text": true,
+    "statuses_present": ["open", "accepted", "rejected"],
+    "console_error_count_zero": true,
+    "network_api_tasks_200": true,
+    "api_tasks_status": 200,
+    "contains_task_open_form": true,
+    "form_count": 2
+  },
+  "verdict": "PASS",
+  "notes": "Task IDs render as 'tx:0000000d4e5f6a7b' (ChainTape tx-id format) rather than 'task_<hex>' — the task_card block criterion covers this; status badges include open/accepted/rejected + SOLVED visible in fixture."
+}

@@ -1,0 +1,9 @@
+[
+  {"t": 1779078295919, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_started", "session_id": "1779078133_badebd6a", "attempt": 1, "max_attempts": 3}},
+  {"t": 1779078353818, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_failed", "session_id": "1779078133_badebd6a", "attempt": 1, "max_attempts": 3, "reason": "missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布"}},
+  {"t": 1779078353827, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_started", "session_id": "1779078133_badebd6a", "attempt": 2, "max_attempts": 3}},
+  {"t": 1779078395672, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_failed", "session_id": "1779078133_badebd6a", "attempt": 2, "max_attempts": 3, "reason": "missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布"}},
+  {"t": 1779078395680, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_started", "session_id": "1779078133_badebd6a", "attempt": 3, "max_attempts": 3}},
+  {"t": 1779078446998, "kind": "ir_update", "detail": {"msg_type": "generate_attempt_failed", "session_id": "1779078133_badebd6a", "attempt": 3, "max_attempts": 3, "reason": "missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布"}},
+  {"t": 1779078447006, "kind": "generate_response", "url": "/api/generate", "status": 500, "body": "{\"reason\":\"missing_canvas: 找不到 <canvas> 元素 — 游戏类应用必须有画布 | last_artifact=1779078133_badebd6a/artifacts/index.html\",\"kind\":\"generate_quality_failed\"}"}
+]

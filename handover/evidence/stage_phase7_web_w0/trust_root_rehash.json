@@ -1,0 +1,20 @@
+{
+  "phase": "TISR Phase 7 W0",
+  "timestamp_utc": "2026-05-18T02:15:00Z",
+  "branch": "codex/tisr-phase7-web",
+  "base_commit": "1cab5c78",
+  "rehashed": [
+    {
+      "path": "Cargo.toml",
+      "sha256_old": "d9cb276d49b0afd1ac9246057fc86b84d18a10dc64ca50be5f6f0959bb63efb7",
+      "sha256_new": "53c19680731ddc069c2d6d721b4757051d0ceb81e0eed4e5ab23e8845cce9571"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256_old": "080b20c7f27ae30f45b98a4305337609a59f0d498b9556b210dbbf2da6f7323f",
+      "sha256_new": "60ae38b444f29048acfad24c644a627efeb92fd2b94c700a01be3f2755376677"
+    }
+  ],
+  "rationale": "Phase 7 §8 W0 one-shot rehash per architect-ratified decision #3. New deps: axum 0.7, tower-http 0.5, tokio-tungstenite 0.21 — all optional, behind [features.web]. New bin: turingos_web (path src/bin/turingos_web.rs, required-features = [\"web\"]). No Class 4 surface touched. genesis_payload.toml [trust_root] entries for Cargo.toml + Cargo.lock updated in lockstep; no other Trust Root entries modified.",
+  "integration_note": "W0 sonnet executor's worktree harness defaulted to origin/HEAD (main @ 88fa1f66) instead of codex/tisr-phase7-web HEAD (@ 1cab5c78), so the sonnet agent's rehash hashes were computed against the wrong base. Orchestrator (Haiku 4.5) re-applied the W0 spec verbatim onto codex/tisr-phase7-web @ 1cab5c78 (Phase 6.1 SHIP + macOS portability commit cdd2ad7e inherited): copied W0's NEW files unchanged (src/web/**, src/bin/turingos_web.rs, frontend/**, tests/cli_web_smoke.rs, this evidence dir), merged W0's Cargo.toml additions onto Phase 7's Cargo.toml content, regenerated Cargo.lock via cargo build --features web, and recomputed sha256 against the correct base. File contents for non-Cargo/non-genesis paths are byte-identical to W0 worktree commit df7938ea."
+}

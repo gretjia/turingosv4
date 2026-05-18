@@ -80,8 +80,7 @@ pub(crate) fn write_spec_capsule(
     std::fs::create_dir_all(&cas_dir)
         .map_err(|e| CapsuleError::Open(format!("create cas dir: {e}")))?;
 
-    let mut store = CasStore::open(&cas_dir)
-        .map_err(|e| CapsuleError::Open(e.to_string()))?;
+    let mut store = CasStore::open(&cas_dir).map_err(|e| CapsuleError::Open(e.to_string()))?;
 
     let cid = store
         .put(

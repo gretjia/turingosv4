@@ -1,0 +1,12 @@
+{
+  "page": "audit",
+  "url": "http://127.0.0.1:8080/audit",
+  "criteria": {
+    "contains_data_block_type": true,
+    "data_block_type_count": 11,
+    "console_error_count_zero": true,
+    "network_get_audit_200": true
+  },
+  "verdict": "PASS",
+  "notes": "Audit page renders same fixture content as dashboard (materialized view). Smoke-test only — W4 task_id correlation criterion dropped per v2 directive."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "turingos-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && esbuild src/main.ts --bundle --outfile=dist/main.js --format=esm --target=es2020",
+    "typecheck:test": "tsc -p tsconfig.test.json",
+    "test": "tsc -p tsconfig.test.json && node --test --import tsx/esm test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "esbuild": "^0.21.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

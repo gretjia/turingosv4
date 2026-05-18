@@ -121,9 +121,7 @@ pub(crate) fn run_external(bin_name: &str, args: &[String]) -> ExitCode {
                 // generic agent_runner replaces it). The 3 resolution paths
                 // below are sufficient; an internal binary name in a debug
                 // tail line would leak an implementation detail.
-                eprintln!(
-                    "turingos: a required backend binary for this command is not available."
-                );
+                eprintln!("turingos: a required backend binary for this command is not available.");
                 eprintln!();
                 eprintln!("  Resolution paths:");
                 eprintln!("    1. Build all workspace binaries (recommended):");
