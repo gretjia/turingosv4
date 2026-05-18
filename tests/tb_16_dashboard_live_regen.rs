@@ -35,6 +35,10 @@ fn dashboard_renders_section_16_sandbox_banner_on_existing_smoke() {
         eprintln!("skipping: no fixture chain at handover/evidence/tb_13_real_llm_smoke_*");
         return;
     }
+    if !smoke.join("runtime_repo/pinned_pubkeys.json").is_file() {
+        eprintln!("skipping: stale pre-pinned-pubkeys fixture chain");
+        return;
+    }
     let bin = target_bin("audit_dashboard");
     let out = Command::new(&bin)
         .arg("--repo")
@@ -73,6 +77,10 @@ fn rebuild_autopsy_event_counts_returns_empty_on_pre_tb15_chain() {
         .join("handover/evidence/tb_13_real_llm_smoke_2026-05-03/single_n1_mathd_algebra_171");
     if !smoke.is_dir() {
         eprintln!("skipping: no fixture chain");
+        return;
+    }
+    if !smoke.join("runtime_repo/pinned_pubkeys.json").is_file() {
+        eprintln!("skipping: stale pre-pinned-pubkeys fixture chain");
         return;
     }
     let bin = target_bin("audit_dashboard");

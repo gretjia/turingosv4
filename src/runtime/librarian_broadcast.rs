@@ -480,6 +480,8 @@ pub fn decode_librarian_candidate(
                 || schema == crate::runtime::market_review::MARKET_REVIEW_WINDOW_SCHEMA_ID
                 || schema == crate::runtime::market_review::MARKET_REVIEW_RESPONSE_SCHEMA_ID
                 || schema == crate::runtime::market_review::MARKET_REVIEW_SUMMARY_SCHEMA_ID
+                || schema
+                    == crate::runtime::market_decision_provenance_link::MARKET_DECISION_PROVENANCE_LINK_SCHEMA_ID
                 || schema == crate::runtime::policy_trader_trace::POLICY_TRADER_TRACE_SCHEMA_ID
                 || schema == LIBRARIAN_DIGEST_SCHEMA_ID
                 || schema == LIBRARIAN_ROLE_CROP_SCHEMA_ID
