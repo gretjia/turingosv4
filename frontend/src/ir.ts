@@ -188,6 +188,39 @@ export interface GenerateResponse {
 }
 
 // ---------------------------------------------------------------------------
+// W7: welcome / onboarding wire contract
+// ---------------------------------------------------------------------------
+
+/** Which onboarding step the wizard should show as active. */
+export type NextStep =
+  | 'Init'
+  | 'LlmConfig'
+  | 'ApiKey'
+  | 'AgentDeploy'
+  | 'Spec'
+  | 'Generate'
+  | 'Done';
+
+/** Snapshot of welcome / onboarding status returned by `/api/welcome/status`. */
+export interface OnboardingStatus {
+  workspace_path: string;
+  init_done: boolean;
+  llm_config_done: boolean;
+  /** Reflects AppState only; never reflects disk state (key is never persisted). */
+  api_key_set: boolean;
+  agents_count: number;
+  spec_done: boolean;
+  spec_capsule_cid: string | null;
+  artifacts_done: boolean;
+  next_step: NextStep;
+}
+
+/** POST /api/welcome/api-key request body. */
+export interface ApiKeyRequest {
+  api_key: string;
+}
+
+// ---------------------------------------------------------------------------
 // WebSocket event shapes (W2 + W4 + W5 contract)
 // ---------------------------------------------------------------------------
 

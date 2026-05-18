@@ -1100,6 +1100,341 @@ turingos-status {
   max-width: 960px;
 }
 
+/* ----- W7: /welcome page chrome + <tos-welcome> wizard ------------------- */
+/* The first-time-user entry point. Tighter than the standard pages: no full
+ * nav, generous vertical rhythm, single column. The progress indicator and
+ * the active step card share a hairline ruled space, like a printed
+ * five-step lab protocol. */
+
+.tos-main-welcome {
+  max-width: 840px;
+  padding-top: var(--space-7);
+}
+
+/* "skip → build" link in the header */
+.tos-welcome-skip {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-fg-subtle);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+  transition: color var(--motion-fast) var(--motion-ease),
+              border-bottom-color var(--motion-fast) var(--motion-ease);
+}
+.tos-welcome-skip:hover {
+  color: var(--color-fg-muted);
+  border-bottom-color: var(--color-fg-muted);
+}
+
+/* Outer wrapper inside the custom element */
+[data-block-type="welcome"] {
+  display: block;
+  max-width: 720px;
+  margin-inline: auto;
+  min-height: 60vh;
+}
+
+.welcome-wrap {
+  display: grid;
+  gap: var(--space-7);
+  padding: var(--space-6) 0 var(--space-7);
+}
+
+/* ---- Progress indicator: 5 numbered circles + hairline rules ------------ */
+
+.welcome-progress {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  padding: 0 0 var(--space-6);
+  margin: 0;
+  border-bottom: var(--border-hairline);
+  position: relative;
+}
+
+/* Single horizontal hairline that runs through all the circles. */
+.welcome-progress::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: var(--color-hairline);
+  z-index: 0;
+}
+
+.welcome-progress-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.welcome-progress-num {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  transition: color var(--motion-fast) var(--motion-ease),
+              border-color var(--motion-fast) var(--motion-ease),
+              background var(--motion-fast) var(--motion-ease);
+}
+
+.welcome-progress-step[data-phase="pending"] .welcome-progress-num {
+  border: 1px solid var(--color-hairline-strong);
+  color: var(--color-fg-subtle);
+}
+.welcome-progress-step[data-phase="active"] .welcome-progress-num {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-bg);
+  box-shadow: 0 0 0 4px var(--color-bg);
+}
+.welcome-progress-step[data-phase="done"] .welcome-progress-num {
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.welcome-progress-label {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--color-fg-subtle);
+  letter-spacing: 0;
+  text-transform: none;
+  max-width: 8rem;
+  line-height: 1.3;
+}
+.welcome-progress-step[data-phase="active"] .welcome-progress-label {
+  color: var(--color-fg);
+}
+.welcome-progress-step[data-phase="done"] .welcome-progress-label {
+  color: var(--color-fg-muted);
+}
+
+/* ---- Active step card --------------------------------------------------- */
+
+.welcome-card {
+  border: var(--border-hairline);
+  background: var(--color-bg-elev);
+  padding: var(--space-6) var(--space-6) var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+  animation: welcome-card-rise 280ms var(--motion-ease) both;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes welcome-card-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The slim accent rule that slides across the card on success — pure CSS
+ * keyframe, no JS animation library. Triggered when state transitions; the
+ * keyframe runs once on mount of the new card. */
+.welcome-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 1px;
+  width: 0;
+  background: var(--color-accent);
+  animation: welcome-card-sweep 320ms var(--motion-ease) both;
+}
+@keyframes welcome-card-sweep {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+.welcome-step-caption {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-accent);
+  margin: 0;
+}
+.welcome-step-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--color-fg);
+  margin: 0;
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+  max-width: 30ch;
+}
+.welcome-step-subtitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  color: var(--color-fg-muted);
+  margin: 0;
+  max-width: 56ch;
+  font-variation-settings: "opsz" 60, "SOFT" 30;
+}
+
+/* ---- Primary call-to-action button -------------------------------------- */
+
+.welcome-cta {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-accent);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-accent);
+  padding: var(--space-2) 0;
+  margin-top: var(--space-3);
+  cursor: pointer;
+  transition: border-bottom-width var(--motion-fast) var(--motion-ease),
+              color var(--motion-fast) var(--motion-ease);
+}
+.welcome-cta:hover:not(:disabled) {
+  border-bottom-width: 2px;
+  color: var(--color-fg);
+}
+.welcome-cta:disabled {
+  color: var(--color-fg-subtle);
+  border-bottom-color: var(--color-fg-subtle);
+  cursor: not-allowed;
+}
+
+.welcome-cta-soft {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-fg-subtle);
+  background: transparent;
+  border: none;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+.welcome-cta-soft:hover { color: var(--color-fg-muted); }
+
+/* ---- API-key step input ------------------------------------------------- */
+
+.welcome-api-field {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.welcome-api-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-fg-muted);
+}
+.welcome-api-input {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  color: var(--color-fg);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-hairline-strong);
+  padding: var(--space-2) 0;
+  transition: border-bottom-color var(--motion-fast) var(--motion-ease);
+  letter-spacing: 0.04em;
+  width: 100%;
+  max-width: 36rem;
+}
+.welcome-api-input::placeholder {
+  color: var(--color-fg-subtle);
+  font-style: italic;
+  letter-spacing: 0;
+}
+.welcome-api-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  border-bottom-width: 2px;
+}
+.welcome-api-set {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  color: var(--color-status-accepted);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Loading + error states -------------------------------------------- */
+
+.welcome-loading {
+  padding: var(--space-3) 0;
+}
+.welcome-loading-phrase {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+  color: var(--color-fg-muted);
+  margin: 0;
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+}
+.welcome-dots {
+  display: inline-flex;
+  margin-left: var(--space-2);
+  font-family: var(--font-display);
+}
+.welcome-dots span {
+  display: inline-block;
+  margin: 0 1px;
+  opacity: 0.2;
+  animation: tos-grill-dot 1.4s var(--motion-ease) infinite;
+}
+.welcome-dots span:nth-child(2) { animation-delay: 0.2s; }
+.welcome-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+.welcome-error-block {
+  display: grid;
+  gap: var(--space-3);
+  border-left: 1px solid var(--color-status-rejected);
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
+  margin-top: var(--space-2);
+}
+.welcome-error-msg {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--color-status-rejected);
+  margin: 0;
+  line-height: 1.5;
+}
+.welcome-error-card {
+  border-left: 3px solid var(--color-status-rejected);
+}
+
+/* ---- Final "ready to spec" card override -------------------------------- */
+
+.welcome-ready-card {
+  border-left: 3px solid var(--color-accent);
+}
+
+
 /* ----- Print ----------------------------------------------------------- */
 
 @media print {

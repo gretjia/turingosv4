@@ -40,6 +40,7 @@ pub(crate) enum ViewKind {
     Tasks,
     Audit,
     Build,
+    Welcome,
 }
 
 impl ViewKind {
@@ -50,6 +51,7 @@ impl ViewKind {
             ViewKind::Tasks => "tasks",
             ViewKind::Audit => "audit",
             ViewKind::Build => "build",
+            ViewKind::Welcome => "welcome",
         }
     }
     fn href(&self) -> &'static str {
@@ -59,6 +61,7 @@ impl ViewKind {
             ViewKind::Tasks => "/tasks",
             ViewKind::Audit => "/audit",
             ViewKind::Build => "/build",
+            ViewKind::Welcome => "/welcome",
         }
     }
     fn label(&self) -> &'static str {
@@ -68,6 +71,7 @@ impl ViewKind {
             ViewKind::Tasks => "Tasks",
             ViewKind::Audit => "Audit",
             ViewKind::Build => "Build",
+            ViewKind::Welcome => "Welcome",
         }
     }
 }
@@ -391,6 +395,83 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html.push_str(
         "  <span class=\"tos-footer-notice\">FC3-N31: materialized view \u{2014} \
          not authoritative over ChainTape/CAS.</span>\n",
+    );
+    html.push_str("  <turingos-status></turingos-status>\n");
+    html.push_str("</footer>\n");
+
+    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+// ---------------------------------------------------------------------------
+// W7: /welcome page renderer — minimal chrome, <tos-welcome> mount only
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC2-N16: Phase 7 W7 — `/welcome` page chrome.
+///
+/// First-time-user entry point. Intentionally MORE MINIMAL than the standard
+/// page chrome: same wordmark header + footer, but NO full nav (a new user
+/// hasn't earned navigation yet — they get a "skip onboarding" link instead).
+/// Inside `<main>` mounts a `<tos-welcome>` placeholder; the Web Component
+/// owns the entire 5-step state machine.
+pub(crate) fn render_welcome_page() -> String {
+    let mut html = String::new();
+
+    html.push_str("<!doctype html>\n<html lang=\"zh\">\n<head>\n");
+    html.push_str("<meta charset=\"utf-8\">\n");
+    html.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    html.push_str("<meta name=\"color-scheme\" content=\"light dark\">\n");
+    html.push_str("<title>TuringOS \u{2014} Welcome</title>\n");
+
+    html.push_str(
+        "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n\
+         <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n\
+         <link rel=\"stylesheet\" \
+         href=\"https://fonts.googleapis.com/css2?\
+family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100\
+&family=IBM+Plex+Sans:wght@300;400;500;700\
+&family=JetBrains+Mono:wght@400;500;700\
+&display=swap\">\n",
+    );
+
+    html.push_str("<style>\n");
+    html.push_str(DESIGN_TOKENS_CSS);
+    html.push_str("\n");
+    html.push_str(BASE_STYLES_CSS);
+    html.push_str("</style>\n");
+
+    html.push_str("<script>\n");
+    html.push_str(INLINE_WS_SCRIPT);
+    html.push_str("</script>\n");
+
+    html.push_str("</head>\n<body data-view=\"welcome\">\n");
+
+    // Header — wordmark only; no full nav (first-time visitor)
+    html.push_str("<header class=\"tos-header\" role=\"banner\">\n");
+    html.push_str(
+        "  <a class=\"tos-wordmark\" href=\"/welcome\" aria-label=\"TuringOS \u{2014} Phase 7 welcome\">\
+         TuringOS<span class=\"tos-wordmark-sub\">Phase 7</span></a>\n",
+    );
+    html.push_str(
+        "  <a class=\"tos-welcome-skip\" href=\"/build\" \
+         title=\"Already configured everything from the CLI? Jump straight to the spec interview.\">\
+         skip \u{2192} build</a>\n",
+    );
+    html.push_str("</header>\n");
+
+    // Main — single <tos-welcome> mount; the centerpiece component.
+    html.push_str("<main class=\"tos-main tos-main-welcome\" id=\"tos-main\" role=\"main\">\n");
+    html.push_str("  <tos-welcome></tos-welcome>\n");
+    // turingos-root is included so WS state pill / connection still mounts.
+    html.push_str("  <turingos-root></turingos-root>\n");
+    html.push_str("</main>\n");
+
+    // Footer
+    html.push_str("<footer class=\"tos-footer\" role=\"contentinfo\">\n");
+    html.push_str(
+        "  <span class=\"tos-footer-notice\">FC2-N16: boot/onboarding gate \u{2014} \
+         this page wraps the Phase 6.3 \u{201c}turingos welcome\u{201d} flow.</span>\n",
     );
     html.push_str("  <turingos-status></turingos-status>\n");
     html.push_str("</footer>\n");

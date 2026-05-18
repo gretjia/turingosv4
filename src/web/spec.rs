@@ -275,25 +275,31 @@ pub(crate) async fn spec_submit_handler(
         session_dir_str,
     );
 
-    let output = tokio::process::Command::new(&bin)
-        .arg("spec")
+    let mut cmd = tokio::process::Command::new(&bin);
+    cmd.arg("spec")
         .arg("--workspace")
         .arg(&session_dir_str)
         .arg("--answers-file")
         .arg(&answers_path_str)
         .arg("--lang")
-        .arg("zh")
-        .output()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SpecError {
-                    reason: format!("failed to spawn {:?}: {e}", bin),
-                    kind: "shellout_failed",
-                }),
-            )
-        })?;
+        .arg("zh");
+    // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives in
+    // memory only; we do not log it. If unset, the child inherits the parent
+    // env unchanged (which may or may not carry the key from the shell).
+    if let Ok(guard) = state.api_key.lock() {
+        if let Some(key) = guard.as_ref() {
+            cmd.env("SILICONFLOW_API_KEY", key);
+        }
+    }
+    let output = cmd.output().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SpecError {
+                reason: format!("failed to spawn {:?}: {e}", bin),
+                kind: "shellout_failed",
+            }),
+        )
+    })?;
 
     // Step 7: check exit code.
     if !output.status.success() {

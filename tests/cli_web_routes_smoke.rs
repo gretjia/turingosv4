@@ -1,5 +1,5 @@
-//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5+W6 smoke tests — verifies all
-//! 14 routes are wired:
+//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5+W6+W7 smoke tests — verifies all
+//! 20 routes are wired:
 //!   W1: 7 HTTP read routes
 //!   W2: 1 WebSocket route
 //!   W4: 1 POST /api/task/open + 1 GET /static/main.js
@@ -7,6 +7,8 @@
 //!       1 generate route (POST /api/generate) +
 //!       1 artifact route (GET /api/artifact/:session_id/:name)
 //!   W6: 1 HTML route (GET /build — spec-grill interview centerpiece)
+//!   W7: 1 HTML route (GET /welcome — onboarding wizard) + 5 API endpoints
+//!       (status + api-key + init + llm-config + agent-deploy)
 //!
 //! Gated on `#[cfg(feature = "web")]` so non-web builds never see this.
 //! Run with: `cargo test --test cli_web_routes_smoke --features web`
@@ -94,14 +96,32 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, String) {
 
 #[tokio::test]
 async fn router_has_all_fourteen_routes() {
+    // W7: pre-seed an onboarded workspace so GET / serves the dashboard
+    // (200) instead of redirecting (303). The redirect behavior is covered
+    // by cli_web_welcome_smoke::root_redirects_to_welcome_when_not_onboarded.
+    let workspace = seed_onboarded_workspace();
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", workspace.path());
+
     let addr = start_server().await;
-    // W1+W6: The eight HTTP read routes must return 200.
+
+    // W7: bootstrap the AppState API key so GET / renders the dashboard
+    // (instead of redirecting to /welcome). This is one request to the
+    // welcome API; subsequent root-redirect logic checks AppState.
+    let _ = http_post_raw(
+        addr,
+        "/api/welcome/api-key",
+        b"{\"api_key\":\"sk-routes-smoke-fixture-XXXXXXXX\"}",
+    )
+    .await;
+    // W1+W6: The HTTP read routes must return 200.
     let http_routes = [
         "/",
         "/agents",
         "/tasks",
         "/audit",
         "/build",
+        "/welcome",
         "/api/dashboard",
         "/api/agents",
         "/api/tasks",
@@ -163,15 +183,88 @@ async fn router_has_all_fourteen_routes() {
         status_art == 404 || status_art == 400,
         "GET /api/artifact/nosession/index.html must return 404 or 400 (route exists), got {status_art}"
     );
+
+    // W7: GET /api/welcome/status must return 200 + valid JSON.
+    let (status_wst, _, body_wst) = http_get(addr, "/api/welcome/status").await;
+    assert_eq!(
+        status_wst, 200u16,
+        "GET /api/welcome/status must return 200, got {status_wst}"
+    );
+    let _parsed: serde_json::Value =
+        serde_json::from_str(&body_wst).expect("/api/welcome/status must return valid JSON");
+
+    // W7: the four POST endpoints must accept JSON; empty body either parses
+    // (init/llm-config/agent-deploy take {} happily) or returns 400/422 for
+    // api-key (needs api_key field). Each one must exist (NOT 404).
+    for path in [
+        "/api/welcome/init",
+        "/api/welcome/llm-config",
+        "/api/welcome/agent-deploy",
+    ] {
+        let (s, _, _) = http_post_raw(addr, path, b"{}").await;
+        assert!(
+            s != 404,
+            "POST {path} must be wired (any status except 404); got {s}"
+        );
+    }
+    let (s_api, _, _) = http_post_raw(addr, "/api/welcome/api-key", b"{}").await;
+    assert!(
+        s_api == 422 || s_api == 400,
+        "POST /api/welcome/api-key with empty body must return 400 or 422 (route exists), got {s_api}"
+    );
+
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for the W7 onboarded-workspace fixture.
+// ---------------------------------------------------------------------------
+
+static ENV_LOCK: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+fn env_lock() -> &'static tokio::sync::Mutex<()> {
+    ENV_LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+/// Build a tempdir that looks fully onboarded so GET / renders the dashboard.
+/// Has genesis_payload.toml, agent_pubkeys.json (with an entry), turingos.toml
+/// with the llm.* keys, spec.md (so spec_done) and a non-empty artifacts/.
+fn seed_onboarded_workspace() -> tempfile::TempDir {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let p = dir.path();
+    std::fs::write(p.join("genesis_payload.toml"), "[meta]\ntemplate = \"x\"\n").unwrap();
+    std::fs::write(
+        p.join("agent_pubkeys.json"),
+        "{\n    \"agent_001\": {\n        \"pubkey\": \"00\",\n        \"role\": \"Solver\"\n    }\n}\n",
+    )
+    .unwrap();
+    std::fs::write(
+        p.join("turingos.toml"),
+        "llm.meta.model = \"x\"\nllm.blackbox.model = \"y\"\n",
+    )
+    .unwrap();
+    std::fs::write(p.join("spec.md"), "# spec\n").unwrap();
+    std::fs::create_dir_all(p.join("artifacts")).unwrap();
+    std::fs::write(p.join("artifacts/index.html"), "<!doctype html>").unwrap();
+    dir
 }
 
 /// Keep the old name as an alias so old test runs don't break.
-/// (Delegates to the full 14-route test.)
+/// (Delegates to the full 20-route test.)
 #[tokio::test]
 async fn router_has_all_eight_routes() {
-    // This is the W6 superseding of the W1/W2/W5 gate.
+    // This is the W6/W7 superseding of the W1/W2/W5 gate.
     // We re-check the 7+1 read subset here too so the test name remains meaningful.
+    let workspace = seed_onboarded_workspace();
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", workspace.path());
     let addr = start_server().await;
+    let _ = http_post_raw(
+        addr,
+        "/api/welcome/api-key",
+        b"{\"api_key\":\"sk-routes-smoke-fixture-XXXXXXXX\"}",
+    )
+    .await;
     let http_routes = [
         "/",
         "/agents",
@@ -187,6 +280,8 @@ async fn router_has_all_eight_routes() {
     }
     let (status_101, _, _) = http_get_upgrade(addr, "/ws").await;
     assert_eq!(status_101, 101u16, "GET /ws must return 101");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
 }
 
 // ---------------------------------------------------------------------------
@@ -322,9 +417,20 @@ async fn http_get_upgrade(addr: SocketAddr, path: &str) -> (u16, String, String)
 
 #[tokio::test]
 async fn dashboard_html_contains_required_strings() {
+    let workspace = seed_onboarded_workspace();
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", workspace.path());
     let addr = start_server().await;
+    let _ = http_post_raw(
+        addr,
+        "/api/welcome/api-key",
+        b"{\"api_key\":\"sk-routes-smoke-fixture-XXXXXXXX\"}",
+    )
+    .await;
     let (status, _, body) = http_get(addr, "/").await;
-    assert_eq!(status, 200u16);
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+    assert_eq!(status, 200u16, "GET / on onboarded workspace must be 200");
 
     // §6a Page 1: must contain "TuringOS"
     assert!(

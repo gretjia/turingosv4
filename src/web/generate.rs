@@ -175,6 +175,14 @@ pub(crate) async fn generate_handler(
         cmd.arg("--max-files").arg(max_files.to_string());
     }
 
+    // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives in
+    // memory only; we do not log it. If unset, the child inherits parent env.
+    if let Ok(guard) = state.api_key.lock() {
+        if let Some(key) = guard.as_ref() {
+            cmd.env("SILICONFLOW_API_KEY", key);
+        }
+    }
+
     let output = cmd.output().await.map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,

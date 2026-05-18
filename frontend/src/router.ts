@@ -3,7 +3,7 @@
 // Derives the current view from location.pathname. W4 will use onPopState
 // for back/forward navigation.
 
-export type View = 'dashboard' | 'agents' | 'tasks' | 'audit' | 'build';
+export type View = 'dashboard' | 'agents' | 'tasks' | 'audit' | 'build' | 'welcome';
 
 /**
  * Derive the current view from the URL pathname.
@@ -12,6 +12,7 @@ export type View = 'dashboard' | 'agents' | 'tasks' | 'audit' | 'build';
  *   /tasks     → 'tasks'
  *   /audit     → 'audit'
  *   /build     → 'build'   (Phase 7 W6: spec-grill interview centerpiece)
+ *   /welcome   → 'welcome' (Phase 7 W7: first-time-user onboarding wizard)
  *   anything else → 'dashboard'
  */
 export function currentView(): View {
@@ -27,6 +28,9 @@ export function currentView(): View {
   }
   if (path === '/build' || path.startsWith('/build/')) {
     return 'build';
+  }
+  if (path === '/welcome' || path.startsWith('/welcome/')) {
+    return 'welcome';
   }
   // '/' and anything else → dashboard
   return 'dashboard';

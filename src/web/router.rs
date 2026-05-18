@@ -1,11 +1,12 @@
-/// TRACE_MATRIX FC1-N5 / FC2-N16: read view materialization + write-path (W4/W5)
+/// TRACE_MATRIX FC1-N5 / FC2-N16: read view materialization + write-path (W4/W5/W7)
 ///
-/// axum 0.7 router for TuringOS Phase 7 Web MVP. 14 routes total.
+/// axum 0.7 router for TuringOS Phase 7 Web MVP. 20 routes total.
 ///
 /// W1 adds seven read-only HTTP routes backed by compile-time fixture data.
 /// W2 adds one WebSocket route (HTTP 101 Upgrade) for real-time IR push.
 /// W4 adds one write route: POST /api/task/open (shells out to `turingos task open`).
 /// W5 adds four routes: spec questions + spec submit + generate + artifact serve.
+/// W7 adds six routes: welcome HTML + status + 4 onboarding POSTs.
 ///
 /// HTML routes (return `text/html`):
 ///   GET /          → dashboard fixture rendered to HTML
@@ -46,8 +47,8 @@
 /// All items are `pub(crate)`.
 use axum::{
     extract::State,
-    http::header,
-    response::{Html, IntoResponse},
+    http::{header, StatusCode},
+    response::{Html, IntoResponse, Redirect},
     routing::{get, post},
     Json, Router,
 };
@@ -57,9 +58,13 @@ use super::artifact::artifact_get_handler;
 use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
-use super::render::{render_build_page, render_page_with_view, ViewKind};
+use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
 use super::spec::{spec_questions_handler, spec_submit_handler};
 use super::store::TaskMemoryStore;
+use super::welcome::{
+    welcome_agent_deploy_handler, welcome_init_handler, welcome_llm_config_handler,
+    welcome_set_api_key_handler, welcome_status_handler, NextStep,
+};
 use super::write::task_open_handler;
 use super::ws::{ws_handler, AppState};
 
@@ -94,16 +99,20 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
     let state = AppState {
         broadcast_tx: tx,
         task_store: std::sync::Arc::new(TaskMemoryStore::new()),
+        api_key: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
 
     Router::new()
         // HTML routes (W0/W1)
-        .route("/", get(handle_dashboard))
+        // W7: `/` redirects to /welcome whenever onboarding is incomplete.
+        .route("/", get(handle_root_redirect))
         .route("/agents", get(handle_agents))
         .route("/tasks", get(handle_tasks))
         .route("/audit", get(handle_audit))
         // W6: spec interview centerpiece (chrome + <tos-spec-grill> mount)
         .route("/build", get(handle_build))
+        // W7: welcome wizard page chrome + <tos-welcome> mount.
+        .route("/welcome", get(handle_welcome_page))
         // JSON routes (W1)
         .route("/api/dashboard", get(handle_api_dashboard))
         .route("/api/agents", get(handle_api_agents))
@@ -121,6 +130,15 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
         .route("/api/artifact/:session_id/:name", get(artifact_get_handler))
+        // W7: welcome onboarding API surface (5 endpoints; in-memory API key)
+        .route("/api/welcome/status", get(welcome_status_handler))
+        .route("/api/welcome/api-key", post(welcome_set_api_key_handler))
+        .route("/api/welcome/init", post(welcome_init_handler))
+        .route("/api/welcome/llm-config", post(welcome_llm_config_handler))
+        .route(
+            "/api/welcome/agent-deploy",
+            post(welcome_agent_deploy_handler),
+        )
         .with_state(state)
 }
 
@@ -149,14 +167,30 @@ pub(crate) fn build_router() -> Router {
 // HTML handlers
 // ---------------------------------------------------------------------------
 
-async fn handle_dashboard() -> Html<String> {
+/// TRACE_MATRIX FC2-N16: W7 — GET / dispatches to /welcome when the user has
+/// not finished onboarding, else renders the dashboard. We compute next_step
+/// using the same inspection logic that backs `/api/welcome/status` so the
+/// redirect decision can't drift from the wizard's own state machine.
+async fn handle_root_redirect(State(state): State<AppState>) -> axum::response::Response {
+    let workspace = super::welcome::resolve_workspace_path();
+    let api_key_set = state
+        .api_key
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
+        .unwrap_or(false);
+    let next = super::welcome::next_step_for(&workspace, api_key_set);
+    if !matches!(next, NextStep::Done) {
+        return Redirect::to("/welcome").into_response();
+    }
     let ir = fixtures::dashboard();
-    Html(render_page_with_view(
-        &ir,
-        &ir.title.clone(),
-        false,
-        ViewKind::Dashboard,
-    ))
+    let html = render_page_with_view(&ir, &ir.title.clone(), false, ViewKind::Dashboard);
+    (StatusCode::OK, Html(html)).into_response()
+}
+
+/// W7: server-rendered welcome page chrome + <tos-welcome> mount.
+async fn handle_welcome_page() -> Html<String> {
+    Html(render_welcome_page())
 }
 
 async fn handle_agents() -> Html<String> {

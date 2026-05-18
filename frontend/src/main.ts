@@ -14,6 +14,7 @@ import { register as registerTuringOSStatus } from './components/turingos-status
 import { register as registerSpecGrill } from './components/spec-grill.js';
 import { register as registerSpecResult } from './components/spec-result.js';
 import { register as registerArtifactViewer } from './components/artifact-viewer.js';
+import { register as registerWelcome } from './components/welcome.js';
 import { register as registerTuringOSRoot } from './turingos-root.js';
 import { currentView } from './router.js';
 
@@ -31,6 +32,8 @@ registerTuringOSStatus();
 registerSpecGrill();
 registerSpecResult();
 registerArtifactViewer();
+// W7: first-time-user onboarding wizard
+registerWelcome();
 registerTuringOSRoot();
 
 document.addEventListener('DOMContentLoaded', () => {

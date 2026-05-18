@@ -109,11 +109,20 @@ pub(crate) enum WsBroadcastMsg {
 /// `task_store` is an `Arc`-wrapped `TaskMemoryStore` shared across all handler
 /// tasks.  The POST /api/task/open handler pushes entries; the GET /api/tasks
 /// and GET /tasks handlers read a snapshot and merge it with the fixture.
+/// W7 adds `api_key`: an `Arc<Mutex<Option<String>>>` storing the
+/// SiliconFlow API key in process memory ONLY. The value is set by
+/// `POST /api/welcome/api-key`, injected into `turingos spec` / `turingos
+/// generate` child processes via `Command::env`, and dropped when the
+/// process exits. It is NEVER written to disk, logged, or echoed in any
+/// HTTP response body. `std::sync::Mutex` is correct here (not
+/// `tokio::sync::Mutex`) because the critical section is microseconds —
+/// no `.await` is held while the lock is acquired.
 #[cfg(feature = "web")]
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) broadcast_tx: broadcast::Sender<WsBroadcastMsg>,
     pub(crate) task_store: std::sync::Arc<TaskMemoryStore>,
+    pub(crate) api_key: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
 
 // ---------------------------------------------------------------------------

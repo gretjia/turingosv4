@@ -11,5 +11,6 @@ pub(crate) mod render;
 pub(crate) mod router;
 pub(crate) mod spec;
 pub(crate) mod store;
+pub(crate) mod welcome;
 pub(crate) mod write;
 pub(crate) mod ws;

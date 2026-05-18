@@ -24,10 +24,12 @@ export class TuringOSRoot extends HTMLElement {
   private _boundListener: ((e: Event) => void) | null = null;
 
   connectedCallback(): void {
-    // W6: /build view is fully owned by <tos-spec-grill> — mount it once and
-    // never overwrite from IR pushes. The grill maintains its own flow state.
-    if (currentView() === 'build') {
-      this._renderBuildView();
+    const view = currentView();
+    // W6/W7: /build and /welcome are fully owned by their dedicated Web
+    // Components (<tos-spec-grill>, <tos-welcome>) which are mounted by the
+    // server-rendered HTML. <turingos-root> stays out of their way.
+    if (view === 'build' || view === 'welcome') {
+      this._renderInertView();
     } else if (this._cache.size === 0) {
       // Render connecting placeholder until first IR arrives.
       const p = document.createElement('p');
@@ -38,14 +40,46 @@ export class TuringOSRoot extends HTMLElement {
       this._renderCurrentView();
     }
 
+    // W7 soft-redirect: on any non-welcome view, ask the server whether the
+    // user has completed onboarding. If not, soft-redirect to /welcome so the
+    // user never lands on a half-configured page. (Server-side redirect on
+    // GET / already covers the cold-open case; this catches deep-links to
+    // /build, /tasks, etc.)
+    if (view !== 'welcome') {
+      void this._checkOnboarding();
+    }
+
     // Subscribe to WS messages (both ir_update and task_created).
     this._boundListener = (e: Event) => this._onWsMessage(e);
     document.addEventListener('turingos:ir_update', this._boundListener);
   }
 
-  // W6: /build mounts <tos-spec-grill> via server-rendered HTML; no-op here.
-  private _renderBuildView(): void {
+  // W6/W7: pages where another Web Component owns <main>; nothing to render.
+  private _renderInertView(): void {
     while (this.firstChild) this.removeChild(this.firstChild);
+  }
+
+  /**
+   * W7: poll /api/welcome/status once at mount time; if onboarding is
+   * incomplete, soft-redirect to /welcome.
+   *
+   * Failure is silent — if the server is offline or the API errors, we leave
+   * the user where they are rather than punting them around the app.
+   */
+  private async _checkOnboarding(): Promise<void> {
+    try {
+      const resp = await fetch('/api/welcome/status');
+      if (!resp.ok) return;
+      const data = (await resp.json()) as { next_step?: string };
+      if (typeof data.next_step === 'string' && data.next_step !== 'Done') {
+        if (location.pathname !== '/welcome') {
+          history.pushState({}, '', '/welcome');
+          location.reload();
+        }
+      }
+    } catch {
+      // Network errors are non-fatal here; the user can navigate manually.
+    }
   }
 
   disconnectedCallback(): void {
@@ -59,9 +93,10 @@ export class TuringOSRoot extends HTMLElement {
     const detail = (e as CustomEvent<WsMessage>).detail;
     if (detail == null) return;
 
-    // W6: on the build view, the spec-grill component owns the page —
-    // ignore IR updates so we don't trample its state machine.
-    if (currentView() === 'build') {
+    // W6/W7: on the build / welcome views, dedicated components own the
+    // page — ignore IR updates so we don't trample their state machines.
+    const v = currentView();
+    if (v === 'build' || v === 'welcome') {
       return;
     }
 
