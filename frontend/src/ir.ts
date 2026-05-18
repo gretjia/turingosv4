@@ -141,7 +141,54 @@ export interface IRRoot {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket event shapes (W2 + W4 contract)
+// Spec interview + generate types (W5 wire contract; consumed by W6 frontend)
+// ---------------------------------------------------------------------------
+
+/** GET /api/spec/questions response. Always 8 questions in interview order. */
+export interface SpecQuestionsResponse {
+  questions: string[];
+}
+
+/** POST /api/spec/submit request body. `answers` must have length 8. */
+export interface SpecSubmitRequest {
+  answers: string[];
+  session_id?: string;
+}
+
+/** POST /api/spec/submit success response. */
+export interface SpecSubmitResponse {
+  session_id: string;
+  spec_md: string;
+  capsule_cid?: string | null;
+  transcript_jsonl?: string | null;
+}
+
+/** POST /api/generate request body. */
+export interface GenerateRequest {
+  session_id: string;
+  from_capsule?: boolean;
+  max_files?: number;
+}
+
+/** One artifact file entry as returned by the backend. */
+export interface ArtifactEntry {
+  /** Path relative to <session-dir>/artifacts/ (e.g. "index.html"). */
+  path: string;
+  /** File size in bytes. */
+  size_bytes: number;
+  /** MIME content type sniffed by extension. */
+  content_type: string;
+}
+
+/** POST /api/generate success response. */
+export interface GenerateResponse {
+  session_id: string;
+  artifacts: ArtifactEntry[];
+  transcript_excerpt?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket event shapes (W2 + W4 + W5 contract)
 // ---------------------------------------------------------------------------
 
 /** Shape of e.detail when "turingos:ir_update" fires from the W2 inline WS script. */
@@ -160,11 +207,39 @@ export interface TaskCreatedEvent {
   bounty: number;
 }
 
+/** W5: spec_complete WS broadcast — emitted after POST /api/spec/submit succeeds. */
+export interface SpecCompleteEvent {
+  msg_type: 'spec_complete';
+  session_id: string;
+  capsule_cid?: string | null;
+}
+
+/** W5: generate_started WS broadcast — reserved (not yet emitted by backend). */
+export interface GenerateStartedEvent {
+  msg_type: 'generate_started';
+  session_id: string;
+}
+
+/** W5: generate_complete WS broadcast — emitted after POST /api/generate succeeds. */
+export interface GenerateCompleteEvent {
+  msg_type: 'generate_complete';
+  session_id: string;
+  artifacts: string[];
+}
+
 /**
  * Union of all WebSocket message shapes.
  *
  * Discriminated on `msg_type`:
- *   - `'ir_update'`:    initial IR push or view refresh
- *   - `'task_created'`: write-path event from POST /api/task/open
+ *   - `'ir_update'`:        initial IR push or view refresh
+ *   - `'task_created'`:     write-path event from POST /api/task/open
+ *   - `'spec_complete'`:    POST /api/spec/submit success broadcast
+ *   - `'generate_started'`: reserved for future streaming
+ *   - `'generate_complete'`: POST /api/generate success broadcast
  */
-export type WsMessage = IRUpdateEvent | TaskCreatedEvent;
+export type WsMessage =
+  | IRUpdateEvent
+  | TaskCreatedEvent
+  | SpecCompleteEvent
+  | GenerateStartedEvent
+  | GenerateCompleteEvent;

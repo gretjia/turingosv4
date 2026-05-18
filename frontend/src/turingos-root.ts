@@ -24,8 +24,12 @@ export class TuringOSRoot extends HTMLElement {
   private _boundListener: ((e: Event) => void) | null = null;
 
   connectedCallback(): void {
-    // Render connecting placeholder until first IR arrives.
-    if (this._cache.size === 0) {
+    // W6: /build view is fully owned by <tos-spec-grill> — mount it once and
+    // never overwrite from IR pushes. The grill maintains its own flow state.
+    if (currentView() === 'build') {
+      this._renderBuildView();
+    } else if (this._cache.size === 0) {
+      // Render connecting placeholder until first IR arrives.
       const p = document.createElement('p');
       p.textContent = 'Connecting…';
       this.appendChild(p);
@@ -39,6 +43,11 @@ export class TuringOSRoot extends HTMLElement {
     document.addEventListener('turingos:ir_update', this._boundListener);
   }
 
+  // W6: /build mounts <tos-spec-grill> via server-rendered HTML; no-op here.
+  private _renderBuildView(): void {
+    while (this.firstChild) this.removeChild(this.firstChild);
+  }
+
   disconnectedCallback(): void {
     if (this._boundListener !== null) {
       document.removeEventListener('turingos:ir_update', this._boundListener);
@@ -49,6 +58,12 @@ export class TuringOSRoot extends HTMLElement {
   private _onWsMessage(e: Event): void {
     const detail = (e as CustomEvent<WsMessage>).detail;
     if (detail == null) return;
+
+    // W6: on the build view, the spec-grill component owns the page —
+    // ignore IR updates so we don't trample its state machine.
+    if (currentView() === 'build') {
+      return;
+    }
 
     if (detail.msg_type === 'ir_update') {
       if (detail.ir == null) return;

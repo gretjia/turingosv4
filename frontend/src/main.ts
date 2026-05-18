@@ -11,6 +11,9 @@ import { register as registerEventLogBlock } from './components/event-log-block.
 import { register as registerDashboardPanelBlock } from './components/dashboard-panel-block.js';
 import { register as registerTaskOpenForm } from './components/task-open-form.js';
 import { register as registerTuringOSStatus } from './components/turingos-status.js';
+import { register as registerSpecGrill } from './components/spec-grill.js';
+import { register as registerSpecResult } from './components/spec-result.js';
+import { register as registerArtifactViewer } from './components/artifact-viewer.js';
 import { register as registerTuringOSRoot } from './turingos-root.js';
 import { currentView } from './router.js';
 
@@ -24,6 +27,10 @@ registerEventLogBlock();
 registerDashboardPanelBlock();
 registerTaskOpenForm();
 registerTuringOSStatus();
+// W6: spec interview centerpiece + artifact preview
+registerSpecGrill();
+registerSpecResult();
+registerArtifactViewer();
 registerTuringOSRoot();
 
 document.addEventListener('DOMContentLoaded', () => {

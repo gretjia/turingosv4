@@ -1,11 +1,12 @@
-//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5 smoke tests — verifies all
-//! 13 routes are wired:
+//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5+W6 smoke tests — verifies all
+//! 14 routes are wired:
 //!   W1: 7 HTTP read routes
 //!   W2: 1 WebSocket route
 //!   W4: 1 POST /api/task/open + 1 GET /static/main.js
 //!   W5: 2 spec routes (GET /api/spec/questions + POST /api/spec/submit) +
 //!       1 generate route (POST /api/generate) +
 //!       1 artifact route (GET /api/artifact/:session_id/:name)
+//!   W6: 1 HTML route (GET /build — spec-grill interview centerpiece)
 //!
 //! Gated on `#[cfg(feature = "web")]` so non-web builds never see this.
 //! Run with: `cargo test --test cli_web_routes_smoke --features web`
@@ -81,24 +82,26 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, String) {
 }
 
 // ---------------------------------------------------------------------------
-// Gate 1: all 13 routes exist (W1/W2/W4/W5).
+// Gate 1: all 14 routes exist (W1/W2/W4/W5/W6).
 //   W1:  7 HTTP GET routes returning 200
 //   W2:  1 WS route returning 101
 //   W4:  /static/main.js returning 200 (POST /api/task/open not tested here)
 //   W5:  GET /api/spec/questions returning 200
 //        POST /api/spec/submit, POST /api/generate wired (existence checked via 422)
 //        GET /api/artifact/:session_id/:name wired (existence checked via 404)
+//   W6:  GET /build returning 200 (spec-grill interview page)
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn router_has_all_thirteen_routes() {
+async fn router_has_all_fourteen_routes() {
     let addr = start_server().await;
-    // W1: The seven HTTP read routes must return 200.
+    // W1+W6: The eight HTTP read routes must return 200.
     let http_routes = [
         "/",
         "/agents",
         "/tasks",
         "/audit",
+        "/build",
         "/api/dashboard",
         "/api/agents",
         "/api/tasks",
@@ -163,11 +166,11 @@ async fn router_has_all_thirteen_routes() {
 }
 
 /// Keep the old name as an alias so old test runs don't break.
-/// (Delegates to the full 13-route test.)
+/// (Delegates to the full 14-route test.)
 #[tokio::test]
 async fn router_has_all_eight_routes() {
-    // This is the W5 superseding of the W1/W2 gate.
-    // We re-check the 7+1 subset here too so the test name remains meaningful.
+    // This is the W6 superseding of the W1/W2/W5 gate.
+    // We re-check the 7+1 read subset here too so the test name remains meaningful.
     let addr = start_server().await;
     let http_routes = [
         "/",
@@ -184,6 +187,41 @@ async fn router_has_all_eight_routes() {
     }
     let (status_101, _, _) = http_get_upgrade(addr, "/ws").await;
     assert_eq!(status_101, 101u16, "GET /ws must return 101");
+}
+
+// ---------------------------------------------------------------------------
+// W6 Gate: /build page chrome contract.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn build_page_contains_spec_grill_mount() {
+    let addr = start_server().await;
+    let (status, headers, body) = http_get(addr, "/build").await;
+    assert_eq!(status, 200u16, "GET /build must return 200, got {status}");
+    // Content-Type must be text/html
+    let ct_line = headers
+        .lines()
+        .find(|l| l.to_lowercase().starts_with("content-type:"))
+        .unwrap_or("");
+    assert!(
+        ct_line.to_lowercase().contains("text/html"),
+        "/build content-type must be text/html, got {ct_line}"
+    );
+    // The page MUST contain the spec-grill Web Component mount point.
+    assert!(
+        body.contains("<tos-spec-grill></tos-spec-grill>"),
+        "/build HTML must mount <tos-spec-grill>"
+    );
+    // The page MUST mark Build as the active nav item.
+    assert!(
+        body.contains("aria-current=\"page\""),
+        "/build HTML must mark current page in nav"
+    );
+    // FC3-N31 materialized-view notice must appear on the page chrome.
+    assert!(
+        body.contains("FC3-N31"),
+        "/build HTML must include FC3-N31 footer notice"
+    );
 }
 
 /// Send a minimal HTTP/1.1 POST with `application/json` Content-Type.

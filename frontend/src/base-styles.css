@@ -625,6 +625,481 @@ turingos-status {
   50%      { opacity: 0.35; transform: scale(0.85); }
 }
 
+/* ----- W6: tos-spec-grill (the interview centerpiece) ------------------- */
+/* Editorial spread: one question per screen, NO form chrome. Question text
+ * is Fraunces italic, large. The textarea has no border, just a hairline
+ * bottom rule, transparent background, body font. Progress indicator in
+ * monospace small-caps, top-right. The "下一题" button is text-only with
+ * a thin accent-color underline that thickens on hover.
+ */
+
+[data-block-type="spec_grill"] {
+  display: block;
+  margin: 0;
+  padding: 0;
+  /* Center column for the full editorial spread. */
+  max-width: 720px;
+  margin-inline: auto;
+  min-height: 60vh;
+}
+
+/* Idle: editorial intro card */
+.spec-grill-idle {
+  padding: var(--space-7) 0 var(--space-6);
+}
+.spec-grill-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-fg-subtle);
+  margin: 0 0 var(--space-4);
+}
+.spec-grill-lede {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xl);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  color: var(--color-fg);
+  margin: 0 0 var(--space-6);
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+  max-width: 60ch;
+}
+
+/* Shared CTA button — text-only with thin accent underline */
+.spec-grill-cta,
+.spec-grill-advance,
+.spec-result-generate-btn {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-accent);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-accent);
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  transition: border-bottom-width var(--motion-fast) var(--motion-ease),
+              color var(--motion-fast) var(--motion-ease);
+}
+.spec-grill-cta:hover:not(:disabled),
+.spec-grill-advance:hover:not(:disabled),
+.spec-result-generate-btn:hover:not(:disabled) {
+  border-bottom-width: 2px;
+  color: var(--color-fg);
+}
+.spec-grill-cta:disabled,
+.spec-grill-advance:disabled,
+.spec-result-generate-btn:disabled {
+  color: var(--color-fg-subtle);
+  border-bottom-color: var(--color-fg-subtle);
+  cursor: not-allowed;
+}
+
+.spec-grill-back {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-fg-subtle);
+  background: transparent;
+  border: none;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-ease);
+}
+.spec-grill-back:hover { color: var(--color-fg); }
+
+/* Loading state: typographic animated ellipsis (no spinner GIF) */
+.spec-grill-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+.spec-grill-loading-phrase {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-xl);
+  color: var(--color-fg-muted);
+  margin: 0;
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+}
+.spec-grill-dots {
+  display: inline-flex;
+  margin-left: var(--space-2);
+  font-family: var(--font-display);
+}
+.spec-grill-dots span {
+  display: inline-block;
+  margin: 0 1px;
+  opacity: 0.2;
+  animation: tos-grill-dot 1.4s var(--motion-ease) infinite;
+}
+.spec-grill-dots span:nth-child(2) { animation-delay: 0.2s; }
+.spec-grill-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes tos-grill-dot {
+  0%, 80%, 100% { opacity: 0.2; }
+  40%           { opacity: 1; }
+}
+
+/* Interviewing — single question editorial spread */
+.spec-grill-question {
+  position: relative;
+  padding: var(--space-7) 0 var(--space-6);
+  animation: tos-grill-rise 240ms var(--motion-ease) both;
+}
+@keyframes tos-grill-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.spec-grill-progress {
+  position: absolute;
+  top: var(--space-3);
+  right: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.spec-grill-question-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  font-size: clamp(1.5rem, 2.5vw + 1rem, 2.125rem);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--color-fg);
+  margin: 0 0 var(--space-6);
+  font-variation-settings: "opsz" 80, "SOFT" 50;
+  max-width: 38ch;
+}
+.spec-grill-input {
+  display: block;
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: var(--fs-lg);
+  line-height: 1.55;
+  color: var(--color-fg);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-hairline-strong);
+  padding: var(--space-3) 0;
+  margin: 0 0 var(--space-2);
+  resize: vertical;
+  transition: border-bottom-color var(--motion-fast) var(--motion-ease);
+}
+.spec-grill-input::placeholder {
+  color: var(--color-fg-subtle);
+  font-style: italic;
+}
+.spec-grill-input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-accent);
+  border-bottom-width: 2px;
+}
+.spec-grill-error {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-status-rejected);
+  margin: var(--space-2) 0 0;
+  letter-spacing: 0.04em;
+}
+.spec-grill-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+.spec-grill-footer .spec-grill-advance {
+  margin-left: auto;
+}
+
+/* Error state */
+.spec-grill-errstate {
+  padding: var(--space-7) 0;
+  text-align: center;
+}
+.spec-grill-errmsg {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--fs-lg);
+  color: var(--color-status-rejected);
+  margin: 0 0 var(--space-5);
+}
+
+/* ----- W6: tos-spec-result (the synthesized spec.md, as editorial doc) -- */
+
+[data-block-type="spec_result"] {
+  display: block;
+  padding: var(--space-6) 0;
+  animation: tos-grill-rise 240ms var(--motion-ease) both;
+}
+
+.spec-result-article {
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  color: var(--color-fg);
+  max-width: 64ch;
+}
+.spec-result-article h1 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-style: italic;
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--color-fg);
+  font-variation-settings: "opsz" 60, "SOFT" 50;
+}
+.spec-result-article h1:first-child { margin-top: 0; }
+.spec-result-article h2 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xl);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--color-fg);
+  font-variation-settings: "opsz" 80;
+}
+.spec-result-article h3 {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--color-fg-muted);
+}
+.spec-result-article p {
+  margin: 0 0 var(--space-4);
+}
+.spec-result-article ul,
+.spec-result-article ol {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
+}
+.spec-result-article li {
+  margin: 0 0 var(--space-2);
+}
+.spec-result-article code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  color: var(--color-fg);
+}
+.spec-result-article pre {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  background: var(--color-bg-elev);
+  border: var(--border-hairline);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  margin: 0 0 var(--space-4);
+}
+.spec-result-article pre code {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+.spec-result-article strong { font-weight: var(--fw-medium); }
+.spec-result-article em { font-style: italic; }
+
+.spec-result-cid {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-fg-subtle);
+  margin: var(--space-5) 0 0;
+  letter-spacing: 0.04em;
+}
+.spec-result-cid-label {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-right: var(--space-2);
+}
+.spec-result-cid code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.spec-result-cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin: var(--space-7) 0 var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-hairline);
+}
+.spec-result-error {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-status-rejected);
+  margin: 0;
+}
+.spec-result-empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--color-fg-subtle);
+  margin: 0;
+}
+
+/* ----- W6: tos-artifact-viewer (the generated index.html, in a frame) --- */
+
+[data-block-type="artifact_viewer"] {
+  display: block;
+  padding: var(--space-5) 0;
+  animation: tos-grill-rise 240ms var(--motion-ease) both;
+}
+
+.artifact-viewer-header {
+  margin: 0 0 var(--space-5);
+}
+.artifact-viewer-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--color-fg-subtle);
+  margin: 0 0 var(--space-2);
+}
+.artifact-viewer-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-2xl);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin: 0;
+  color: var(--color-fg);
+  font-variation-settings: "opsz" 60, "SOFT" 50;
+}
+
+.artifact-viewer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+.artifact-viewer-layout > .artifact-viewer-main:only-child {
+  grid-column: 1 / -1;
+}
+.artifact-viewer-layout:has(> .artifact-viewer-filelist) .artifact-viewer-main {
+  grid-column: auto;
+}
+.artifact-viewer-layout:not(:has(.artifact-viewer-filelist)) {
+  grid-template-columns: 1fr;
+}
+
+.artifact-viewer-filelist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: var(--border-hairline);
+}
+.artifact-viewer-filelist li {
+  border-bottom: var(--border-hairline);
+}
+.artifact-viewer-filelist button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-fg-muted);
+  background: transparent;
+  border: none;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: color var(--motion-fast) var(--motion-ease),
+              background var(--motion-fast) var(--motion-ease);
+}
+.artifact-viewer-filelist button:hover {
+  color: var(--color-fg);
+  background: var(--color-bg-elev);
+}
+.artifact-viewer-filelist li.is-selected button {
+  color: var(--color-fg);
+  border-left: 2px solid var(--color-accent);
+}
+
+.artifact-viewer-main {
+  min-width: 0;
+}
+.artifact-viewer-iframe {
+  width: 100%;
+  height: 72vh;
+  min-height: 480px;
+  border: var(--border-hairline-strong);
+  background: var(--color-bg);
+  display: block;
+}
+.artifact-viewer-note {
+  font-family: var(--font-body);
+  color: var(--color-fg-muted);
+  border: var(--border-hairline);
+  padding: var(--space-4);
+  margin: 0;
+}
+.artifact-viewer-caption {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--color-fg-subtle);
+  margin: var(--space-3) 0 0;
+}
+.artifact-viewer-caption-path {
+  color: var(--color-fg-muted);
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-size: var(--fs-xs);
+}
+.artifact-viewer-download {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--color-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 1px;
+  transition: border-bottom-width var(--motion-fast) var(--motion-ease),
+              color var(--motion-fast) var(--motion-ease);
+}
+.artifact-viewer-download:hover {
+  border-bottom-width: 2px;
+  color: var(--color-fg);
+}
+.artifact-viewer-empty {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--color-fg-subtle);
+  margin: 0;
+}
+
+/* /build page-specific spacing: drop the default main column cap so the
+   spec-grill's own centered column controls the spread. */
+.tos-main-build {
+  max-width: 960px;
+}
+
 /* ----- Print ----------------------------------------------------------- */
 
 @media print {

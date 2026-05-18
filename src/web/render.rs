@@ -28,6 +28,10 @@ use super::ir::{Block, CellValue, IRRoot, MetricValue};
 
 /// Which top-level view is being rendered. Drives `aria-current="page"` on
 /// the nav and (later) any per-view chrome variations.
+///
+/// W6: adds the `Build` variant. The /build page renders the same chrome as
+/// the other views but its `<main>` contains only a `<tos-spec-grill>`
+/// placeholder; the Web Component owns the interview flow.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub(crate) enum ViewKind {
@@ -35,6 +39,7 @@ pub(crate) enum ViewKind {
     Agents,
     Tasks,
     Audit,
+    Build,
 }
 
 impl ViewKind {
@@ -44,6 +49,7 @@ impl ViewKind {
             ViewKind::Agents => "agents",
             ViewKind::Tasks => "tasks",
             ViewKind::Audit => "audit",
+            ViewKind::Build => "build",
         }
     }
     fn href(&self) -> &'static str {
@@ -52,6 +58,7 @@ impl ViewKind {
             ViewKind::Agents => "/agents",
             ViewKind::Tasks => "/tasks",
             ViewKind::Audit => "/audit",
+            ViewKind::Build => "/build",
         }
     }
     fn label(&self) -> &'static str {
@@ -60,6 +67,7 @@ impl ViewKind {
             ViewKind::Agents => "Agents",
             ViewKind::Tasks => "Tasks",
             ViewKind::Audit => "Audit",
+            ViewKind::Build => "Build",
         }
     }
 }
@@ -229,6 +237,7 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
         ViewKind::Agents,
         ViewKind::Tasks,
         ViewKind::Audit,
+        ViewKind::Build,
     ] {
         if v == view {
             html.push_str("  <a aria-current=\"page\" href=\"");
@@ -283,6 +292,110 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     // W2/W3 frontend script tag (static path; wired in W2)
     html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
 
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
+// ---------------------------------------------------------------------------
+// W6: /build page renderer — spec-grill mount, no IR
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W6 — `/build` page chrome.
+///
+/// Renders the standard header / nav / footer shared with the other views,
+/// but inside `<main>` mounts only a `<tos-spec-grill>` placeholder. The
+/// Web Component (registered by /static/main.js) owns the entire interview
+/// flow client-side: question fetch, per-question card, submit, spec result,
+/// generate, artifact preview.
+///
+/// Page title is intentionally short and editorial — Fraunces italic via the
+/// shared `.tos-page-title` selector. The `<p>` subtitle below the H1 sets
+/// the editorial register for the interview.
+pub(crate) fn render_build_page() -> String {
+    let mut html = String::new();
+
+    html.push_str("<!doctype html>\n<html lang=\"zh\">\n<head>\n");
+    html.push_str("<meta charset=\"utf-8\">\n");
+    html.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    html.push_str("<meta name=\"color-scheme\" content=\"light dark\">\n");
+    html.push_str("<title>TuringOS \u{2014} Build</title>\n");
+
+    html.push_str(
+        "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n\
+         <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n\
+         <link rel=\"stylesheet\" \
+         href=\"https://fonts.googleapis.com/css2?\
+family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100\
+&family=IBM+Plex+Sans:wght@300;400;500;700\
+&family=JetBrains+Mono:wght@400;500;700\
+&display=swap\">\n",
+    );
+
+    html.push_str("<style>\n");
+    html.push_str(DESIGN_TOKENS_CSS);
+    html.push_str("\n");
+    html.push_str(BASE_STYLES_CSS);
+    html.push_str("</style>\n");
+
+    html.push_str("<script>\n");
+    html.push_str(INLINE_WS_SCRIPT);
+    html.push_str("</script>\n");
+
+    html.push_str("</head>\n<body data-view=\"build\">\n");
+
+    // Header
+    html.push_str("<header class=\"tos-header\" role=\"banner\">\n");
+    html.push_str(
+        "  <a class=\"tos-wordmark\" href=\"/\" aria-label=\"TuringOS \u{2014} Phase 7 home\">\
+         TuringOS<span class=\"tos-wordmark-sub\">Phase 7</span></a>\n",
+    );
+    html.push_str("  <span class=\"tos-meta\">FC3-N31 \u{00b7} interview spread</span>\n");
+    html.push_str("</header>\n");
+
+    // Nav — Build is the active page
+    html.push_str("<nav class=\"tos-nav\" aria-label=\"primary\">\n");
+    let active = ViewKind::Build;
+    for v in [
+        ViewKind::Dashboard,
+        ViewKind::Agents,
+        ViewKind::Tasks,
+        ViewKind::Audit,
+        ViewKind::Build,
+    ] {
+        if v == active {
+            html.push_str("  <a aria-current=\"page\" href=\"");
+        } else {
+            html.push_str("  <a href=\"");
+        }
+        html.push_str(v.href());
+        html.push_str("\">");
+        html.push_str(v.label());
+        html.push_str("</a>\n");
+    }
+    html.push_str("</nav>\n");
+
+    // Main — spec-grill mount only.
+    html.push_str("<main class=\"tos-main tos-main-build\" id=\"tos-main\" role=\"main\">\n");
+    html.push_str("  <h1 class=\"tos-page-title\">从一段闲聊开始，做出你想要的那个小工具。</h1>\n");
+    html.push_str(
+        "  <p class=\"tos-page-id\">build \u{00b7} spec interview \u{00b7} phase 7 w6</p>\n",
+    );
+    // The W6 mount point — Web Component owns the rest.
+    html.push_str("  <tos-spec-grill></tos-spec-grill>\n");
+    // turingos-root is included so WS state pill / connection still mounts.
+    html.push_str("  <turingos-root></turingos-root>\n");
+    html.push_str("</main>\n");
+
+    // Footer
+    html.push_str("<footer class=\"tos-footer\" role=\"contentinfo\">\n");
+    html.push_str(
+        "  <span class=\"tos-footer-notice\">FC3-N31: materialized view \u{2014} \
+         not authoritative over ChainTape/CAS.</span>\n",
+    );
+    html.push_str("  <turingos-status></turingos-status>\n");
+    html.push_str("</footer>\n");
+
+    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
     html.push_str("</body>\n</html>\n");
     html
 }

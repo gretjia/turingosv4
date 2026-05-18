@@ -1,6 +1,6 @@
 /// TRACE_MATRIX FC1-N5 / FC2-N16: read view materialization + write-path (W4/W5)
 ///
-/// axum 0.7 router for TuringOS Phase 7 Web MVP. 13 routes total.
+/// axum 0.7 router for TuringOS Phase 7 Web MVP. 14 routes total.
 ///
 /// W1 adds seven read-only HTTP routes backed by compile-time fixture data.
 /// W2 adds one WebSocket route (HTTP 101 Upgrade) for real-time IR push.
@@ -12,6 +12,7 @@
 ///   GET /agents    → agent-view fixture rendered to HTML
 ///   GET /tasks     → task-view fixture rendered to HTML (includes <tos-task-open-form>)
 ///   GET /audit     → dashboard fixture rendered to HTML
+///   GET /build     → spec interview page (chrome + <tos-spec-grill> mount; W6)
 ///
 /// JSON routes (return `application/json`):
 ///   GET /api/dashboard → dashboard fixture as JSON
@@ -56,7 +57,7 @@ use super::artifact::artifact_get_handler;
 use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
-use super::render::{render_page_with_view, ViewKind};
+use super::render::{render_build_page, render_page_with_view, ViewKind};
 use super::spec::{spec_questions_handler, spec_submit_handler};
 use super::store::TaskMemoryStore;
 use super::write::task_open_handler;
@@ -75,8 +76,9 @@ const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 /// TRACE_MATRIX FC1-N5 / FC1-N10 / FC2-N16: read view materialization + write path
 ///
 /// Build the axum router with all Phase 7 routes wired and `AppState` attached.
-/// Total: 13 routes
+/// Total: 14 routes
 ///   4 HTML  (W0/W1): /, /agents, /tasks, /audit
+///   1 HTML  (W6): /build (spec-grill interview centerpiece)
 ///   3 JSON  (W1): /api/dashboard, /api/agents, /api/tasks
 ///   1 WS    (W2): /ws
 ///   1 POST  (W4): /api/task/open
@@ -100,6 +102,8 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/agents", get(handle_agents))
         .route("/tasks", get(handle_tasks))
         .route("/audit", get(handle_audit))
+        // W6: spec interview centerpiece (chrome + <tos-spec-grill> mount)
+        .route("/build", get(handle_build))
         // JSON routes (W1)
         .route("/api/dashboard", get(handle_api_dashboard))
         .route("/api/agents", get(handle_api_agents))
@@ -193,6 +197,17 @@ async fn handle_audit() -> Html<String> {
         false,
         ViewKind::Audit,
     ))
+}
+
+/// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W6 — GET /build handler.
+///
+/// Renders the chrome + `<tos-spec-grill>` placeholder. The Web Component
+/// fetches `/api/spec/questions`, walks the user through 8 questions, posts
+/// `/api/spec/submit`, then `/api/generate`, then previews artifacts via the
+/// sibling `<tos-artifact-viewer>` component. No IR is materialised on the
+/// server for this page; the interview is fully client-orchestrated.
+async fn handle_build() -> Html<String> {
+    Html(render_build_page())
 }
 
 // ---------------------------------------------------------------------------
