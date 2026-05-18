@@ -107,6 +107,52 @@ fn ev_decision_trace_summary_is_cas_derived() {
 }
 
 #[test]
+fn ev_decision_trace_summary_reports_public_basis_delivery() {
+    let tmp = TempDir::new().unwrap();
+    let mut cas = CasStore::open(tmp.path()).unwrap();
+
+    let complete = trace(EVAction::Abstain, EVReason::NegativeEV);
+    write_ev_decision_trace_to_cas(&mut cas, &complete, "complete", 1).unwrap();
+
+    let mut zero_amount = trace(EVAction::Abstain, EVReason::LiquidityTooLow);
+    zero_amount.amount = Some(MicroCoin::from_micro_units(0));
+    write_ev_decision_trace_to_cas(&mut cas, &zero_amount, "zero-amount", 2).unwrap();
+
+    let mut zero_liquidity = trace(EVAction::Abstain, EVReason::LiquidityTooLow);
+    zero_liquidity.liquidity_depth = Some(MicroCoin::from_micro_units(0));
+    write_ev_decision_trace_to_cas(&mut cas, &zero_liquidity, "zero-liquidity", 3).unwrap();
+
+    let mut missing = trace(EVAction::Abstain, EVReason::InsufficientConfidence);
+    missing.quoted_price = None;
+    missing.implied_probability_bps = None;
+    missing.agent_probability_bps = None;
+    missing.edge_bps = None;
+    missing.expected_value_micro = None;
+    missing.liquidity_depth = None;
+    write_ev_decision_trace_to_cas(&mut cas, &missing, "missing", 4).unwrap();
+
+    let summary = EVDecisionTraceSummary::from_cas(&cas).unwrap();
+    assert_eq!(summary.public_basis_available_count, 1);
+    assert_eq!(summary.public_basis_missing_count, 3);
+    assert_eq!(summary.public_basis_delivery_rate_bps, 2_500);
+}
+
+#[test]
+fn ev_decision_trace_rejects_buy_with_zero_amount_or_zero_liquidity() {
+    let mut zero_amount = trace(EVAction::BuyYes, EVReason::PositiveEV);
+    zero_amount.amount = Some(MicroCoin::from_micro_units(0));
+    assert!(validate_ev_decision_trace(&zero_amount)
+        .unwrap_err()
+        .contains("complete public EV basis"));
+
+    let mut zero_liquidity = trace(EVAction::BuyYes, EVReason::PositiveEV);
+    zero_liquidity.liquidity_depth = Some(MicroCoin::from_micro_units(0));
+    assert!(validate_ev_decision_trace(&zero_liquidity)
+        .unwrap_err()
+        .contains("complete public EV basis"));
+}
+
+#[test]
 fn ev_decision_trace_rejects_out_of_range_bps_and_float_markers() {
     let mut invalid = trace(EVAction::Abstain, EVReason::EdgeBelowThreshold);
     invalid.implied_probability_bps = Some(10_001);
@@ -359,6 +405,79 @@ fn trader_ev_scaffold_exposes_side_specific_json_schemas() {
 }
 
 #[test]
+fn real13_runner_enables_public_ev_scaffold_by_default() {
+    let runner = std::fs::read_to_string("scripts/run_real13_market_pressure_probe.sh").unwrap();
+
+    assert!(
+        runner.contains(
+            "export TURINGOS_REAL13_TRADER_EV_SCAFFOLD=\"${TURINGOS_REAL13_TRADER_EV_SCAFFOLD:-1}\""
+        ),
+        "REAL-14F hard evidence runner must enable the public EV scaffold by default while still allowing explicit override"
+    );
+    assert!(
+        runner.contains("TURINGOS_REAL13_TRADER_EV_SCAFFOLD=$TURINGOS_REAL13_TRADER_EV_SCAFFOLD"),
+        "REAL-13 report sentinels must record whether the public EV scaffold was enabled"
+    );
+}
+
+#[test]
+fn dashboard_reports_public_ev_basis_delivery_metrics() {
+    let dashboard = std::fs::read_to_string("src/bin/audit_dashboard.rs").unwrap();
+
+    for required in [
+        "ev_public_basis_available_count",
+        "ev_public_basis_missing_count",
+        "ev_public_basis_delivery_rate_bps",
+    ] {
+        assert!(
+            dashboard.contains(required),
+            "audit dashboard must report CAS-derived EV basis delivery metric: {required}"
+        );
+    }
+}
+
+#[test]
+fn real13_runner_report_surfaces_ev_basis_and_policy_metrics() {
+    let runner = std::fs::read_to_string("scripts/run_real13_market_pressure_probe.sh").unwrap();
+
+    for required in [
+        "ev_public_basis_available_count",
+        "ev_public_basis_missing_count",
+        "ev_public_basis_delivery_rate_bps",
+        "policy_trader_trace_total_cas",
+        "policy_positive_ev_count",
+        "policy_positive_ev_llm_abstained_count",
+        "policy_insufficient_public_basis_count",
+        "policy_counts_for_e2",
+    ] {
+        assert!(
+            runner.contains(required),
+            "REAL-13/14F runner report must surface dashboard-derived EV basis and PolicyTrader metric: {required}"
+        );
+    }
+}
+
+#[test]
+fn real13_runner_records_replay_config_hashes() {
+    let runner = std::fs::read_to_string("scripts/run_real13_market_pressure_probe.sh").unwrap();
+
+    for required in [
+        "REAL14F_RUNTIME_CONFIG.json",
+        "REAL14F_RUNTIME_CONFIG.sha256",
+        "problem_set_hash",
+        "model_assignment_hash",
+        "budget_config_hash",
+        "prompt_template_hash",
+        "config_hash",
+    ] {
+        assert!(
+            runner.contains(required),
+            "REAL-14F runner must record replay/config hash field for true-problem evidence: {required}"
+        );
+    }
+}
+
+#[test]
 fn trader_ev_scaffold_is_public_quote_only_not_price_as_truth() {
     let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
 
@@ -451,6 +570,68 @@ fn trader_ev_scaffold_includes_non_forcing_positive_ev_action_check() {
         assert!(
             !evaluator.to_ascii_lowercase().contains(forbidden),
             "Trader EV scaffold must not force market action: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn bear_trader_positive_no_edge_has_symmetric_non_forcing_action_salience() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "=== REAL-17 BearTrader NO-Side Action Conversion ===",
+        "For BearTrader, positive EV on the NO side is symmetric with BullTrader YES-side positive EV",
+        "`buy_no` is the candidate economic action for clear public positive EV on NO",
+        "`abstain` remains valid when confidence, liquidity, balance, or risk checks do not pass",
+        "Do not convert a NO-side positive EV edge into a YES-side action",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "BearTrader action-conversion scaffold must make NO-side positive EV salient without forcing a trade: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "BearTrader action-conversion scaffold must not force market action: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn bear_trader_no_side_prompt_defines_no_as_task_outcome_not_theorem_false() {
+    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
+
+    for required in [
+        "BuyNo means buying the TaskOutcomeMarket NO outcome",
+        "NO outcome means no accepted valid proof before the market deadline",
+        "NO outcome is not a claim that the mathematical statement is false",
+        "Do not require theorem falsehood before considering `buy_no`",
+        "`abstain` remains valid for weak confidence, liquidity, balance, or risk checks",
+    ] {
+        assert!(
+            evaluator.contains(required),
+            "BearTrader NO-side scaffold must define NO as task-outcome risk, not theorem falsity: {required}"
+        );
+    }
+
+    for forbidden in [
+        "must buy",
+        "must short",
+        "required to buy",
+        "required to short",
+        "every turn",
+    ] {
+        assert!(
+            !evaluator.to_ascii_lowercase().contains(forbidden),
+            "BearTrader NO-side semantic scaffold must remain non-forcing: {forbidden}"
         );
     }
 }

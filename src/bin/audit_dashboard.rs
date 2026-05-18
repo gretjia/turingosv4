@@ -2490,6 +2490,9 @@ fn render_tb_n3_run_report(
         duplicate_router_tx_id_count,
         duplicate_submitted_router_tx_id_count,
         scripted_attempt_prediction_market_count,
+        direct_prompt_capsule_provenance_count,
+        indirect_prompt_capsule_provenance_count,
+        missing_direct_prompt_capsule_provenance_count,
         e2_verifier_verdict,
     ) = match e2_verifier {
         Ok(report) => {
@@ -2511,6 +2514,9 @@ fn render_tb_n3_run_report(
                 report.duplicate_l4_router_tx_id_count,
                 report.duplicate_submitted_trace_tx_id_count,
                 report.scripted_fixture_tx_count,
+                report.direct_prompt_capsule_provenance_count,
+                report.indirect_prompt_capsule_provenance_count,
+                report.missing_direct_prompt_capsule_provenance_count,
                 verdict_label.to_string(),
             )
         }
@@ -2518,7 +2524,7 @@ fn render_tb_n3_run_report(
             out.push_str(&format!(
                 "\n[error] REAL-14 independent E2 verifier failed: {e}\n"
             ));
-            (0, 0, 0, 0, 0, 0, "ERROR".to_string())
+            (0, 0, 0, 0, 0, 0, 0, 0, 0, "ERROR".to_string())
         }
     };
     let agent_economic_action_tx_count = matched_submitted_router_tx_id_count;
@@ -2566,6 +2572,18 @@ fn render_tb_n3_run_report(
     out.push_str(&format!(
         "  exact_join_diagnostic_count: {}\n",
         exact_join_diagnostic_count
+    ));
+    out.push_str(&format!(
+        "  direct_prompt_capsule_provenance_count: {}\n",
+        direct_prompt_capsule_provenance_count
+    ));
+    out.push_str(&format!(
+        "  indirect_prompt_capsule_provenance_count: {}\n",
+        indirect_prompt_capsule_provenance_count
+    ));
+    out.push_str(&format!(
+        "  missing_direct_prompt_capsule_provenance_count: {}\n",
+        missing_direct_prompt_capsule_provenance_count
     ));
     out.push_str(&format!("  e2_verifier_verdict: {e2_verifier_verdict}\n"));
     out.push_str(&format!(
@@ -2925,6 +2943,18 @@ fn render_tb_n3_run_report(
             "  ev_decision_trace_abstain_count_cas: {}\n",
             ev_summary.abstain_count
         ));
+        out.push_str(&format!(
+            "  ev_public_basis_available_count: {}\n",
+            ev_summary.public_basis_available_count
+        ));
+        out.push_str(&format!(
+            "  ev_public_basis_missing_count: {}\n",
+            ev_summary.public_basis_missing_count
+        ));
+        out.push_str(&format!(
+            "  ev_public_basis_delivery_rate_bps: {}\n",
+            ev_summary.public_basis_delivery_rate_bps
+        ));
         for (reason, count) in &ev_summary.by_reason {
             out.push_str(&format!(
                 "    - ev_decision_reason_{:?}: {}\n",
@@ -2965,6 +2995,30 @@ fn render_tb_n3_run_report(
             out.push_str("  policy_counts_for_e2=true\n");
         } else {
             out.push_str("  policy_counts_for_e2=false\n");
+        }
+    }
+    if let Ok(ignored_summary) =
+        turingosv4::runtime::positive_ev_ignored::summarize_positive_ev_ignored_from_cas(&cas)
+    {
+        out.push_str("\n## §REAL-14G PositiveEVIgnored Action Conversion\n");
+        out.push_str("  source: PolicyTraderTrace + EVDecisionTrace CAS materialized view; PolicyTrader remains counterfactual\n");
+        out.push_str(&format!(
+            "  positive_ev_ignored_total_cas: {}\n",
+            ignored_summary.ignored_count
+        ));
+        out.push_str(&format!(
+            "  positive_ev_action_conversion_rate_bps: {}\n",
+            ignored_summary.action_conversion_rate_bps
+        ));
+        out.push_str(&format!(
+            "  positive_ev_ignored_unknown_count: {}\n",
+            ignored_summary.unknown_count
+        ));
+        for (bucket, count) in &ignored_summary.by_bucket {
+            out.push_str(&format!(
+                "  positive_ev_ignored_bucket_{:?}: {}\n",
+                bucket, count
+            ));
         }
     }
     let market_review_summary_count =

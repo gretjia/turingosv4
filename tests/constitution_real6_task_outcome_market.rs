@@ -699,6 +699,70 @@ fn sg_6a_7_evaluator_exhaustion_path_calls_event_resolve_no_helper() {
 }
 
 #[test]
+fn sg_6a_7_exhaustion_event_resolve_no_uses_configured_poll_budget() {
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("read evaluator");
+    let no_path = evaluator_src
+        .split("EventResolve NO emit FAIL-CLOSED: q_snapshot before EventResolve NO failed")
+        .nth(1)
+        .expect("NO exhaustion EventResolve path exists");
+    let no_path = no_path
+        .split("EventResolve NO emitted for exhausted task_id")
+        .next()
+        .expect("NO exhaustion EventResolve path has emitted marker");
+    assert!(
+        no_path.contains("real6a_poll_budget_ms()"),
+        "NO exhaustion EventResolve must use TURINGOS_REAL6A_POLL_BUDGET_MS instead of a hard-coded short wait"
+    );
+    assert!(
+        !no_path.contains("pre_er_root,\n                                        5000"),
+        "NO exhaustion EventResolve must not hard-code a 5000ms TerminalSummary wait"
+    );
+}
+
+#[test]
+fn sg_6a_success_worktx_accept_uses_configured_poll_budget() {
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("read evaluator");
+
+    let full_path = evaluator_src
+        .split(
+            "[chaintape/real6a] WorkTx accept poll expired after task outcome was already resolved",
+        )
+        .next()
+        .expect("full WorkTx accept path prefix exists");
+    let full_path = full_path
+        .rsplit("tb8_await_state_root_advance(")
+        .next()
+        .expect("full WorkTx accept poll exists");
+    assert!(
+        full_path.contains("real6a_poll_budget_ms()"),
+        "full-proof WorkTx accept poll must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+    assert!(
+        !full_path.contains("parent_state_root, 5000"),
+        "full-proof WorkTx accept poll must not hard-code 5000ms"
+    );
+
+    let per_tactic_path = evaluator_src
+        .split("[chaintape/real6a] per-tactic WorkTx accept poll expired after task outcome was already resolved")
+        .next()
+        .expect("per-tactic WorkTx accept path prefix exists");
+    let per_tactic_path = per_tactic_path
+        .rsplit("tb8_await_state_root_advance(")
+        .next()
+        .expect("per-tactic WorkTx accept poll exists");
+    assert!(
+        per_tactic_path.contains("real6a_poll_budget_ms()"),
+        "per-tactic WorkTx accept poll must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+    assert!(
+        !per_tactic_path.contains("parent_state_root, 5000"),
+        "per-tactic WorkTx accept poll must not hard-code 5000ms"
+    );
+}
+
+#[test]
 fn sg_6a_6_evaluator_success_path_event_resolve_yes_is_fail_closed_when_enabled() {
     let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
         .expect("read evaluator");
@@ -862,5 +926,87 @@ fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
             && build_block.contains("exit 6")
             && build_block.contains("release binary build failed"),
         "REAL-6A smoke evidence must fail closed on cargo build failure, not continue with stale release binaries"
+    );
+}
+
+#[test]
+fn sg_6a_task_outcome_seed_uses_configured_poll_budget() {
+    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
+        .expect("read evaluator");
+    let seed_path = evaluator_src
+        .split("TaskOutcomeMarket seed FAIL-CLOSED: await for EscrowLock commit failed before seed")
+        .next()
+        .expect("TaskOutcomeMarket seed pre-escrow await path exists");
+    let seed_path = seed_path
+        .rsplit("tb_real6a_seed_task_outcome_market_after_escrow(")
+        .next()
+        .expect("TaskOutcomeMarket seed helper call exists");
+    assert!(
+        seed_path.contains("real6a_poll_budget_ms()"),
+        "TaskOutcomeMarket pre-seed EscrowLock await must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+
+    let helper_call = evaluator_src
+        .split("tb_real6a_seed_task_outcome_market_after_escrow(")
+        .nth(1)
+        .expect("TaskOutcomeMarket seed helper call exists");
+    let helper_call = helper_call
+        .split("TaskOutcomeMarket seeded event=")
+        .next()
+        .expect("TaskOutcomeMarket seed helper call has success marker");
+    assert!(
+        helper_call.contains("real6a_poll_budget_ms()"),
+        "TaskOutcomeMarket MarketSeed/CpmmPool helper must use TURINGOS_REAL6A_POLL_BUDGET_MS"
+    );
+    assert!(
+        !helper_call.contains("\"evaluator-pre-work\",\n                        5000"),
+        "TaskOutcomeMarket seed helper must not hard-code a 5000ms MarketSeed/CpmmPool await budget"
+    );
+}
+
+#[test]
+fn sg_6a_runner_clears_only_stale_cas_lock_before_post_run_audit() {
+    let script =
+        std::fs::read_to_string("scripts/run_g_phase_batch.sh").expect("read run_g_phase_batch.sh");
+    let batch_exit_pos = script
+        .find("BATCH_EXIT=${PIPESTATUS[0]}")
+        .expect("batch exit capture exists");
+    let audit_pos = script
+        .find("[audit_tape] running over shared runtime_repo + cas")
+        .expect("post-run audit_tape section exists");
+    assert!(
+        batch_exit_pos < audit_pos,
+        "batch_evaluator must exit before post-run audit begins"
+    );
+
+    let cleanup_block = &script[batch_exit_pos..audit_pos];
+    assert!(
+        cleanup_block.contains("clear_stale_cas_chain_lock \"$RUN_DIR/cas\""),
+        "runner must clear stale CAS chain lock after batch exit and before audit_tape"
+    );
+    assert!(
+        cleanup_block.contains(".turingos_cas_chain.lock")
+            && cleanup_block.contains("cas_stale_lock_cleanup.log"),
+        "cleanup must be exact-path and auditable"
+    );
+    assert!(
+        cleanup_block.contains("pid=") && cleanup_block.contains("kill -0"),
+        "cleanup must preserve live CAS chain locks by checking the recorded pid"
+    );
+    assert!(
+        !cleanup_block.contains(".turingos_cas_index.jsonl")
+            && !cleanup_block.contains("rm -rf")
+            && !cleanup_block.contains("runtime_repo"),
+        "cleanup must not delete or rewrite authoritative CAS/ChainTape evidence"
+    );
+
+    let exit_block = script
+        .split("# Exit non-zero on any failure mode")
+        .nth(1)
+        .expect("final fail-closed exit block exists");
+    assert!(
+        exit_block.contains("if [[ \"$BATCH_EXIT\" -ne 0 ]]")
+            && exit_block.contains("exit \"$BATCH_EXIT\""),
+        "runner must not let post-cleanup audit output suppress a non-zero batch exit"
     );
 }

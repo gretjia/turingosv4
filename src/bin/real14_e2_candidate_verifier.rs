@@ -11,6 +11,7 @@ struct Args {
     repo: PathBuf,
     cas: PathBuf,
     expect_count: Option<u64>,
+    require_direct_prompt_capsule_provenance: bool,
     json_out: Option<PathBuf>,
     md_out: Option<PathBuf>,
 }
@@ -20,6 +21,7 @@ fn parse_args() -> Result<Args, String> {
     let mut repo = None;
     let mut cas = None;
     let mut expect_count = None;
+    let mut require_direct_prompt_capsule_provenance = false;
     let mut json_out = None;
     let mut md_out = None;
     while let Some(arg) = argv.next() {
@@ -33,6 +35,9 @@ fn parse_args() -> Result<Args, String> {
                         .map_err(|e| format!("--expect-count parse failed: {e}"))?,
                 );
             }
+            "--require-direct-prompt-capsule-provenance" => {
+                require_direct_prompt_capsule_provenance = true;
+            }
             "--json-out" => {
                 json_out = Some(argv.next().ok_or("--json-out requires a path")?.into())
             }
@@ -45,13 +50,14 @@ fn parse_args() -> Result<Args, String> {
         repo: repo.ok_or("--repo required")?,
         cas: cas.ok_or("--cas required")?,
         expect_count,
+        require_direct_prompt_capsule_provenance,
         json_out,
         md_out,
     })
 }
 
 fn help_text() -> String {
-    "real14_e2_candidate_verifier --repo <runtime_repo> --cas <cas> [--expect-count N] [--json-out path] [--md-out path]".into()
+    "real14_e2_candidate_verifier --repo <runtime_repo> --cas <cas> [--expect-count N] [--require-direct-prompt-capsule-provenance] [--json-out path] [--md-out path]".into()
 }
 
 fn main() {
@@ -67,6 +73,7 @@ fn main() {
         &args.cas,
         E2CandidateVerifierOptions {
             expected_exact_join_count: args.expect_count,
+            require_direct_prompt_capsule_provenance: args.require_direct_prompt_capsule_provenance,
             ..E2CandidateVerifierOptions::default()
         },
     ) {

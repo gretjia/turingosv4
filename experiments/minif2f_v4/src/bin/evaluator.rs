@@ -595,6 +595,28 @@ fn real13_trader_ev_scaffold_block(
     block.push_str("Compute midpoint_bps = (estimated_probability_lower_bps + estimated_probability_upper_bps) / 2 using integer bps.\n");
     block.push_str("If midpoint_bps > implied_probability_bps and candidate amount fits balance/risk/liquidity, this is public positive EV; buy remains voluntary.\n");
     block.push_str("If you abstain despite public positive EV, start payload with positive_ev_override: and give the public reason.\n");
+    block.push_str("=== REAL-14G Action Conversion View ===\n");
+    block.push_str("You may buy when public positive EV is clear and risk checks pass.\n");
+    block.push_str("You may abstain with a public reason; abstain remains valid.\n");
+    block.push_str("missed_positive_ev_count: derived from prior PolicyTraderTrace/EvDecisionTrace summaries when available.\n");
+    block.push_str("action_conversion_rate_bps: derived from executed_positive_ev / policy_positive_ev, never from dashboard-only text.\n");
+    block.push_str("positive_ev_ignored_bucket_top: use the visible bucket summary, when present, to explain abstain instead of hiding it.\n");
+    if role == AgentRole::BearTrader {
+        block.push_str("=== REAL-17 BearTrader NO-Side Action Conversion ===\n");
+        block.push_str("For BearTrader, positive EV on the NO side is symmetric with BullTrader YES-side positive EV.\n");
+        block.push_str("BuyNo means buying the TaskOutcomeMarket NO outcome.\n");
+        block.push_str("NO outcome means no accepted valid proof before the market deadline.\n");
+        block.push_str("NO outcome is not a claim that the mathematical statement is false.\n");
+        block.push_str("Do not require theorem falsehood before considering `buy_no`.\n");
+        block.push_str(
+            "`buy_no` is the candidate economic action for clear public positive EV on NO.\n",
+        );
+        block.push_str("`abstain` remains valid when confidence, liquidity, balance, or risk checks do not pass.\n");
+        block.push_str(
+            "`abstain` remains valid for weak confidence, liquidity, balance, or risk checks.\n",
+        );
+        block.push_str("Do not convert a NO-side positive EV edge into a YES-side action.\n");
+    }
     match role {
         AgentRole::BullTrader => block.push_str(&format!(
             "If positive EV and risk checks pass: <action>{{\"tool\":\"buy_yes\",\"amount\":{},\"observed_price_num\":{},\"observed_price_den\":{},\"estimated_probability_lower_bps\":<your_lower_bps>,\"estimated_probability_upper_bps\":<your_upper_bps>,\"expected_value_sign\":\"positive\",\"liquidity_depth_micro\":{}}}</action>\n",
@@ -841,7 +863,7 @@ fn write_market_decision_trace_to_cas_or_exit(
     trace: &turingosv4::runtime::market_decision_trace::MarketDecisionTrace,
     suffix: &str,
     logical_t: u64,
-) {
+) -> turingosv4::bottom_white::cas::schema::Cid {
     let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
         Ok(store) => store,
         Err(e) => {
@@ -849,14 +871,44 @@ fn write_market_decision_trace_to_cas_or_exit(
             std::process::exit(3);
         }
     };
-    if let Err(e) = turingosv4::runtime::market_decision_trace::write_market_decision_trace_to_cas(
+    match turingosv4::runtime::market_decision_trace::write_market_decision_trace_to_cas(
         &mut cas_store,
         trace,
         suffix,
         logical_t,
     ) {
-        error!("MarketDecisionTrace CAS write FAIL-CLOSED: {e}");
-        std::process::exit(3);
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketDecisionTrace CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
+    }
+}
+
+fn write_market_decision_provenance_link_to_cas_or_exit(
+    cas_path: &std::path::Path,
+    link: &turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink,
+    suffix: &str,
+    logical_t: u64,
+) -> turingosv4::bottom_white::cas::schema::Cid {
+    let mut cas_store = match turingosv4::bottom_white::cas::store::CasStore::open(cas_path) {
+        Ok(store) => store,
+        Err(e) => {
+            error!("MarketDecisionProvenanceLink CAS write FAIL-CLOSED: CAS open failed: {e}");
+            std::process::exit(3);
+        }
+    };
+    match turingosv4::runtime::market_decision_provenance_link::write_market_decision_provenance_link_to_cas(
+        &mut cas_store,
+        link,
+        suffix,
+        logical_t,
+    ) {
+        Ok(cid) => cid,
+        Err(e) => {
+            error!("MarketDecisionProvenanceLink CAS write FAIL-CLOSED: {e}");
+            std::process::exit(3);
+        }
     }
 }
 
@@ -2840,7 +2892,7 @@ async fn run_swarm(
                     if let Err(e) = turingosv4::runtime::adapter::tb8_await_state_root_advance(
                         &bundle.sequencer,
                         parent_for_escrow,
-                        5000,
+                        real6a_poll_budget_ms(),
                     )
                     .await
                     {
@@ -2861,7 +2913,7 @@ async fn run_swarm(
                         &provider,
                         seed_micro,
                         "evaluator-pre-work",
-                        5000,
+                        real6a_poll_budget_ms(),
                     )
                     .await
                     {
@@ -5710,7 +5762,7 @@ async fn run_swarm(
                                                     }
                                                     // Await Work accept (state_root advance).
                                                     let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                                &bundle.sequencer, parent_state_root, 5000,
+                                                &bundle.sequencer, parent_state_root, real6a_poll_budget_ms(),
                                             ).await {
                                                 Ok(r) => r,
                                                 Err(()) => {
@@ -6438,12 +6490,33 @@ async fn run_swarm(
                                                                 amount_micro, direction, node_str
                                                             ),
                                                         );
-                                                        write_market_decision_trace_to_cas_or_exit(
+                                                        let market_decision_trace_cid = write_market_decision_trace_to_cas_or_exit(
                                                             &bundle.cas_path,
                                                             &trace,
                                                             &suffix,
                                                             tx as u64,
                                                         );
+                                                        if let Some(prompt_capsule_cid) =
+                                                            real5_prompt_capsule_cid_for_turn
+                                                        {
+                                                            let provenance_link = turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink {
+                                                                schema_version: turingosv4::runtime::market_decision_provenance_link::MarketDecisionProvenanceLink::SCHEMA_VERSION.to_string(),
+                                                                market_decision_trace_cid,
+                                                                submitted_router_tx_id: router_tx_id.clone(),
+                                                                agent_id: trace_agent_id.clone(),
+                                                                prompt_capsule_cid,
+                                                                ev_decision_trace_cid: None,
+                                                                market_opportunity_trace_cid: None,
+                                                                created_at_logical_t: tx as u64,
+                                                                public_summary: "direct prompt provenance for submitted market decision".to_string(),
+                                                            };
+                                                            write_market_decision_provenance_link_to_cas_or_exit(
+                                                                &bundle.cas_path,
+                                                                &provenance_link,
+                                                                &suffix,
+                                                                tx as u64,
+                                                            );
+                                                        }
                                                         info!(
                                                     "[tx {}] {} invest submitted: tx_id={} amount={}μC dir={:?} node={}",
                                                     tx, agent_id, router_tx_id.0, amount_micro, direction, node_str
@@ -6957,7 +7030,7 @@ async fn run_swarm(
                                                     }
                                                     // Await Work accept (state_root advance).
                                                     let post_work_root = match turingosv4::runtime::adapter::tb8_await_state_root_advance(
-                                                &bundle.sequencer, parent_state_root, 5000,
+                                                &bundle.sequencer, parent_state_root, real6a_poll_budget_ms(),
                                             ).await {
                                                 Ok(r) => r,
                                                 Err(()) => {
@@ -8316,7 +8389,7 @@ async fn run_swarm(
                                     turingosv4::runtime::adapter::tb8_await_state_root_advance(
                                         bundle.sequencer.as_ref(),
                                         pre_er_root,
-                                        5000,
+                                        real6a_poll_budget_ms(),
                                     )
                                     .await
                                 {

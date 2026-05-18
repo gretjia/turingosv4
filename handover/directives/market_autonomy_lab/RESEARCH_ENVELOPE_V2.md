@@ -56,6 +56,8 @@ Atom 4 — Market tx count split
 Atom 5 — TraderView EV/PnL/Librarian digest improvements
 Atom 6 — Hard10 true-problem run, escalating to hard20/hard36 if insufficient
 Atom 7 — Clean-context audit and next-hypothesis loop
+Atom 8 — REAL-15 role-differentiation verifier and E3 candidate packet
+Atom 9 — REAL-16 pinned A/B performance verifier and E4 candidate packet
 ```
 
 ## Allowed Implementation Surfaces
@@ -71,18 +73,28 @@ src/runtime/economic_judgment.rs
 src/runtime/policy_trader_trace.rs
 src/runtime/market_tx_category.rs
 src/runtime/market_e2_candidate_verifier.rs
+src/runtime/positive_ev_ignored.rs
+src/runtime/role_differentiation.rs
+src/runtime/market_performance_e4.rs
 src/runtime/mod.rs
 src/bin/audit_dashboard.rs
 src/bin/real14_e2_candidate_verifier.rs
+src/bin/real15_role_differentiation_verifier.rs
+src/bin/real16_market_performance_verifier.rs
 tests/constitution_librarian_*.rs
 tests/constitution_real12_*.rs
 tests/constitution_real13*.rs
+tests/constitution_real14g_positive_ev_ignored.rs
 tests/constitution_real14_e2_candidate_verifier.rs
+tests/constitution_real15_role_differentiation.rs
+tests/constitution_real16_market_performance.rs
 tests/constitution_policy_trader_trace.rs
 tests/constitution_market_autonomy_research_envelope.rs
 scripts/run_market_autonomy_research_preflight.sh
 scripts/run_real12_task_market_probe.sh
 scripts/run_real13_market_pressure_probe.sh
+scripts/run_real8_market_ab_benchmark.sh
+scripts/run_real16_market_performance_benchmark.sh
 handover/directives/2026-05-16_MARKET_AUTONOMY_LAB_ARCHITECT_ORIGINAL.md
 handover/directives/market_autonomy_lab/**
 handover/evidence/**
@@ -104,6 +116,15 @@ counted as E2.
 `h_vppu_history.json` is allowed only as a non-authoritative evaluator-generated
 H-VPPU side effect. It is not ChainTape/CAS evidence, not a source of truth, and
 must not support any Market Autonomy candidate claim.
+
+REAL-15 / REAL-16 addendum (2026-05-17): the grand Market Emergence goal
+continues beyond E2 into candidate-only E3 and E4 research. The newly listed
+role-differentiation and E4 performance verifier surfaces are additive
+report/verifier surfaces only. They must not alter sequencer admission,
+TypedTx schemas/discriminants, canonical signing payloads, wallet/kernel/bus
+authority, CAS ObjectType schema, or economic conservation rules. They may
+derive from ChainTape/CAS/exact-join verifier outputs and may emit
+candidate-only reports, but they do not authorize E2/E3/E4 achieved claims.
 
 ## Forbidden Surfaces
 
