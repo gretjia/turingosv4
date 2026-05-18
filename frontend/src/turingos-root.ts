@@ -60,8 +60,20 @@ export class TuringOSRoot extends HTMLElement {
   }
 
   /**
-   * W7: poll /api/welcome/status once at mount time; if onboarding is
-   * incomplete, soft-redirect to /welcome.
+   * W7 (hotfix W7.1): poll /api/welcome/status once at mount time; if the user
+   * has not finished the four prerequisite onboarding steps (Init, LlmConfig,
+   * ApiKey, AgentDeploy), soft-redirect to /welcome.
+   *
+   * Originally this fired the redirect whenever `next_step !== 'Done'`, which
+   * was wrong: once the user finishes onboarding the next_step becomes `Spec`
+   * (and later `Generate`), which are reached *on /build itself* — the spec
+   * grill is the very thing that flips Spec → Generate → Done. Redirecting
+   * away from /build whenever next_step is Spec/Generate trapped the user on
+   * /welcome forever after clicking "开始 SPEC 访谈 →".
+   *
+   * Authoritative rule: only the four wizard-controlled steps can mean
+   * "onboarding incomplete; punt user back to /welcome". Spec and Generate
+   * are user-driven post-onboarding steps that live on /build.
    *
    * Failure is silent — if the server is offline or the API errors, we leave
    * the user where they are rather than punting them around the app.
@@ -71,11 +83,16 @@ export class TuringOSRoot extends HTMLElement {
       const resp = await fetch('/api/welcome/status');
       if (!resp.ok) return;
       const data = (await resp.json()) as { next_step?: string };
-      if (typeof data.next_step === 'string' && data.next_step !== 'Done') {
-        if (location.pathname !== '/welcome') {
-          history.pushState({}, '', '/welcome');
-          location.reload();
-        }
+      const onboardingIncomplete =
+        typeof data.next_step === 'string' &&
+        (data.next_step === 'Init' ||
+          data.next_step === 'LlmConfig' ||
+          data.next_step === 'ApiKey' ||
+          data.next_step === 'AgentDeploy');
+      if (onboardingIncomplete && location.pathname !== '/welcome') {
+        // Hard navigate (no prior pushState — matches the welcome-CTA pattern;
+        // avoids Safari/Chrome same-URL pushState quirks).
+        window.location.assign('/welcome');
       }
     } catch {
       // Network errors are non-fatal here; the user can navigate manually.
