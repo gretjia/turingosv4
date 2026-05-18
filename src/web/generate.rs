@@ -58,7 +58,9 @@ use super::ws::{AppState, WsBroadcastMsg};
 #[derive(Debug, Deserialize)]
 pub(crate) struct GenerateRequest {
     pub(crate) session_id: String,
+    #[serde(default)]
     pub(crate) from_capsule: bool,
+    #[serde(default)]
     pub(crate) max_files: Option<u32>,
 }
 

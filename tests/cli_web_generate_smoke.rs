@@ -699,3 +699,62 @@ async fn artifact_get_rejects_path_traversal() {
         "URL-encoded traversal must not return 200; got {status_encoded}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test (regression W6.1): generate_accepts_bare_session_id_payload
+//
+// §6a v2 verifier (handover/evidence/stage_phase7_web_v2_*) caught a
+// frontend↔backend contract gap: `<tos-spec-result>` POSTs `{ session_id }`
+// to /api/generate (only the session_id field), but `GenerateRequest`
+// originally required `from_capsule: bool` without `#[serde(default)]`,
+// causing serde to reject the bare payload with HTTP 422. Fix added
+// #[serde(default)] to both `from_capsule` and `max_files`. This test
+// locks in that contract.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn generate_accepts_bare_session_id_payload_regression_w6_1() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let workspace = dir.path().to_path_buf();
+    let session_id = "test-bare-payload-01";
+    let session_dir = setup_session(&workspace, session_id);
+    write_spec_md(&session_dir);
+
+    let args_file = dir.path().join("recorded_args.txt");
+    let args_path = args_file.to_string_lossy().into_owned();
+    let script_path = write_stub_script(
+        &dir,
+        0,
+        "Generated 0 file(s) under /x/artifacts/\n",
+        "",
+        &args_path,
+    );
+    let workspace_str = workspace.to_string_lossy().into_owned();
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &script_path);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace_str);
+
+    let addr = start_server().await;
+    // BARE payload — only session_id, no from_capsule, no max_files.
+    // This is what the W6 frontend <tos-spec-result> sends on the
+    // "生成代码" click. Must accept (deserialize with defaults).
+    let body = format!(r#"{{"session_id":"{session_id}"}}"#);
+    let (status, resp_body) = http_post_json(addr, "/api/generate", &body).await;
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(
+        status, 200,
+        "bare {{session_id}} payload must return 200 (not 422); got {status} body={resp_body}"
+    );
+
+    // Confirm defaults applied: from_capsule=false → no --from-capsule flag.
+    let recorded = std::fs::read_to_string(&args_file).unwrap_or_default();
+    assert!(
+        !recorded.contains("--from-capsule"),
+        "default from_capsule=false must NOT emit --from-capsule flag; recorded={recorded:?}"
+    );
+}
