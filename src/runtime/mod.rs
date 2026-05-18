@@ -229,6 +229,10 @@ pub mod g7_structural_smoke;
 /// Phase 6.3.x Software 3.0 LLM-driven grill envelope parsing and structural validation.
 pub mod grill_envelope;
 
+/// TRACE_MATRIX FC1-N9: per-turn predicates + session-aggregate termination.
+/// Phase 6.3.x Software 3.0 LLM-driven grill semantic validation.
+pub mod grill_predicates;
+
 /// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
 /// role-scoped Librarian broadcast digest. Materialized view only; no new
 /// TypedTx, sequencer admission, signing payload, or CAS ObjectType.
