@@ -94,6 +94,27 @@ pub(crate) enum WsBroadcastMsg {
         session_id: String,
         artifacts: Vec<String>,
     },
+    /// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W8 — auto-retry progress event.
+    ///
+    /// Emitted by POST /api/generate at the start of each retry attempt,
+    /// including attempt 1. Allows `<tos-spec-result>` to show a live
+    /// "正在生成... (尝试 N/M)" chip instead of an opaque loading spinner.
+    GenerateAttemptStarted {
+        session_id: String,
+        attempt: u8,
+        max_attempts: u8,
+    },
+    /// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W8 — auto-retry failure event.
+    ///
+    /// Emitted by POST /api/generate when an attempt fails the heuristic
+    /// verification or the shellout exit code is non-zero. `reason` is a
+    /// human-readable (Chinese-friendly) summary, safe to display.
+    GenerateAttemptFailed {
+        session_id: String,
+        attempt: u8,
+        max_attempts: u8,
+        reason: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

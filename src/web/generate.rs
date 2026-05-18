@@ -41,7 +41,23 @@ use std::path::PathBuf;
 #[cfg(feature = "web")]
 use super::spec::SpecError;
 #[cfg(feature = "web")]
+use super::verify::verify_artifact_html;
+#[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
+
+// ---------------------------------------------------------------------------
+// W8 — auto-retry constants
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC1-N5 + FC1-N10: maximum number of generate attempts.
+///
+/// Each attempt = one full shellout to `turingos generate` + one heuristic
+/// verification pass. Phase 7 W8 Real-LLM E2E observed Qwen3-Coder produce
+/// a broken artifact on attempt 1 about 50% of the time; with N=3 retries
+/// the probability of three consecutive failures drops to ~12% which is
+/// acceptable for a non-developer end user.
+#[cfg(feature = "web")]
+pub(crate) const MAX_GENERATE_ATTEMPTS: u8 = 3;
 
 // ---------------------------------------------------------------------------
 // Request / Response types
@@ -69,12 +85,17 @@ pub(crate) struct GenerateRequest {
 /// `artifacts`: list of artifact files written under
 ///   `<session-dir>/artifacts/`, capped at 32 entries.
 /// `transcript_excerpt`: first 2048 chars of stdout from the CLI (optional).
+/// `total_attempts` (W8): how many attempts were needed before the artifact
+///   passed heuristic verification. `1` means single-shot success; `>=2`
+///   means at least one retry happened. The frontend can show
+///   "✓ (经过 N 次尝试)" if `total_attempts > 1`.
 #[cfg(feature = "web")]
 #[derive(Debug, Serialize)]
 pub(crate) struct GenerateResponse {
     pub(crate) session_id: String,
     pub(crate) artifacts: Vec<ArtifactEntry>,
     pub(crate) transcript_excerpt: Option<String>,
+    pub(crate) total_attempts: u8,
 }
 
 /// TRACE_MATRIX FC1-N5: one artifact file entry in the generate response.
@@ -151,97 +172,248 @@ pub(crate) async fn generate_handler(
         ));
     }
 
-    // Step 5: resolve binary and shell out — exec-style, no sh -c.
+    // Step 5: resolve binary; we will shell out inside the retry loop.
     let bin = resolve_turingos_bin();
     let session_dir_str = session_dir.to_string_lossy().into_owned();
+    let artifacts_dir = session_dir.join("artifacts");
 
     log::info!(
-        "generate_handler: bin={:?} session_id={:?} session_dir={:?} from_capsule={} max_files={:?}",
+        "generate_handler: bin={:?} session_id={:?} session_dir={:?} from_capsule={} max_files={:?} max_attempts={}",
         bin,
         req.session_id,
         session_dir_str,
         req.from_capsule,
         req.max_files,
+        MAX_GENERATE_ATTEMPTS,
     );
 
-    let mut cmd = tokio::process::Command::new(&bin);
-    cmd.arg("generate").arg("--workspace").arg(&session_dir_str);
+    // Step 6: W8 retry loop — attempt up to MAX_GENERATE_ATTEMPTS times.
+    let mut last_failure_reason: String = String::new();
+    let mut last_failure_kind: &str = "shellout_failed";
+    let mut last_artifact_path_for_inspection: Option<String> = None;
+    let mut last_stdout: String = String::new();
 
-    if req.from_capsule {
-        cmd.arg("--from-capsule");
+    for attempt in 1u8..=MAX_GENERATE_ATTEMPTS {
+        // Broadcast attempt start (UX progress chip).
+        let _ = state
+            .broadcast_tx
+            .send(WsBroadcastMsg::GenerateAttemptStarted {
+                session_id: req.session_id.clone(),
+                attempt,
+                max_attempts: MAX_GENERATE_ATTEMPTS,
+            });
+
+        // Clean any artifacts left from a prior failed attempt so the file
+        // walker doesn't pick up stale broken output. Skip on attempt 1 to
+        // preserve pre-existing fixtures (the CLI itself overwrites on
+        // run; only retries need clearing).
+        if attempt > 1 && artifacts_dir.exists() {
+            let _ = clear_dir_contents(&artifacts_dir);
+        }
+
+        // Build the command fresh for each attempt (Command isn't Clone).
+        let mut cmd = tokio::process::Command::new(&bin);
+        cmd.arg("generate").arg("--workspace").arg(&session_dir_str);
+        if req.from_capsule {
+            cmd.arg("--from-capsule");
+        }
+        if let Some(max_files) = req.max_files {
+            cmd.arg("--max-files").arg(max_files.to_string());
+        }
+        // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives
+        // in memory only; we do not log it. If unset, child inherits parent.
+        if let Ok(guard) = state.api_key.lock() {
+            if let Some(key) = guard.as_ref() {
+                cmd.env("SILICONFLOW_API_KEY", key);
+            }
+        }
+
+        let output = match cmd.output().await {
+            Ok(o) => o,
+            Err(e) => {
+                let reason = format!("failed to spawn {:?}: {e}", bin);
+                let _ = state
+                    .broadcast_tx
+                    .send(WsBroadcastMsg::GenerateAttemptFailed {
+                        session_id: req.session_id.clone(),
+                        attempt,
+                        max_attempts: MAX_GENERATE_ATTEMPTS,
+                        reason: reason.clone(),
+                    });
+                last_failure_reason = reason;
+                last_failure_kind = "shellout_failed";
+                if attempt < MAX_GENERATE_ATTEMPTS {
+                    continue;
+                }
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(SpecError {
+                        reason: last_failure_reason,
+                        kind: last_failure_kind,
+                    }),
+                ));
+            }
+        };
+
+        // Capture stdout for the eventual response (winning attempt wins).
+        let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
+        last_stdout = stdout_str.clone();
+
+        // Non-zero exit → failure, broadcast and (maybe) retry.
+        if !output.status.success() {
+            let stderr_str = String::from_utf8_lossy(&output.stderr).into_owned();
+            let exit_code = output.status.code().unwrap_or(-1);
+            let combined = format!("stdout: {} | stderr: {}", stdout_str, stderr_str);
+            let truncated = if combined.len() > 512 {
+                format!("{}…", &combined[..512])
+            } else {
+                combined
+            };
+            let reason = format!("shellout_exit_{exit_code}: {truncated}");
+            let _ = state
+                .broadcast_tx
+                .send(WsBroadcastMsg::GenerateAttemptFailed {
+                    session_id: req.session_id.clone(),
+                    attempt,
+                    max_attempts: MAX_GENERATE_ATTEMPTS,
+                    reason: reason.clone(),
+                });
+            last_failure_reason = reason;
+            last_failure_kind = "shellout_failed";
+            if attempt < MAX_GENERATE_ATTEMPTS {
+                continue;
+            }
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(SpecError {
+                    reason: last_failure_reason,
+                    kind: last_failure_kind,
+                }),
+            ));
+        }
+
+        // Exit zero → walk artifacts and run heuristic verification.
+        let artifact_entries = walk_artifacts_dir(&artifacts_dir).await;
+        let index_html = artifact_entries
+            .iter()
+            .find(|e| e.path.eq_ignore_ascii_case("index.html"));
+
+        let verify_outcome = match index_html {
+            Some(entry) => {
+                let abs_path = artifacts_dir.join(&entry.path);
+                last_artifact_path_for_inspection = Some(entry.path.clone());
+                match verify_artifact_html(&abs_path) {
+                    Ok(outcome) => Some(outcome),
+                    Err(e) => {
+                        log::warn!("verify_artifact_html failed: {e}");
+                        None
+                    }
+                }
+            }
+            None => {
+                // No index.html — there is no heuristic surface (could be a
+                // Python-only artifact, or zero artifacts in CLI smoke
+                // contexts). Preserve the pre-W8 success contract: accept.
+                None
+            }
+        };
+
+        // If we have a verify outcome, gate on it. If no index.html but
+        // artifacts exist, fall through to success.
+        if let Some(outcome) = verify_outcome.as_ref() {
+            if !outcome.passed {
+                let reason = outcome.failure_reasons.join("; ");
+                let _ = state
+                    .broadcast_tx
+                    .send(WsBroadcastMsg::GenerateAttemptFailed {
+                        session_id: req.session_id.clone(),
+                        attempt,
+                        max_attempts: MAX_GENERATE_ATTEMPTS,
+                        reason: reason.clone(),
+                    });
+                last_failure_reason = reason;
+                last_failure_kind = "generate_quality_failed";
+                if attempt < MAX_GENERATE_ATTEMPTS {
+                    continue;
+                }
+                // Final failure — return 500 with the last artifact path so
+                // the user can still inspect what came out.
+                let final_reason = if let Some(path) = last_artifact_path_for_inspection.as_ref() {
+                    format!(
+                        "{} | last_artifact={}/artifacts/{}",
+                        last_failure_reason, req.session_id, path
+                    )
+                } else {
+                    last_failure_reason.clone()
+                };
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(SpecError {
+                        reason: final_reason,
+                        kind: "generate_quality_failed",
+                    }),
+                ));
+            }
+        }
+
+        // Heuristic passed (or not applicable) → success path.
+        let transcript_excerpt = if last_stdout.is_empty() {
+            None
+        } else {
+            let excerpt = if last_stdout.len() > 2048 {
+                format!("{}…", &last_stdout[..2048])
+            } else {
+                last_stdout.clone()
+            };
+            Some(excerpt)
+        };
+
+        // Broadcast GenerateComplete (existing contract preserved).
+        let artifact_paths: Vec<String> = artifact_entries.iter().map(|e| e.path.clone()).collect();
+        let _ = state.broadcast_tx.send(WsBroadcastMsg::GenerateComplete {
+            session_id: req.session_id.clone(),
+            artifacts: artifact_paths,
+        });
+
+        return Ok(Json(GenerateResponse {
+            session_id: req.session_id,
+            artifacts: artifact_entries,
+            transcript_excerpt,
+            total_attempts: attempt,
+        }));
     }
 
-    if let Some(max_files) = req.max_files {
-        cmd.arg("--max-files").arg(max_files.to_string());
-    }
+    // Loop exited without success — unreachable given the explicit returns
+    // inside the loop, but cover it defensively for the type-checker.
+    Err((
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(SpecError {
+            reason: if last_failure_reason.is_empty() {
+                "generate_retry_exhausted".to_string()
+            } else {
+                last_failure_reason
+            },
+            kind: last_failure_kind,
+        }),
+    ))
+}
 
-    // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives in
-    // memory only; we do not log it. If unset, the child inherits parent env.
-    if let Ok(guard) = state.api_key.lock() {
-        if let Some(key) = guard.as_ref() {
-            cmd.env("SILICONFLOW_API_KEY", key);
+/// W8 helper: best-effort recursive removal of all entries inside `dir`.
+/// We do NOT remove `dir` itself — the path needs to stay so the CLI can
+/// write fresh artifacts. Returns Ok(()) on full success; ignores errors
+/// for individual entries.
+#[cfg(feature = "web")]
+fn clear_dir_contents(dir: &std::path::Path) -> std::io::Result<()> {
+    let rd = std::fs::read_dir(dir)?;
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let _ = std::fs::remove_dir_all(&path);
+        } else {
+            let _ = std::fs::remove_file(&path);
         }
     }
-
-    let output = cmd.output().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(SpecError {
-                reason: format!("failed to spawn {:?}: {e}", bin),
-                kind: "shellout_failed",
-            }),
-        )
-    })?;
-
-    // Step 6: check exit code.
-    if !output.status.success() {
-        let stdout_str = String::from_utf8_lossy(&output.stdout);
-        let stderr_str = String::from_utf8_lossy(&output.stderr);
-        let combined = format!("stdout: {} | stderr: {}", stdout_str, stderr_str);
-        let truncated = if combined.len() > 512 {
-            format!("{}…", &combined[..512])
-        } else {
-            combined
-        };
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(SpecError {
-                reason: truncated,
-                kind: "shellout_failed",
-            }),
-        ));
-    }
-
-    // Step 7: walk artifacts dir and build artifact list.
-    let artifacts_dir = session_dir.join("artifacts");
-    let artifact_entries = walk_artifacts_dir(&artifacts_dir).await;
-
-    // Step 8: build transcript excerpt from stdout (first 2048 chars).
-    let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
-    let transcript_excerpt = if stdout_str.is_empty() {
-        None
-    } else {
-        let excerpt = if stdout_str.len() > 2048 {
-            format!("{}…", &stdout_str[..2048])
-        } else {
-            stdout_str.clone()
-        };
-        Some(excerpt)
-    };
-
-    // Step 9: broadcast GenerateComplete.
-    let artifact_paths: Vec<String> = artifact_entries.iter().map(|e| e.path.clone()).collect();
-    let _ = state.broadcast_tx.send(WsBroadcastMsg::GenerateComplete {
-        session_id: req.session_id.clone(),
-        artifacts: artifact_paths,
-    });
-
-    // Step 10: respond 200.
-    Ok(Json(GenerateResponse {
-        session_id: req.session_id,
-        artifacts: artifact_entries,
-        transcript_excerpt,
-    }))
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

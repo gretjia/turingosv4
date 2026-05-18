@@ -185,6 +185,13 @@ export interface GenerateResponse {
   session_id: string;
   artifacts: ArtifactEntry[];
   transcript_excerpt?: string | null;
+  /**
+   * W8: how many attempts were needed before the artifact passed
+   * heuristic verification. 1 means single-shot success; >=2 means at
+   * least one retry happened. Frontend can show
+   * "✓ (经过 N 次尝试)" if total_attempts > 1.
+   */
+  total_attempts: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,18 +268,45 @@ export interface GenerateCompleteEvent {
 }
 
 /**
+ * W8: generate_attempt_started — emitted at the start of each retry
+ * attempt (including attempt 1). Drives the live "尝试 N/M" progress chip.
+ */
+export interface GenerateAttemptStartedEvent {
+  msg_type: 'generate_attempt_started';
+  session_id: string;
+  attempt: number;
+  max_attempts: number;
+}
+
+/**
+ * W8: generate_attempt_failed — emitted when an attempt fails heuristic
+ * verification or shellout exit. `reason` is human-readable.
+ */
+export interface GenerateAttemptFailedEvent {
+  msg_type: 'generate_attempt_failed';
+  session_id: string;
+  attempt: number;
+  max_attempts: number;
+  reason: string;
+}
+
+/**
  * Union of all WebSocket message shapes.
  *
  * Discriminated on `msg_type`:
- *   - `'ir_update'`:        initial IR push or view refresh
- *   - `'task_created'`:     write-path event from POST /api/task/open
- *   - `'spec_complete'`:    POST /api/spec/submit success broadcast
- *   - `'generate_started'`: reserved for future streaming
- *   - `'generate_complete'`: POST /api/generate success broadcast
+ *   - `'ir_update'`:                initial IR push or view refresh
+ *   - `'task_created'`:             write-path event from POST /api/task/open
+ *   - `'spec_complete'`:            POST /api/spec/submit success broadcast
+ *   - `'generate_started'`:         reserved for future streaming
+ *   - `'generate_complete'`:        POST /api/generate success broadcast
+ *   - `'generate_attempt_started'`: W8 — retry attempt start
+ *   - `'generate_attempt_failed'`:  W8 — retry attempt failure
  */
 export type WsMessage =
   | IRUpdateEvent
   | TaskCreatedEvent
   | SpecCompleteEvent
   | GenerateStartedEvent
-  | GenerateCompleteEvent;
+  | GenerateCompleteEvent
+  | GenerateAttemptStartedEvent
+  | GenerateAttemptFailedEvent;

@@ -77,6 +77,16 @@ export class TosArtifactViewer extends HTMLElement {
     title.className = 'artifact-viewer-title';
     title.textContent = '你的工具，已经写好了。';
     header.appendChild(title);
+    // W8: if generation needed more than one attempt, show a monospace
+    // caption above the iframe so the user knows retries happened and
+    // the artifact passed heuristic verification.
+    const attempts = typeof this._data.total_attempts === 'number' ? this._data.total_attempts : 1;
+    if (attempts > 1) {
+      const retryCaption = document.createElement('p');
+      retryCaption.className = 'artifact-viewer-retry-caption';
+      retryCaption.textContent = `经过 ${attempts} 次尝试 · 已通过启发式验证`;
+      header.appendChild(retryCaption);
+    }
     this.appendChild(header);
 
     const layout = document.createElement('div');
