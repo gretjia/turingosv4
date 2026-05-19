@@ -1,0 +1,48 @@
+{
+  "persona": "mrs_chen",
+  "phase": "pi4_round2",
+  "session_id": "pi4r2_mrs_chen_1779152467",
+  "backend_pid": 1460,
+  "stack": {
+    "meta": "v2 (95d18da0)",
+    "triage": "v3 (9d975594)",
+    "synthesis": "v2 (730073e9)",
+    "fixes": ["A6_lib_synth", "F9_transcript_rollback", "F10_slot_keyed_spec_md", "F11_generate_quality"]
+  },
+  "e2e_round2_verdict": "A6-A8-OK-BUT-MAP-WRONG",
+  "spec_capsule_cid_64hex": true,
+  "spec_capsule_cid": "f69cd1f1fbb1bc36bdc7184fe587bf4f60d855c6f381ddc232231257e67a86f4",
+  "spec_md_exists": true,
+  "spec_md_slot_mapping_correct": false,
+  "spec_md_slot_mapping_detail": {
+    "goal_section": "OK — raw T1 used as Goal text (acceptable)",
+    "reference_section": "WRONG — Goal text (T1) leaked into Reference section; anchor answer ('之前在一个网站上玩') missing",
+    "memory_section": "CORRECT — '上次玩到哪关下次接着玩'",
+    "first_run_section": "CORRECT — '双击就能玩不要让儿子打字'",
+    "robustness_section": "WRONG — Goal text leaked in instead of robustness-specific phrasing",
+    "out_of_scope_section": "WRONG — scope answer ('就给儿子一个人玩') leaked into Out-of-Scope semantic slot",
+    "acceptance_section": "WRONG — scope answer leaked again into Acceptance",
+    "user_supplement_section": "EMPTY (acceptable — no mirror playback content given)"
+  },
+  "spec_md_size_bytes": 3284,
+  "spec_md_body_size_chars": 570,
+  "spec_md_user_phrases_count": {
+    "俄罗斯方块": 4,
+    "儿子": 7,
+    "WiFi": 4,
+    "30分钟": 0
+  },
+  "spec_md_hallucinations": [],
+  "covered_slots_at_term": ["job","anchor","memory","first_run","robustness","scope","acceptance"],
+  "open_slots_at_term": ["mirror"],
+  "voss_mirror_count": 1,
+  "termination_reason": "llm_done_predicate_pass",
+  "terminated": true,
+  "done": true,
+  "confidence_at_term": 0.9,
+  "turns_used": 7,
+  "transcript_corruption_events": 2,
+  "transcript_corruption_recovered": true,
+  "transcript_corruption_detail": "T4 first attempt: 500 (llm complete returned ok=false, empty content). 2nd retry: still 500. 3rd retry (after 3s sleep): 200 success. T5 first attempt: 500. 2nd retry: 200. F9 transcript rollback CONFIRMED working — session resumed without restart, slot state preserved.",
+  "narrative": "Π4.1 (v1 Meta) FAIL: v1 Meta produced empty/hallucinated synthesis, no spec_capsule_cid. W1.1-V2 (v2 Meta partial) achieved spec generation but with slot-mapping bug and persistent transcript corruption that required full session restart. This Π4 round 2 run on FULL v2+v3+v2 stack + F9/F10/F11 shows: (a) F9 transcript rollback WORKS — two 5xx empty-content events at T4/T5 recovered in-session without restart, preserving covered_slots progression. (b) Triage v3 did NOT over-reject — 7 slots covered in 7 turns, termination at confidence 0.9 with llm_done_predicate_pass, NO TRIAGE-REGRESSION. (c) spec_capsule_cid populated (64hex). (d) spec.md generated (3284 bytes, 570 body chars). (e) ZERO hallucinations in spec.md body (Apple/YouTube/Canva/iPhone absent; the playback's 别踩白块儿 hallucination did NOT propagate to spec.md). (f) HOWEVER F10 slot-keyed spec.md is PARTIALLY broken: Memory + First Run map correctly, but Reference, Robustness, Out-of-Scope, and Acceptance sections all show wrong-slot content (Goal text leaks into Reference/Robustness; scope answer leaks into Out-of-Scope AND Acceptance). Header says 'meta model: web-skip-llm (skip-llm: no synthesis call made)' — the synthesis call was apparently skipped, so spec.md was built by template substitution with broken slot keying. Verdict: A6-A8-OK-BUT-MAP-WRONG — F9 and F11 confirmed fixed; F10 still has slot-key bug; A6 synth path appears not invoked (skip-llm)."
+}

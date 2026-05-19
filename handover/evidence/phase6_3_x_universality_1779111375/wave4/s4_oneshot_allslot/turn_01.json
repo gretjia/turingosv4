@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"好的，听起来你想要一个番茄钟工具。你说要像‘本地时间戳’一样，能具体描述一下吗？比如，你希望它像手机上的时钟应用那样简单直接，还是有其他特定的参考？","covered_slots":["job","anchor","memory","first_run","robustness","scope","acceptance","mirror"],"open_slots":[],"confidence":0.9,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

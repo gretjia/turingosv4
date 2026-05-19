@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"听起来你是说，你需要一个在WiFi不稳时也能玩的俄罗斯方块类游戏，对吗？如果是的话，你希望它最像现有的哪个游戏或应用？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.2,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

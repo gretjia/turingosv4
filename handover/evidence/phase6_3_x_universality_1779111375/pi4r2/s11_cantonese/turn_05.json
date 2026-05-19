@@ -1,0 +1,1 @@
+{"turn_index":6,"question_text":"咁你覺得點樣先算成功？例如係每個檔主都肯用，定係計數快咗幾多？","covered_slots":["job","anchor","memory","first_run","robustness"],"open_slots":["scope","acceptance","mirror"],"confidence":0.71,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

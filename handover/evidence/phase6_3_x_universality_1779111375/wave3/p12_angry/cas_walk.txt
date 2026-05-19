@@ -1,0 +1,30 @@
+CAS walk: SKIPPED.
+
+Reason: `turingos spec audit` is not a separate subcommand in this build —
+`turingos spec --workspace ... --session ...` launches the interactive
+8-question grill (the same one the backend wraps), not a session auditor.
+When invoked here it began prompting Q1..Q8 on stdin and then failed with
+`turingos spec: missing API key: SILICONFLOW_API_KEY` (exit=2), confirming
+the CLI is not the right tool for inspecting backend-side session capsules.
+
+Backend exposes only `POST /api/spec/turn`; there is no
+`GET /api/spec/session/{id}` or equivalent inspection endpoint reachable from
+this runner (probed: /api/spec/session, /api/spec/sessions, /api/spec/state,
+/api/spec/turn/{id}, /api/sessions — all 404).
+
+Session terminated server-side at turn 2 with
+`termination_reason = user_input_unparseable_no_spec` and
+`spec_capsule_cid = null`, so no spec capsule was emitted. Any session-rollup
+or turn capsules the backend may have persisted are not inspectable via any
+CLI/HTTP surface this runner can reach.
+
+Evidence relied upon for verdict: session_log.jsonl (all four POSTs +
+responses captured directly from the HTTP envelope, including the explicit
+`termination_reason` field on the turn-2 envelope and the
+`{kind:"session_terminated"}` 400 on the turn-3 retry).
+
+Raw CLI stdout (interactive grill prompts, then API-key error) was previously
+captured to this file by the dispatched CLI invocation and has been replaced
+by this explanatory note to avoid being misread as a successful audit walk.
+
+exit=skip

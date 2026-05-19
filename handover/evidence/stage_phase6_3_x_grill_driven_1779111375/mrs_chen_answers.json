@@ -1,0 +1,14 @@
+[
+  {"turn": 1, "slot_target": "job", "answer": "我儿子放学想玩俄罗斯方块那种简单游戏，但家里 WiFi 不稳，老断。"},
+  {"turn": 2, "slot_target": "anchor", "answer": "之前在一个网站上玩，但需要网络。"},
+  {"turn": 3, "slot_target": "memory", "answer": "记住他玩到第几关就行，第二天放学回来能接着玩。"},
+  {"turn": 4, "slot_target": "first_run", "answer": "打开浏览器双击图标就能直接玩，不用登录不用注册。"},
+  {"turn": 5, "slot_target": "robustness", "answer": "WiFi 断了游戏不能停，他乱按键也不能闪退。"},
+  {"turn": 6, "slot_target": "scope", "answer": "不要排行榜不要分享，就他一个人玩，简简单单。"},
+  {"turn": 7, "slot_target": "acceptance", "answer": "他能开心玩 30 分钟，不用我帮忙就行。"},
+  {"turn": 8, "slot_target": "confirm_playback", "answer": "确认"},
+  {"turn": 9, "slot_target": "confirm_playback_alt", "answer": "确认"},
+  {"turn": 10, "slot_target": "confirm_playback_alt", "answer": "确认"},
+  {"turn": 11, "slot_target": "confirm_playback_alt", "answer": "确认"},
+  {"turn": 12, "slot_target": "confirm_playback_alt", "answer": "确认"}
+]

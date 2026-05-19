@@ -1,0 +1,66 @@
+{
+  "wave": "W3.2",
+  "persona": "P6 emoji + 网络用语 (hard — slang + emoji noise + code-switching)",
+  "session_id": "w3_p6_emoji_slang_1779119297",
+  "backend": "http://127.0.0.1:8080 (F1-F6 + v1 prompt, lang=zh)",
+  "evidence_dir": "handover/evidence/phase6_3_x_universality_1779111375/wave3/p6_emoji_slang/",
+  "session_dir_observed": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w3_p6_emoji_slang_1779119297",
+  "verdict": "PARTIAL",
+  "verdict_rationale": "Predicate terminated cleanly with done=true, terminated=true, 7/8 slots covered, confidence=0.95, and a coherent Chinese playback that semantically translated the slang correctly. However spec_capsule_cid is null because termination_reason is 'predicate_done_no_spec_pending_synthesis' — synthesis path is not wired in the web layer (F6 comment in src/web/spec.rs confirms this is a known gap: synthesis lives in src/bin/turingos/ which the F6 charter forbids editing). This is therefore NOT a slang/emoji failure; it is the documented post-predicate synthesis gap. PARTIAL because the spec criterion 'terminated with spec_capsule_cid' is not met, even though the semantic universality test itself effectively PASSED (slang understood, emoji preserved, predicate satisfied).",
+  "pass_criteria_check": {
+    "terminated_with_spec_capsule_cid": false,
+    "covered_slots_count": 7,
+    "covered_slots_threshold_met_ge_5_of_7": true,
+    "covered_slots": ["job", "anchor", "memory", "first_run", "robustness", "scope", "acceptance"],
+    "open_slots": ["mirror"],
+    "final_confidence": 0.95,
+    "spec_semantically_correct": true,
+    "emoji_handled_gracefully": true
+  },
+  "critical_metrics": {
+    "triage_gibberish_rate": {
+      "total_user_answers_submitted": 8,
+      "triage_non_relevant_strikes": 1,
+      "non_relevant_class_inferred": "off_topic",
+      "note": "Turn-3 answer ('锚点就是订单截图? 或者订单号也行 🍔📸') was triaged non-relevant against question 'which app is it like (微信群收款 / 记账软件)'. The user's slang+emoji-heavy answer was on-topic for ANCHOR slot but the question had pivoted; triage marked it non-relevant (correct behavior — answer didn't address the question literally). 1 strike, no double-fail abort. After T4 recovery (re-aligning to the question with slang+emoji still heavy), triage accepted as relevant. 0 triage_class=gibberish verdicts observed."
+    },
+    "slang_semantic_recovery_score": {
+      "score": "7/7 (excluding mirror slot which was never asked)",
+      "slot_evidence": {
+        "job": "T2 '想做个 app yyds那种, 让室友别白嫖我外卖🤡 awsl就是个记账的, 但是要够6 不能 ssfd' → system summarized as '给室友之间用的外卖记账工具，要够6（很酷、好用），不能ssfd（丑）' — explicit slang translation correct.",
+        "anchor": "T4 'like 微信群收款那种 🧧 但是要带个外卖订单的截图当锚点 📸' → '像微信群收款，但每一笔账都要关联一个外卖订单截图或订单号作为凭证' — correct.",
+        "first_run": "T5 '第一次打开就 emm 选下我有几个室友, like 2-3 个那种 👯, 然后就显示最近一笔待分摊的外卖账单 🍔 + 谁还没付 💸' → '第一次打开是设置室友人数，然后显示最近一笔待分摊账单和谁没付' — correct.",
+        "memory": "T6 '存储嘛就用手机本地的就好 🐶 不要联网... 要记住室友名字 + 历史账单 + 谁付过谁没付, work offline 必须的' → '所有数据都存在手机本地，不联网，要记住室友名字、历史账单和付款状态' — correct.",
+        "robustness": "T7 'ssfd 那种闪退绝对不行 🤡, 误删室友也不能直接没了 历史还得在' → '稳定不闪退，误删室友时历史记录也得保留' — correct.",
+        "acceptance": "T8d (vanilla retry) '用满一个月不卸载，并且室友按时付款' — covered (the slang version T8/T8c failed with 500 — see emoji_handling note).",
+        "scope": "T9 '自动提醒室友是必须的 yyds 🔔 不然他们装死, 但是绝对不要跟微信/QQ 绑定 🙅 不要复杂设置 越简单越 6' → playback '自动提醒室友是必须的，但绝对不要绑定微信/QQ，也不要复杂设置' — correct."
+      }
+    },
+    "emoji_handling": "preserved",
+    "emoji_handling_evidence": "Verified via direct read of CAS git-backed blob (creator=cmd_llm_complete/turn-2-triage, backend_oid_hex=8c74062bfebfd66b32cf6bed31d4da13c80af2e5): raw UTF-8 contains '🤡', 'awsl', 'yyds', '😂😂' verbatim — no mojibake, no stripping, no rejection at JSON boundary. Curl --data-binary with jq-built JSON envelope round-tripped 4-byte UTF-8 emoji bytes cleanly through axum/serde_json to disk."
+  },
+  "notable_failures": [
+    {
+      "kind": "shellout_failed",
+      "stage": "turn-8 llm complete (Meta turn, post-triage)",
+      "count": 3,
+      "answers": [
+        "成功就是我能坚持记一个月没卸载 🤞 然后能 chargeback 给室友 💸 让他们老实付钱不白嫖 🤡 yyds",
+        "成功就是我能坚持记一个月没卸载 🤞 然后能 chargeback 给室友 💸 让他们老实付钱不白嫖 🤡 yyds (retry)",
+        "成功就是 yyds 那种 — 我能坚持记一个月没卸载 🤞 然后室友看到账单都老实付钱 💸 不用我天天催 🙏"
+      ],
+      "vanilla_retry_succeeded": true,
+      "vanilla_answer": "成功标准是用满一个月不卸载，并且室友按时付款。",
+      "analysis": "Three consecutive HTTP 500 / 'llm complete returned ok=false; content=<empty>' on emoji+slang-heavy acceptance answers. The fourth attempt with vanilla zh-only text succeeded immediately. This is a strong signal that the Meta-turn LLM (not the triage classifier) intermittently fails to produce parseable envelope JSON when the user answer is dense with multi-byte emoji + 网络用语 + English code-switching. The triage stage handled the same density fine; the failure mode is at the larger envelope-producing model. Worth flagging as a P6 universality finding — recommend an envelope-retry-with-input-normalization fallback or a 'strip non-essential emoji before Meta prompt' guard, since the slang itself carried the semantic content and the emoji could be removed without information loss."
+    },
+    {
+      "kind": "triage_non_relevant",
+      "stage": "turn-3 triage",
+      "count": 1,
+      "answer": "锚点就是每次外卖订单的截图? 或者那个订单号也行 🍔📸",
+      "question_at_time": "你希望它最像你现在用的哪个已有的App或工具？比如像微信的群收款，还是像某个记账软件？",
+      "analysis": "User volunteered ANCHOR-slot content while question asked for app comparison. Triage correctly marked non-relevant (1 strike, no abort). Not a slang/emoji failure — the answer simply didn't address the asked question."
+    }
+  ],
+  "narrative": "Wave 3.2 P6 emoji+网络用语 was effectively a PASS on the universality axis the test exists to measure: (1) the system correctly inferred 'split-bill app for roommates, offline, local-only, with order-screenshot anchors, multi-tenant rejected' across 7 slots from a stream of yyds/awsl/ssfd/白嫖/够6 slang + 🤡🍔💸 emoji; (2) emoji survived end-to-end with byte-perfect UTF-8 preservation in CAS; (3) the predicate fired done=true with confidence 0.95 and produced a coherent zh playback that translated every slang term to its standard-Chinese equivalent. The verdict is PARTIAL only because of the documented F6 gap — predicate_done_no_spec_pending_synthesis — where the web layer cannot synthesize the final spec_capsule_cid in-process. The most interesting finding is the 3-in-a-row Meta-turn llm-complete failure on the acceptance-slot answer: triage accepted the slang+emoji content but the Meta model's envelope-JSON output collapsed to empty content, and only a vanilla zh-only retry got through. This is consistent with the W3.2 hypothesis ('hard — slang + emoji noise + code-switching') predicting envelope corruption — though it manifested not as mojibake but as the upstream model returning empty content under dense-multibyte input pressure. Suggest follow-up: add an envelope-empty-content retry path that normalizes (strips emoji, retains slang) and re-prompts before bubbling 500 to the client."
+}

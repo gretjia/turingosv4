@@ -1,0 +1,55 @@
+=== TISR Phase 6.3.x W9 Verification — Pre-Flight Log ===
+Run started:        2026-05-18T13:45:18Z
+Working directory:  /Users/zephryj/work/turingosv4
+Branch:             codex/tisr-phase6-3-x-grill-driven
+Git HEAD:           3e0fa79cbf999fafbf56eae67da2960a063cf5d5
+Expected HEAD:      3e0fa79cbf999fafbf56eae67da2960a063cf5d5
+HEAD match:         YES
+
+=== Asset check ===
+total 32
+drwxr-xr-x@ 6 zephryj  staff   192 May 18 20:06 .
+drwxr-xr-x@ 3 zephryj  staff    96 May 18 20:06 ..
+-rw-r--r--@ 1 zephryj  staff  3463 May 18 20:06 grill_meta_v1.md
+-rw-r--r--@ 1 zephryj  staff  1338 May 18 20:06 grill_synthesis_en.md
+-rw-r--r--@ 1 zephryj  staff  1755 May 18 20:06 grill_synthesis_zh.md
+-rw-r--r--@ 1 zephryj  staff  1653 May 18 20:06 grill_triage_blackbox_v1.md
+
+=== Binary check (rebuilt fresh against pinned HEAD) ===
+-rwxr-xr-x@ 1 zephryj  staff  17033480 May 18 21:44 target/debug/turingos
+-rwxr-xr-x@ 1 zephryj  staff  10496960 May 18 21:44 target/debug/turingos_web
+
+=== Frontend bundle (esbuild output embedded into binary) ===
+-rw-r--r--@ 1 zephryj  staff  85959 May 18 21:44 frontend/dist/main.js
+
+=== API key ===
+Source path:   /Users/zephryj/projects/turingosv3/.env (architect-corrected)
+Variable:      SILICONFLOW_API_KEY
+Length:        51 chars
+Loaded:        YES
+Key value redacted from log.
+
+=== Workspaces (created per W10-R1 A.3 + O4 discipline) ===
+Driven (steps 3 + 4 + 5): tmp/w9_driven_1779111918/
+Legacy (step 6):          tmp/w9_legacy_1779111918/
+
+=== Charter sections honored ===
+- §6 pipeline (6 steps)
+- §6a per-step mechanical criteria
+- R2 §A1 (AttemptOutcome non-reuse) — implementation already verified by W10-R1
+- R2 §A2 (hidden_fields_redacted = true) — verified
+- R2 §A3 (termination predicate FC1-N9 session-aggregate)
+- R2 §A6 (independent grill_attempt_count tally)
+- R2 §A7 (--meta-prompt flag)
+- R2 §A8 (typed PredicateFailureClass enum)
+- R2.1 path canon (grill_envelope in src/runtime/)
+- R2.2 LOC cap revision (5000 source)
+- W10-R1 O2: legacy byte-compat snapshot missing → sha256 of produced spec.md only
+- W10-R1 O4: workspace must have assets/prompts/ → all turingos commands run with cwd = repo root
+- W10-R1 B.5: ensure all 7 required slots get real answers
+
+=== Adaptations authorized by orchestrator ===
+1. Step 3 fixture inlined as "Mrs Chen" persona (charter file does not exist).
+2. Step 6 byte-compat: snapshot not committed; sha256 of produced spec.md recorded only.
+
+=== Pre-flight verdict: GREEN — proceed with Steps 1-6 ===

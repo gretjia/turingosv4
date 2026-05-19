@@ -1,0 +1,141 @@
+{
+  "wave": "pi4.2",
+  "scenario_id": "p5_codeswitch",
+  "scenario_name": "P5 — Chinese/English code-switch SaaS dashboard user",
+  "stack": "A6 lib synth + Triage v3 + Playback v2 (Meta v1)",
+  "verdict": "TRIAGE-REGRESSION",
+  "verdict_rationale": "Session terminated at T5 with covered_slots=[] (4/7 slots peak, then silent-zero, then user_input_unparseable_no_spec). No spec.md produced. This is a regression vs M4 (Triage-v2 alone) which reached 7/7 + done + conf=1.0 on the same answer set. The proximate root cause is NOT the triage v3 classifier itself: T2/T3/T4 retries all classified as relevant and credited the correct slot. The root cause is a transcript-persistence dedup bug exposed when SiliconFlow flaked TWICE in this run (vs once in M4). Sequence: T4 first 500 -> T4 retry 200 (credited first_run). T5 first attempt then ran with a corrupted prompt: the T5-main capsule shows assistant-T4-mirror and user-T4-answer DUPLICATED back-to-back ([4]/[5] then [6]/[7]) before the trailing 'Produce your turn-5 output' contract line. The Meta LLM, seeing a repeated user turn, emitted a malformed/empty envelope -> backend F6 silent-zero (covered=[], open=[], conf=0.0) in 775ms. T5 retry then ran fresh against question 'sprint速度图具体应该展示什么数据?' (a first_run drill-down, NOT robustness) — but our scripted A5 answered robustness, so triage-v3 correctly flagged it as off-topic and the kernel terminated via the user_input_unparseable_no_spec gate (which now uses Playback v2 + double-fail short-circuit instead of M4's predicate_done_no_spec_pending_synthesis path). A6 lib synth never had a chance to run because terminate fired before done=true.",
+
+  "stack_provenance": {
+    "triage_v3_active": true,
+    "triage_v3_sha256_on_disk": "9d97559486d7ae71bebfcff58e41883b1b3b22fe007b58c41b53025058331496",
+    "triage_v3_expected_sha256": "9d97559486d7ae71bebfcff58e41883b1b3b22fe007b58c41b53025058331496",
+    "triage_v3_path": "/Users/zephryj/work/turingosv4/assets/prompts/grill_triage_blackbox_v1.md",
+    "triage_pre_v3_backup_present": "/Users/zephryj/work/turingosv4/assets/prompts/grill_triage_blackbox_v1.md.pre_v3",
+    "synthesis_v2_active": true,
+    "synthesis_v2_zh_sha256_on_disk": "730073e92248ebdfe474bf936f8d38f6d07ad73bd54ebf225d206188c3556206",
+    "synthesis_v2_zh_path": "/Users/zephryj/work/turingosv4/assets/prompts/grill_synthesis_zh.md",
+    "meta_v1_sha256": "8e2f3a594a25524f99bad3e0d8169c386476b5de21292953b1e6e4a769813bdb",
+    "meta_v1_path": "/Users/zephryj/work/turingosv4/assets/prompts/grill_meta_v1.md",
+    "binary": "/Users/zephryj/work/turingosv4/target/debug/turingos (turingos 0.1.0)",
+    "backend": "http://127.0.0.1:8080"
+  },
+
+  "metrics": {
+    "total_turns_attempted": 8,
+    "total_turns_with_http_200": 7,
+    "total_turns_with_http_500": 2,
+    "terminated_at_turn": 5,
+    "terminate_reason": "user_input_unparseable_no_spec",
+    "covered_slots_peak": ["job", "anchor", "memory", "first_run"],
+    "covered_slots_at_term": [],
+    "open_slots_at_term": [],
+    "confidence_peak": 0.5,
+    "confidence_at_term": 0.0,
+    "done_ever_true": false,
+    "spec_capsule_cid": null,
+    "spec_md_produced": false,
+    "mean_latency_ms_of_200_turns": 6503,
+    "max_latency_ms": 10671,
+    "min_latency_ms_of_200_turn": 775,
+    "min_latency_note": "T5 first attempt at 775ms is the F6 silent-zero short-circuit, NOT a normal Meta-LLM round-trip"
+  },
+
+  "spec_md_check": {
+    "spec_md_present": false,
+    "spec_md_real_entities_preserved": [],
+    "spec_md_hallucinated_entities": [],
+    "note": "spec.md was not produced because session terminated before done=true. A6 lib synth never ran. Entity preservation can only be evaluated against in-flight question_text — see questions_entity_check below."
+  },
+
+  "questions_entity_check": {
+    "real_entities_preserved_in_meta_question_mirrors": ["Jira", "Redis", "Postgres", "PROJ-1234", "dashboard"],
+    "real_entities_user_mentioned": ["Jira", "k8s", "Okta", "Redis", "Postgres", "PROJ-1234", "sprint velocity", "SSO", "dashboard"],
+    "real_entities_NOT_yet_echoed": ["k8s", "Okta", "SSO", "sprint velocity"],
+    "hallucinated_entities_in_meta_questions": [],
+    "hallucinated_entities_check_list": ["Github Actions", "Datadog", "Linear", "Notion", "GitLab", "Slack", "Tableau", "PowerBI", "Grafana", "Prometheus", "Splunk", "New Relic"],
+    "note": "Of the entities Meta did echo, all 5 are real user-mentioned entities. Zero hallucinated entities observed. The 4 'not yet echoed' entities (k8s/Okta/SSO/sprint velocity) appear in user T1 and T4 answers but Meta hadn't reached slots that would naturally surface them by the time of termination."
+  },
+
+  "triage_class_per_turn": {
+    "T0_bootstrap": "relevant (added: ['job'])",
+    "T1_answer": "relevant_no_new_slot",
+    "T2_answer": "relevant (added: ['anchor'])",
+    "T3_answer": "HTTP_500_error (SiliconFlow upstream flake)",
+    "T3_answer_retry_1": "HTTP_500_error (still flaking)",
+    "T3_answer_retry_2": "relevant (added: ['memory'])",
+    "T4_answer": "HTTP_500_error",
+    "T4_answer_retry": "relevant (added: ['first_run']) — BUT corrupted T5-main prompt context retained from this retry",
+    "T5_answer": "silent_zero_F6_surface (covered=[], open=[], conf=0.0, 775ms — F6 backend short-circuit)",
+    "T5_answer_retry": "off_topic_or_unparseable_terminate (kernel emitted user_input_unparseable_no_spec)"
+  },
+
+  "comparison_to_M4": {
+    "M4_total_200_turns": 8,
+    "pi4_2_total_200_turns": 7,
+    "M4_covered_slots_at_term": ["job","anchor","memory","first_run","robustness","scope","acceptance"],
+    "pi4_2_covered_slots_at_term": [],
+    "M4_covered_slots_peak": ["job","anchor","memory","first_run","robustness","scope","acceptance"],
+    "pi4_2_covered_slots_peak": ["job","anchor","memory","first_run"],
+    "M4_terminate_reason": "predicate_done_no_spec_pending_synthesis",
+    "pi4_2_terminate_reason": "user_input_unparseable_no_spec",
+    "M4_done": true,
+    "pi4_2_done": false,
+    "M4_conf": 1.0,
+    "pi4_2_conf_at_term": 0.0,
+    "M4_spec_cid": null,
+    "pi4_2_spec_cid": null,
+    "M4_500_flakes_during_session": 1,
+    "pi4_2_500_flakes_during_session": 2,
+    "delta_verdict": "REGRESSION vs M4 — but the regression is NOT in any of A6/A7/A8. It is in the upstream transcript-dedup path triggered by consecutive 500s. With a single flake (like M4) the new stack would likely have matched or exceeded M4 (and probably produced spec.md via A6 lib synth). With two consecutive flakes, the corrupted-prompt pathway took over and the kernel correctly terminated rather than synthesizing on garbage."
+  },
+
+  "root_cause_evidence_pointers": {
+    "transcript_dedup_bug_evidence": "turn5_main_evidence_capsule.json messages[4..7] show assistant-T4-mirror and user-T4-answer appearing TWICE in sequence before the 'Produce your turn-5 output' contract line. This duplication arose during the T4 500->retry sequence: the first failed call appended assistant+user pair to the on-disk transcript without rolling back when the LLM returned ok=false; the retry then re-appended.",
+    "f6_silent_zero_at_T5": "session_log.jsonl T5 first attempt: HTTP=200, elapsed=775ms (vs typical ~8000ms LLM round-trip), covered_slots=[], open_slots=[], confidence=0.0. This matches the F6_backend_silent_zero_response.md fingerprint exactly.",
+    "terminate_path_at_T5_retry": "session_log.jsonl T5 retry: HTTP=200, elapsed=1046ms, terminated=true, termination_reason='user_input_unparseable_no_spec' — this is the Playback-v2 / kernel double-fail short-circuit firing on the off-topic A5-answers-first_run-drill-question mismatch.",
+    "triage_v3_classifier_itself_NOT_at_fault": "turn5_triage_evidence_capsule.json shows triage-v3 system prompt active. T2/T3-retry/T4-retry all credited slots correctly. The classification at T5-retry of 'A5 (robustness) vs question (first_run drill)' as off-topic was technically CORRECT — the bug is that the wrong question was being asked at T5 because of the upstream transcript corruption."
+  },
+
+  "anomalies": [
+    "Two consecutive SiliconFlow 500 errors hit during the run (T3 first + T3 retry; T4 first). M4 had only one. The on-disk transcript dedup logic does not rollback after a 500, leading to duplicate (assistant,user) pairs in the next turn's Meta prompt.",
+    "T5 first attempt returned 775ms with covered=[]/open=[]/conf=0.0 — F6 silent-zero surface fired because the Meta LLM emitted a malformed/empty envelope when given the corrupted-history prompt.",
+    "T5 retry then re-prompted Meta from scratch which (per M4 evidence) returns a new question 'sprint速度图具体应该展示什么数据?' — but the test scripted answer A5 was for robustness, so triage-v3 correctly classified as off-topic and the kernel terminated.",
+    "CAS audit via CLI (./target/debug/turingos spec audit) entered interactive mode rather than walking the web-driven session — same anomaly as M4. cas_index.jsonl and extracted capsule JSONs in this evidence dir are the authoritative CAS evidence.",
+    "A6 library synthesis pipeline never ran (done was never true). Its functional correctness is not exercised by this run; conclusions about A6 cannot be drawn from this single P5 attempt.",
+    "A7 triage v3 was active and classified correctly at every successful turn — including correctly flagging the off-topic answer at T5 retry. Triage v3 is NOT the regression source.",
+    "A8 playback v2 / double-fail short-circuit appears to be the surface that fired user_input_unparseable_no_spec at T5 retry instead of M4's predicate_done_no_spec_pending_synthesis. This is consistent with A8 design intent (faster terminate on unparseable) but exposes the transcript-dedup bug more aggressively than M4's pipeline did."
+  ],
+
+  "recommendations_for_pi4_followup": [
+    "Re-run P5 codeswitch (and any other Pi4 scenario that hits >=2 500s) until a clean run completes without consecutive upstream flakes — this isolates A6 lib synth correctness from the transcript-dedup bug.",
+    "Promote 'transcript persistence does not rollback after LLM ok=false / HTTP 500' to a fix atom (F-series) — this is a NEW class of universality blocker exposed by Pi4's longer answer set + flakier provider window today.",
+    "Confirm by inspection of the Meta envelope contract whether T5-first's 775ms empty response should have been treated as parse_fail rather than silent_zero — if so, F6 still has a residual gap that A7/A8 do not cover.",
+    "Consider an A9 'transcript rollback on upstream failure' atom before declaring Pi4 acceptance for any code-switch / multi-flake-vulnerable persona."
+  ],
+
+  "session_id": "pi4_p5_codeswitch_1779149841",
+  "workspace": "/tmp/wave_pi4_p5_codeswitch_1779149956",
+  "session_dir": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/pi4_p5_codeswitch_1779149841",
+  "evidence_files": [
+    "session_id.txt",
+    "workspace_path.txt",
+    "workspace_listing.txt",
+    "session_dir_listing.txt",
+    "session_log.jsonl",
+    "cas_index.jsonl",
+    "cas_walk.txt",
+    "turn-1-prompt.json",
+    "turn-2-prompt.json",
+    "turn-5-prompt.json",
+    "turn5_triage_evidence_capsule.json",
+    "turn5_main_evidence_capsule.json",
+    "turn6_triage_evidence_capsule.json",
+    "triage_class_per_turn.json",
+    "timing.txt",
+    "_post_turn.py",
+    "verdict.json"
+  ],
+  "started_at_unix": 1779149841,
+  "completed_at_unix": 1779150111
+}

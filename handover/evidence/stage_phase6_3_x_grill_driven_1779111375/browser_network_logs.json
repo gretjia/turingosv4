@@ -1,0 +1,37 @@
+{
+  "captured_at": "2026-05-18T22:14Z",
+  "tab_url": "http://localhost:8080/build?mode=driven",
+  "tab_id": 635793985,
+  "page_loads": [
+    {
+      "url": "http://localhost:8080/build?mode=driven",
+      "method": "GET",
+      "statusCode": 200,
+      "note": "Build page (server-rendered chrome + <tos-spec-grill> mount)."
+    },
+    {
+      "url": "http://localhost:8080/static/main.js",
+      "method": "GET",
+      "statusCode": 200,
+      "note": "esbuild ESM bundle (85959 bytes), embedded at compile time per W4.1."
+    },
+    {
+      "url": "http://localhost:8080/api/welcome/status",
+      "method": "GET",
+      "statusCode": 200,
+      "note": "Soft-redirect probe per turingos-root.ts:80; with api_key_set=true, allowed to stay on /build."
+    }
+  ],
+  "spec_turn_posts": [
+    {
+      "url": "http://localhost:8080/api/spec/turn",
+      "method": "POST",
+      "statusCode": 500,
+      "request_body_shape": "{session_id, user_answer: null, lang: \"zh\"}",
+      "response_body": "{\"error\":\"llm complete failed: llm complete returned ok=false; content=<empty>\",\"kind\":\"shellout_failed\"}",
+      "frontend_handling": "drivenState=awaiting_first_turn, drivenNudge=\"服务器错误 (500)，请稍后重试。\", recent5xx=1. Frontend per W8 spec waits for second 5xx → fallback to static mode.",
+      "root_cause": "src/web/spec.rs::build_web_turn_prompt_json drops the meta-prompt content (only sends coverage state + final user instruction). LLM responds with markdown narrative, not strict-JSON envelope; cmd_llm --strict-json gate rejects with ok=false. See cas_walk_output.txt for full diagnosis."
+    }
+  ],
+  "verdict": "1 POST observed at /api/spec/turn → HTTP 500 with kind=shellout_failed. Zero successful turns. Web-driven Step 3 cannot proceed past turn 1 at HEAD 3e0fa79c."
+}

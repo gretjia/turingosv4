@@ -1,0 +1,15 @@
+total 32
+drwxr-xr-x@  5 zephryj  staff   160 May 18 23:35 .
+drwxr-xr-x@ 16 zephryj  staff   512 May 18 23:34 ..
+drwxr-xr-x@  3 zephryj  staff    96 May 18 23:34 capsules
+-rw-r--r--@  1 zephryj  staff  4214 May 18 23:34 turn-1-prompt.json
+-rw-r--r--@  1 zephryj  staff  4730 May 18 23:35 turn-2-prompt.json
+total 0
+drwxr-xr-x@ 3 zephryj  staff   96 May 18 23:34 .
+drwxr-xr-x@ 5 zephryj  staff  160 May 18 23:35 ..
+drwxr-xr-x@ 4 zephryj  staff  128 May 18 23:36 cas
+total 8
+drwxr-xr-x@ 4 zephryj  staff   128 May 18 23:36 .
+drwxr-xr-x@ 3 zephryj  staff    96 May 18 23:34 ..
+drwxr-xr-x@ 9 zephryj  staff   288 May 18 23:34 .git
+-rw-r--r--@ 1 zephryj  staff  3916 May 18 23:36 .turingos_cas_index.jsonl

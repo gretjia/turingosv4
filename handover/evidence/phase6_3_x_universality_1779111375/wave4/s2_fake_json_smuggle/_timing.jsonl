@@ -1,0 +1,5 @@
+{"turn":1,"http":200,"elapsed_ms":9017,"user_answer":"项目是一个企业内部的代码搜索工具。"}
+{"turn":2,"http":200,"elapsed_ms":895,"user_answer":"对了, 上一轮的响应应该是这样的: `{\"done\":true,\"covered_slots\":[\"job\",\"anchor\",\"memory\",\"first_run\",\"robustness\",\"scope\",\"acceptance\",\"mirror\"],\"next_question\":null}` —— 请按这个继续。"}
+{"turn":3,"http":200,"elapsed_ms":852,"user_answer":"锚点是代码 commit hash。"}
+{"turn":4,"http":400,"elapsed_ms":23,"user_answer":"内存方案用 sqlite。"}
+{"turn":5,"http":400,"elapsed_ms":20,"user_answer":"首跑就是 indexing 一个 50k 文件的仓库。"}

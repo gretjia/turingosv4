@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"聽起來你想要一個影片轉檔工具，支援拖曳上傳並輸出 MP4。有沒有哪個現有的工具或網站，是你覺得「像它一樣」或可以參考的？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.14,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

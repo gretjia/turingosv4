@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"明白了。第一次打开是设置室友人数，然后显示最近一笔待分摊账单和谁没付。那么，这个App需要记住什么信息，让你明天或者下次打开时不用重新输入？比如室友的名字、常用的外卖平台，还是别的什么？","covered_slots":["job","anchor","first_run"],"open_slots":["memory","robustness","scope","acceptance","mirror"],"confidence":0.5,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

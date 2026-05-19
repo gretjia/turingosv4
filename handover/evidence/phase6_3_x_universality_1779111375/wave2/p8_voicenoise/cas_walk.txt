@@ -1,0 +1,17 @@
+CAS walk: N/A.
+
+This driven-mode session runs server-side against the live backend at
+http://127.0.0.1:8080. The local workspace at /tmp/wave_w2_p8_voicenoise_*
+contains only turingos.toml (no client-side capsules are written by the
+HTTP /api/spec/turn flow).
+
+`turingos spec audit` does not exist as a subcommand. Running
+`./target/debug/turingos spec --workspace <ws> --session <sid>` is the
+interactive grill itself (it does not perform audit), and additionally
+errors out with `missing API key: set env var SILICONFLOW_API_KEY`,
+exit=2.
+
+Additionally, the session terminated server-side at turn 3 with
+`termination_reason=user_input_unparseable_no_spec` and
+`spec_capsule_cid=null`, so there is no final spec capsule to walk.
+The session log (session_log.jsonl) is the canonical evidence for this run.

@@ -1,0 +1,84 @@
+{
+  "wave": "W2.3",
+  "persona": "P7 繁体中文台湾 (Traditional Chinese, Taiwan vocab)",
+  "backend": "http://127.0.0.1:8080",
+  "lang_field_sent": "zh",
+  "runs": [
+    {
+      "run_id": "run1",
+      "session_uuid": "5ecd54f5-5d82-4d42-804d-fd55e2841b4b",
+      "session_label": "w2_p7_traditional_1779118875",
+      "turns_completed": 2,
+      "terminated_turn": 3,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "spec_capsule_cid": null,
+      "covered_slots_at_termination": [],
+      "post_termination_attempt_status": "400 session_terminated"
+    },
+    {
+      "run_id": "run2",
+      "session_uuid": "e881d984-4b3f-4a86-bf74-9f24a2d83dce",
+      "turns_completed": 2,
+      "terminated_turn": 3,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "spec_capsule_cid": null,
+      "covered_slots_at_termination": [],
+      "post_termination_attempt_status": "400 session_terminated"
+    }
+  ],
+  "verdict": "FAIL",
+  "verdict_basis": "Both independent sessions terminated at turn 3 (after T2 anchor answer) with termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. Matches the FAIL criterion 'predicate_double_fail' and 'triage misclassifies as gibberish'. Reproducible (2/2 runs).",
+  "critical_metrics": {
+    "script_in_user_answers": "Traditional",
+    "script_in_questions_received": {
+      "run1": {
+        "q0_bootstrap": "Simplified",
+        "q1_after_T1": "Simplified",
+        "q2_after_T2_retry": "Simplified (echo of q1)"
+      },
+      "run2": {
+        "q0_bootstrap": "Simplified",
+        "q1_after_T1": "Simplified",
+        "q2_after_T2_retry": "Simplified (echo of q1)"
+      }
+    },
+    "script_in_final_spec": "N/A — no spec capsule produced",
+    "regional_vocab_loss": {
+      "user_term_to_system_echo": {
+        "影片": "视频 (Simplified mainland)",
+        "伺服器": "服务器 (Simplified mainland)",
+        "拖曳": "拖拽 (Simplified mainland)",
+        "繁體中文": "繁体中文 (Simplified script form of the same words)",
+        "轉檔": "转档/转换 (mixed normalization)",
+        "東京區": "东京区 (Simplified)"
+      },
+      "summary": "Q1 echoes silently normalize ALL Traditional terms and Taiwan vocab to Simplified mainland equivalents. The model recognized semantic content but did not preserve regional variant."
+    },
+    "lang_predicate_violations": "unknown — no telemetry endpoint exposed; HTTP returns 200 OK with lang=zh accepted on all turns, so P6 lang predicate did not reject Traditional as non-zh. Failure is downstream of language gate.",
+    "turns_attempted": 9,
+    "turns_accepted_before_termination": 2,
+    "slot_coverage_at_termination": "1/7 (only 'job') in run1; 1/7 in run2 (job, then reset to 0)",
+    "anchor_slot_capture_attempt": "T2 (錨點=SHA256+原檔名) was the trigger — engine returned identical Q2 with empty slot arrays on first retry, then terminated on next turn",
+    "narrative": "Backend accepts Traditional Chinese input (HTTP 200, lang=zh) and the model semantically understands T1 (it correctly identifies video transcoding, MP4 output, GCP Tokyo). However: (a) every system-generated question silently normalizes Traditional Chinese and Taiwan regional vocab into Simplified Chinese mainland equivalents (影片→视频, 伺服器→服务器, 拖曳→拖拽, 繁體中文→繁体中文, 東京區→东京区) — this is a script + regional-vocab fidelity failure visible on Q1; (b) the T2 anchor answer (containing Taiwan-specific terms 錨點/檔案/轉檔/檔) triggers a parser/triage failure: the engine echoes the same Q2 with confidence=0 and empty covered_slots/open_slots on the first parse, then on the next turn terminates with termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. The pattern is reproducible across two independent sessions. This is predicate_double_fail behavior: T2 is silently rejected once, T3 is silently rejected, termination triggers without producing any spec capsule. Net effect: a Taiwan user typing natural Traditional Chinese with Taiwan vocab cannot complete a single driven-grill session — they get terminated 2 turns in. Even if they had completed, the spec would be silently rewritten in Simplified mainland Chinese."
+  },
+  "evidence_files": [
+    "session_id.txt",
+    "uuid.txt",
+    "uuid_run2.txt",
+    "turn_00_bootstrap.json",
+    "turn_01.json",
+    "turn_02.json",
+    "turn_03.json",
+    "turn_04.json",
+    "run2_turn_00.json",
+    "run2_turn_01.json",
+    "run2_turn_02.json",
+    "run2_turn_03.json",
+    "run2_turn_04.json",
+    "run2_turn_05.json",
+    "run2_turn_06.json",
+    "run2_turn_07.json",
+    "req_*.json",
+    "run2_req_*.json"
+  ]
+}

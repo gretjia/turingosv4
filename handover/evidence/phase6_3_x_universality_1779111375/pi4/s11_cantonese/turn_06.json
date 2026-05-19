@@ -1,0 +1,1 @@
+{"turn_index":7,"question_text":"明白了。那記帳頁面應該長什麼樣子？比如，你會看到哪些資訊，可以輸入什麼？","covered_slots":["job","anchor","memory","first_run","robustness"],"open_slots":["scope","acceptance","mirror"],"confidence":0.6,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,68 @@
+{
+  "wave": "W5.2",
+  "scenario": "S11 Cantonese 粵語白話 + Traditional script (edge — language)",
+  "backend": "http://127.0.0.1:8080",
+  "endpoint": "POST /api/spec/turn",
+  "lang_field_sent": "zh",
+  "session_label": "w5_s11_cantonese_1779120458",
+  "turns_attempted": 4,
+  "turns_accepted_before_termination": 1,
+  "terminated_turn": 3,
+  "termination_reason": "user_input_unparseable_no_spec",
+  "spec_capsule_cid": null,
+  "covered_slots_at_termination": [],
+  "post_termination_attempt_status": "400 session_terminated",
+
+  "verdict": "FAIL",
+  "verdict_basis": "Session terminated at T3 (after T2 anchor + T3 memory both triaged non_relevant) with termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. Exactly matches the FAIL criterion 'triage misclassifies / predicate_double_fail before 3 slots'. Only 1/8 slot (job) was captured before the engine collapsed. Reproduces the W2.3 P7 Traditional FAIL pattern at single-shot 1:1.",
+
+  "critical_metrics": {
+    "script_in_user_answers": "Traditional (Cantonese 粵語白話 colloquial)",
+    "script_in_questions_received": {
+      "q1_bootstrap_no_user_input_yet": "Simplified (default zh prompt — '请描述一下...')",
+      "q2_after_T1_relevant": "Traditional (system adapted: '聽起來/請問/你覺得它最接近你想要的效果')",
+      "q3_after_T2_rejected": "(none — empty question_text, F6 bounce)",
+      "q4_after_T3_rejected": "(none — empty question_text, terminated)"
+    },
+    "script_adaptation_observation": "DIFFERS FROM W2.3 P7: the system DID adapt its question script to Traditional after T1 was accepted. Q2 is genuinely Traditional ('聽起來/請問/覺得'). So the per-turn script mirroring works when input is accepted. The collapse mode is not 'silent Simplified normalization' (W2.3 P7) — it is 'triage misclassifies colloquial Cantonese as non-relevant gibberish' the moment input drifts off Mandarin written register.",
+    "cantonese_specific_words_understood": {
+      "T1": {
+        "answer": "我想整個 app 俾啲香港嘅街市檔主用, 幫佢哋計埋條數。",
+        "result": "ACCEPTED — covered=['job'], system correctly identifies '為香港街市檔主做一個記帳的App'. Particles 俾啲/嘅/佢哋/計埋條數 were semantically resolved."
+      },
+      "T2": {
+        "answer": "錨點咪就係每日埋數個陣嘅總和囉。",
+        "result": "REJECTED as non_relevant despite the literal slot keyword 錨點 being present in the answer and despite Cantonese particles 咪就係/嘅/個陣/囉 being a direct paraphrase of 'the anchor is simply the daily-closing sum'. Triage failed to extract structured meaning. covered_slots reset to []."
+      },
+      "T3": {
+        "answer": "記憶用部 phone 自己嘅 storage 就得啦, 唔使搞咁多嘢。",
+        "result": "REJECTED as non_relevant; second consecutive rejection trips non_relevant_count>=2 abort branch (spec.rs:1116). Session terminated. memory slot never captured."
+      },
+      "T4_T5_T6": "NOT SENT — engine returns HTTP 400 session_terminated. anchor/memory/first_run/robustness/scope/acceptance/mirror slots permanently unrecoverable."
+    },
+    "triage_class_per_turn": {
+      "T1": "relevant (covered_slots=['job'], confidence=0.1)",
+      "T2": "non_relevant (response covered=[], open=[], confidence=0.0, turn_index frozen at 2, question_text echoed Q2)",
+      "T3": "non_relevant (terminated=true, termination_reason=user_input_unparseable_no_spec)"
+    },
+    "lang_predicate_violations": "unknown_from_response — HTTP 200 throughout (T1 + T2), HTTP 200 with terminated=true on T3. No telemetry endpoint exposed. P6 lang predicate did NOT reject (T1 accepted). The failure is downstream of the language gate, in the triage classifier.",
+    "slot_coverage_at_termination": "1/8 (only 'job'); 7/8 slots unrecoverable",
+    "anchor_slot_capture_attempt": "T2 ('錨點咪就係每日埋數個陣嘅總和囉') — first non_relevant bounce despite literal 錨點 keyword",
+    "narrative": "Comparison to W2.3 P7 Traditional FAIL (D16+D17): same termination shape ('user_input_unparseable_no_spec' at T3, 1/8 slot coverage, post-terminate 400), but the WHY differs. W2.3 P7 collapsed on T2 (anchor) with silent Simplified normalization across all Q-echos — script-mirror was broken. S11 reproduces the T2-anchor collapse but the script-mirror actually worked: Q2 came back in genuine Traditional. The S11 root cause is therefore narrower and more specific — the triage classifier (which the F6 fix routes through `turingos llm complete` with a triage prompt) misclassifies colloquial Cantonese particles (咪就係/嘅/嘢/俾啲/冇/唔使) as off-topic/gibberish even when the literal slot keyword (錨點) is present in the answer. T1, written with mixed Mandarin-Cantonese particles (我想整個app...), was accepted; T2 and T3, written in heavier colloquial Cantonese, were rejected. The lang field (zh) is too coarse to express zh-yue, so the triage classifier has no signal to lower its 'is this a relevant on-topic answer' threshold for low-resource written variants. Net effect, identical to W2.3 P7: a Hong Kong user typing natural written Cantonese cannot complete a single driven-grill session; they are aborted 2 turns in with no spec capsule. The remediation surface is different from W2.3 P7 — for P7 the fix is script-preserving prompt assembly; for S11 the fix is either (a) a zh-yue lang tag wired into the triage prompt, (b) a Cantonese particle dictionary in the triage classifier's keep-rules, or (c) raising the non_relevant_count abort threshold from 2 to a value that gives low-resource-language sessions a recovery window."
+  },
+
+  "comparison_to_w23_p7": {
+    "shared_failure_mode": "predicate_double_fail at T2-T3, termination_reason=user_input_unparseable_no_spec, spec_capsule_cid=null, 1/8 slot coverage, anchor slot was the trigger",
+    "diverges_from_w23_p7_on": "Q2 was emitted in genuine Traditional script in S11 (system DID mirror script); W2.3 P7 silently normalized all Q-echos to Simplified. So script-mirror is not the S11 root cause; triage misclassification of colloquial particles is.",
+    "implication": "F6's per-turn script adaptation is real, but the triage classifier remains the bottleneck for low-resource written variants. Fixing P7's script-normalization would NOT have prevented the S11 failure."
+  },
+
+  "evidence_files": [
+    "session_id.txt",
+    "turn_00_init.json",
+    "turn_01.json",
+    "turn_02.json",
+    "turn_03.json",
+    "turn_04_post_terminate.json"
+  ]
+}

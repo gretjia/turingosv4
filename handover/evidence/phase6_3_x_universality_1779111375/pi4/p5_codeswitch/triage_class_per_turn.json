@@ -1,0 +1,11 @@
+{
+  "T0_bootstrap": "relevant (added: ['job'])",
+  "T1_answer": "relevant_no_new_slot",
+  "T2_answer": "relevant (added: ['anchor'])",
+  "T3_answer": "HTTP_500_error",
+  "T3_answer_retry": "relevant (added: ['memory'])",
+  "T4_answer": "HTTP_500_error",
+  "T4_answer_retry": "relevant (added: ['first_run'])",
+  "T5_answer": "silent_zero_F6_surface",
+  "T5_answer_retry": "off_topic_or_unparseable_terminate"
+}

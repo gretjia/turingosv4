@@ -1,0 +1,193 @@
+{
+  "wave": "mini_wave_v2",
+  "slot": "m5_p7_traditional_triagev2",
+  "persona": "P7 — Taiwanese developer, all-Traditional + Taiwan regional vocab (影片/檔案/錨點/伺服器/網頁)",
+  "backend": "http://127.0.0.1:8080",
+  "backend_state": "F1-F6 + Meta v1 (sha 8e2f3a59) + Triage v2 (sha 1078d6ba) — layer-split A/B (Meta stays v1, only Triage swapped to v2)",
+  "meta_prompt_sha": "8e2f3a59",
+  "triage_prompt_sha": "1078d6ba",
+  "session_id_local": "mv2_m5_p7_triagev2_1779121665",
+  "session_uuid": "68d26c53-43f0-4b18-8a4a-b73777f298c8",
+  "lang_param": "zh",
+  "a_b_reference": {
+    "v1_baseline_W2.3": {
+      "meta": "v1 (8e2f3a59)",
+      "triage": "v1",
+      "result": "FAIL@T2 — D16 script-norm + D17 triage Trad vocab; 1/7 slots (job only); confidence 0.0",
+      "ref": "handover/evidence/phase6_3_x_universality_1779111375/wave2/p7_traditional/"
+    },
+    "M2_meta_v2_only": {
+      "meta": "v2 (95d18da0)",
+      "triage": "v1",
+      "result": "PARTIAL — D16 script-norm FIXED (side-effect), D17 triage still FAIL@T2; 1/7 slots; confidence 0.0",
+      "ref": "handover/evidence/phase6_3_x_universality_1779111375/mini_wave_v2/m2_p7_traditional_v2/verdict.json"
+    },
+    "M5_triage_v2_only_THIS_RUN": {
+      "meta": "v1 (8e2f3a59)",
+      "triage": "v2 (1078d6ba)",
+      "result": "TRIAGE-V2-FIX-CONFIRMED — D17 triage Trad vocab FIXED; 7/8 slots (mirror unreachable due to predicate auto-termination); confidence 0.95"
+    }
+  },
+
+  "outcome": "TRIAGE-V2-FIX-CONFIRMED",
+  "outcome_class": "PASS_WITH_NOTE",
+  "outcome_summary": "Triage-v2 (sha 1078d6ba) decisively unblocks the Traditional-Chinese anchor-vocab extraction defect (D17). T2 (錨點/檔案/轉檔), T3 (記憶/Redis/GCS), T4 (拖檔/網頁), T5 (穩健性/重試/FFmpeg), T6 (範圍/QPS/單檔), T7 (驗收/YouTuber) all classified `relevant` and extracted into covered_slots in a single pass each. 7 of 8 slots covered; the 8th (mirror) was unreachable because the predicate auto-terminated the session after acceptance with `predicate_done_no_spec_pending_synthesis`. Confidence trajectory 0.0 → 0.15 → 0.3 → 0.4 → 0.7 → 0.75 → 0.85 → 0.95 is monotone and well-calibrated. Compared to M2 (Meta-v2 only, 1/7 slots, FAIL@T2), this is a +6 slots improvement attributable entirely to the triage-layer swap.",
+
+  "termination_reason": "predicate_done_no_spec_pending_synthesis (auto-terminated after acceptance — done=true, playback generated)",
+  "termination_turn": "T7 (acceptance) — done:true with confidence 0.95",
+
+  "slots_covered_count": 7,
+  "slots_covered": ["job","anchor","memory","first_run","robustness","scope","acceptance"],
+  "slots_open_at_end": ["mirror"],
+  "final_confidence": 0.95,
+  "session_turns_executed": 11,
+  "session_turns_useful": 7,
+  "transient_5xx_count": 6,
+  "transient_5xx_note": "T4 needed 2 retries, T5 needed 1, T7 needed 3 (the 4th with mild rephrasing succeeded). All 5xx were `llm complete returned ok=false; content=<empty>` — backend-side LLM transient, NOT a triage-v2 defect. Backend retry policy could be tightened.",
+
+  "covered_slots_trajectory": [
+    {"turn": 1, "phase": "bootstrap", "covered": [], "confidence": 0.0},
+    {"turn": 2, "phase": "T1", "covered": ["job"], "confidence": 0.15, "new_slot": "job"},
+    {"turn": 3, "phase": "T2", "covered": ["job","anchor"], "confidence": 0.3, "new_slot": "anchor"},
+    {"turn": 4, "phase": "T3", "covered": ["job","anchor","memory"], "confidence": 0.4, "new_slot": "memory"},
+    {"turn": 5, "phase": "T4 (after 2 retries)", "covered": ["job","anchor","memory","first_run"], "confidence": 0.7, "new_slot": "first_run"},
+    {"turn": 6, "phase": "T5 (after 1 retry)", "covered": ["job","anchor","memory","first_run","robustness"], "confidence": 0.75, "new_slot": "robustness"},
+    {"turn": 7, "phase": "T6", "covered": ["job","anchor","memory","first_run","robustness","scope"], "confidence": 0.85, "new_slot": "scope"},
+    {"turn": 8, "phase": "T7 (after 3 retries + mild rephrase)", "covered": ["job","anchor","memory","first_run","robustness","scope","acceptance"], "confidence": 0.95, "new_slot": "acceptance", "done": true, "terminated": true}
+  ],
+
+  "triage_class_per_turn": {
+    "T1_job": "relevant (extracted → job slot)",
+    "T2_anchor": "relevant (extracted → anchor slot — KEY WIN vs v1/M2 where this was IRRELEVANT/UNPARSEABLE)",
+    "T3_memory": "relevant (extracted → memory slot)",
+    "T4_first_run": "relevant (extracted → first_run slot)",
+    "T5_robustness": "relevant (extracted → robustness slot)",
+    "T6_scope": "relevant (extracted → scope slot)",
+    "T7_acceptance": "relevant (extracted → acceptance slot, triggered done)",
+    "T8_mirror": "UNREACHABLE — session already terminated"
+  },
+
+  "traditional_vocab_extracted": {
+    "definition": "Traditional-Chinese-specific tokens that (a) appeared in user input, (b) were NOT rejected by triage as irrelevant/unparseable, and (c) made it through into a covered_slot.",
+    "tokens": [
+      {"token": "錨點", "gloss": "anchor (Traditional)", "turn": "T2", "slot": "anchor", "v1_status": "TRIAGED-OUT", "v2_status": "EXTRACTED"},
+      {"token": "檔案", "gloss": "file (Taiwan, vs 文件)", "turn": "T2/T4", "slot": "anchor/first_run", "v1_status": "TRIAGED-OUT", "v2_status": "EXTRACTED"},
+      {"token": "轉檔", "gloss": "file-conversion (Taiwan)", "turn": "T2", "slot": "anchor", "v1_status": "TRIAGED-OUT", "v2_status": "EXTRACTED"},
+      {"token": "影片", "gloss": "video (Taiwan, vs 视频)", "turn": "T1", "slot": "job", "v1_status": "EXTRACTED (job tolerant)", "v2_status": "EXTRACTED"},
+      {"token": "伺服器", "gloss": "server (Taiwan, vs 服务器)", "turn": "T1", "slot": "job", "v1_status": "EXTRACTED (job tolerant)", "v2_status": "EXTRACTED"},
+      {"token": "網頁", "gloss": "web page (Traditional)", "turn": "T4", "slot": "first_run", "v1_status": "NEVER REACHED (term at T2)", "v2_status": "EXTRACTED"},
+      {"token": "原檔名", "gloss": "original filename (Taiwan)", "turn": "T2", "slot": "anchor", "v1_status": "NEVER REACHED", "v2_status": "EXTRACTED"},
+      {"token": "穩健性", "gloss": "robustness (Traditional)", "turn": "T5", "slot": "robustness", "v1_status": "NEVER REACHED", "v2_status": "EXTRACTED"},
+      {"token": "驗收", "gloss": "acceptance (Traditional)", "turn": "T7", "slot": "acceptance", "v1_status": "NEVER REACHED", "v2_status": "EXTRACTED"}
+    ]
+  },
+
+  "script_in_q_echos": {
+    "T0_bootstrap_Q1": "Simplified (你好！请描述... — hard-coded pre-LLM)",
+    "T1_response_Q2": "Traditional (影片轉檔工具/網站/電腦/軟體 — Meta v1 echoed Trad on its own)",
+    "T2_response_Q3": "Traditional (檔案/原檔名/轉檔/工具/檔案列表/上傳介面)",
+    "T3_response_Q4": "Traditional (聽起來/轉檔任務狀態/原始檔案/第一眼/點擊)",
+    "T4_response_Q5": "Traditional (網頁/拖放檔案/使用者/壞掉)",
+    "T5_response_Q6": "Traditional (檔案類型/檔案大小/影片檔)",
+    "T6_response_Q7": "Traditional (這個工具/具體的結果/數據)",
+    "T7_response_playback": "MIXED-traditional-dominant — playback header uses 工作內容/參考對象/需要記憶/首次使用/防止搞壞/不要貪心/成功標準 (a stylistic Traditional rewrite of slot labels), and full playback uses 影片/匯出/設定/搞壞/字幕/多軌音訊 (all Traditional). Body text Trad-correct.",
+    "overall": "Traditional preserved across all LLM-generated turns. Meta v1's prior D16 (silent Simplification) did NOT regress in this run — interesting given v1 baseline (W2.3) DID regress to 视频/服务器. The likely explanation: triage-v2's improved vocab acceptance creates richer triage_output JSON, which feeds back into the Meta prompt's question-generation context with the user's original Traditional tokens still attached, indirectly preserving script even with Meta v1. This is an UNEXPECTED SIDE-EFFECT WIN of the triage swap — script normalization (D16) NOT regressing despite Meta-v1 restore."
+  },
+
+  "v1_v2_diff_table_3way": {
+    "D16_script_normalization": {
+      "v1_W2.3 (Meta v1 + Triage v1)": "FAILED — Q2 normalized 影片→视频, 伺服器→服务器",
+      "M2 (Meta v2 + Triage v1)": "FIXED — Q2 preserved 影片/轉檔/網站",
+      "M5 (Meta v1 + Triage v2)": "ALSO FIXED — Q2 preserved 影片轉檔/網站/電腦/軟體 in Traditional, no normalization at any turn",
+      "delta": "Both v2 layers independently produce D16 win. Suggests D16 is NOT exclusively a Meta-prompt defect; the triage layer's vocab handling also contributes (likely via richer extraction passing more original-script tokens to Meta context)."
+    },
+    "D17_triage_traditional_anchor_vocab": {
+      "v1_W2.3": "FAILED — predicate_double_fail at T2",
+      "M2 (Meta v2 only)": "FAILED — predicate_double_fail at T2 (Meta-v2 doesn't touch triage vocab)",
+      "M5 (Triage v2 only)": "FIXED — T2 anchor extracted on first pass with 錨點/檔案/轉檔/原檔名 all surviving",
+      "delta": "DECISIVE LAYER ATTRIBUTION: D17 is a triage-layer defect, fully addressed by Triage v2."
+    },
+    "session_slots_covered": {
+      "v1_W2.3": "1/7",
+      "M2": "1/7",
+      "M5": "7/8 (mirror unreachable due to auto-termination, not failure)",
+      "delta": "+6 slots from triage swap alone"
+    },
+    "final_confidence": {
+      "v1_W2.3": "0.0",
+      "M2": "0.0",
+      "M5": "0.95",
+      "delta": "+0.95"
+    },
+    "termination_turn": {
+      "v1_W2.3": "T2 (predicate fail)",
+      "M2": "T2 (predicate fail)",
+      "M5": "T7 (predicate done — happy path)",
+      "delta": "Termination cause flipped from defect-driven to completion-driven"
+    }
+  },
+
+  "layer_split_verdict": "TRIAGE-LAYER-IS-THE-CULPRIT-AND-TRIAGE-V2-FIXES-IT. The 2x2 layer-split A/B (Meta v1/v2 × Triage v1/v2 across W2.3/M2/M5) cleanly attributes the D17 Traditional-anchor-vocab extraction defect to the triage layer alone — Meta-v2 (M2) did NOT move the needle on D17, while Triage-v2 (M5) closed the entire 7-slot gap. The orthogonal D16 script-preservation win observed in M2 also reproduces in M5 (Meta v1 + Triage v2), confirming D16 has dual contributors. RECOMMENDATION FOR SHIP DECISION: Triage v2 (1078d6ba) is the load-bearing change for Phase 7 Traditional-Chinese support; Meta v2 is additive but not strictly required for the W2.3-class defect. Combined Meta-v2 + Triage-v2 is expected to be strictly best — recommend a confirmatory M9 (both v2) run before sign-off.",
+
+  "anomalies": [
+    {
+      "id": "A1_fabricated_playback",
+      "severity": "HIGH",
+      "description": "T7 done-response `playback` text describes an entirely different product — a 'YouTube highlights / 精彩片段 extractor' with Canva-like editing, MP4/MOV input,风格模板 — NOT the GCS-Tokyo MP4 transcoder actually specified across T1-T6. Items 1-6 of the playback are fabricated; only item 7 (acceptance: 5 YouTubers, no complaints) matches user input. spec_capsule_cid is null, suggesting the playback was generated from a hallucinated synthesis rather than the actual covered_slots store.",
+      "implications": "Triage v2 correctly extracted into covered_slots (we have direct evidence: anchor/memory/first_run/robustness/scope all named) — so the defect is downstream of triage, in the synthesis/playback layer. This may be a Meta-v1 weakness in spec-summarization when given v2-shape triage output. Suggests a separate F-line defect: D18 — synthesis hallucinates spec content. Does NOT invalidate the TRIAGE-V2-FIX-CONFIRMED verdict (which is about extraction/coverage, observable in covered_slots arrays at each turn), but does flag a downstream issue.",
+      "evidence_ref": "turn_07_retry3.json"
+    },
+    {
+      "id": "A2_transient_5xx_frequency",
+      "severity": "MEDIUM",
+      "description": "6 transient 5xx (`llm complete returned ok=false; content=<empty>`) across 7 useful turns (T4 ×2, T5 ×1, T7 ×3). Hit rate ≈ 43%. All eventually succeeded on retry.",
+      "implications": "Backend LLM call layer needs retry hardening or rate-limit/timeout investigation. Not a triage-v2 defect, but degrades UX. May be load-induced (multiple mini-waves running concurrently).",
+      "evidence_ref": "turn_04.json, turn_04_retry.json, turn_05.json, turn_07.json, turn_07_retry.json, turn_07_retry2.json"
+    },
+    {
+      "id": "A3_mirror_unreachable",
+      "severity": "LOW",
+      "description": "T8 (mirror) could not be tested because predicate auto-terminated session after T7 acceptance with confidence 0.95. T9 (done-playback) likewise unreachable. Per success criteria, this does not block TRIAGE-V2-FIX-CONFIRMED (≥4 slots covered, vocab acceptance verified). Mirror slot remains open at session end but does not represent a failure.",
+      "implications": "If mirror-slot coverage is required for full pass, the predicate `done` threshold may need adjustment (e.g., require 8/8 instead of 7/8 + confidence≥0.95). This is a session-orchestration policy question, not a triage-v2 defect.",
+      "evidence_ref": "turn_07_retry3.json (done:true, terminated:true), turn_08_post_term.json (400 session_terminated)"
+    }
+  ],
+
+  "success_criteria_check": {
+    "TRIAGE-V2-FIX-CONFIRMED": {
+      "met": true,
+      "evidence": [
+        "covered ≥ 4 slots: YES (7 covered: job, anchor, memory, first_run, robustness, scope, acceptance)",
+        "D17 vocab acceptance verified: YES (錨點 → anchor slot, 檔案 → anchor+first_run, 轉檔 → anchor, all per turn_02.json + turn_04_retry2.json covered_slots arrays)"
+      ]
+    },
+    "PARTIAL_fallback": {"met": "not needed (primary criterion met)"},
+    "NO-IMPROVE": {"met": false, "note": "Clear improvement vs both v1 baseline and M2"}
+  },
+
+  "narrative": "Three-way A/B compare across the same persona (P7 Taiwanese developer, all-Traditional + Taiwan regional vocab) on identical answers T1-T9: (1) v1 baseline W2.3 with Meta v1 + Triage v1 — FAILED at T2 anchor with predicate double-fail, 1/7 slots (job only), confidence 0.0, terminated user_input_unparseable_no_spec. Failure mode: D16 (Q2 silently back-normalized to Simplified 视频/服务器) + D17 (triage rejected Traditional anchor vocab 錨點/檔案/轉檔 as irrelevant). (2) M2 with Meta v2 + Triage v1 — PARTIAL: D16 RESOLVED (Q2 preserved Traditional 影片轉檔/網站) as a beneficial side-effect of v2's Voss-mirror reduction, but D17 UNCHANGED — same predicate_double_fail at T2, same 1/7 slots, same confidence 0.0. (3) THIS M5 with Meta v1 + Triage v2 — TRIAGE-V2-FIX-CONFIRMED: T2 anchor extracted cleanly on first pass, session ran 7 useful turns covering job/anchor/memory/first_run/robustness/scope/acceptance, confidence 0.0→0.95 monotone, session auto-terminated by happy-path predicate `done` (not by failure). Mirror slot unreachable because session ended at T7 — not a defect. Surprise finding: D16 script-preservation ALSO held in M5 despite Meta v1 restore — likely because triage-v2's richer extraction feeds more original-Traditional tokens back into the Meta question-generation context. The layer-split is therefore decisive: D17 is fully owned by the triage layer (Triage v2 fixes it independently of Meta); D16 has dual contributors (both layers can independently fix it). One downstream anomaly surfaced: the T7 playback hallucinates a different product (YouTube highlights extractor) — extraction was correct (covered_slots arrays prove it) but synthesis/summarization is broken (likely Meta-v1 weakness when fed v2-shape triage output). This is a separate D18-class defect, not a triage-v2 regression. Recommendation: ship Triage v2 (1078d6ba) as load-bearing for Phase 7 Traditional support; run confirmatory M9 (Meta v2 + Triage v2) before final sign-off to confirm combined version handles synthesis correctly; file D18 for the playback-fabrication issue; investigate transient 5xx rate (6/13 calls).",
+
+  "ship_recommendation": "TRIAGE-V2-IS-NECESSARY-AND-INDIVIDUALLY-SUFFICIENT-FOR-D17. Recommended next step: dispatch M9 (Meta v2 + Triage v2 combined) to verify (a) combined run reproduces ≥7-slot coverage, (b) playback synthesis is correct under combined v2 (likely yes — M2 saw Meta-v2 generate cleaner mirrors), (c) no unexpected cross-layer interaction. Hold ship of Phase 7 zh-Hant support until M9 confirms and D18 (playback hallucination) is triaged.",
+
+  "evidence_files": [
+    "session_id.txt",
+    "driven_session_uuid.txt",
+    "session_log.jsonl",
+    "turn_00_bootstrap.json",
+    "turn_01.json (T1 → job)",
+    "turn_02.json (T2 → anchor — KEY EVIDENCE: 錨點/檔案/轉檔 EXTRACTED)",
+    "turn_03.json (T3 → memory)",
+    "turn_04.json (T4 first attempt — 500)",
+    "turn_04_retry.json (T4 retry 1 — 500)",
+    "turn_04_retry2.json (T4 retry 2 — 200, → first_run)",
+    "turn_05.json (T5 first attempt — 500)",
+    "turn_05_retry.json (T5 retry 1 — 200, → robustness)",
+    "turn_06.json (T6 → scope)",
+    "turn_07.json (T7 first attempt — 500)",
+    "turn_07_retry.json (T7 retry 1 — 500)",
+    "turn_07_retry2.json (T7 retry 2 — 500)",
+    "turn_07_retry3.json (T7 retry 3 with mild rephrase — 200, → acceptance, done:true, terminated:true, playback fabricated [A1])",
+    "turn_08_post_term.json (T8 mirror attempt — 400 session_terminated, confirms terminal state)",
+    "verdict.json (this file)"
+  ]
+}

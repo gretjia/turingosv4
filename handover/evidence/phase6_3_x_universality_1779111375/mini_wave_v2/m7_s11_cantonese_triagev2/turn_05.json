@@ -1,0 +1,1 @@
+{"turn_index":6,"question_text":"明白了，必須離線可用。那麼，為了確保App不會因為奇怪的用法而崩潰，你認為最不能接受它出錯的情況是什麼？例如，掃描到一個格式錯誤的QR碼？還是用戶不小心刪除了所有記錄？","covered_slots":["job","memory","first_run","robustness"],"open_slots":["anchor","scope","acceptance","mirror"],"confidence":0.6,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

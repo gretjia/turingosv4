@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"听起来你是说想要一个个人阅读追踪器，用来记录和管理你的阅读情况，对吗？那么，你希望它最像你目前用的哪个工具或应用？比如像是一个读书笔记App，还是一个Excel表格？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.1,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"明白了，打开就是创建任务的界面。那么，有没有什么用户操作是你觉得‘绝对不能搞坏’的？比如，快速连续点击‘保存’按钮，或者输入非常长的任务标题？","covered_slots":["anchor","memory","first_run"],"open_slots":["job","robustness","scope","acceptance","mirror"],"confidence":0.5,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

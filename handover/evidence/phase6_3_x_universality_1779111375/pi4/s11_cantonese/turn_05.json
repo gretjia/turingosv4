@@ -1,0 +1,1 @@
+{"turn_index":6,"question_text":"對，斷網也要能用。那麼，第一次打開App時，畫面中央是不是一個大大的掃描QR碼按鈕？掃描之後，會直接跳到記帳畫面嗎？","covered_slots":["job","anchor","memory","robustness"],"open_slots":["first_run","scope","acceptance","mirror"],"confidence":0.7,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

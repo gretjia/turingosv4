@@ -1,0 +1,46 @@
+{
+  "wave": "pi4",
+  "run": "pi4.1",
+  "persona_id": "mrs_chen",
+  "persona_name": "Mrs Chen (Tetris-for-son, unstable WiFi)",
+  "session_id": "pi4_mrs_chen_1779149881_91621",
+  "stack": "A6 synthesis library-ized + Triage v3 active + Playback v2 active; Meta v1",
+  "backend_pid": 91412,
+  "backend_url": "http://127.0.0.1:8080",
+  "started_at_unix": 1779149881,
+  "completed_at_unix": 1779149932,
+
+  "e2e_step1_verdict": "TRIAGE-REGRESSION",
+  "spec_capsule_cid_64hex": false,
+  "spec_md_exists": false,
+  "spec_md_size_bytes": 0,
+  "spec_md_user_phrases_count": 0,
+  "spec_md_hallucinated_phrases": [],
+  "termination_reason_observed": "user_input_unparseable_no_spec",
+  "covered_slots_at_term": [],
+
+  "total_turns_submitted": 2,
+  "turns_accepted_by_triage": 1,
+  "turns_rejected_by_triage": 1,
+  "five_xx_count": 0,
+  "envelope_parse_success_rate": 1.0,
+
+  "narrative": "Π4.1 Mrs Chen full-stack E2E aborted at turn 2 by Triage-v3 over-rejection. Bootstrap (T0) returned Q1 normally. T1 ('我儿子放学想玩俄罗斯方块那种简单游戏，但家里 WiFi 不稳，老断。') was accepted, covered the `job` slot, lifted confidence to 0.2, and produced a Voss-style mirror playback Q2 ('听起来你是说，需要一个像俄罗斯方块那样简单、但不需要稳定网络就能玩的游戏，对吗？'). T2 ('之前在一个网站上玩，但需要网络。') — a perfectly coherent, on-topic answer that elaborates on the anchor (previously-used website) and reinforces the robustness constraint (needs network) — was classified by Triage-v3 as off_topic or gibberish, terminating the session with termination_reason=user_input_unparseable_no_spec. CAS shows turn-3-triage prompt envelope was dispatched (cid 9a0cda9e..., creator turn-3-triage at logical_t 1779149932) with exactly Mrs Chen's verbatim answer. Because the kernel never proceeded past turn 2, no Meta synthesis, no Playback, no A6 synthesis library, and no spec.md were ever exercised — A6's effectiveness CANNOT be evaluated from this run. This is a regression in Triage-v3 vs Mrs Chen's expected acceptance: the answer plausibly populates the `anchor` slot (closest existing thing = 'a website she previously used') and arguably the `robustness` slot (needs network = current pain point). Recommendation: inspect Triage-v3 system prompt for over-rejection of answers that reframe rather than directly answer the mirror Voss confirmation question; the Voss playback pattern expects yes/no but Mrs Chen provided a richer elaboration, which Triage-v3 may have treated as off-topic relative to the confirmation question.",
+
+  "anomalies": [
+    "Turn 2 first POST returned 200 with the previous Q2 echoed and covered_slots=[]/open_slots=[]/confidence=0.0/terminated=false — appears to be a partial-state response when triage rejects (no Meta call made). Second POST surfaced explicit termination_reason. This dual-shape response on rejection is itself a minor envelope-stability concern worth filing.",
+    "Mrs Chen's prepared T2 answer is the ground-truth-coherent persona answer reused across prior Mrs Chen sessions; triage rejecting it here means triage-v3 is the dominant universality blocker for the cooperative-grandmother persona class (confirms project_phase6_3_x_universality_campaign memory note)."
+  ],
+
+  "evidence_files": [
+    "session_id.txt",
+    "session_log.jsonl",
+    "cas_index.jsonl",
+    "no_spec_warning.txt",
+    "session_dir_snapshot/",
+    "verdict.json"
+  ],
+
+  "a6_evaluation_status": "INCONCLUSIVE — kernel never reached llm_done_predicate_pass; A6 synthesis code path was never invoked; cannot prove A6 fix works nor that it regressed.",
+  "triage_v3_evaluation_status": "FAIL — over-rejected an obviously relevant elaboration answer from the cooperative-grandmother baseline persona."
+}

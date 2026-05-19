@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"聽起來你是想為香港街市檔主做一個記帳/計數的App，對嗎？你覺得這個App最像市面上哪個現有的App或工具？比如像Excel？還是像某些簡單的記帳App？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

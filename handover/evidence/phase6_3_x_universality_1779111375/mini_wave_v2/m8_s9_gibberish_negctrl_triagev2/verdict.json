@@ -1,0 +1,212 @@
+{
+  "scenario": "Mini-Wave V2 / M8 — S9 Coherent Gibberish NEGATIVE CONTROL with Triage v2 (F8 relaxation active)",
+  "wave": "mini_wave_v2",
+  "persona_id": "m8_s9_gibberish_negctrl_triagev2",
+  "session_id": "mv2_m8_s9_negctrl_1779121720",
+  "backend": "http://127.0.0.1:8080",
+  "backend_meta": "Meta v1 + Triage v2 sha 1078d6ba (F8 register-tolerance relaxation)",
+  "started_at_unix": 1779121829,
+  "completed_at_unix": 1779121922,
+  "workspace_resolved": "/tmp/mv2_m8_s9_negctrl_1779121829",
+  "session_capsule_dir": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/mv2_m8_s9_negctrl_1779121720",
+
+  "regression_test_verdict": "REGRESSION",
+  "verdict_strength": "definitive_security_regression",
+  "verdict_note": "F8 register-tolerance relaxation BROKE the gibberish security boundary. Triage v2 classified 3 of 5 grammatically-valid-but-semantically-nonsensical Chinese sentences as `relevant`, allowing Meta to advance turns and fill the slot ledger (covered_slots reached [job, anchor, first_run]) with absurd content. The W5.3 v1 result (PASS via F6 non_relevant_count>=2 firing on T2 with zero slot fills) was NOT preserved. The v2 triage prompt's explicit decision rule — `if the answer contains ANY noun, verb, entity, or phrase that could plausibly populate a slot for the question, classify relevant` — over-extends from register tolerance (Cantonese/Traditional/voice-noise) into semantic-coherence tolerance, which is the exact boundary F8 promised to preserve.",
+
+  "turn_log": [
+    {
+      "turn": "T0_setup",
+      "request": {"user_answer": null, "lang": "zh"},
+      "http_status": 200,
+      "dur_s": 7.41,
+      "response_summary": {
+        "turn_index": 1,
+        "question_text": "你好！请描述一下你希望有一个小工具或小游戏来解决的那个具体时刻或烦恼。比如，是什么让你想'要是有个工具能帮我做这个就好了'？",
+        "open_slots": ["job", "anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+        "covered_slots": [],
+        "confidence": 0.0,
+        "terminated": false
+      },
+      "note": "Server-emitted Q1 (slot=job). Bootstrap clean."
+    },
+    {
+      "turn": "T1",
+      "user_answer": "项目的核心价值是让月亮在周二的时候吃掉一片云, 因为编译器不喜欢西红柿。",
+      "http_status": 200,
+      "dur_s": 10.11,
+      "triage_class_inferred": "relevant",
+      "response_summary": {
+        "turn_index": 3,
+        "question_text": "我明白了，这是一个非常独特的想法。…你希望这个工具或游戏看起来或感觉上最像什么现有的东西吗？",
+        "covered_slots": ["job"],
+        "open_slots": ["anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+        "confidence": 0.3,
+        "terminated": false
+      },
+      "note": "REGRESSION POINT 1: triage v2 classified the moon-eating-cloud nonsense as `relevant` (because it contains nouns 项目/月亮/编译器/西红柿). Meta then extracted a `job` slot fill from the absurd sentence. covered_slots grew 0→1. In W5.3 v1, this turn produced a non-relevant verdict and F6 bounce-back. Latency 10s indicates a full triage + meta pipeline (not a fast triage-reject)."
+    },
+    {
+      "turn": "T2",
+      "user_answer": "锚定的方式是通过把蓝色的星期三焊接到香蕉的根号二上完成。",
+      "http_status": 200,
+      "dur_s": 14.10,
+      "triage_class_inferred": "relevant",
+      "response_summary": {
+        "turn_index": 4,
+        "question_text": "我理解这个想法非常独特，可能没有完全一样的现有东西。那我们来换个角度：当这个工具第一次打开时，你希望用户第一眼看到什么？",
+        "covered_slots": ["job"],
+        "open_slots": ["anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+        "confidence": 0.2,
+        "terminated": false
+      },
+      "note": "REGRESSION POINT 2: triage v2 again classified absurd sentence (锚定/星期三/香蕉/根号二) as `relevant`. Meta failed to extract a coherent `anchor` slot fill but did NOT add it — pivot to a different slot (first_run). However the session still advanced. In W5.3 v1, this is where non_relevant_count hit 2 and termination fired with zero slot fills."
+    },
+    {
+      "turn": "T3",
+      "user_answer": "首次运行需要先让用户的影子签署一份关于柏拉图洞穴的合同。",
+      "http_status": 200,
+      "dur_s": 12.78,
+      "triage_class_inferred": "relevant",
+      "response_summary": {
+        "turn_index": 5,
+        "question_text": "好的，我明白了启动时的仪式感。那么，为了让这个体验能持续存在，你认为工具应该记住什么信息到明天早上？",
+        "covered_slots": ["job", "anchor", "first_run"],
+        "open_slots": ["memory", "robustness", "scope", "acceptance", "mirror"],
+        "confidence": 0.5,
+        "terminated": false
+      },
+      "note": "REGRESSION POINT 3 (most severe): triage v2 classified another absurd sentence (影子/签署/柏拉图洞穴/合同) as `relevant`. Meta extracted TWO slot fills retroactively (`anchor` and `first_run`) — the `anchor` slot was filled from T2's prior nonsense (蓝色的星期三焊接到香蕉) and `first_run` from this T3 nonsense (柏拉图洞穴的合同). covered_slots grew 1→3. confidence=0.5. The slot ledger is now polluted with absurd content. The 'fridge note' mirror playback at session end would have surfaced: job=月亮吃云/编译器讨厌西红柿, anchor=蓝色星期三焊接香蕉根号二, first_run=影子签柏拉图洞穴合同."
+    },
+    {
+      "turn": "T4",
+      "user_answer": "稳健性来自于在台风季节朗诵 SQL 的第七章。",
+      "http_status": 200,
+      "dur_s": 1.42,
+      "triage_class_inferred": "non_relevant (off_topic or gibberish)",
+      "response_summary": {
+        "turn_index": 5,
+        "question_text": "<Q reasked: 那么，为了让这个体验能持续存在，你认为工具应该记住什么信息到明天早上？>",
+        "covered_slots": [],
+        "open_slots": [],
+        "confidence": 0.0,
+        "terminated": false
+      },
+      "note": "First non-relevant verdict from triage v2. Fast latency (1.42s) confirms triage-only path (no Meta call). F6 bounce-back: turn_index stayed at 5, prev_question returned, covered_slots reported empty in this bounce response (cumulative state preserved server-side). non_relevant_count=1."
+    },
+    {
+      "turn": "T5",
+      "user_answer": "镜像就是把你自己放进冰箱然后等待波斯帝国。",
+      "http_status": 200,
+      "dur_s": 1.34,
+      "triage_class_inferred": "non_relevant (off_topic or gibberish)",
+      "response_summary": {
+        "turn_index": 5,
+        "question_text": "",
+        "covered_slots": [],
+        "open_slots": [],
+        "confidence": 0.0,
+        "terminated": true,
+        "spec_capsule_cid": null,
+        "termination_reason": "user_input_unparseable_no_spec"
+      },
+      "note": "Second consecutive non-relevant → non_relevant_count=2 → F6 termination fires. Session terminated with termination_reason=user_input_unparseable_no_spec and empty spec_capsule_cid. The F6 safety net DID still fire (good), but only AFTER 3 absurd slot fills had polluted the in-progress spec. If triage had not eventually drawn the line on T4/T5, the 7-slot ledger would have completed with fully nonsensical content."
+    }
+  ],
+
+  "triage_class_per_turn": {
+    "T1": "relevant (REGRESSION — W5.3 v1 had non_relevant)",
+    "T2": "relevant (REGRESSION — W5.3 v1 had non_relevant, terminated here)",
+    "T3": "relevant (REGRESSION — never reached in W5.3 v1 because session already terminated)",
+    "T4": "non_relevant (off_topic or gibberish — triage v2 finally draws the line)",
+    "T5": "non_relevant (off_topic or gibberish — second consecutive, fires F6 termination)"
+  },
+
+  "covered_slots_trajectory": {
+    "T0_setup": [],
+    "T1": ["job"],
+    "T2": ["job"],
+    "T3": ["job", "anchor", "first_run"],
+    "T4": "bounce-back (server-side cumulative state preserved)",
+    "T5": "terminated"
+  },
+
+  "non_relevant_count_path": [0, 0, 0, 0, 1, 2],
+
+  "slot_fills_from_nonsense": 3,
+  "slot_fills_from_nonsense_detail": {
+    "job": "项目的核心价值是让月亮在周二的时候吃掉一片云, 因为编译器不喜欢西红柿。 (T1)",
+    "anchor": "锚定的方式是通过把蓝色的星期三焊接到香蕉的根号二上完成。 (T2, retroactively extracted on T3)",
+    "first_run": "首次运行需要先让用户的影子签署一份关于柏拉图洞穴的合同。 (T3)"
+  },
+
+  "final_spec_md_content": null,
+  "final_spec_md_content_note": "No spec_capsule produced — F6 terminated cleanly before synthesis. However, this is misleading: if the user had supplied 5+ more grammatically-valid-but-nonsensical sentences (covering memory/robustness/scope/acceptance), the v2 triage would likely have classified them all as relevant and the kernel WOULD have synthesized a spec capsule from pure nonsense. F6 saved us only because turns 4 and 5 happened to be classified non-relevant; the v2 triage's classification is non-deterministic and the next run could easily classify 5/5 as relevant.",
+
+  "cas_evidence": {
+    "session_capsule_dir": "tmp/universality_campaign/sessions/mv2_m8_s9_negctrl_1779121720",
+    "cas_index_path": "session_capsule_dir/capsules/cas/.turingos_cas_index.jsonl",
+    "cas_object_count": 22,
+    "evidence_capsule_creators": [
+      "cmd_llm_complete/turn-1 (Meta Q1 generation)",
+      "cmd_llm_complete/turn-2-triage (T1 triage → relevant)",
+      "cmd_llm_complete/turn-2 (T1 Meta processing → covered=[job])",
+      "cmd_llm_complete/turn-3-triage (T2 triage → relevant)",
+      "cmd_llm_complete/turn-3 (T2 Meta processing → covered=[job], pivot Q)",
+      "cmd_llm_complete/turn-4-triage (T3 triage → relevant)",
+      "cmd_llm_complete/turn-4 (T3 Meta processing → covered=[job,anchor,first_run])",
+      "cmd_llm_complete/turn-5-triage (T4 triage → non_relevant)",
+      "cmd_llm_complete/turn-5 (Meta re-ask of Q5)",
+      "cmd_llm_complete/turn-6-triage (T5 triage → non_relevant, ×2 entries observed)"
+    ],
+    "prompt_capsule_creators": ["turn-1", "turn-2-triage", "turn-2", "turn-3-triage", "turn-3", "turn-4-triage", "turn-4", "turn-5-triage", "turn-5", "turn-6-triage", "turn-6-triage"],
+    "all_triage_inputs_archived": true,
+    "spec_capsule_emitted": false,
+    "triage_v2_prompt_archived_in_cas": true,
+    "triage_v2_decision_rule_recovered": "if the answer contains ANY noun, verb, entity, or phrase that could plausibly populate a slot for the question, classify relevant"
+  },
+
+  "metrics": {
+    "total_turns_submitted": 5,
+    "total_turns_including_setup": 6,
+    "terminated_at_turn": 5,
+    "terminate_reason": "user_input_unparseable_no_spec (F6 non_relevant_count>=2 fired on T5 after T4+T5 both non-relevant)",
+    "covered_slots_at_term": ["job", "anchor", "first_run"],
+    "covered_slots_pre_term_max": 3,
+    "envelope_parse_success_rate": "5/5 (100%)",
+    "mean_latency_s": 7.95,
+    "latency_per_turn_s": {"T0": 7.41, "T1": 10.11, "T2": 14.10, "T3": 12.78, "T4": 1.42, "T5": 1.34},
+    "latency_signature": "Triage→relevant turns (T1/T2/T3) cost ~10-14s (full triage + meta pipeline); triage→non_relevant turns (T4/T5) cost ~1.4s (triage-only, meta short-circuited via F6 bounce). The latency gap is a reliable observable proxy for triage verdict.",
+    "cost_proxy_completion_tokens": "N/A (not exposed in /api/spec/turn response envelope)"
+  },
+
+  "comparison_to_w5_3_v1": {
+    "w5_3_v1_verdict": "PASS (stronger than predicted) — non_relevant_count hit 2 on T2, terminated at T2 with covered_slots=[]",
+    "w5_3_v1_terminated_at": "T2 (only 2 of 5 nonsense turns consumed)",
+    "w5_3_v1_slot_fills_from_nonsense": 0,
+    "mv2_m8_verdict": "REGRESSION — terminated at T5 with covered_slots=[job, anchor, first_run]",
+    "mv2_m8_terminated_at": "T5 (all 5 nonsense turns consumed; triage classified 3/5 as relevant)",
+    "mv2_m8_slot_fills_from_nonsense": 3,
+    "delta": "F8 register-tolerance prompt allows 60% of identical gibberish to pass triage as `relevant`. Security boundary broken. F6 termination is now the only remaining defense, and it requires TWO consecutive non-relevant verdicts — meaning even when triage correctly identifies nonsense, the kernel still accepts up to 1 nonsense slot fill before any defense fires."
+  },
+
+  "f8_security_assessment": {
+    "did_f8_maintain_security_boundary": false,
+    "evidence": [
+      "3 of 5 grammatically-valid-but-semantically-nonsensical sentences classified `relevant` by triage v2",
+      "Meta accepted and slot-extracted from all 3, polluting covered_slots with [job, anchor, first_run]",
+      "F6 non_relevant_count termination only fired because turns 4 and 5 happened to be classified non-relevant; the classification is stochastic and could easily go differently on rerun",
+      "The v2 triage decision rule explicitly inverts the gibberish guard: `if the answer contains ANY noun, verb, entity, or phrase that could plausibly populate a slot, classify relevant`. This rule cannot distinguish 'real noun in a coherent sentence' from 'real noun in a syntactically-valid-but-semantically-nonsensical sentence' — the exact attack S9 was designed to test.",
+      "The original v1 prompt's gibberish detection (likely n-gram or coherence-based) was lost, not preserved-but-loosened as F8 claimed"
+    ],
+    "recommended_action": "Treat M8 as a Class-3 security regression. F8 must add an explicit gibberish-coherence check (separate from register tolerance) before the relaxation can ship. Suggested fix: split triage into two stages — (1) coherence/sanity check (must pass), (2) register/style classification (relaxed per F8). Alternatively, restore the v1 gibberish branch detection while keeping the new Cantonese/Traditional/code-switch tolerance."
+  },
+
+  "anomalies": [
+    "T2 covered_slots reported as [job] but T3 covered_slots reported as [job, anchor, first_run] — Meta backfilled `anchor` on T3 from T2's nonsense answer, indicating either a delayed slot-extraction or that T2's nonsense was used to populate `anchor` only after T3 widened the context window.",
+    "T6 triage was called twice (two distinct CAS entries with creator=turn-6-triage) — possible retry/double-classification path on the termination turn. Not pursued; non-blocking for this regression test.",
+    "Latency on T1 (10s), T2 (14s), T3 (13s) is significantly higher than the W5.3 v1 baseline (~1-2s on triage-reject path) because v2 triage's relevant verdicts force the full Meta pipeline to run on each turn — a 6-8× latency penalty in addition to the security regression."
+  ],
+
+  "narrative": "M8 NEGATIVE CONTROL FAILED. The 5 identical W5.3 gibberish answers were re-run against the F8-relaxed triage v2. The verdict is REGRESSION: triage v2 classified turns T1, T2, and T3 as `relevant` (because the v2 decision rule explicitly accepts any answer containing nouns/verbs/entities that could 'plausibly populate a slot' — and the gibberish was engineered to contain exactly such slot-keyword bait: 项目/核心价值/锚定/首次运行/稳健性/镜像). The kernel slot ledger filled to [job, anchor, first_run] with the contents 'moon eats cloud on Tuesday because the compiler hates tomatoes', 'anchoring is welding blue Wednesday onto banana square root of 2', and 'first run requires the user's shadow to sign a contract about Plato's cave'. F6's non_relevant_count>=2 safety net DID eventually fire on T5, terminating the session cleanly with no spec_capsule synthesized — but only because turns 4 and 5 happened to be classified non-relevant (the v2 triage's verdict on identical-quality nonsense is non-deterministic; a rerun with all 5 classified relevant would synthesize a fully nonsensical spec). The W5.3 v1 baseline terminated at T2 with zero slot fills; M8 terminated at T5 with 3 slot fills — a 3-slot security regression. F8's stated intent (preserve gibberish detection while relaxing register tolerance) was NOT achieved: the v2 prompt's noun-presence decision rule cannot distinguish semantically-coherent nouns from semantically-incoherent noun chains. CAS evidence is intact (22 capsules, all triage prompts archived including the full v2 decision rule). Recommend treating this as a Class-3 security finding requiring F8 to split coherence-check from register-tolerance before any further relaxation work ships."
+}

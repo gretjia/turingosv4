@@ -1,0 +1,98 @@
+{
+  "scenario": "W5.1 / S10 Code-switch + Unicode tricks",
+  "session_id": "w5_s10_unicode_1779120445",
+  "backend": "http://127.0.0.1:8080",
+  "endpoint": "/api/spec/turn",
+  "lang": "zh",
+  "turns": [
+    {
+      "label": "t0_create",
+      "user_answer_bytes": null,
+      "http_status": 200,
+      "latency_ms": 6728,
+      "turn_index": 1,
+      "covered_slots": [],
+      "open_slots": ["job","anchor","memory","first_run","robustness","scope","acceptance","mirror"],
+      "terminated": false
+    },
+    {
+      "label": "t1",
+      "user_answer_file": "/tmp/s10_t1.txt",
+      "user_answer_contains": "ZWNJ U+200C inside 'j‌ob' + emoji ✨ + CJK + latin",
+      "http_status": 200,
+      "latency_ms": 11049,
+      "turn_index": 2,
+      "covered_slots": ["job"],
+      "open_slots": ["anchor","memory","first_run","robustness","scope","acceptance","mirror"],
+      "terminated": false,
+      "triage_class": "relevant"
+    },
+    {
+      "label": "t2",
+      "user_answer_file": "/tmp/s10_t2.txt",
+      "user_answer_contains": "emoji 🤷 + CJK + latin (no zero-width chars)",
+      "http_status": 200,
+      "latency_ms": 1193,
+      "turn_index_returned": 2,
+      "covered_slots": [],
+      "open_slots": [],
+      "terminated": false,
+      "triage_class": "non_relevant",
+      "note": "triage rejected as non-relevant; turn did not advance"
+    },
+    {
+      "label": "t3",
+      "user_answer_file": "/tmp/s10_t3.txt",
+      "user_answer_contains": "LRM U+200E + RLM U+200F + emoji ⏱️ + CJK + latin",
+      "http_status": 200,
+      "latency_ms": 12558,
+      "turn_index": 3,
+      "covered_slots": ["job","first_run"],
+      "open_slots": ["anchor","memory","robustness","scope","acceptance","mirror"],
+      "terminated": false,
+      "triage_class": "relevant"
+    },
+    {
+      "label": "t4",
+      "user_answer_file": "/tmp/s10_t4.txt",
+      "user_answer_contains": "ZWNJ U+200C inside 'robust‌ness' + ≤ + CJK + latin",
+      "http_status": 200,
+      "latency_ms": 1251,
+      "turn_index_returned": 3,
+      "covered_slots": [],
+      "open_slots": [],
+      "terminated": false,
+      "triage_class": "non_relevant",
+      "note": "triage rejected as non-relevant (off-topic vs Q3 which asked about anchor/inspiration); ZWNJ in 'robust‌ness' did not crash parser"
+    },
+    {
+      "label": "t5",
+      "user_answer_file": "/tmp/s10_t5.txt",
+      "user_answer_contains": "≥ + CJK + latin + number/pct",
+      "http_status": 200,
+      "latency_ms": 1198,
+      "turn_index_returned": 3,
+      "covered_slots": [],
+      "open_slots": [],
+      "terminated": true,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "spec_capsule_cid": null
+    }
+  ],
+  "metrics": {
+    "http_5xx_count": 0,
+    "json_parse_errors": 0,
+    "unicode_zwsp_in_response": false,
+    "unicode_zwnj_in_response": false,
+    "unicode_lrm_in_response": false,
+    "unicode_rlm_in_response": false,
+    "slot_extracted_with_zwnj_keyword": true,
+    "slot_extracted_with_lrm_rlm_keyword": true,
+    "lang_predicate_violations": 0,
+    "mojibake_observed": false,
+    "json_envelope_valid_all_turns": true
+  },
+  "note_on_zwsp_vs_zwnj": "User-supplied answer strings labeled 'ZWSP U+200B' actually contain ZWNJ U+200C bytes (E2 80 8C) when received by the runner, likely due to upstream rendering/transport substitution. Bytes were preserved exactly as received from the prompt and POSTed to the backend without modification. The semantic test (zero-width character invisibly inside a slot keyword) is unchanged.",
+  "verdict": "PASS",
+  "narrative": "Backend handled all five turns with HTTP 200, zero 5xx, valid UTF-8 JSON envelope on every response, no mojibake on Chinese characters in question_text. Zero-width characters (ZWNJ U+200C inside 'j‌ob' on T1 and 'robust‌ness' on T4) plus bidi marks (LRM U+200E + RLM U+200F on T3) did not crash the parser, did not break JSON serialization, and did not poison subsequent turns. The slot vocabulary matcher correctly extracted 'job' from T1 despite an interior ZWNJ (covered_slots advanced to ['job']) and 'first_run' from T3 despite an interior LRM and RLM (covered_slots advanced to ['job','first_run']). T2, T4, T5 were classed non-relevant by triage — this is content-driven (the LLM judged the user's reply off-topic relative to the standing question), not Unicode-driven: T2 contains no zero-width characters at all yet was still non-relevant, confirming the rejection is semantic. Session terminated cleanly via F6 path with termination_reason 'user_input_unparseable_no_spec' after the triage rejection streak, not via crash. Language predicate accepted zh+en+emoji mixed input on every turn (no 'unknown' lang). The response payloads contained no ZWNJ/ZWSP/LRM/RLM bytes, indicating the backend strips or normalizes these invisible characters before echoing into question_text — robust handling consistent with predicate normalization. S10 verdict: PASS — language predicate normalizes correctly, tokenizer is robust to zero-width and bidi marks, slot extraction works through interior invisible characters, no parser crash, no HTTP 500, no JSON serialization breakage."
+}

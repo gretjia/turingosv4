@@ -1,0 +1,1 @@
+{"turn_index":6,"question_text":"所以，針對上傳的檔案類型或大小，你希望有什麼限制或警告嗎？比如只接受影片檔，或檔案大小上限？","covered_slots":["job","anchor","memory","first_run","robustness"],"open_slots":["scope","acceptance","mirror"],"confidence":0.75,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

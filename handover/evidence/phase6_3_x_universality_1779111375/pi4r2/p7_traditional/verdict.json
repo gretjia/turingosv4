@@ -1,0 +1,108 @@
+{
+  "session_id": "pi4r2_p7_1779152499",
+  "run": "pi4r2_p7_traditional",
+  "stack": "meta_v2 + triage_v3 + synthesis_v2 + A6 + F9 + F10 + F11",
+  "endpoint": "POST /api/spec/submit",
+  "backend_pid": 1460,
+  "http_status": 200,
+  "spec_md_bytes": 5763,
+  "spec_capsule_cid": "589d2ad69487630c435f5e5217f4ff8309ff3b7ac22642d4fc49fbef6fefd24d",
+  "spec_capsule_cid_present": true,
+  "slots_present": "8/8",
+  "slots_all_present": true,
+  "entity_preservation": {
+    "pass": true,
+    "results": {
+      "影片": true,
+      "拖曳": true,
+      "mp4": true,
+      "SHA256": true,
+      "Redis": true,
+      "GCS": true,
+      "FFmpeg": true,
+      "YouTuber": true
+    }
+  },
+  "hallucination_check": {
+    "pass": true,
+    "forbidden_terms_found": {}
+  },
+  "slot_mapping_F10": {
+    "pass": true,
+    "memory_slot_critical_pass": true,
+    "memory_slot_body_excerpt": "> 用户原话：「記憶用 Redis 存任務狀態, 七天後自動清除。原始檔放 GCS bucket。」（来自 A3）\n\n- 用 Redis 存任务状态\n- 七天后自动清除\n- 原始档放 GCS bucket",
+    "per_slot": {
+      "一句话目标": {
+        "status": "PASS",
+        "hits": [
+          "影片",
+          "mp4"
+        ],
+        "missing": []
+      },
+      "我们要做什么 (Goal)": {
+        "status": "PASS",
+        "hits": [
+          "影片",
+          "mp4"
+        ],
+        "missing": []
+      },
+      "像谁 (Reference)": {
+        "status": "PASS",
+        "hits": [
+          "SHA256"
+        ],
+        "missing": []
+      },
+      "程序要记住的东西 (Memory)": {
+        "status": "PASS",
+        "hits": [
+          "Redis",
+          "GCS"
+        ],
+        "missing": []
+      },
+      "第一次使用 (First Run)": {
+        "status": "PASS",
+        "hits": [
+          "拖",
+          "登"
+        ],
+        "missing": []
+      },
+      "不能搞坏的情况 (Robustness)": {
+        "status": "PASS",
+        "hits": [
+          "FFmpeg",
+          "重试"
+        ],
+        "missing": []
+      },
+      "故意不做的 (Out of Scope)": {
+        "status": "PASS",
+        "hits": [
+          "QPS",
+          "500MB"
+        ],
+        "missing": []
+      },
+      "算成功 (Acceptance)": {
+        "status": "PASS",
+        "hits": [
+          "YouTuber"
+        ],
+        "missing": []
+      },
+      "复述 (Mirror)": {
+        "status": "PASS",
+        "hits": [
+          "影片",
+          "Redis"
+        ],
+        "missing": []
+      }
+    }
+  },
+  "overall_verdict": "FULL-PASS"
+}

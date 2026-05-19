@@ -1,0 +1,77 @@
+{
+  "turn": 0,
+  "event": "bootstrap",
+  "http": 200,
+  "elapsed_ms": 6053,
+  "response": {
+    "turn_index": 1,
+    "question_text": "你好！请描述一下你想要一个什么样的软件或小游戏？它主要是用来做什么的？",
+    "covered_slots": [],
+    "open_slots": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 1,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 1281,
+  "user_answer": "你他妈问这么多干啥, 老子就要做个 todo app, 跟 wunderlist 差不多, 别瞎扯。",
+  "response": {
+    "turn_index": 1,
+    "question_text": "你好！请描述一下你想要一个什么样的软件或小游戏？它主要是用来做什么的？",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 2,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 1357,
+  "user_answer": "快点啊, 锚点不就是每个任务的 uuid 吗? 这都要我手把手教?",
+  "response": {
+    "turn_index": 1,
+    "question_text": "",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": true,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null,
+    "termination_reason": "user_input_unparseable_no_spec"
+  }
+}
+{
+  "turn": 3,
+  "event": "answer",
+  "http": 400,
+  "elapsed_ms": 44,
+  "user_answer": "存哪? 本地 sqlite 行了吧, 你一个 AI 还要我告诉你常识?",
+  "response": {
+    "error": "session already terminated",
+    "kind": "session_terminated"
+  }
+}

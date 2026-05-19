@@ -1,0 +1,7 @@
+{"turn_index":10,"question_text":"","covered_slots":["job","anchor","memory","first_run","robustness","scope","acceptance"],"open_slots":["mirror"],"confidence":0.95,"done":true,"playback":"Job: 幫街市檔主快速記帳，掃QR碼自動填寫金額和項目，不用手打。
+Anchor: 像『掃描全能王』但專門記帳，介面簡單如計算機。
+Memory: 記住的消費記錄（日期、項目、金額、分類），可以查看總數和分類。
+First Run: 打開看到一個大掃描按鈕、一個簡單的歷史列表、一個今日總數。
+Robustness: 掃到錯的QR碼或沒網絡時，不閃退，給提示讓手動輸入。
+Scope: 不做發票、不連銀行、不分析趨勢、不分享數據。
+Acceptance: 找5個檔主試用一星期，沒人投訴，每天最少記到3筆帳，QR碼格式錯也不閃退。","terminated":true,"spec_capsule_cid":"e5454b730c4ea0b0222c7ee52d145e0aaec751b0521d5bf806f9f7f049f6387e","turn_capsule_cid":null,"termination_reason":"llm_done_predicate_pass"}

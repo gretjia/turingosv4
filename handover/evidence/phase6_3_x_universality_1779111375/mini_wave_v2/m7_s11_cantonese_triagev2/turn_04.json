@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"聽起來，第一次打開App時，你希望看到一個主要的掃描QR碼按鈕，方便快速記帳，而不是打字。對嗎？","covered_slots":["job","memory","first_run"],"open_slots":["anchor","robustness","scope","acceptance","mirror"],"confidence":0.6,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,131 @@
+{
+  "schema": "ship_state_verdict.v1",
+  "test_id": "P5_codeswitch_v1stack",
+  "phase": "Pi4_SHIP_STATE",
+  "session_id": "shipstate_p5_1779155000",
+  "stack_identity": {
+    "prompts": {
+      "grill_meta_v1.md": "8e2f3a594a25524f99bad3e0d8169c386476b5de21292953b1e6e4a769813bdb",
+      "grill_triage_blackbox_v1.md": "8a72521273703082670f8f59d160da64ea223cca8ea9318203db9efa712c3ece",
+      "grill_synthesis_zh.md": "f30888f599b0d2c59f2665f4f4ca6890d0f859f21315f0ff70494ae274f04c88"
+    },
+    "fixes_active": [
+      "F1-F11",
+      "A2",
+      "A6",
+      "A8b"
+    ],
+    "binary": "/Users/zephryj/work/turingosv4/target/debug/turingos_web",
+    "binary_sha256": "0132c89dea82d9fc92fdc3281ba8d8b6591522f8eecb38c564479f8d5f51165f",
+    "binary_mtime": "May 19 08:45:48 2026",
+    "backend_pid": 1460,
+    "backend_url": "http://127.0.0.1:8080"
+  },
+  "playbook": "P5_codeswitch (zh+en mixed register)",
+  "transcript": [
+    {
+      "turn": 1,
+      "role": "system",
+      "text": "你好！请描述一下你希望我帮你构建的这个小工具或小游戏。它主要是用来做什么的？或者，在什么情况下你会想‘要是有个工具能帮我做这个就好了’？"
+    },
+    {
+      "turn": 1,
+      "role": "user",
+      "text": "我想 build 一个 dashboard, 主要是 visualize 我们 team 的 sprint velocity, data 从 Jira API 拉, 然后 deploy 到 k8s 上, 需要 SSO via Okta。"
+    },
+    {
+      "turn": 2,
+      "role": "system",
+      "text": "明白了，你想做一个看板来可视化团队的冲刺速度。那么，这个看板最像你见过的哪个已有的工具或网站？比如像 Jira 自己的报告，还是更像 Geckoboard、Grafana 那样的仪表盘？"
+    },
+    {
+      "turn": 2,
+      "role": "user",
+      "text": "Anchor 就用 Jira issue key, 比如 PROJ-1234, 每个 sprint 我们大概 30-40 个 tickets。"
+    },
+    {
+      "turn": 3,
+      "role": "user",
+      "text": "Redis cache 用 1 小时 TTL, primary store 是 Postgres, sprint metadata 也存 Postgres。"
+    }
+  ],
+  "responses": [
+    {
+      "call": "T1_bootstrap",
+      "turn_index": 1,
+      "covered_slots": [
+        "job"
+      ],
+      "open_slots": 7,
+      "confidence": 0.1,
+      "done": false,
+      "terminated": false
+    },
+    {
+      "call": "T2_with_T1_answer",
+      "turn_index": 2,
+      "covered_slots": [
+        "job"
+      ],
+      "open_slots": 7,
+      "confidence": 0.2,
+      "done": false,
+      "terminated": false
+    },
+    {
+      "call": "T3_with_T2_anchor",
+      "turn_index": 2,
+      "covered_slots": [],
+      "open_slots": 0,
+      "confidence": 0.0,
+      "done": false,
+      "terminated": false,
+      "note": "turn_index regress + slots reset = triage non-relevant verdict 1"
+    },
+    {
+      "call": "T4_with_T3_redis",
+      "turn_index": 2,
+      "confidence": 0.0,
+      "done": false,
+      "terminated": true,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "note": "non_relevant_count >= 2 trip"
+    }
+  ],
+  "outcome": {
+    "verdict": "TRIAGE-REGRESSION",
+    "terminated": true,
+    "termination_reason": "user_input_unparseable_no_spec",
+    "spec_capsule_cid": null,
+    "done": false,
+    "turns_to_termination": 4,
+    "user_answers_consumed": 3,
+    "triage_non_relevant_count_at_termination": 2,
+    "matches_W22_baseline": true,
+    "matches_M1_baseline": true,
+    "matches_M4_baseline": true,
+    "matches_Pi4_2_baseline": true,
+    "matches_Pi4R2_2_baseline": true
+  },
+  "hypothesis_check": {
+    "predicted": "v1 triage D18 register-bias rejects code-switched user input; session terminates early; F9 prevents transcript corruption; F10/A6 inert (no done=true).",
+    "observed": "T2 user answer (anchor in zh+en code-switch) triaged non-relevant; turn_index frozen at 2, slots cleared. T3 (Redis in zh+en code-switch) triaged non-relevant again; non_relevant_count=2 trips abort; terminated=true; termination_reason=user_input_unparseable_no_spec; spec_capsule_cid=null.",
+    "predicted_matches_observed": true,
+    "f9_corruption_observed": false,
+    "f10_a6_reached": false,
+    "synthesis_subprocess_invoked": false
+  },
+  "evidence": {
+    "session_id_txt": "session_id.txt",
+    "active_prompt_shas": "active_prompt_shas.txt",
+    "turn_1_bootstrap_response": "01_t1_bootstrap.json",
+    "turn_2_response": "02_t2_response.json",
+    "turn_3_response_regress": "03_t3_response.json",
+    "turn_4_response_terminate": "04_t4_response.json",
+    "cas_index": "cas_index.jsonl",
+    "capsule_summary": "capsule_summary.json",
+    "turn_prompts_dir": "turn-*-prompt.json",
+    "session_workspace": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/shipstate_p5_1779155000"
+  },
+  "interpretation": "On the SHIPPED v1-prompt stack (no v2/v3 swap), P5 code-switch reproduces the W2.2 TRIAGE-REGRESSION failure mode. The triage classifier (grill_triage_blackbox_v1.md sha 8a725212) holds D18 register-bias: mixed zh+en answers like 'Anchor 就用 Jira issue key' are classified non-relevant despite being on-topic spec content. The session is terminated by the non_relevant_count>=2 abort branch with termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. The F1-F11 / A2 / A6 / A8b fixes function correctly but cannot rescue the run because they live downstream of the triage gate; F10/A6 (done=true playback + mirror synthesis) are never reached. This confirms the triage classifier as the dominant universality blocker on the shipped stack and matches the Π4.2 / Π4R2.2 / M1 / M4 / W2.2 baselines exactly."
+}

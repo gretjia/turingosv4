@@ -1,0 +1,56 @@
+{
+  "object_type_creator_counts": [
+    {
+      "object_type": "EvidenceCapsule",
+      "creator": "cmd_llm_complete/turn-1",
+      "count": 1
+    },
+    {
+      "object_type": "PromptCapsule",
+      "creator": "turn-1",
+      "count": 1
+    },
+    {
+      "object_type": "EvidenceCapsule",
+      "creator": "cmd_llm_complete/turn-2-triage",
+      "count": 1
+    },
+    {
+      "object_type": "PromptCapsule",
+      "creator": "turn-2-triage",
+      "count": 1
+    },
+    {
+      "object_type": "EvidenceCapsule",
+      "creator": "cmd_llm_complete/turn-2",
+      "count": 1
+    },
+    {
+      "object_type": "PromptCapsule",
+      "creator": "turn-2",
+      "count": 1
+    },
+    {
+      "object_type": "EvidenceCapsule",
+      "creator": "cmd_llm_complete/turn-3-triage",
+      "count": 2
+    },
+    {
+      "object_type": "PromptCapsule",
+      "creator": "turn-3-triage",
+      "count": 2
+    }
+  ],
+  "creator_sequence": [
+    "cmd_llm_complete/turn-1",
+    "turn-1",
+    "cmd_llm_complete/turn-2-triage",
+    "turn-2-triage",
+    "cmd_llm_complete/turn-2",
+    "turn-2",
+    "cmd_llm_complete/turn-3-triage",
+    "turn-3-triage",
+    "cmd_llm_complete/turn-3-triage",
+    "turn-3-triage"
+  ]
+}

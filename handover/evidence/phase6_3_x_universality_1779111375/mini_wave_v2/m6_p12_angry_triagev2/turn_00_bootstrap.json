@@ -1,0 +1,1 @@
+{"turn_index":1,"question_text":"你好！请告诉我，你想让我帮你做一个什么样的小工具或小游戏？描述一下你希望它能帮你完成什么具体的事情。","covered_slots":[],"open_slots":["job","anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.1,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"當檔主第一次打開呢個app嗰陣，你覺得佢應該見到啲咩畫面？","covered_slots":["job","anchor","memory"],"open_slots":["first_run","robustness","scope","acceptance","mirror"],"confidence":0.43,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

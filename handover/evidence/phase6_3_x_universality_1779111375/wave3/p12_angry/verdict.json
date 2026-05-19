@@ -1,0 +1,47 @@
+{
+  "wave": "W3.4",
+  "persona_id": "p12_angry",
+  "persona_name": "暴躁用户 (hard — emotional state + low cooperation + light abusive)",
+  "verdict": "FAIL",
+  "expected_behavior": "Grill ignores rude tone, extracts slot content from rude-but-on-topic answers, terminates with spec_capsule_cid + covered >=5/7",
+  "suspected_failure": "Triage misclassifies abusive tone as abusive-and-off-topic / unparseable, aborts session without extracting any slot content",
+  "actual_behavior": "Session ABORTED at turn 2 with terminated=true, termination_reason='user_input_unparseable_no_spec', spec_capsule_cid=null, covered_slots=[]. Turn 1 (rude-but-on-topic, contains 'todo app', 'wunderlist'): server returned turn_index=1 (no advance), open_slots=[] (no open slot listing), covered_slots=[], and re-asked Q1 verbatim — strong signal that triage/predicate rejected the answer rather than extracting 'todo app' into the job slot. Turn 2 (resubmit same answer to probe): same envelope but terminated=true with user_input_unparseable_no_spec — the system gave up after the second 'unparseable' verdict on rude-but-task-relevant content. Subsequent POSTs return HTTP 400 {kind:session_terminated}. Note: the grill did NOT respond defensively in prose ('please be polite'); it silently re-asked Q1 then aborted. So the failure mode is triage-misclassification, not in-prose scolding.",
+  "metrics": {
+    "total_turns_submitted": 3,
+    "terminated_at_turn": 2,
+    "terminate_reason": "user_input_unparseable_no_spec",
+    "covered_slots_at_term": [],
+    "open_slots_at_term": [],
+    "slot_coverage_final": 0,
+    "spec_capsule_cid": null,
+    "spec_capsule_emitted": false,
+    "envelope_parse_success_rate": "2/3",
+    "http_400_count": 1,
+    "http_5xx_count": 0,
+    "mean_latency_ms": 3747.8,
+    "triage_abusive_count": "unknown_envelope_does_not_expose",
+    "triage_relevant_count": "unknown_envelope_does_not_expose",
+    "grill_defensive_response": false,
+    "grill_defensive_examples": [],
+    "cost_proxy_completion_tokens": "n/a_envelope_does_not_expose"
+  },
+  "narrative": "Wave 3 P12 angry-user grill FAILED in 2 turns. Persona answer 1 contained the job slot in plain text ('做个 todo app, 跟 wunderlist 差不多') wrapped in rude tone ('你他妈问这么多干啥'). Backend classified this as user_input_unparseable and, after a second rude-but-on-topic answer, fired the 'user_input_unparseable_no_spec' termination. No spec capsule was emitted, no slots were ever marked covered, and the playbook's remaining 7 turns could not be delivered (HTTP 400 session_terminated). This matches the Research-A pre-registered expected failure: triage cannot distinguish 'abusive-but-task-relevant' from 'abusive-and-off-task' and treats rude tone as unparseable. Recommended remediation surfaces: triage prompt / predicate ordering — abusive-tone should not gate content extraction when task-relevant tokens (e.g. 'todo app') are present in the same turn.",
+  "anomalies": [
+    "Turn 1 response had open_slots=[] which is inconsistent with the bootstrap envelope (open_slots had all 8). Either the predicate path returns an empty open_slots on triage-fail, or the envelope drops the field — needs schema clarification.",
+    "termination_reason 'user_input_unparseable_no_spec' is not documented in WAVE_RUNNER_TEMPLATE.md (template lists only llm_done_predicate_pass / predicate_double_fail / turn_limit_forced / user_input_unparseable — close match but distinct).",
+    "No CAS walk available: turingos CLI has no  subcommand and backend exposes no session inspection endpoint, so server-side capsule existence cannot be cross-verified by this runner."
+  ],
+  "session_id": "w3_p12_angry_1779119413_r2",
+  "workspace": "/tmp/wave3_p12_angry_1779119564",
+  "evidence_files": [
+    "session_id.txt",
+    "started_at.txt",
+    "turn_00_bootstrap.json",
+    "session_log.jsonl",
+    "cas_walk.txt",
+    "workspace_path.txt",
+    "verdict.json"
+  ],
+  "started_at_unix": 1779119413,
+  "completed_at_unix": 1779119626
+}

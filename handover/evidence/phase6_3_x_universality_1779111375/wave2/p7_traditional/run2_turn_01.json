@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"听起来你想要一个视频转换工具，支持拖拽上传，输出MP4格式，界面用繁体中文，服务器在GCP东京区。那么，这个工具最像你现在用的哪个现成的东西？比如，是像某个在线转换网站，还是像某个桌面软件？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.15,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

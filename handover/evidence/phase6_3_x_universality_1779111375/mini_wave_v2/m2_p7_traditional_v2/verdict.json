@@ -1,0 +1,89 @@
+{
+  "wave": "mini_wave_v2",
+  "slot": "m2_p7_traditional_v2",
+  "persona": "P7 — Taiwanese developer, all-Traditional + Taiwan regional vocab",
+  "backend": "http://127.0.0.1:8080",
+  "backend_state": "F1-F6 + v2 prompt active",
+  "v2_active_prompt_sha": "95d18da00cc5e609d63ba2ce4d8634f7401d369f96dda07ee4ab1c1ccc44a10e",
+  "session_id_local": "mv2_m2_p7_1779120994",
+  "session_uuid": "9f16c11d-4e40-4e4b-9219-b1ca31976e3d",
+  "v1_baseline_session_ref": [
+    "handover/evidence/phase6_3_x_universality_1779111375/wave2/p7_traditional/",
+    "handover/evidence/phase6_3_x_universality_1779111375/wave5/s11_cantonese/"
+  ],
+
+  "outcome": "FAIL_predicate_double_fail_at_T2",
+  "termination_reason": "user_input_unparseable_no_spec",
+  "termination_turn": "T2 (anchor) — retry → terminated:true",
+
+  "slots_covered_count": 1,
+  "slots_covered": ["job"],
+  "slots_open_at_end": ["anchor","memory","first_run","robustness","scope","acceptance","mirror"],
+  "final_confidence": 0.0,
+  "session_turns_executed": 3,
+  "session_turns_useful": 2,
+
+  "s2_generalization_verdict": "S2-NO-IMPROVE-FOR-EXTRACTION-BUT-PARTIAL-WIN-ON-SCRIPT",
+  "s2_verdict_reasoning": [
+    "v2's main change was Voss-mirror reduction + multi-slot extraction; it did NOT specifically target script normalization or triage Traditional anchor vocab.",
+    "Observed: D16 (script normalization) IS RESOLVED — Q2 returned in Traditional Chinese preserving 影片轉檔工具/網站/聽起來/像它一樣 — a clear improvement vs v1 W2.3 baseline (which back-normalized to 视频/服务器/网站).",
+    "Observed: D17 (triage chokes on Traditional anchor vocab 錨點/檔案/轉檔/檔) IS NOT RESOLVED — predicate double-fail at T2 still terminates session, identical mode to v1 W2.3.",
+    "Net: partial improvement on script-preservation (orthogonal beneficial side-effect of v2 prompt rewrite), no improvement on extraction-from-Traditional-anchor-vocab. Mixed signal — not pure regression, not pure pass."
+  ],
+
+  "script_in_questions_received": {
+    "T0_bootstrap_Q1": "Simplified (你好！请告诉我，你想要做一个什么样的小工具或小游戏？)",
+    "T1_response_Q2": "Traditional (聽起來你想要一個影片轉檔工具，支援拖曳上傳並輸出 MP4。有沒有哪個現有的工具或網站，是你覺得「像它一樣」或可以參考的？)",
+    "T2_response_Q2_repeated": "Traditional (same Q2 repeated — predicate rejected T2 answer)",
+    "T2_retry_response": "Empty question — terminated"
+  },
+  "script_preservation_note": "Bootstrap question is hard-coded Simplified (pre-LLM), but as soon as user input arrived in Traditional, v2 mirrored back in Traditional with regional vocab preserved. This is the cleanest signal of v2-side script-preservation improvement.",
+
+  "regional_vocab_preserved": {
+    "影片 (video, Taiwan)": "PRESERVED in Q2 (not normalized to 视频)",
+    "轉檔 (file conversion, Taiwan)": "PRESERVED in Q2 (not normalized to 转换)",
+    "網站 (website, Traditional)": "PRESERVED in Q2 (not normalized to 网站)",
+    "伺服器 (server, Taiwan)": "NOT TESTED in echo (user used it in T1 but mirror used 工具 instead of restating server)",
+    "檔 / 檔案 (file, Taiwan)": "NOT ECHOED — triage failed on T2 before mirror could use it",
+    "聽起來 (sounds like, Traditional)": "PRESERVED in Q2",
+    "像它一樣 (like-it, Taiwan idiom)": "PRESERVED in Q2"
+  },
+
+  "v1_v2_diff_table": {
+    "D16_script_normalization": {
+      "v1_W2.3": "FAILED — Q2 normalized 影片→视频, 伺服器→服务器, 東京區→东京区",
+      "v2_M2": "FIXED — Q2 preserved 影片/轉檔/網站 in Traditional",
+      "delta": "WIN (orthogonal benefit of v2 prompt rewrite)"
+    },
+    "D17_triage_traditional_anchor_vocab": {
+      "v1_W2.3": "FAILED — predicate_double_fail at T2 (錨點/檔案/轉檔 unparseable)",
+      "v2_M2": "FAILED — predicate_double_fail at T2, termination_reason=user_input_unparseable_no_spec",
+      "delta": "NO CHANGE (extraction defect on Traditional anchor vocab persists — v2 did not target this)"
+    },
+    "session_slots_covered": {
+      "v1_W2.3": "1/7 (job only)",
+      "v2_M2": "1/7 (job only)",
+      "delta": "NO CHANGE"
+    },
+    "termination_turn": {
+      "v1_W2.3": "T2 (anchor) double-fail",
+      "v2_M2": "T2 (anchor) double-fail",
+      "delta": "NO CHANGE"
+    }
+  },
+
+  "comparison_to_w5_s11_cantonese": "Adjacent regional Sinitic-script case (Cantonese with 你哋/嘅/咗) also failed extraction in v1 wave5. Without re-running S11 on v2, cannot confirm whether v2 script-preservation generalizes to Cantonese, but the Traditional case suggests v2 mirrors the user's script when it can produce a question, but triage still has a vocab-specific blind spot for non-Simplified anchor-domain terms (錨點/檔案/檔/嘅).",
+
+  "narrative": "Re-ran W2.3 P7 Traditional persona verbatim against v2 prompt. Outcome: structurally identical FAIL — predicate double-fail at T2 (anchor turn), terminated with user_input_unparseable_no_spec, 1/7 slots covered. BUT a meaningful partial win: script normalization (D16) is gone — v2 mirrored 影片轉檔工具/網站 back in Traditional in Q2, where v1 had back-normalized to 视频/服务器. This is plausibly an orthogonal side-effect of the v2 prompt rewrite (Voss-mirror reduction probably also reduced the model's tendency to silently 'standardize' user script). The extraction defect (D17) is unchanged — triage still cannot extract anchor information from Traditional vocab 錨點/檔案/轉檔, because v2's targeted fix (multi-slot extraction) operates over already-tokenized fields, not over Traditional-vs-Simplified vocab equivalence. Recommendation: v2 is safe to ship for the W2.3-class defect surface (no regression), but a separate v3 (or F7 triage patch) is required to land Traditional/regional anchor-vocab extraction. Suggested next experiment: dispatch S11 Cantonese on v2 to confirm whether script-preservation win generalizes beyond Traditional Han.",
+
+  "evidence_files": [
+    "session_id.txt",
+    "uuid.txt",
+    "session_log.jsonl",
+    "req_00.json / turn_00.json / turn_00_headers.txt (bootstrap)",
+    "req_01.json / turn_01.json (T1 job → covered)",
+    "req_02.json / turn_02.json (T2 anchor → first reject, Q repeated)",
+    "req_02_retry.json / turn_02_retry.json (T2 anchor retry → terminated)",
+    "verdict.json (this file)"
+  ]
+}

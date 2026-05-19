@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"听起来你是想要一个在团队站会时使用的氛围检查工具，类似每日心情投票。那么，有没有一个现有的工具或应用让你觉得‘要是能像它那样就好了’？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.2,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

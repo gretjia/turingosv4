@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"明白了，第一次打开要超级简单，30秒内搞定。那么，有没有一个现有的工具或应用让你觉得‘要是能像它那样就好了’，比如像Slack投票、Google表单，还是别的什么？","covered_slots":["job","first_run"],"open_slots":["anchor","memory","robustness","scope","acceptance","mirror"],"confidence":0.25,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

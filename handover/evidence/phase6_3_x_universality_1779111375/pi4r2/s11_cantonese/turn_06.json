@@ -1,0 +1,1 @@
+{"turn_index":7,"question_text":"呢個工具係俾一個檔主自己用，定係可以俾幾個檔主一齊用？","covered_slots":["job","anchor","memory","first_run","robustness","acceptance"],"open_slots":["scope","mirror"],"confidence":0.86,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

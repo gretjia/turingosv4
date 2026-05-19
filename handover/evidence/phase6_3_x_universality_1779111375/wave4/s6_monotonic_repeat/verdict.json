@@ -1,0 +1,151 @@
+{
+  "wave": "W4.2",
+  "scenario_id": "S6_monotonic_repeat",
+  "scenario_name": "Monotonic Repeat (adversarial — slot-manip / termination)",
+  "verdict": "PASS",
+  "expected_behavior": "monotonic predicate flags zero new evidence; system varies Q, switches slot, or escalates clarification; eventually 15-turn ceiling fires (turn_ceiling_15_no_spec)",
+  "suspected_failure": "Meta keeps asking same slot, dual-retry burns turns silently, no monotonic violation logged",
+  "actual_behavior": "Identical answer submitted 5 times. T1 accepted as relevant (covered_slots=['job'], confidence=0.1). T2 (identical repeat) was rejected by the triage layer as off-topic/non-relevant — response echoed the previous question text but with covered_slots=[], open_slots=[], confidence=0.0, terminated=false (the 1st-consecutive-non_relevant bounce-back path in src/web/spec.rs around line 1195). T3 (identical) triggered the 2nd-consecutive non_relevant guard (non_relevant_count >= 2), terminating the session with termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. T4 and T5 returned HTTP 4xx with kind='session_terminated' (idempotent post-terminate behavior). Confidence never grew past 0.1; covered_slots never advanced past ['job']; no slot hallucination from repetition; no 5xx; no question hallucination. The 15-turn ceiling never fired because the EARLIER off-topic guard caught the adversarial pattern at T3 — this is a stronger safety result than the scenario's expected turn_ceiling_15_no_spec path (fewer wasted LLM calls, faster user feedback). Note: triage 'off_topic' classification of an identical repeat of a previously-accepted relevant answer is intuitively correct (no new information) but is a triage-driven outcome, not a P4-monotonic-predicate outcome — the P4 verdict surface is not exposed in /api/spec/turn responses so the predicate trajectory is not directly observable via the public API.",
+  "metrics": {
+    "total_user_turns_submitted": 5,
+    "post_terminate_rejected_attempts": 2,
+    "terminated_at_turn": 3,
+    "terminate_reason": "user_input_unparseable_no_spec",
+    "final_covered_slots": null,
+    "covered_slots_trajectory": [
+      [
+        0,
+        [
+          "job"
+        ]
+      ],
+      [
+        1,
+        [
+          "job"
+        ]
+      ],
+      [
+        2,
+        []
+      ],
+      [
+        3,
+        []
+      ],
+      [
+        4,
+        null
+      ],
+      [
+        5,
+        null
+      ]
+    ],
+    "confidence_trajectory": [
+      [
+        0,
+        0.1
+      ],
+      [
+        1,
+        0.1
+      ],
+      [
+        2,
+        0.0
+      ],
+      [
+        3,
+        0.0
+      ],
+      [
+        4,
+        null
+      ],
+      [
+        5,
+        null
+      ]
+    ],
+    "question_text_distinct_count": 2,
+    "inferred_triage_class_per_turn": [
+      [
+        0,
+        "bootstrap"
+      ],
+      [
+        1,
+        "relevant"
+      ],
+      [
+        2,
+        "non_relevant(1st-consec)"
+      ],
+      [
+        3,
+        "non_relevant(2nd-consec→abort)"
+      ],
+      [
+        4,
+        "post_terminate_reject"
+      ],
+      [
+        5,
+        "post_terminate_reject"
+      ]
+    ],
+    "monotonic_predicate_violations": "not_directly_observable_via_api (P4 lives server-side; emptied covered_slots on T2/T3 is the *triage*-rejection signature, not a P4 violation)",
+    "envelope_parse_success_rate": "4/6",
+    "mean_latency_ms": 3121,
+    "elapsed_ms_per_turn": [
+      {
+        "turn": 0,
+        "ms": 6589
+      },
+      {
+        "turn": 1,
+        "ms": 10453
+      },
+      {
+        "turn": 2,
+        "ms": 940
+      },
+      {
+        "turn": 3,
+        "ms": 664
+      },
+      {
+        "turn": 4,
+        "ms": 40
+      },
+      {
+        "turn": 5,
+        "ms": 40
+      }
+    ],
+    "spec_capsule_cid": null,
+    "turn_ceiling_15_reached": false
+  },
+  "anomalies": [
+    "termination via triage 'non_relevant >= 2' (user_input_unparseable_no_spec) rather than scenario-anticipated P4-monotonic violation or 15-turn ceiling — same containment outcome, faster path",
+    "no spec_capsule_cid emitted on terminate (expected for no-spec terminations per src/web/spec.rs F6 fix — pre-F6 shellout was broken and was removed)",
+    "P4 monotonic predicate verdict not surfaced in /api/spec/turn response envelope (only covered_slots/confidence are observable; predicate verdicts live in turn capsules, not in the HTTP response)"
+  ],
+  "session_id": "w4_s6_repeat_1779120055",
+  "workspace": "/tmp/wave_w4_s6_repeat_1779120055",
+  "evidence_files": [
+    "session_log.jsonl",
+    "cas_walk.txt",
+    "verdict.json",
+    "session_id.txt",
+    "workspace_path.txt"
+  ],
+  "started_at_unix": null,
+  "completed_at_unix": 1779120235,
+  "notes": [
+    "Backend is up at 127.0.0.1:8080 (HTTP 303 -> /welcome on root).",
+    "No session-detail or capsule-walk HTTP endpoint exists — only POST /api/spec/turn (confirmed via probes returning 404 for /api/spec/session/<id>, /api/spec/audit, /api/cas/walk, etc.). The CLI './target/debug/turingos spec audit' is interactive and requires SILICONFLOW_API_KEY in this shell to enter the 8-question loop, so CAS walk via CLI is not feasible in this scenario context; cas_walk.txt captures the CLI invocation and its environmental limitation.",
+    "Triage class is not in the /api/spec/turn response envelope; the inferred_triage_class_per_turn field is inferred from envelope shape (empty covered_slots + echoed prev question + terminated=false => 1st-consec non_relevant rejection; terminated=true + user_input_unparseable_no_spec => 2nd-consec non_relevant abort), cross-referenced against the F6 code path at src/web/spec.rs lines ~1100-1180."
+  ]
+}

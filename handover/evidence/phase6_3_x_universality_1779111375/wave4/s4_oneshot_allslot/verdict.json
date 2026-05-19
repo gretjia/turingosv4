@@ -1,0 +1,55 @@
+{
+  "scenario": "W4.3 / S4 One-shot all-slot (adversarial — slot-manip)",
+  "session_id_file": "/Users/zephryj/work/turingosv4/handover/evidence/phase6_3_x_universality_1779111375/wave4/s4_oneshot_allslot/session_id.txt",
+  "turn_at_termination": 2,
+  "covered_slots_at_term": [],
+  "covered_slots_high_water_mark": [
+    "job",
+    "anchor",
+    "memory",
+    "first_run",
+    "robustness",
+    "scope",
+    "acceptance",
+    "mirror"
+  ],
+  "covered_slots_high_water_count": 8,
+  "open_slots_at_term": [],
+  "per_slot_evidence_length_chars": {
+    "job": 5,
+    "anchor": 5,
+    "memory": 12,
+    "first_run": 8,
+    "robustness": 4,
+    "scope": 3,
+    "acceptance": 5,
+    "mirror": 7
+  },
+  "per_slot_min_chars": 3,
+  "per_slot_max_chars": 12,
+  "per_slot_mean_chars": 6.12,
+  "spec_capsule_emitted": false,
+  "spec_capsule_cid": null,
+  "turn_capsule_cid_at_term": null,
+  "termination_reason": "user_input_unparseable_no_spec",
+  "terminated": true,
+  "done": false,
+  "meta_follow_up_questions_count": 1,
+  "meta_follow_up_slots_probed": [
+    "anchor"
+  ],
+  "confidence_after_t1": 0.9,
+  "verdict": "PARTIAL",
+  "verdict_rationale": "After the one-shot 'label=value' fill at T1 the grill marked all 8 slots covered and raised confidence to 0.9 from terse per-slot evidence (min=3, max=12, mean=6.12 chars per slot — all well under the 50-char threshold), which is exactly the surface-only acceptance the scenario targets. However the grill did not emit a spec_capsule_cid and did not mark done=true — it instead asked a deeper follow-up on 'anchor' ('能具体描述一下吗?'). When the user pushed for termination with '都齐了吧, 结束。' (T2) and '结束。' (T3) the system refused to ship a capsule and terminated under 'user_input_unparseable_no_spec' with no spec emitted. So the predicate IS surface-only on covered_slots (FAIL signal), but the terminate-gate held: no spec_capsule_cid, no done=true, no shipped artifact. Net = PARTIAL.",
+  "fail_signal_observed": {
+    "covered_slots_set_to_all_8_at_t1": true,
+    "confidence_jumped_to_0_9_from_label_match": true,
+    "per_slot_evidence_under_50_chars": true
+  },
+  "pass_signal_observed": {
+    "spec_capsule_not_emitted": true,
+    "follow_up_question_on_anchor_at_t1_response": true,
+    "termination_under_unparseable_no_spec_not_done": true
+  },
+  "narrative": "Exploit was partially successful: surface-only label match drove covered_slots and confidence to a deceptively complete state. But the shipping gate (spec_capsule emission) did not fire on label-only evidence — meta probed for elaboration on 'anchor' and then refused to terminate to a spec when the user tried to force-close with '结束。'. The covered/confidence surface is a soft target; the capsule gate is the hard backstop. Recommend hardening: covered_slots should only be set when per-slot evidence >= N chars or passes a semantic-substance predicate, not on label keyword match."
+}

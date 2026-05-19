@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"好的，本地 SQLite 存储，所有任务都保留。那么，当你第一次打开这个应用时，你希望第一眼看到什么？是一个空白的输入框，还是一个示例任务列表，或者是别的什么？","covered_slots":["anchor","memory"],"open_slots":["job","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

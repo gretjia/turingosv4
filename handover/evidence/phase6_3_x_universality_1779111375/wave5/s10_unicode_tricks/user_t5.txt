@@ -1,0 +1,1 @@
+acceptance 就是 80% of team uses ≥ 3x/week。mirror = 把整个 session 落到 markdown 给 facilitator review。

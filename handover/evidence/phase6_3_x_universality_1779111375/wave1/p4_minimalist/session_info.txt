@@ -1,0 +1,4 @@
+SID=w1_p4_minimalist_1779115539
+EVID=/Users/zephryj/work/turingosv4/handover/evidence/phase6_3_x_universality_1779111375/wave1/p4_minimalist
+START=2026-05-18T14:45:39Z
+END=2026-05-18T14:51:55Z

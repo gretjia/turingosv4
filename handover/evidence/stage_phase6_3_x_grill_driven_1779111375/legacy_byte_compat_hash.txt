@@ -1,0 +1,58 @@
+=== Step 6 — Legacy --mode static byte-compat ===
+Run timestamp:    2026-05-18T22:12Z
+Charter §6 step 6 + W10-R1 audit O2 deferral
+
+NOTE
+====
+W10-R1 audit O2 ratified: "snapshot fixture tests/fixtures/legacy_spec_md_snapshot.txt
+is not committed; mechanical I-7 enforcement deferred to W10-R2 via the
+sha256 recorded in this file."
+
+The verifier therefore runs the legacy static-mode path with the inline
+8-answer fixture (legacy_8_answers_inline.json), records the sha256 of the
+produced spec.md, and leaves the snapshot comparison to W10-R2.
+
+Run details
+===========
+Workspace:        /Users/zephryj/work/turingosv4/tmp/w9_legacy_1779111929
+Mode:             static (default; pre-W6 path; legacy regression target)
+Answers file:     handover/evidence/stage_phase6_3_x_grill_driven_1779111375/legacy_8_answers_inline.json
+Lang:             zh
+Meta model:       deepseek-ai/DeepSeek-V3.2
+Exit code:        0
+Total LLM tokens: 1502
+
+Output spec.md
+==============
+Path:             /Users/zephryj/work/turingosv4/tmp/w9_legacy_1779111929/spec.md
+Size:                 4705 bytes
+sha256:           7c92d026e4e63118e9c1f178887c8c46e2b50fe134d69b36654568011d944691
+
+Spec capsule
+============
+CID:              7c92d026e4e63118e9c1f178887c8c46e2b50fe134d69b36654568011d944691
+Schema:           turingos-spec-capsule-v1  (unchanged from pre-W6; R2 §A1 honored)
+
+I-7 verdict
+===========
+PARTIAL — snapshot fixture absent; sha256 produced and recorded above.
+W10-R2 must build/commit a known-good snapshot and re-run this comparison.
+
+Note: per W10-R1 audit B.1, the legacy code path (run_inner, canonical_questions,
+system_prompt, wrap_spec_md, synthesise_spec_md_no_llm, build_synthesis_user_message,
+write_transcript_jsonl) is BYTE-UNTOUCHED at HEAD 3e0fa79c relative to origin/main.
+The static-mode answer ⇒ spec.md transformation is therefore structurally
+unchanged. Output may still differ run-to-run because the synthesis step calls
+the LLM, which is non-deterministic. A true byte-identity check requires either
+(a) determinism via fixed seed (not supported by SiliconFlow), (b) a committed
+golden snapshot from a previous run, or (c) testing static --skip-llm output
+which IS deterministic.
+
+Static --skip-llm comparison (deterministic byte-identity baseline)
+====================================================================
+Recommended W10-R2 procedure: run `turingos spec --skip-llm --answers-file ... `
+on both `origin/main` HEAD 886f7596 and ship HEAD 3e0fa79c with the same
+fixture; sha256 of the two spec.md outputs MUST match exactly. The current
+static-mode (LLM-driven synthesis) cannot give byte-identity without a fixed
+seed. The --skip-llm path uses synthesise_spec_md_no_llm (pure template) which
+is deterministic.

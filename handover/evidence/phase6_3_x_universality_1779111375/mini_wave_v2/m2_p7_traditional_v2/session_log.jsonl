@@ -1,0 +1,95 @@
+{
+  "turn": 0,
+  "event": "bootstrap",
+  "http": 200,
+  "elapsed_ms": 8702,
+  "response": {
+    "turn_index": 1,
+    "question_text": "你好！请告诉我，你想要做一个什么样的小工具或小游戏？它主要是用来做什么的？",
+    "covered_slots": [],
+    "open_slots": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 1,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 10712,
+  "user_answer": "想做一個影片轉檔工具, 支援拖曳上傳, 輸出 mp4。介面用繁體中文, 伺服器放在 GCP 東京區。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "聽起來你想要一個影片轉檔工具，支援拖曳上傳並輸出 MP4。有沒有哪個現有的工具或網站，是你覺得「像它一樣」或可以參考的？",
+    "covered_slots": [
+      "job"
+    ],
+    "open_slots": [
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "confidence": 0.14,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 2,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 1234,
+  "user_answer": "錨點就是每個檔案的 SHA256 + 原檔名, 避免重複轉檔同一個檔。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "聽起來你想要一個影片轉檔工具，支援拖曳上傳並輸出 MP4。有沒有哪個現有的工具或網站，是你覺得「像它一樣」或可以參考的？",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 2,
+  "event": "answer_retry",
+  "http": 200,
+  "elapsed_ms": 1367,
+  "user_answer": "錨點就是每個檔案的 SHA256 + 原檔名, 避免重複轉檔同一個檔。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": true,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null,
+    "termination_reason": "user_input_unparseable_no_spec"
+  }
+}

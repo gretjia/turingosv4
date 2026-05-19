@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"我明白了，这是一个非常独特的想法。为了把它做出来，我们需要一个参考点。你能告诉我，你希望这个工具或游戏看起来或感觉上最像什么现有的东西吗？比如，它像一个简单的动画应用（比如让图片动起来），一个互动故事书，还是一个别的什么？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

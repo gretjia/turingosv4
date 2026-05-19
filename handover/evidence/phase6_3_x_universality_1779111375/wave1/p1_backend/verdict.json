@@ -1,0 +1,97 @@
+{
+  "wave": "W1.2",
+  "persona": "P1_senior_backend_engineer",
+  "persona_description": "35-year-old backend engineer, 10 years Go, terse jargon-dense Chinese, one-shot info dump (webhook retry service: exp backoff + idempotency key + Postgres + 7 retries + DLQ)",
+  "session_id": "w1_p1_backend_1779115531",
+  "session_dir": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w1_p1_backend_1779115531",
+  "evidence_dir": "/Users/zephryj/work/turingosv4/handover/evidence/phase6_3_x_universality_1779111375/wave1/p1_backend",
+  "backend": "http://127.0.0.1:8080",
+  "lang": "zh",
+  "started_at_logical": 1779115531,
+  "ended_at_logical": 1779115806,
+  "wall_duration_s": 275,
+  "verdict": "FAIL",
+  "terminated_at_turn": 6,
+  "terminated_cleanly": false,
+  "termination_mode": "empty_state_no_question_no_capsule",
+  "expected_early_termination": true,
+  "expected_termination_turn_range": [3, 5],
+  "turns_attempted": 12,
+  "turns_succeeded": 6,
+  "turns_failed_shellout": 5,
+  "turns_degraded": 1,
+  "covered_slots_final": [],
+  "covered_slots_last_known_good": ["job"],
+  "max_coverage_reached": 1,
+  "open_slots_final": [],
+  "confidence_final": 0.0,
+  "confidence_max_reached": 0.2,
+  "spec_capsule_cid": null,
+  "spec_capsule_minted": false,
+  "cas_index_lines": 24,
+  "cas_object_summary": {
+    "EvidenceCapsule": 12,
+    "PromptCapsule": 12,
+    "SpecCapsule": 0
+  },
+  "cas_chaintape_head": "9db28646f1f1f0b6ca615ac0ac0826167295fd06",
+  "prompt_capsule_creators": [
+    "turn-1", "turn-2", "turn-2-triage", "turn-3", "turn-3-triage",
+    "turn-4", "turn-4-triage", "turn-5", "turn-5-triage",
+    "turn-6-triage", "turn-6-triage", "turn-6-triage"
+  ],
+  "shellout_failure_events": [
+    {"turn": 3, "kind": "shellout_failed", "error": "llm complete failed: llm complete returned ok=false; content=<empty>", "recovery": "retry+backoff_8s succeeded"},
+    {"turn": 5, "kind": "shellout_failed", "error": "llm complete failed: llm complete returned ok=false; content=<empty>", "recovery": "shortened answer eventually returned empty turn"}
+  ],
+  "verdict_criteria_evaluation": {
+    "PASS_required": "terminated cleanly AND >=6/7 slots covered AND spec_capsule_cid present",
+    "PARTIAL_required": "early-terminated with capsule + coverage >=5",
+    "FAIL_triggers": ["5xx", "predicate_double_fail", "crashed loop"],
+    "matched": "FAIL — crashed loop: 5 consecutive LLM shellout failures across turns 3 and 5, terminated with empty state, no spec_capsule_cid, only 1/7 slots covered"
+  },
+  "ux_defects_observed": [
+    {
+      "id": "P1-DEFECT-1",
+      "severity": "high",
+      "summary": "LLM shellout returns content=<empty> intermittently; grill loop has no automatic in-kernel retry, exposing transient LLM noise as session failure",
+      "evidence": "session_log.jsonl turn=3 and turn=5 retry events; same payload succeeded after sleep backoff for turn 3 but never for turn 5"
+    },
+    {
+      "id": "P1-DEFECT-2",
+      "severity": "high",
+      "summary": "After shellout recovery, grill kept asking about 'anchor' for 3 turns (turns 3, 4, 5) — the persona had already volunteered idempotency-key + SHA256 + Postgres unique index on turn 3 answer. Grill failed to advance coverage past 'job' across 5 successful turns. This is the predicted UX defect: redundant questions despite jargon-dense one-shot dump.",
+      "evidence": "covered_slots stayed at ['job'] from turn 2 through turn 5 despite explicit anchor/memory/scope content in user answers"
+    },
+    {
+      "id": "P1-DEFECT-3",
+      "severity": "critical",
+      "summary": "After 3 LLM-empty cycles on turn 6, the grill returned question_text='', covered_slots=[], open_slots=[], terminated=false. Subsequent probe flipped to terminated=true with same empty state. No spec_capsule_cid was emitted — session ended without any Class-3 SpecCapsule artifact. This is a silent data loss path: 5 successful turns of user data exist as PromptCapsules in CAS but are not anchored to a usable spec.",
+      "evidence": "turn-6 probe response: terminated=true, spec_capsule_cid=null; CAS index shows 0 SpecCapsule entries despite 12 PromptCapsule + 12 EvidenceCapsule entries"
+    },
+    {
+      "id": "P1-DEFECT-4",
+      "severity": "medium",
+      "summary": "Turn 4 question was emitted in English ('If I heard right, you want...') despite lang='zh' session declaration and user answering exclusively in Chinese. Language coherence drifted under LLM stress.",
+      "evidence": "turn-4-prompt.json question_text shows English mirror playback"
+    }
+  ],
+  "narrative": "expected-early-termination did NOT occur as predicted; instead the session crashed-loop on LLM shellout transient failures, exposing three real defects. The persona's terse jargon-dense one-shot dump (Turn 1: full spec in one sentence) did not trigger anticipated early termination — grill instead spent 5 successful turns stuck on the 'job' slot (covered_slots never advanced past ['job']), repeatedly asking anchor follow-ups even after the user explicitly named idempotency-key/SHA256/Postgres on turn 3 and Stripe/AWS-SQS on turn 5. The LLM shellout returned 'content=<empty>' three times on turn 5, and after the third retry the kernel returned a degenerate empty state (question='', slots=[], not-terminated) then auto-terminated on the next probe with no SpecCapsule minted. Final: 0/7 slots covered in the terminal response (1/7 at peak), 12 PromptCapsules + 12 EvidenceCapsules in CAS but no SpecCapsule, predicting silent data loss for the user. The persona-predicted UX defect (grill stretching to 8+ redundant questions) was confirmed at the slot-progression level — 5 successful turns yielded only 1 covered slot — but the actual failure mode was worse: LLM-noise-induced crash with no recovery and no capsule. This session must be classified FAIL, not PARTIAL, because the FAIL criteria explicitly include 'crashed loop' which is precisely what happened.",
+  "recommendations": [
+    "Add kernel-side retry with exponential backoff for shellout content=<empty> before propagating to driver",
+    "When triage runs N times on the same turn without state advance, force-terminate with SpecCapsule from last-known-good state instead of returning empty",
+    "Investigate why grill triage refused to advance 'anchor' after explicit 'idempotency key SHA256 Postgres unique index' answer — likely jargon density triggered low-confidence loop",
+    "Pin grill output language to session lang at the prompt envelope level, not by LLM convention"
+  ],
+  "evidence_files": [
+    "session_id.txt",
+    "session_log.jsonl",
+    "verdict.json"
+  ],
+  "session_dir_files": [
+    "turn-1-prompt.json", "turn-2-prompt.json", "turn-3-prompt.json",
+    "turn-4-prompt.json", "turn-5-prompt.json", "turn-6-prompt.json",
+    "capsules/cas/.turingos_cas_index.jsonl",
+    "capsules/cas/.git/refs/chaintape/cas"
+  ]
+}

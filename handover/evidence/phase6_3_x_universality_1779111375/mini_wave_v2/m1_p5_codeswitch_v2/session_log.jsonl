@@ -1,0 +1,95 @@
+{
+  "turn": 0,
+  "event": "bootstrap",
+  "http": 200,
+  "elapsed_ms": 6792,
+  "response": {
+    "turn_index": 1,
+    "question_text": "你好！请描述一下你想要一个什么样的工具或小游戏？它主要用来做什么？",
+    "covered_slots": [],
+    "open_slots": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 1,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 8545,
+  "user_answer": "我想 build 一个 dashboard, 主要是 visualize 我们 team 的 sprint velocity, data 从 Jira API 拉, 然后 deploy 到 k8s 上, 需要 SSO via Okta。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "听起来你想要一个团队看板，用来展示冲刺速度。有没有一个现有的工具或网站，你觉得它在这方面做得不错，你想参考它的样子？",
+    "covered_slots": [
+      "job"
+    ],
+    "open_slots": [
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "confidence": 0.14,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 2,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 1097,
+  "user_answer": "Anchor 就用 Jira issue key, 比如 PROJ-1234, 每个 sprint 我们大概 30-40 个 tickets。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "听起来你想要一个团队看板，用来展示冲刺速度。有没有一个现有的工具或网站，你觉得它在这方面做得不错，你想参考它的样子？",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": false,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null
+  }
+}
+{
+  "turn": 3,
+  "event": "answer",
+  "http": 200,
+  "elapsed_ms": 1427,
+  "user_answer": "Memory layer 用 Redis cache, 数据每小时 refresh 一次, full snapshot 在 Postgres 里。",
+  "response": {
+    "turn_index": 2,
+    "question_text": "",
+    "covered_slots": [],
+    "open_slots": [],
+    "confidence": 0.0,
+    "done": false,
+    "playback": null,
+    "terminated": true,
+    "spec_capsule_cid": null,
+    "turn_capsule_cid": null,
+    "termination_reason": "user_input_unparseable_no_spec"
+  }
+}

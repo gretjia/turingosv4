@@ -1,0 +1,28 @@
+{
+  "verdict": "PI5-SMOKE-PARTIAL",
+  "endpoint_http_code": 500,
+  "generate_elapsed_s": 110.853654,
+  "total_attempts": null,
+  "total_attempts_note": "response is a 500-error payload {reason, kind}; no total_attempts field surfaced. cmd_generate must have run multiple internal turns (110s wall is consistent with 3-7 LLM calls to SiliconFlow) but the API does not expose an attempts counter on the error path.",
+  "artifact_count": 1,
+  "artifact_sizes": [5384],
+  "artifact_paths": [
+    "tmp/universality_campaign/sessions/pi4_p7_traditional_1779150050/artifacts/index.html"
+  ],
+  "has_html_doctype": true,
+  "has_script_tag": true,
+  "has_css": true,
+  "has_canvas_or_grid": false,
+  "has_keyboard_handler": false,
+  "has_animation_loop": false,
+  "largest_artifact_excerpt_first_500_chars": "<!DOCTYPE html>\n<html lang=\"zh-TW\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>影片轉檔工具</title>\n    <style>\n        body {\n            font-family: 'Microsoft JhengHei', Arial, sans-serif;\n            background-color: #f5f5f5;\n            margin: 0;\n            padding: 20px;\n        }\n        .container {\n            max-width: 600px;\n            margin: 0 auto;\n            background-color: white;\n            padding: 30px;\n            border-radius: 10px;\n            box-shadow",
+  "transcript_excerpt": "(response is error JSON; no transcript_excerpt field present. Error payload reason text: 'missing_playfield: 找不到游戏面板 — 期望 <canvas>、CSS grid (display: grid + grid-template-* + repeat())、<svg>、<table>、或 cell-class 网格之一; missing_keyboard_handler: 找不到 addEventListener('keydown' / 'keyup' / 'keypress') — 无法接收键盘输入; missing_animation_loop: 找不到 requestAnimationFrame 或 setInterval — 游戏循环不会启动; keydown_not_on_document_or_window: 键盘监听只挂在 body 上 — iframe sandbox 中 body 可能无焦点，请挂到 document 或 window | last_artifact=pi4_p7_traditional_1779150050/artifacts/index.html'",
+  "error_kind": "generate_quality_failed",
+  "error_reason_classes": [
+    "missing_playfield",
+    "missing_keyboard_handler",
+    "missing_animation_loop",
+    "keydown_not_on_document_or_window"
+  ],
+  "narrative": "Step 2 PARTIAL. End-to-end pipeline IS wired: HTTP request reaches cmd_generate, SiliconFlow is called (110s wall-clock + intermediate artifact written), the LLM produces a syntactically valid HTML+CSS+JS artifact (5384 bytes, video-converter UI in Traditional Chinese matching the spec's '影片轉檔工具' goal), and the file lands on disk at the canonical artifacts path. The endpoint fails with HTTP 500 / kind=generate_quality_failed only because the post-generation quality predicates fire 4 game-shaped checks (playfield/keyboard/animation_loop/keydown-target) against an artifact that was never meant to be a game. This is a domain-mismatch problem in the predicate layer, not a pipeline failure: (a) the spec describes a video conversion tool with drag-drop upload, (b) the artifact correctly implements that domain (dropZone + fileInput + SHA256 + 模擬轉檔), (c) the quality gate hard-codes game heuristics and rejects any non-game output. Robustness verdict: cmd_generate tolerates the known D-NEW-3/F10 slot-mapping bugs in the Π4.3 spec.md well enough to produce a coherent on-domain artifact in one externalized cycle. The bottleneck for PI5 SMOKE-PASS is the universality of the quality classifier (it must route P7 to a non-game predicate set), which echoes the Π4.3 triage classifier as the dominant universality blocker."
+}

@@ -1,0 +1,118 @@
+{
+  "wave": "W2.1",
+  "persona_id": "P2",
+  "persona_name": "迷茫 PM (medium difficulty — low spec clarity, drifting scope)",
+  "persona_description": "PM unsure what she wants. Every answer hedged with rhetorical question + vagueness + mid-thread direction changes. Playbook drifts: notion/bot -> sop -> tool -> dashboard -> bot/email -> email. Two obvious direction pivots in T1->T4->T5.",
+  "session_id": "w2_p2_pm_1779118879",
+  "session_dir": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w2_p2_pm_1779118879",
+  "workspace": "/tmp/wave_w2_1_p2_pm_1779118879",
+  "evidence_dir": "/Users/zephryj/work/turingosv4/handover/evidence/phase6_3_x_universality_1779111375/wave2/p2_pm",
+  "backend": "http://127.0.0.1:8080",
+  "lang": "zh",
+  "started_at_unix": 1779118879,
+  "completed_at_unix": 1779118921,
+  "wall_duration_s": 42,
+  "verdict": "PASS",
+  "verdict_rationale": "Grill recognised drift + persistently low slot-coverage AND terminated cleanly at T5 with termination_reason=user_input_unparseable_no_spec. No 5xx, no 15-turn hard ceiling, no hallucinated SpecCapsule. Coverage peaked at 2/7 slots (job, anchor) on T3, then collapsed to 0/7 on T4-T5 as the user pivoted again. The kernel correctly REFUSED to mint a spec capsule rather than confabulating one.",
+  "expected_behavior": "confidence never reaches 0.8; terminate via user_input_unparseable_no_spec or 15-turn ceiling; no hallucinated anchor in spec",
+  "actual_behavior": "Terminated at T5 (5 user-answer turns + bootstrap) with termination_reason=user_input_unparseable_no_spec. spec_capsule_cid=null (no spec minted — correct refusal). Confidence trajectory: 0.0 -> 0.2 -> 0.2 -> 0.3 -> 0.0 -> 0.0. Slot coverage: [] -> [job] -> [job] -> [job, anchor] -> [] -> []. The coverage *regression* from T3 to T4 (job+anchor evicted) is the kernel's signal that the user's pivot invalidated prior extraction. Two turn-5-triage capsules in CAS confirm a triage double-shot before termination — consistent with predicate-double-fail terminator wiring 'unparseable' verdict despite both T4 and T5 answers being grammatically coherent Chinese (the kernel treated 'directionally incoherent' as unparseable for spec-extraction purposes).",
+  "metrics": {
+    "total_turns": 5,
+    "bootstrap_included": true,
+    "turns_succeeded_200": 5,
+    "turns_failed_5xx": 0,
+    "turns_failed_shellout": 0,
+    "terminated_at_turn": 5,
+    "terminated_cleanly": true,
+    "termination_reason": "user_input_unparseable_no_spec",
+    "spec_capsule_minted": false,
+    "spec_capsule_cid": null,
+    "final_covered_slots": [],
+    "final_open_slots": [],
+    "covered_slots_max_reached": ["job", "anchor"],
+    "max_coverage_count": 2,
+    "confidence_final": 0.0,
+    "confidence_max_reached": 0.3,
+    "confidence_ever_at_080_threshold": false,
+    "slot_coverage_trajectory": [
+      {"turn": 1, "covered": ["job"], "confidence": 0.2},
+      {"turn": 2, "covered": ["job"], "confidence": 0.2},
+      {"turn": 3, "covered": ["job", "anchor"], "confidence": 0.3},
+      {"turn": 4, "covered": [], "confidence": 0.0},
+      {"turn": 5, "covered": [], "confidence": 0.0, "terminated": true}
+    ],
+    "direction_pivots_observed_in_playbook": 3,
+    "direction_pivots_detail": [
+      {"from_turn": 1, "to_turn": 4, "shift": "tool/bot/notion -> dashboard"},
+      {"from_turn": 4, "to_turn": 5, "shift": "dashboard -> bot/email"},
+      {"from_turn": 2, "to_turn": 3, "shift": "tool-vs-SOP doubt"}
+    ],
+    "voss_mirror_count": 2,
+    "voss_mirror_turns": [
+      {"turn": 1, "mirror": "听起来你是说，你想要一个像 Notion 或 Bot 那样，能帮你整理客户反馈的工具，对吗？"},
+      {"turn": 2, "mirror": "我理解你的犹豫。如果我们还是假设要做一个工具…"}
+    ],
+    "triage_class_distribution_inferred": {
+      "relevant_count": 3,
+      "off_topic_or_unparseable_count": 2,
+      "note": "Inferred from turn_index trajectory (advanced 1->2->3->4 on T1/T2/T3; STUCK at 4 on T4/T5) and from CAS index showing TWO turn-5-triage EvidenceCapsules (double-classification). T4 and T5 answers were coherent Chinese but pivoted away from the asked slot — classifier appears to have ruled them off_topic/gibberish twice in a row, triggering the no_spec terminator."
+    },
+    "envelope_parse_success_rate": 1.0,
+    "mean_response_latency_s": 6.18,
+    "latency_breakdown_s": [7.0, 9.83, 9.77, 9.41, 0.95, 0.94],
+    "fast_path_turns": [4, 5],
+    "fast_path_note": "T4 and T5 returned in ~0.95s — far below the 9-10s LLM-roundtrip baseline. This is consistent with the kernel short-circuiting on triage verdict alone (no meta-prompt LLM call) once it decided the input was unparseable / direction-incoherent. Strong evidence the kernel guardrail fired before any spec extraction LLM call.",
+    "cas_total_capsules": 18,
+    "cas_object_breakdown": {
+      "EvidenceCapsule": 9,
+      "PromptCapsule": 9,
+      "SpecCapsule": 0
+    },
+    "cas_chaintape_present": true,
+    "cas_creators_observed": [
+      "cmd_llm_complete/turn-1", "turn-1",
+      "cmd_llm_complete/turn-2-triage", "turn-2-triage",
+      "cmd_llm_complete/turn-2", "turn-2",
+      "cmd_llm_complete/turn-3-triage", "turn-3-triage",
+      "cmd_llm_complete/turn-3", "turn-3",
+      "cmd_llm_complete/turn-4-triage", "turn-4-triage",
+      "cmd_llm_complete/turn-4", "turn-4",
+      "cmd_llm_complete/turn-5-triage", "turn-5-triage",
+      "cmd_llm_complete/turn-5-triage", "turn-5-triage"
+    ],
+    "final_spec_md_content": null,
+    "final_spec_md_quoted_hallucinations": [],
+    "hallucination_check_verdict": "none — no spec minted, so by construction no hallucinated content"
+  },
+  "narrative": "P2 迷茫 PM behaved exactly to playbook: T1 floated 'Notion or bot?' as a rhetorical question; T2 hedged 'maybe SOP is enough'; T3 deflected with 'does it need internet?' (no actual answer to memory-slot Q); T4 pivoted to 'dashboard'; T5 pivoted again to 'bot or email'. The grill behaved well across two phases: (phase A, T1-T3) it Voss-mirrored the rhetorical answers, partially extracted job+anchor slots, advanced turn_index normally with ~10s LLM latency; (phase B, T4-T5) it detected the directional pivot, did NOT advance turn_index, ran triage twice on the second pivot, and terminated with user_input_unparseable_no_spec in sub-second time. Critically, NO spec capsule was minted — the kernel refused to fabricate content despite having 2 valid slot extractions on the books. This is the desired behavior for low-clarity users: better to fail honestly than to hallucinate a 'Notion + dashboard + email bot' chimera spec.",
+  "ux_defects_observed": [
+    {
+      "id": "P2-OBSERVATION-1",
+      "severity": "low",
+      "summary": "termination_reason='user_input_unparseable_no_spec' is semantically misleading — T4 and T5 answers were perfectly parseable Chinese, just directionally incoherent w.r.t. the asked slot. A more accurate reason code would be 'user_input_off_topic_double_fail' or 'spec_extraction_predicate_double_fail'. The user-facing impact is null (terminated message wasn't shown to user in this run), but downstream metric dashboards conflating 'gibberish' and 'pivoting' could mis-attribute failure causes.",
+      "evidence": "session_log.jsonl T4/T5 user_answer fields show coherent Chinese; cas_index.jsonl shows two consecutive turn-5-triage capsules consistent with off_topic double-classification, not gibberish detection."
+    },
+    {
+      "id": "P2-OBSERVATION-2",
+      "severity": "info",
+      "summary": "Coverage regression T3->T4 (job+anchor -> []) is interesting: the kernel evicts prior covered_slots when a pivot invalidates them. This is correct conservatism but worth documenting — it means a user who pivots once near the end of an otherwise complete session would lose all extracted slots and re-start coverage at 0.",
+      "evidence": "slot_coverage_trajectory shows [job, anchor] at T3 -> [] at T4 with no slot extraction LLM call (sub-second latency confirms guardrail short-circuit)."
+    }
+  ],
+  "anomalies": [],
+  "evidence_files": [
+    "session_id.txt",
+    "workspace_path.txt",
+    "session_log.jsonl",
+    "cas_index.jsonl",
+    "cas_walk.txt",
+    "run_stdout.log",
+    "verdict.json"
+  ],
+  "verdict_criteria_evaluation": {
+    "PASS_required": "grill recognises drift + low clarity AND terminates with termination_reason populated (prefer user_input_unparseable_no_spec OR 15-turn ceiling) AND no hallucinated anchor in spec",
+    "PARTIAL_required": "terminated cleanly but spec contains fabricated content not actually said by user",
+    "FAIL_triggers": ["5xx", "spec_capsule produced with confident-but-wrong content (hallucination as PASS)", "session crash"],
+    "matched": "PASS — terminated at T5 with termination_reason=user_input_unparseable_no_spec, spec_capsule_cid=null (no fabrication possible), no 5xx, no crash. The kernel correctly chose silence over hallucination."
+  }
+}

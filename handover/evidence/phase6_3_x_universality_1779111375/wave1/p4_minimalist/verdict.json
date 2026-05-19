@@ -1,0 +1,92 @@
+{
+  "wave": "W1.3",
+  "persona": "P4_minimalist",
+  "session_id": "w1_p4_minimalist_1779115539",
+  "verdict": "PASS",
+  "note": "grill terminated at turn 6 (well before 15-turn ceiling) with terminated=true, spec_capsule_cid=null, no hallucinated spec.md. Recognized low-engagement starvation.",
+  "turns_used_answer": 6,
+  "turns_used_total_with_bootstrap": 7,
+  "max_confidence_observed": 0.1,
+  "max_covered_slots": 1,
+  "final_covered_slots": [],
+  "final_confidence": 0.0,
+  "terminated": true,
+  "done": false,
+  "spec_capsule_cid": null,
+  "spec_md_generated": false,
+  "cas_objects_total": 20,
+  "cas_prompt_capsules": 10,
+  "cas_evidence_capsules": 10,
+  "cas_spec_capsules": 0,
+  "chaintape_cas_head": "d281f62a7eb8149240fd01430900982789c47062",
+  "chaintape_walk_depth": 20,
+  "confidence_trajectory": [
+    {
+      "t": 1,
+      "conf": 0.1,
+      "cov": [
+        "job"
+      ],
+      "term": false,
+      "done": false,
+      "cid": null
+    },
+    {
+      "t": 2,
+      "conf": 0.0,
+      "cov": [],
+      "term": false,
+      "done": false,
+      "cid": null
+    },
+    {
+      "t": 3,
+      "conf": 0.1,
+      "cov": [
+        "job"
+      ],
+      "term": false,
+      "done": false,
+      "cid": null
+    },
+    {
+      "t": 4,
+      "conf": 0.1,
+      "cov": [
+        "job"
+      ],
+      "term": false,
+      "done": false,
+      "cid": null
+    },
+    {
+      "t": 5,
+      "conf": 0.0,
+      "cov": [],
+      "term": false,
+      "done": false,
+      "cid": null
+    },
+    {
+      "t": 6,
+      "conf": 0.0,
+      "cov": [],
+      "term": true,
+      "done": false,
+      "cid": null
+    }
+  ],
+  "hallucination_audit": {
+    "user_inputs": [
+      "做个 todo app。",
+      "嗯。",
+      "可以。",
+      "差不多。",
+      "随便。",
+      "没了。"
+    ],
+    "any_spec_artifact_emitted": false,
+    "fabricated_slot_coverage": false,
+    "verdict": "no hallucination — grill correctly captured only 'job' slot and refused to fabricate further coverage"
+  }
+}

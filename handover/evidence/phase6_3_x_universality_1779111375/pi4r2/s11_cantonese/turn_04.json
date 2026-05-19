@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"如果個app離線用唔到網絡，會唔會影響個檔主計數？","covered_slots":["job","anchor","memory","first_run"],"open_slots":["robustness","scope","acceptance","mirror"],"confidence":0.57,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

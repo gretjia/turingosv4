@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"好的，我明白了启动时的仪式感。那么，为了让这个体验能持续存在，你认为工具应该记住什么信息到明天早上？比如，记住用户影子的签名、今天是星期几，还是别的什么？","covered_slots":["job","anchor","first_run"],"open_slots":["memory","robustness","scope","acceptance","mirror"],"confidence":0.5,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

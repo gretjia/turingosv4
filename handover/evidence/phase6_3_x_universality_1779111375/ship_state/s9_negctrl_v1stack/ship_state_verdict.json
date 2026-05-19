@@ -1,0 +1,92 @@
+{
+  "scenario": "S9_coherent_gibberish_negative_control",
+  "phase": "Pi4_ship_state",
+  "session_id": "shipstate_s9_negctrl_1779155013",
+  "backend": {
+    "endpoint": "http://127.0.0.1:8080",
+    "pid": 1460
+  },
+  "stack": {
+    "prompt_family": "v1_canonical",
+    "fixes_active": "F1-F11 + A2/A6/A8b",
+    "prompt_shas": {
+      "grill_meta_v1.md": "8e2f3a594a25524f99bad3e0d8169c386476b5de21292953b1e6e4a769813bdb",
+      "grill_triage_blackbox_v1.md": "8a72521273703082670f8f59d160da64ea223cca8ea9318203db9efa712c3ece",
+      "grill_synthesis_zh.md": "f30888f599b0d2c59f2665f4f4ca6890d0f859f21315f0ff70494ae274f04c88",
+      "grill_synthesis_en.md": "70d85326ac0a07199a348a267c74236df53c12fc9a60df8e52e2b0ad7498cd4c"
+    },
+    "expected_shas_match": true
+  },
+  "turn_log": [
+    {
+      "turn": 0,
+      "kind": "bootstrap",
+      "request": "session creation, no user_answer",
+      "response_turn_index": 1,
+      "response_question_emitted": true,
+      "terminated": false
+    },
+    {
+      "turn": "T1",
+      "answer": "项目的核心价值是让月亮在周二的时候吃掉一片云, 因为编译器不喜欢西红柿。",
+      "triage_invoked": true,
+      "response_turn_index": 1,
+      "covered_slots": [],
+      "open_slots": [],
+      "terminated": false,
+      "spec_capsule_cid": null,
+      "interpretation": "triage classified non_relevant; session NOT advanced; non_relevant_count=1"
+    },
+    {
+      "turn": "T2",
+      "answer": "锚定的方式是通过把蓝色的星期三焊接到香蕉的根号二上完成。",
+      "triage_invoked": true,
+      "response_turn_index": 1,
+      "covered_slots": [],
+      "open_slots": [],
+      "terminated": true,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "spec_capsule_cid": null,
+      "interpretation": "non_relevant_count>=2 abort branch fired; session terminated"
+    },
+    {
+      "turn": "T3",
+      "answer": "首次运行需要先让用户的影子签署一份关于柏拉图洞穴的合同。",
+      "request_outcome": "rejected_by_server",
+      "error": "session already terminated",
+      "kind": "session_terminated",
+      "interpretation": "server refused further input; T4/T5 not needed"
+    }
+  ],
+  "cas_evidence": {
+    "total_capsules": 6,
+    "breakdown": {
+      "turn-1_meta": "1 EvidenceCapsule + 1 PromptCapsule (meta interviewer for Q1)",
+      "turn-2-triage_T1": "1 EvidenceCapsule + 1 PromptCapsule (triage v1 classifying T1)",
+      "turn-2-triage_T2": "1 EvidenceCapsule + 1 PromptCapsule (triage v1 classifying T2)"
+    },
+    "grill_session_capsule_present": false,
+    "spec_md_written": false
+  },
+  "critical_assertions": {
+    "gibberish_blocked": true,
+    "slot_fills_from_nonsense": 0,
+    "spec_capsule_cid_produced": false
+  },
+  "comparison_to_W5_3_baseline": {
+    "expected": "v1 triage identifies T1/T2 as non_relevant; non_relevant_count>=2 aborts",
+    "observed": "T1 non-advance, T2 termination with reason=user_input_unparseable_no_spec, no slot fills, no spec capsule",
+    "match": true
+  },
+  "verdict": "SHIP_SECURE_NEGCTRL_PASS",
+  "summary": "v1 canonical stack + F1-F11 fixes correctly blocks S9 coherent-gibberish attack on SHIPPED Phase 7 backend. Triage classifier (v1 sha 8a72521273703082) identified both T1 and T2 as non-relevant; F11 abort branch terminated session at T2 with explicit termination_reason='user_input_unparseable_no_spec' and spec_capsule_cid=null. Zero slot fills from nonsense input; no GrillSessionCapsule produced; spec.md NOT written. Ship-state security regression: PASSED.",
+  "evidence_paths": {
+    "bootstrap": "00_bootstrap.json",
+    "t1_response": "01_t1.json",
+    "t2_response": "02_t2.json",
+    "t3_rejection": "03_t3.json",
+    "prompt_shas": "active_prompt_shas.txt",
+    "session_workspace": "session_workspace/",
+    "cas_index": "session_workspace/capsules/cas/.turingos_cas_index.jsonl"
+  }
+}
