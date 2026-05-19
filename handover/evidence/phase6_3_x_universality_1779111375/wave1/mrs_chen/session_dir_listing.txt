@@ -1,0 +1,9 @@
+total 64
+drwxr-xr-x@  8 zephryj  staff   256 May 18 22:57 .
+drwxr-xr-x@ 13 zephryj  staff   416 May 18 22:57 ..
+drwxr-xr-x@  3 zephryj  staff    96 May 18 22:55 capsules
+-rw-r--r--@  1 zephryj  staff  3855 May 18 22:55 turn-1-prompt.json
+-rw-r--r--@  1 zephryj  staff  4008 May 18 22:56 turn-2-prompt.json
+-rw-r--r--@  1 zephryj  staff  4123 May 18 22:57 turn-3-prompt.json
+-rw-r--r--@  1 zephryj  staff  4234 May 18 22:57 turn-4-prompt.json
+-rw-r--r--@  1 zephryj  staff  4192 May 18 22:57 turn-5-prompt.json

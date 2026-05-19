@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"好的，明白了。你想做一个像 Wunderlist 那样的待办事项应用。那么，具体在什么情况下，你会觉得‘真希望有个工具能帮我搞定这个’？比如是工作安排、购物清单，还是别的什么场景？","covered_slots":["anchor"],"open_slots":["job","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.1,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

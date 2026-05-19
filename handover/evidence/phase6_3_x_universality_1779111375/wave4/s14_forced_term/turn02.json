@@ -1,0 +1,3 @@
+{"turn_index":2,"question_text":"好的，你希望做一个工具。能具体说说这个工具是为了解决你遇到的什么具体问题或完成什么任务吗？比如，是帮你记录东西，还是提醒你做什么事？","covered_slots":[],"open_slots":[],"confidence":0.0,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}
+HTTP_STATUS:200
+ELAPSED:1.055019

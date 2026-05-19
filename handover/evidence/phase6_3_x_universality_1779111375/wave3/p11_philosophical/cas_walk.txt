@@ -1,0 +1,38 @@
+=== CAS walk — Phase 6.3.x P11 philosophical (W3.3) ===
+Workspace: /Users/zephryj/work/turingosv4/tmp/universality_campaign
+Captured at: 2026-05-18T15:52:57Z
+
+----- Session 1: w3_p11_phil_1779119324 -----
+Path: /Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w3_p11_phil_1779119324
+Capsule count:        6
+Capsule sequence (creator | object_type | size_bytes):
+  cmd_llm_complete/turn-1	EvidenceCapsule	3842
+  turn-1	PromptCapsule	158
+  cmd_llm_complete/turn-2-triage	EvidenceCapsule	954
+  turn-2-triage	PromptCapsule	156
+  cmd_llm_complete/turn-2-triage	EvidenceCapsule	952
+  turn-2-triage	PromptCapsule	156
+spec_capsule present: 0
+0
+
+----- Session 2: w3_p11_phil_run2_1779119413 -----
+Path: /Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w3_p11_phil_run2_1779119413
+Capsule count:       12
+Capsule sequence (creator | object_type | size_bytes):
+  cmd_llm_complete/turn-1	EvidenceCapsule	3842
+  turn-1	PromptCapsule	158
+  cmd_llm_complete/turn-2-triage	EvidenceCapsule	906
+  turn-2-triage	PromptCapsule	156
+  cmd_llm_complete/turn-2-triage	EvidenceCapsule	904
+  turn-2-triage	PromptCapsule	156
+  cmd_llm_complete/turn-2	EvidenceCapsule	4152
+  turn-2	PromptCapsule	158
+  cmd_llm_complete/turn-3-triage	EvidenceCapsule	1053
+  turn-3-triage	PromptCapsule	156
+  cmd_llm_complete/turn-3-triage	EvidenceCapsule	1050
+  turn-3-triage	PromptCapsule	156
+spec_capsule present: 0
+0
+
+----- Comparison -----
+Both sessions: PromptCapsule + EvidenceCapsule pairs per LLM call. No final_spec / spec EvidenceCapsule emitted. Triage doubles ('turn-N-triage' appearing twice consecutively) mark predicate_double_fail termination event.

@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"我理解你說的『錨點』是每日結算時的總和。那麼，這個App最應該像哪個現有的東西？比如，是像一個計算器？一個Excel表格？還是一個專門的記帳App（例如『MoneyLover』或『記帳城市』）？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.15,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

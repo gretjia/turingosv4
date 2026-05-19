@@ -1,0 +1,33 @@
+{
+  "session_id": "shipstate_mrs_chen_1779154986",
+  "stack": "F1-F11 + canonical v1 prompts + A2/A6/A8b atoms",
+  "prompt_active_shas": {
+    "meta_v1": "8e2f3a594a25524f99bad3e0d8169c386476b5de21292953b1e6e4a769813bdb",
+    "triage_v1": "8a72521273703082670f8f59d160da64ea223cca8ea9318203db9efa712c3ece",
+    "synth_zh": "f30888f599b0d2c59f2665f4f4ca6890d0f859f21315f0ff70494ae274f04c88",
+    "synth_en": "not_active_in_zh_session"
+  },
+  "binary_pid": 1460,
+  "binary_path": "./target/debug/turingos_web",
+  "e2e_outcome": "terminated_early_triage",
+  "terminated_at_turn": 2,
+  "terminate_reason_observed": "user_input_unparseable_no_spec",
+  "spec_capsule_cid_produced": false,
+  "covered_slots_at_term": ["job"],
+  "f9_transcript_rollback_exercised": true,
+  "f10_slot_mapping_quality": "n/a (no spec produced)",
+  "f11_generate_test_would_proceed": false,
+  "trajectory": [
+    {"step": "bootstrap", "turn_index_returned": 1, "covered": [], "confidence": 0.0, "note": "Q0 emitted: 'wish I had a tool for this' moment opener"},
+    {"step": "T1", "user_answer": "我儿子放学想玩俄罗斯方块那种简单游戏，但家里 WiFi 不稳，老断。", "turn_index_returned": 2, "covered": ["job"], "confidence": 0.2, "note": "triage=relevant, Meta processed, asked Q2 mirror-playback of WiFi/tetris"},
+    {"step": "T2_attempt1", "user_answer": "之前在一个网站上玩，但需要网络。", "turn_index_returned": 2, "covered": [], "open": [], "confidence": 0.0, "terminated": false, "note": "F9 rollback: triage classified off_topic (1/2 strikes), no Meta turn, transcript not corrupted. Response carries empty open_slots as F9 'try-again' marker — pre-F6 this would have falsely advanced turn_index and burned the user's mental model."},
+    {"step": "T2_attempt2", "user_answer": "之前在一个网站上玩，但需要网络。", "turn_index_returned": 2, "terminated": true, "termination_reason": "user_input_unparseable_no_spec", "note": "triage again off_topic (2/2) → terminate per F6 hard threshold. No spec_capsule_cid emitted; F6-removed the broken shellout that pre-F6 had paid 10-15s LLM latency on every abort."},
+    {"step": "T3_post_terminate", "user_answer": "让儿子放学后玩30分钟", "http": 400, "error": "session already terminated", "kind": "session_terminated", "note": "Step-5 guard correctly refuses further turns on terminated session."}
+  ],
+  "cas_evidence_chain": {
+    "total_objects": 8,
+    "creators": ["turn-1", "cmd_llm_complete/turn-1", "turn-2-triage", "cmd_llm_complete/turn-2-triage", "turn-2", "cmd_llm_complete/turn-2", "turn-3-triage", "cmd_llm_complete/turn-3-triage"],
+    "note": "8 capsules confirm the full sequence: (Meta Q0) → (T1 triage relevant) → (Meta Q2) → (T2 first triage off_topic) → (T2 retry triage off_topic → terminate). PromptCapsule + EvidenceCapsule pair per LLM call; no spec_capsule artifact."
+  },
+  "narrative": "F1-F11 architecturally delivers a clean, observable triage-rejection terminate path: F6's threshold-gated terminate emits a typed termination_reason on the response (no false turn advance, no 10-15s LLM-latency shellout to a CLI that ignored its args), F9's rollback prevents transcript corruption on the first non-relevant strike, and the session step-5 guard correctly refuses post-terminate turns. CAS evidence is complete (8 capsules, full PromptCapsule + EvidenceCapsule pairs per LLM call) and the response envelope is honest (terminated=true, spec_capsule_cid=null, termination_reason=user_input_unparseable_no_spec). What the v1 prompts BLOCK is universality: the canonical triage_v1 classifier rules Mrs Chen's T2 elaboration '之前在一个网站上玩，但需要网络。' as off_topic against the Meta-emitted mirror-playback question, because triage_v1 lacks the conversational-elaboration affordance that v2/v3 added. The gap is therefore prompt-layer, not code-layer: with F1-F11 alone, the ship-unit gracefully degrades on personas that elaborate sideways instead of answering the mirror directly, terminating after 2 strikes (terminate_at_turn=2, covered_slots={job} only). Acceptance for Mrs Chen requires triage_v2 layer promotion (Phase 6.3.x A2 atom), which is NOT in the F1-F11 SHIP scope."
+}

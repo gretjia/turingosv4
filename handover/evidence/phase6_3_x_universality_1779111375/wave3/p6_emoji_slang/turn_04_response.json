@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"听起来你是说，这个工具的核心是像微信群收款，但每一笔账都要关联一个外卖订单截图或订单号作为凭证，这样对账才清楚，对吗？那么，明天你打开这个App时，你最希望看到什么内容？是最近的一笔待分摊账单，还是一个所有室友的欠款总览？","covered_slots":["job","anchor"],"open_slots":["memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

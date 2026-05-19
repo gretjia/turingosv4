@@ -59,7 +59,7 @@ use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
-use super::spec::{spec_questions_handler, spec_submit_handler};
+use super::spec::{spec_questions_handler, spec_submit_handler, spec_turn_handler};
 use super::store::TaskMemoryStore;
 use super::welcome::{
     welcome_agent_deploy_handler, welcome_init_handler, welcome_llm_config_handler,
@@ -100,6 +100,7 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         broadcast_tx: tx,
         task_store: std::sync::Arc::new(TaskMemoryStore::new()),
         api_key: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        sessions: std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
     };
 
     Router::new()
@@ -126,6 +127,8 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         // Spec interview routes (W5): GET questions + POST submit
         .route("/api/spec/questions", get(spec_questions_handler))
         .route("/api/spec/submit", post(spec_submit_handler))
+        // Phase 6.3.x driven-mode grill turn route (W7)
+        .route("/api/spec/turn", post(spec_turn_handler))
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type

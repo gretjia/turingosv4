@@ -1,0 +1,31 @@
+{
+  "captured_at": "2026-05-18T22:14Z",
+  "tab_url": "http://localhost:8080/build?mode=driven",
+  "tab_id": 635793985,
+  "messages": [
+    {
+      "ts": "21:48:19",
+      "level": "INFO",
+      "source": "http://localhost:8080/static/main.js:2495:10",
+      "text": "TuringOS frontend ready, view: build"
+    },
+    {
+      "ts": "22:13:39",
+      "level": "EXCEPTION",
+      "source": "http://localhost:8080/build?mode=driven:0:0",
+      "text": "Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received",
+      "note": "Chrome extension MV3 noise (origin :0:0 = no script frame); NOT a TuringOS frontend error. Same message appeared 5x; tab-extension messaging artifact."
+    },
+    {
+      "ts": "22:13:54",
+      "level": "INFO",
+      "source": "http://localhost:8080/static/main.js:2495:10",
+      "text": "TuringOS frontend ready, view: build",
+      "note": "Second mount after navigate."
+    }
+  ],
+  "page_level_errors": 0,
+  "page_level_warnings": 0,
+  "extension_exceptions": 9,
+  "verdict": "Zero page-level JS errors observed across both browser sessions (initial navigate + retry-after-restart). The 9 EXCEPTION lines are Chrome extension messaging artifacts (origin = :0:0, not the spec-grill component); they pre-date W6/W7 and appear on every page load in this MCP-driven Chrome instance."
+}

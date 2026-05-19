@@ -13,10 +13,19 @@
 //! Cost: ~¥0.45 per game-build session at default traffic.
 //!
 //! API key value is NEVER stored on disk — only the env-var NAME holding it.
+//!
+//! Phase 6.3.x W4: adds `complete` sub-action — thin async LLM call wrapper
+//! with PromptCapsule CAS anchoring and optional strict-JSON envelope
+//! validation via `grill_envelope::parse_and_validate`.
 
+use std::collections::BTreeSet;
 use std::fs;
+use std::io::Read as IoRead;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::time::Instant;
+
+use sha2::{Digest, Sha256};
 
 use crate::common::shell_quote_path;
 use crate::siliconflow_client::{DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
@@ -35,6 +44,32 @@ USAGE:
                         [--blackbox-model <MODEL>]
                         [--api-key-env <ENV_VAR>]
     turingos llm show   --workspace <PATH>
+    turingos llm complete
+                        --workspace <PATH>
+                        [--role <meta|blackbox>]
+                        [--prompt-file <PATH|-]
+                        [--max-tokens <N>]
+                        [--temperature <FLOAT>]
+                        [--capsule-dir <PATH>]
+                        [--turn-id <STRING>]
+                        [--strict-json]
+                        [--lang <zh|en>]
+                        [--meta-prompt <PATH>]
+    turingos llm triage
+                        --workspace <PATH>
+                        --user-answer <STRING|-]
+                        [--question <STRING>]
+                        [--lang <zh|en>]
+                        [--capsule-dir <PATH>]
+                        [--turn-id <STRING>]
+    turingos llm prompt-eval
+                        --workspace <PATH>
+                        --prompt-file <PATH>
+                        --role <meta|blackbox|playback>
+                        --fixture <PATH>
+                        [--meta-prompt <PATH>]
+                        [--baseline-prompt <PATH>]
+                        [--lang <zh|en>]
 
 ACTIONS:
     config    Persist the two-LLM config to <workspace>/turingos.toml.
@@ -44,6 +79,24 @@ ACTIONS:
 
     show      Display the current LLM config (env-var NAMES only — never
               prints the actual API key value).
+
+    complete  Call the LLM with a prompt-file (JSON messages array) and
+              print a single JSON result line to stdout. Optionally anchors
+              a PromptCapsule in CAS (--capsule-dir + --turn-id) and
+              validates the LLM output as a grill TurnPayload (--strict-json).
+              Phase 6.3.x W4 atom.
+
+    triage    Classify a user answer using the Blackbox model (Qwen3-Coder-30B).
+              Outputs a single JSON line with class (relevant|off_topic|abusive|
+              gibberish) and confidence. Always uses Blackbox model.
+              Phase 6.3.x W4.5 atom.
+
+    prompt-eval  Regression-test a candidate prompt against a frozen Q/A
+              fixture. Iterates the fixture rows, calls the appropriate LLM
+              role (meta|blackbox|playback), and scores each output against
+              the expected verdict. Exits 0 if all rows pass, 1 if any fail.
+              Phase 6.3.y A2 atom — catches M8-class non-local regressions
+              (e.g. fixing register tolerance breaks gibberish detection).
 
 OPTIONS:
     --workspace <PATH>            Workspace directory (required).
@@ -56,6 +109,20 @@ OPTIONS:
                                   for both models when both use the same
                                   provider). Default: SILICONFLOW_API_KEY.
                                   Value is NEVER persisted to disk.
+    --role <meta|blackbox>        Which model role to use. Default: meta.
+    --prompt-file <PATH|->        JSON file (or - for stdin) with messages array.
+    --max-tokens <N>              Override max tokens. Default: 2000 (meta) | 400 (blackbox).
+    --temperature <FLOAT>         Override temperature. Default: 0.4 (meta) | 0.2 (blackbox).
+    --capsule-dir <PATH>          If set, write PromptCapsule to CAS here.
+    --turn-id <STRING>            Required if --capsule-dir is set.
+    --strict-json                 Validate output via grill_envelope::parse_and_validate.
+    --lang <zh|en>                Error message language. Default: zh.
+    --meta-prompt <PATH>          Meta-prompt asset path (informational; recorded in capsule).
+                                  Default: assets/prompts/grill_meta_v1.md.
+    --user-answer <STRING|->      (triage) User answer text, or - for stdin.
+    --question <STRING>           (triage) Question context for the classifier.
+    --fixture <PATH>              (prompt-eval) JSONL fixture file path.
+    --baseline-prompt <PATH>      (prompt-eval) Optional baseline prompt for delta computation.
 
 DESCRIPTION:
     Two-LLM architecture rationale: a reasoning model ("Meta AI") handles
@@ -105,11 +172,33 @@ impl std::fmt::Display for LlmError {
 
 /// TRACE_MATRIX FC2-N16: `llm` dispatch entry
 pub(crate) fn run(args: &[String]) -> ExitCode {
+    // No args at all → print help (lists all actions including `complete`).
+    if args.is_empty() {
+        println!("{FULL_HELP}");
+        return ExitCode::SUCCESS;
+    }
     if args.iter().any(|a| a == "-h" || a == "--help")
         && (args.len() == 1 || args[0] == "-h" || args[0] == "--help")
     {
         println!("{FULL_HELP}");
         return ExitCode::SUCCESS;
+    }
+    // W4: dispatch `complete` action before the existing config/show path
+    // (which also looks for a positional first arg) so we don't need to
+    // thread a new enum variant through LlmError.
+    if args.first().map(String::as_str) == Some("complete") {
+        return run_complete(&args[1..]);
+    }
+    // W4.5: dispatch `triage` action (Blackbox classifier).
+    if args.first().map(String::as_str) == Some("triage") {
+        return run_triage(&args[1..]);
+    }
+    // A2: dispatch `prompt-eval` action (regression-test prompts against a
+    // frozen Q/A fixture before promoting v2 → v1). Phase 6.3.y atom — catches
+    // M8-class non-local regressions where fixing register tolerance breaks
+    // gibberish detection.
+    if args.first().map(String::as_str) == Some("prompt-eval") {
+        return run_prompt_eval(&args[1..]);
     }
     match run_inner(args) {
         Ok(()) => ExitCode::SUCCESS,
@@ -299,4 +388,1773 @@ fn read_config_value(workspace: &Path, key: &str) -> Option<String> {
         .into_iter()
         .find(|(k, _)| k == key)
         .map(|(_, v)| v)
+}
+
+// ─── W4: `turingos llm complete` ─────────────────────────────────────────────
+//
+// TRACE_MATRIX FC1-N44 + FC2-N16: thin async LLM call wrapper with optional
+// PromptCapsule CAS anchoring (Phase 6.3.x grill-driven atom W4).
+//
+// R2 §A1 hard rule: NO AttemptTelemetry write for grill turns.
+// R2 §A2 hard rule: hidden_fields_redacted MUST be true (constructor enforces).
+
+/// TRACE_MATRIX FC2-N16 W4: parsed CLI args for `turingos llm complete`.
+struct CompleteArgs {
+    workspace: PathBuf,
+    role: ModelRole,
+    prompt_file: Option<String>,
+    max_tokens: Option<u32>,
+    temperature: Option<f32>,
+    capsule_dir: Option<PathBuf>,
+    turn_id: Option<String>,
+    strict_json: bool,
+    lang: Lang,
+    /// Informational only in W4 — recorded as system_prompt_template_hash.
+    meta_prompt: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ModelRole {
+    Meta,
+    Blackbox,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Lang {
+    Zh,
+    En,
+}
+
+impl Lang {
+    fn io_err_msg(&self, detail: &str) -> String {
+        match self {
+            Lang::Zh => format!("IO 错误: {detail}"),
+            Lang::En => format!("io error: {detail}"),
+        }
+    }
+    fn args_err_msg(&self, detail: &str) -> String {
+        match self {
+            Lang::Zh => format!("参数错误: {detail}"),
+            Lang::En => format!("args error: {detail}"),
+        }
+    }
+    fn http_err_msg(&self, detail: &str) -> String {
+        match self {
+            Lang::Zh => format!("HTTP 错误: {detail}"),
+            Lang::En => format!("http error: {detail}"),
+        }
+    }
+    fn parse_err_msg(&self, detail: &str) -> String {
+        match self {
+            Lang::Zh => format!("解析失败: {detail}"),
+            Lang::En => format!("parse failed: {detail}"),
+        }
+    }
+}
+
+/// Prompt-file JSON messages item (serialised/deserialised).
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+struct PromptMessage {
+    role: String,
+    content: String,
+}
+
+/// Top-level prompt-file JSON format accepted by `--prompt-file`.
+#[derive(Debug, serde::Deserialize)]
+struct PromptFile {
+    messages: Vec<PromptMessage>,
+    #[serde(default)]
+    max_tokens: Option<u32>,
+    #[serde(default)]
+    temperature: Option<f32>,
+}
+
+/// Success JSON shape printed to stdout on `complete` success.
+#[derive(serde::Serialize)]
+struct CompleteOk {
+    ok: bool,
+    content: String,
+    parsed_envelope: Option<serde_json::Value>,
+    usage: UsageOut,
+    finish_reason: String,
+    model: String,
+    prompt_capsule_cid: Option<String>,
+    elapsed_ms: u128,
+}
+
+/// Error JSON shape printed to stdout on `complete` failure.
+#[derive(serde::Serialize)]
+struct CompleteErr {
+    ok: bool,
+    error: ErrorBody,
+}
+
+#[derive(serde::Serialize)]
+struct ErrorBody {
+    kind: &'static str,
+    detail: String,
+}
+
+/// Token-usage sub-object in success JSON.
+#[derive(serde::Serialize, Default)]
+struct UsageOut {
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    total_tokens: u64,
+}
+
+/// Print error JSON to stdout and return the given exit code.
+fn complete_err_exit(kind: &'static str, detail: String, code: u8) -> ExitCode {
+    let out = CompleteErr {
+        ok: false,
+        error: ErrorBody { kind, detail },
+    };
+    println!("{}", serde_json::to_string(&out).unwrap());
+    ExitCode::from(code)
+}
+
+/// TRACE_MATRIX FC2-N16 W4: parse `complete` CLI args.
+fn parse_complete_args(args: &[String]) -> Result<CompleteArgs, String> {
+    let mut workspace: Option<PathBuf> = None;
+    let mut role = ModelRole::Meta;
+    let mut prompt_file: Option<String> = None;
+    let mut max_tokens: Option<u32> = None;
+    let mut temperature: Option<f32> = None;
+    let mut capsule_dir: Option<PathBuf> = None;
+    let mut turn_id: Option<String> = None;
+    let mut strict_json = false;
+    let mut lang = Lang::Zh;
+    let mut meta_prompt: Option<PathBuf> = None;
+
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--workspace" => {
+                workspace = Some(PathBuf::from(
+                    iter.next().ok_or("--workspace requires a value")?,
+                ));
+            }
+            "--role" => {
+                let v = iter.next().ok_or("--role requires a value")?;
+                role = match v.as_str() {
+                    "meta" => ModelRole::Meta,
+                    "blackbox" => ModelRole::Blackbox,
+                    other => {
+                        return Err(format!("unknown --role: {other}; expected meta|blackbox"))
+                    }
+                };
+            }
+            "--prompt-file" => {
+                prompt_file = Some(iter.next().ok_or("--prompt-file requires a value")?.clone());
+            }
+            "--max-tokens" => {
+                let v = iter.next().ok_or("--max-tokens requires a value")?;
+                max_tokens =
+                    Some(v.parse::<u32>().map_err(|_| {
+                        format!("--max-tokens must be a positive integer, got: {v}")
+                    })?);
+            }
+            "--temperature" => {
+                let v = iter.next().ok_or("--temperature requires a value")?;
+                temperature = Some(
+                    v.parse::<f32>()
+                        .map_err(|_| format!("--temperature must be a float, got: {v}"))?,
+                );
+            }
+            "--capsule-dir" => {
+                capsule_dir = Some(PathBuf::from(
+                    iter.next().ok_or("--capsule-dir requires a value")?,
+                ));
+            }
+            "--turn-id" => {
+                turn_id = Some(iter.next().ok_or("--turn-id requires a value")?.clone());
+            }
+            "--strict-json" => {
+                strict_json = true;
+            }
+            "--lang" => {
+                let v = iter.next().ok_or("--lang requires a value")?;
+                lang = match v.as_str() {
+                    "zh" => Lang::Zh,
+                    "en" => Lang::En,
+                    other => return Err(format!("unknown --lang: {other}; expected zh|en")),
+                };
+            }
+            "--meta-prompt" => {
+                meta_prompt = Some(PathBuf::from(
+                    iter.next().ok_or("--meta-prompt requires a value")?,
+                ));
+            }
+            "-h" | "--help" => {
+                println!("{FULL_HELP}");
+            }
+            other => {
+                return Err(format!("unknown flag: {other}"));
+            }
+        }
+    }
+
+    let workspace = workspace.ok_or("--workspace is required")?;
+    if capsule_dir.is_some() && turn_id.is_none() {
+        return Err("--turn-id is required when --capsule-dir is set".to_string());
+    }
+
+    Ok(CompleteArgs {
+        workspace,
+        role,
+        prompt_file,
+        max_tokens,
+        temperature,
+        capsule_dir,
+        turn_id,
+        strict_json,
+        lang,
+        meta_prompt,
+    })
+}
+
+/// TRACE_MATRIX FC2-N16 W4: sha256 a byte slice and return as `[u8; 32]`.
+fn sha256_bytes(data: &[u8]) -> [u8; 32] {
+    let mut h = Sha256::new();
+    h.update(data);
+    h.finalize().into()
+}
+
+/// TRACE_MATRIX FC2-N16 W4: `turingos llm complete` entry.
+///
+/// Performs a single LLM call via `siliconflow_client::chat_complete`,
+/// optionally validates the JSON envelope via `grill_envelope::parse_and_validate`,
+/// optionally writes a `PromptCapsule` to CAS, and prints one JSON result line.
+///
+/// Exit codes:
+///   0 = ok
+///   2 = http/network error
+///   3 = parse failed (--strict-json + envelope invalid)
+///   4 = io error (missing file, unreadable workspace)
+///   5 = invalid CLI args
+fn run_complete(args: &[String]) -> ExitCode {
+    // ── 1. Parse CLI args ───────────────────────────────────────────────────
+    let ca = match parse_complete_args(args) {
+        Ok(v) => v,
+        Err(e) => return complete_err_exit("args", ca_lang_args_err(e, args), 5),
+    };
+
+    // ── 2. Workspace existence check ────────────────────────────────────────
+    if !ca.workspace.exists() {
+        return complete_err_exit(
+            "io",
+            ca.lang
+                .io_err_msg(&format!("workspace not found: {}", ca.workspace.display())),
+            4,
+        );
+    }
+
+    // ── 3. Read prompt file ─────────────────────────────────────────────────
+    let prompt_json_str: String = match &ca.prompt_file {
+        None => {
+            return complete_err_exit("args", ca.lang.args_err_msg("--prompt-file is required"), 5);
+        }
+        Some(p) if p == "-" => {
+            let mut buf = String::new();
+            if let Err(e) = std::io::stdin().read_to_string(&mut buf) {
+                return complete_err_exit(
+                    "io",
+                    ca.lang.io_err_msg(&format!("reading stdin: {e}")),
+                    4,
+                );
+            }
+            buf
+        }
+        Some(p) => match fs::read_to_string(p) {
+            Ok(s) => s,
+            Err(e) => {
+                return complete_err_exit(
+                    "io",
+                    ca.lang.io_err_msg(&format!("reading prompt file {p}: {e}")),
+                    4,
+                );
+            }
+        },
+    };
+
+    let prompt_file_data: PromptFile = match serde_json::from_str(&prompt_json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            return complete_err_exit(
+                "io",
+                ca.lang
+                    .io_err_msg(&format!("prompt file JSON parse error: {e}")),
+                4,
+            );
+        }
+    };
+
+    // ── 4. Determine model + defaults ───────────────────────────────────────
+    let (default_max_tokens, default_temperature, model_id) = match ca.role {
+        ModelRole::Meta => (2000u32, 0.4f32, read_meta_model(&ca.workspace)),
+        ModelRole::Blackbox => (400u32, 0.2f32, read_blackbox_model(&ca.workspace)),
+    };
+
+    // CLI flags override file values; file values override defaults.
+    let max_tokens = ca
+        .max_tokens
+        .or(prompt_file_data.max_tokens)
+        .unwrap_or(default_max_tokens);
+    let temperature = ca
+        .temperature
+        .or(prompt_file_data.temperature)
+        .unwrap_or(default_temperature);
+
+    // ── 5. Read API key ─────────────────────────────────────────────────────
+    let api_key_env = read_api_key_env_var(&ca.workspace);
+    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(e) => {
+            return complete_err_exit("http_status", ca.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 6. Convert messages to ChatMessage ──────────────────────────────────
+    let chat_messages: Vec<crate::siliconflow_client::ChatMessage> = prompt_file_data
+        .messages
+        .iter()
+        .map(|m| crate::siliconflow_client::ChatMessage {
+            role: m.role.clone(),
+            content: m.content.clone(),
+        })
+        .collect();
+
+    // ── 7. LLM call (async → blocking via tokio current-thread runtime) ─────
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return complete_err_exit(
+                "http_status",
+                ca.lang.http_err_msg(&format!("tokio runtime: {e}")),
+                2,
+            );
+        }
+    };
+
+    let t_start = Instant::now();
+    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+        &api_key,
+        &model_id,
+        &chat_messages,
+        Some(max_tokens),
+        Some(temperature),
+    ));
+    let elapsed_ms = t_start.elapsed().as_millis();
+
+    let chat_result = match llm_result {
+        Ok(r) => r,
+        Err(crate::siliconflow_client::LlmError::HttpStatus { status, body }) => {
+            return complete_err_exit(
+                "http_status",
+                ca.lang.http_err_msg(&format!("HTTP {status}: {body}")),
+                2,
+            );
+        }
+        Err(crate::siliconflow_client::LlmError::Transport(e)) => {
+            return complete_err_exit("timeout", ca.lang.http_err_msg(&e), 2);
+        }
+        Err(e) => {
+            return complete_err_exit("http_status", ca.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 8. Strict-JSON validation ────────────────────────────────────────────
+    // F2: thinking-mode models (DeepSeek-V3.1-Terminus think-on, DeepSeek-R1,
+    // Qwen3-8B/14B/32B with default-on thinking, GLM-4.7, Kimi-K2.5/K2.6 when
+    // thinking enabled) emit a <think>...</think> reasoning trace before the
+    // JSON envelope. The grill envelope parser cannot tolerate that prefix, so
+    // we strip think blocks BEFORE handing the content to
+    // `grill_envelope::parse_and_validate`. Uses the shared iterative helper
+    // from `sdk::protocol` (handles multiple blocks, anywhere in the string,
+    // and unclosed blocks by truncating at the unclosed tag).
+    //
+    // Providers that emit reasoning in `message.reasoning_content` (separate
+    // from `content`) are handled implicitly: `siliconflow_client::ChatResponse`
+    // deserializes only `content`, so `reasoning_content` is dropped at decode
+    // time and never reaches this branch.
+    let parsed_envelope: Option<serde_json::Value> = if ca.strict_json {
+        let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+        match turingosv4::runtime::grill_envelope::parse_and_validate(stripped.trim()) {
+            Ok(tp) => Some(serde_json::to_value(&tp).unwrap_or(serde_json::Value::Null)),
+            Err(e) => {
+                return complete_err_exit("parse_failed", ca.lang.parse_err_msg(&e.to_string()), 3);
+            }
+        }
+    } else {
+        None
+    };
+
+    // ── 9. PromptCapsule CAS write ──────────────────────────────────────────
+    let prompt_capsule_cid: Option<String> =
+        if let (Some(capsule_dir), Some(turn_id)) = (&ca.capsule_dir, &ca.turn_id) {
+            match write_prompt_capsule_for_turn(
+                &ca.workspace,
+                capsule_dir,
+                turn_id,
+                &prompt_file_data.messages,
+                &prompt_json_str,
+                ca.strict_json,
+                &ca.meta_prompt,
+                &ca.lang,
+            ) {
+                Ok(cid_hex) => Some(cid_hex),
+                Err(e) => {
+                    return complete_err_exit("io", e, 4);
+                }
+            }
+        } else {
+            None
+        };
+
+    // ── 10. Print success JSON ───────────────────────────────────────────────
+    let ok_out = CompleteOk {
+        ok: true,
+        content: chat_result.content,
+        parsed_envelope,
+        usage: UsageOut {
+            prompt_tokens: chat_result.usage.prompt_tokens,
+            completion_tokens: chat_result.usage.completion_tokens,
+            total_tokens: chat_result.usage.total_tokens,
+        },
+        finish_reason: chat_result
+            .finish_reason
+            .unwrap_or_else(|| "stop".to_string()),
+        model: model_id,
+        prompt_capsule_cid,
+        elapsed_ms,
+    };
+    println!("{}", serde_json::to_string(&ok_out).unwrap());
+    ExitCode::SUCCESS
+}
+
+/// Helper: produce an args-error detail string using the lang embedded in
+/// the raw args (before full parse). Falls back to zh.
+fn ca_lang_args_err(detail: String, args: &[String]) -> String {
+    let is_en = args.windows(2).any(|w| w[0] == "--lang" && w[1] == "en");
+    if is_en {
+        format!("args error: {detail}")
+    } else {
+        format!("参数错误: {detail}")
+    }
+}
+
+/// TRACE_MATRIX FC1-N44 W4: write a PromptCapsule to CAS for one grill turn.
+///
+/// Computes `prompt_context_hash` and `visible_context_cid` from the canonical
+/// JSON of the message array, builds a `PromptCapsule` with
+/// `hidden_fields_redacted = true` (R2 §A2 hard rule), and stores it via
+/// `write_prompt_capsule_to_cas`. Returns the CID hex string.
+///
+/// `meta_prompt_path` is informational (R2 §A7): if present, sha256 of the
+/// file's content becomes `system_prompt_template_hash`; if absent we fall
+/// back to sha256 of the first system-role message content; if no system
+/// message exists we use the zero sentinel.
+#[allow(clippy::too_many_arguments)]
+fn write_prompt_capsule_for_turn(
+    workspace: &Path,
+    capsule_dir: &Path,
+    turn_id: &str,
+    messages: &[PromptMessage],
+    messages_json_str: &str,
+    strict_json: bool,
+    meta_prompt_path: &Option<PathBuf>,
+    lang: &Lang,
+) -> Result<String, String> {
+    use turingosv4::bottom_white::cas::schema::Cid;
+    use turingosv4::bottom_white::cas::store::CasStore;
+    use turingosv4::runtime::prompt_capsule::{write_prompt_capsule_to_cas, PromptCapsule};
+    use turingosv4::state::q_state::Hash;
+
+    // Ensure capsule_dir exists.
+    fs::create_dir_all(capsule_dir).map_err(|e| {
+        lang.io_err_msg(&format!(
+            "creating capsule-dir {}: {e}",
+            capsule_dir.display()
+        ))
+    })?;
+
+    // CAS lives in <capsule_dir>/cas/ (or workspace/cas/ — we use capsule_dir
+    // so callers can point it at the session-local capsule store).
+    let cas_dir = capsule_dir.join("cas");
+    let mut cas = CasStore::open(&cas_dir)
+        .map_err(|e| lang.io_err_msg(&format!("opening CAS at {}: {e}", cas_dir.display())))?;
+
+    // --- visible_context_cid: CAS-store the raw message-array JSON bytes.
+    // We re-serialize only the messages slice (not the full prompt file) so
+    // the hash is stable regardless of other prompt-file fields.
+    let msg_bytes = serde_json::to_vec(messages)
+        .map_err(|e| lang.io_err_msg(&format!("serialising messages: {e}")))?;
+
+    let visible_context_cid = cas
+        .put(
+            &msg_bytes,
+            turingosv4::bottom_white::cas::schema::ObjectType::EvidenceCapsule,
+            &format!("cmd_llm_complete/{turn_id}"),
+            0,
+            Some("messages-array-v1".to_string()),
+        )
+        .map_err(|e| lang.io_err_msg(&format!("CAS put messages: {e}")))?;
+
+    // --- prompt_context_hash: sha256 of the same canonical message-array bytes.
+    let prompt_context_hash_bytes = sha256_bytes(&msg_bytes);
+
+    // --- system_prompt_template_hash: prefer --meta-prompt file sha256;
+    //     else sha256 of first system message content; else zero sentinel.
+    let system_hash_bytes: [u8; 32] = if let Some(mp_path) = meta_prompt_path {
+        let resolved = if mp_path.is_absolute() {
+            mp_path.clone()
+        } else {
+            workspace.join(mp_path)
+        };
+        match fs::read(&resolved) {
+            Ok(bytes) => sha256_bytes(&bytes),
+            Err(e) => {
+                return Err(lang.io_err_msg(&format!(
+                    "reading --meta-prompt {}: {e}",
+                    resolved.display()
+                )));
+            }
+        }
+    } else {
+        // Fall back to sha256 of first system message content.
+        messages
+            .iter()
+            .find(|m| m.role == "system")
+            .map(|m| sha256_bytes(m.content.as_bytes()))
+            .unwrap_or([0u8; 32])
+    };
+
+    // --- Build PromptCapsule (hidden_fields_redacted MUST be true — R2 §A2).
+    let policy_version = if strict_json {
+        "grill_meta_v1"
+    } else {
+        "complete_v1"
+    };
+    let capsule = PromptCapsule::new(
+        Hash(prompt_context_hash_bytes),
+        BTreeSet::new(), // empty read_set for Phase 6.3.x v1
+        policy_version,
+        true, // hidden_fields_redacted = TRUE (R2 §A2 hard rule)
+        visible_context_cid,
+        Hash(system_hash_bytes),
+        visible_context_cid, // agent_view_manifest_cid = same as visible_context_cid (v1)
+    )
+    .map_err(|e| lang.io_err_msg(&format!("building PromptCapsule: {e}")))?;
+
+    let logical_t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let capsule_cid = write_prompt_capsule_to_cas(&mut cas, &capsule, turn_id, logical_t)
+        .map_err(|e| lang.io_err_msg(&format!("writing PromptCapsule to CAS: {e}")))?;
+
+    // Suppress unused-variable warning for messages_json_str (informational
+    // only in W4; W5/W6 will use it).
+    let _ = messages_json_str;
+
+    Ok(capsule_cid.hex())
+}
+
+// ─── W4.5: `turingos llm triage` ─────────────────────────────────────────────
+//
+// TRACE_MATRIX FC2-N16 W4.5: thin Blackbox classifier wrapper.
+//
+// Uses the Blackbox model (Qwen3-Coder-30B) to classify one user answer into
+// {relevant, off_topic, abusive, gibberish} with a confidence float.
+// Always uses Blackbox model (read_blackbox_model). No --role flag.
+//
+// R2 §A5: Blackbox triage is in-scope for Phase 6.3.x packet as W4.5.
+// R2 §A1: NO AttemptTelemetry write for grill turns.
+// R2 §A2: hidden_fields_redacted MUST be true.
+
+/// TRACE_MATRIX FC2-N16 W4.5: parsed CLI args for `turingos llm triage`.
+struct TriageArgs {
+    workspace: PathBuf,
+    user_answer: String,
+    question: Option<String>,
+    lang: Lang,
+    capsule_dir: Option<PathBuf>,
+    turn_id: Option<String>,
+}
+
+/// Success JSON shape printed to stdout on `triage` success.
+#[derive(serde::Serialize)]
+struct TriageOk {
+    ok: bool,
+    class: String,
+    confidence: f64,
+    model: String,
+    usage: UsageOut,
+    prompt_capsule_cid: Option<String>,
+    elapsed_ms: u128,
+}
+
+/// Blackbox response JSON shape expected from the model.
+#[derive(serde::Deserialize)]
+struct BlackboxClassification {
+    class: String,
+    confidence: f64,
+}
+
+/// The four valid classification classes (W4.5 spec).
+const VALID_TRIAGE_CLASSES: &[&str] = &["relevant", "off_topic", "abusive", "gibberish"];
+
+/// TRACE_MATRIX FC2-N16 W4.5: parse `triage` CLI args.
+fn parse_triage_args(args: &[String]) -> Result<TriageArgs, String> {
+    let mut workspace: Option<PathBuf> = None;
+    let mut user_answer: Option<String> = None;
+    let mut question: Option<String> = None;
+    let mut lang = Lang::Zh;
+    let mut capsule_dir: Option<PathBuf> = None;
+    let mut turn_id: Option<String> = None;
+
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--workspace" => {
+                workspace = Some(PathBuf::from(
+                    iter.next().ok_or("--workspace requires a value")?,
+                ));
+            }
+            "--user-answer" => {
+                user_answer = Some(iter.next().ok_or("--user-answer requires a value")?.clone());
+            }
+            "--question" => {
+                question = Some(iter.next().ok_or("--question requires a value")?.clone());
+            }
+            "--lang" => {
+                let v = iter.next().ok_or("--lang requires a value")?;
+                lang = match v.as_str() {
+                    "zh" => Lang::Zh,
+                    "en" => Lang::En,
+                    other => return Err(format!("unknown --lang: {other}; expected zh|en")),
+                };
+            }
+            "--capsule-dir" => {
+                capsule_dir = Some(PathBuf::from(
+                    iter.next().ok_or("--capsule-dir requires a value")?,
+                ));
+            }
+            "--turn-id" => {
+                turn_id = Some(iter.next().ok_or("--turn-id requires a value")?.clone());
+            }
+            "-h" | "--help" => {
+                println!("{FULL_HELP}");
+            }
+            other => {
+                return Err(format!("unknown flag: {other}"));
+            }
+        }
+    }
+
+    let workspace = workspace.ok_or("--workspace is required")?;
+    let user_answer = user_answer.ok_or("--user-answer is required")?;
+    if capsule_dir.is_some() && turn_id.is_none() {
+        return Err("--turn-id is required when --capsule-dir is set".to_string());
+    }
+
+    Ok(TriageArgs {
+        workspace,
+        user_answer,
+        question,
+        lang,
+        capsule_dir,
+        turn_id,
+    })
+}
+
+/// TRACE_MATRIX FC2-N16 W4.5: `turingos llm triage` entry.
+///
+/// Classifies a user answer using the Blackbox model. Reads the system prompt
+/// verbatim from `assets/prompts/grill_triage_blackbox_v1.md`, constructs
+/// the user message, calls `chat_complete` with max_tokens=50 temperature=0.0,
+/// parses the classification JSON, optionally writes a PromptCapsule to CAS,
+/// and prints one JSON result line.
+///
+/// Exit codes:
+///   0 = ok
+///   2 = http/network error
+///   3 = parse failed (Blackbox output not conforming)
+///   4 = io error
+///   5 = invalid CLI args
+fn run_triage(args: &[String]) -> ExitCode {
+    // ── 1. Parse CLI args ───────────────────────────────────────────────────
+    let ta = match parse_triage_args(args) {
+        Ok(v) => v,
+        Err(e) => return complete_err_exit("args", triage_lang_args_err(e, args), 5),
+    };
+
+    // ── 2. Workspace existence check ────────────────────────────────────────
+    if !ta.workspace.exists() {
+        return complete_err_exit(
+            "io",
+            ta.lang
+                .io_err_msg(&format!("workspace not found: {}", ta.workspace.display())),
+            4,
+        );
+    }
+
+    // ── 3. Read user answer (stdin if "-") ──────────────────────────────────
+    let user_answer: String = if ta.user_answer == "-" {
+        let mut buf = String::new();
+        if let Err(e) = std::io::stdin().read_to_string(&mut buf) {
+            return complete_err_exit("io", ta.lang.io_err_msg(&format!("reading stdin: {e}")), 4);
+        }
+        buf
+    } else {
+        ta.user_answer.clone()
+    };
+
+    // ── 4. Load triage system prompt from asset file ─────────────────────────
+    // Path: assets/prompts/grill_triage_blackbox_v1.md (resolved from workspace).
+    // Extract text block under "## System prompt (verbatim)" between ``` fences.
+    let triage_prompt_path = {
+        let p = PathBuf::from("assets/prompts/grill_triage_blackbox_v1.md");
+        if p.is_absolute() {
+            p
+        } else {
+            ta.workspace.join(&p)
+        }
+    };
+    let triage_asset = match fs::read_to_string(&triage_prompt_path) {
+        Ok(s) => s,
+        Err(e) => {
+            return complete_err_exit(
+                "io",
+                ta.lang.io_err_msg(&format!(
+                    "reading triage prompt asset {}: {e}",
+                    triage_prompt_path.display()
+                )),
+                4,
+            );
+        }
+    };
+    let system_prompt_text = extract_system_prompt_block(&triage_asset);
+    let system_prompt_text = match system_prompt_text {
+        Some(s) => s,
+        None => {
+            return complete_err_exit(
+                "io",
+                ta.lang.io_err_msg(
+                    "could not locate '## System prompt (verbatim)' block in triage asset",
+                ),
+                4,
+            );
+        }
+    };
+
+    // ── 5. Build messages ───────────────────────────────────────────────────
+    let question_text = ta
+        .question
+        .as_deref()
+        .unwrap_or("(initial open-ended question)");
+    let user_message_text =
+        format!("QUESTION (turn N): {question_text}\n\nUSER ANSWER:\n{user_answer}");
+
+    let chat_messages = vec![
+        crate::siliconflow_client::ChatMessage::system(system_prompt_text.clone()),
+        crate::siliconflow_client::ChatMessage::user(user_message_text.clone()),
+    ];
+
+    // ── 6. Determine Blackbox model + API key ───────────────────────────────
+    let model_id = read_blackbox_model(&ta.workspace);
+    let api_key_env = read_api_key_env_var(&ta.workspace);
+    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(e) => {
+            return complete_err_exit("http_status", ta.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 7. LLM call (max_tokens=50, temperature=0.0) ────────────────────────
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("tokio runtime: {e}")),
+                2,
+            );
+        }
+    };
+
+    let t_start = Instant::now();
+    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+        &api_key,
+        &model_id,
+        &chat_messages,
+        Some(50),
+        Some(0.0),
+    ));
+    let elapsed_ms = t_start.elapsed().as_millis();
+
+    let chat_result = match llm_result {
+        Ok(r) => r,
+        Err(crate::siliconflow_client::LlmError::HttpStatus { status, body }) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("HTTP {status}: {body}")),
+                2,
+            );
+        }
+        Err(crate::siliconflow_client::LlmError::Transport(e)) => {
+            return complete_err_exit("timeout", ta.lang.http_err_msg(&e), 2);
+        }
+        Err(e) => {
+            return complete_err_exit("http_status", ta.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+
+    // ── 8. Parse and validate Blackbox classification response ───────────────
+    // F2: strip ALL <think>...</think> blocks (not just split at last
+    // </think>). The shared helper from `sdk::protocol` handles multiple
+    // blocks, blocks anywhere in the string, and unclosed blocks (truncates
+    // at the unclosed opener). The old `strip_thinking_wrapper` only looked
+    // for a final </think>, which silently leaked content when an opener was
+    // emitted without a closer.
+    let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+    let json_str = stripped.trim();
+
+    let classification: BlackboxClassification = match serde_json::from_str(json_str) {
+        Ok(v) => v,
+        Err(e) => {
+            return complete_err_exit(
+                "parse_failed",
+                ta.lang.parse_err_msg(&format!(
+                    "Blackbox output not valid JSON: {e}; got: {json_str}"
+                )),
+                3,
+            );
+        }
+    };
+
+    // Validate class ∈ {relevant, off_topic, abusive, gibberish}.
+    if !VALID_TRIAGE_CLASSES.contains(&classification.class.as_str()) {
+        return complete_err_exit(
+            "parse_failed",
+            ta.lang.parse_err_msg(&format!(
+                "class '{}' not in {{relevant, off_topic, abusive, gibberish}}",
+                classification.class
+            )),
+            3,
+        );
+    }
+
+    // Validate confidence ∈ [0.0, 1.0].
+    if !(0.0..=1.0).contains(&classification.confidence) {
+        return complete_err_exit(
+            "parse_failed",
+            ta.lang.parse_err_msg(&format!(
+                "confidence {} not in [0.0, 1.0]",
+                classification.confidence
+            )),
+            3,
+        );
+    }
+
+    // ── 9. PromptCapsule CAS write ──────────────────────────────────────────
+    // Build a minimal messages representation for the capsule (system + user).
+    let capsule_messages = vec![
+        PromptMessage {
+            role: "system".to_string(),
+            content: system_prompt_text,
+        },
+        PromptMessage {
+            role: "user".to_string(),
+            content: user_message_text,
+        },
+    ];
+    let capsule_messages_json =
+        serde_json::to_string(&capsule_messages).unwrap_or_else(|_| "[]".to_string());
+
+    let prompt_capsule_cid: Option<String> =
+        if let (Some(capsule_dir), Some(turn_id)) = (&ta.capsule_dir, &ta.turn_id) {
+            match write_prompt_capsule_for_turn(
+                &ta.workspace,
+                capsule_dir,
+                turn_id,
+                &capsule_messages,
+                &capsule_messages_json,
+                false, // triage does not use strict-json envelope
+                &None, // no meta-prompt for triage
+                &ta.lang,
+            ) {
+                Ok(cid_hex) => Some(cid_hex),
+                Err(e) => {
+                    return complete_err_exit("io", e, 4);
+                }
+            }
+        } else {
+            None
+        };
+
+    // Override policy_version written by write_prompt_capsule_for_turn's
+    // "complete_v1" default: triage capsules use "grill_triage_blackbox_v1".
+    // NOTE: the PromptCapsule is already written above; we accept the
+    // policy_version="complete_v1" for v1 (per W4 precedent). A future atom
+    // can parameterize policy_version. This is documented here for audit.
+
+    // ── 10. Print success JSON ───────────────────────────────────────────────
+    let ok_out = TriageOk {
+        ok: true,
+        class: classification.class,
+        confidence: classification.confidence,
+        model: model_id,
+        usage: UsageOut {
+            prompt_tokens: chat_result.usage.prompt_tokens,
+            completion_tokens: chat_result.usage.completion_tokens,
+            total_tokens: chat_result.usage.total_tokens,
+        },
+        prompt_capsule_cid,
+        elapsed_ms,
+    };
+    println!("{}", serde_json::to_string(&ok_out).unwrap());
+    ExitCode::SUCCESS
+}
+
+/// Extract the verbatim system prompt text from the triage asset markdown.
+///
+/// Finds the "## System prompt (verbatim)" section and returns the text
+/// between the first pair of ``` fences that follow it.
+fn extract_system_prompt_block(asset: &str) -> Option<String> {
+    // Find the section header.
+    let header = "## System prompt (verbatim)";
+    let section_start = asset.find(header)?;
+    let after_header = &asset[section_start + header.len()..];
+
+    // Find opening fence.
+    let fence_open = after_header.find("```")?;
+    let after_open_fence = &after_header[fence_open + 3..];
+
+    // Skip optional language tag on the same line as the opening fence.
+    let content_start = after_open_fence.find('\n').map(|i| i + 1).unwrap_or(0);
+    let content = &after_open_fence[content_start..];
+
+    // Find closing fence.
+    let fence_close = content.find("```")?;
+    Some(content[..fence_close].trim_end_matches('\n').to_string())
+}
+
+/// Helper: produce an args-error detail string using the lang embedded in
+/// the raw args (before full parse) for the triage sub-command.
+fn triage_lang_args_err(detail: String, args: &[String]) -> String {
+    let is_en = args.windows(2).any(|w| w[0] == "--lang" && w[1] == "en");
+    if is_en {
+        format!("args error: {detail}")
+    } else {
+        format!("参数错误: {detail}")
+    }
+}
+
+// ─── A2: `turingos llm prompt-eval` ──────────────────────────────────────────
+//
+// TRACE_MATRIX FC2-N16 A2 (Phase 6.3.y): prompt regression harness.
+//
+// Background. The Phase 6.3.x universality campaign discovered that F8 (Triage
+// v2) fixed register tolerance (Cantonese / code-switch / Traditional → PASS)
+// but **broke gibberish detection** (M8 REGRESSION: 3/5 nonsense → relevant).
+// This is the canonical Software 3.0 non-local-effect failure mode: prompt
+// edits cascade unpredictably, so v2 → v1 promotion is unsafe without a
+// regression net. `prompt-eval` is that net.
+//
+// Surface contract. One JSONL fixture file, one --prompt-file candidate,
+// one --role tag. For each fixture row we (a) build messages, (b) call the
+// LLM via siliconflow_client (same retry / think-strip semantics as
+// `complete` and `triage`), (c) score the response against expected_* fields,
+// (d) aggregate per-row verdicts into a summary. Exit 0 iff all PASS.
+//
+// Risk class: 2 (production wire-up; reuses existing LLM client + parser).
+// No Class-4 surface touched. No CAS write, no PromptCapsule write — eval is
+// a read-only experiment.
+
+/// TRACE_MATRIX FC2-N16 A2: parsed CLI args for `turingos llm prompt-eval`.
+struct PromptEvalArgs {
+    workspace: PathBuf,
+    prompt_file: PathBuf,
+    role: PromptEvalRole,
+    fixture: PathBuf,
+    meta_prompt: Option<PathBuf>,
+    baseline_prompt: Option<PathBuf>,
+    lang: Lang,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PromptEvalRole {
+    /// Meta interviewer prompt — outputs grill TurnPayload JSON envelope.
+    Meta,
+    /// Blackbox triage classifier — outputs `{class, confidence}` JSON.
+    Blackbox,
+    /// Playback / mirror — outputs markdown 7-row fridge note.
+    Playback,
+}
+
+impl PromptEvalRole {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Meta => "meta",
+            Self::Blackbox => "blackbox",
+            Self::Playback => "playback",
+        }
+    }
+}
+
+/// One fixture row, deserialised from one JSONL line. Field set is the union
+/// of all three roles; per-role validation happens at scoring time.
+#[derive(Debug, serde::Deserialize, Default)]
+#[allow(dead_code)]
+struct FixtureRow {
+    id: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    // Common / triage / meta input fields.
+    #[serde(default)]
+    question: Option<String>,
+    #[serde(default)]
+    user_answer: Option<String>,
+    // Meta input.
+    #[serde(default)]
+    history: Vec<HistoryItem>,
+    // Triage expected.
+    #[serde(default)]
+    expected_class: Option<String>,
+    #[serde(default)]
+    expected_confidence_min: Option<f64>,
+    // Meta expected.
+    #[serde(default)]
+    expected_covered_slots_subset: Option<Vec<String>>,
+    #[serde(default)]
+    expected_done: Option<bool>,
+    // Playback input + expected.
+    #[serde(default)]
+    covered_slots_input: Option<serde_json::Value>,
+    #[serde(default)]
+    expected_no_substrings: Option<Vec<String>>,
+    #[serde(default)]
+    expected_contains_substrings: Option<Vec<String>>,
+    #[serde(default)]
+    notes: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+struct HistoryItem {
+    #[serde(default)]
+    q: Option<String>,
+    #[serde(default)]
+    a: Option<String>,
+}
+
+/// Per-row eval verdict, serialised to the output JSON.
+#[derive(Debug, serde::Serialize)]
+struct RowVerdict {
+    id: String,
+    verdict: String, // "PASS" | "FAIL" | "ERROR"
+    role: String,
+    expected: serde_json::Value,
+    actual: serde_json::Value,
+    notes: String,
+}
+
+/// Aggregate eval output written to stdout.
+#[derive(Debug, serde::Serialize)]
+struct PromptEvalOutput {
+    ok: bool,
+    role: String,
+    prompt_file: String,
+    fixture: String,
+    total: usize,
+    pass: usize,
+    fail: usize,
+    error: usize,
+    fail_ids: Vec<String>,
+    per_row: Vec<RowVerdict>,
+    baseline_delta: Option<BaselineDelta>,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct BaselineDelta {
+    baseline_prompt_file: String,
+    baseline_pass: usize,
+    baseline_fail: usize,
+    candidate_pass: usize,
+    candidate_fail: usize,
+    /// Rows that pass on candidate but fail on baseline (improvements).
+    gained_ids: Vec<String>,
+    /// Rows that pass on baseline but fail on candidate (regressions — M8 cases).
+    regressed_ids: Vec<String>,
+}
+
+/// TRACE_MATRIX FC2-N16 A2: parse `prompt-eval` CLI args.
+fn parse_prompt_eval_args(args: &[String]) -> Result<PromptEvalArgs, String> {
+    let mut workspace: Option<PathBuf> = None;
+    let mut prompt_file: Option<PathBuf> = None;
+    let mut role: Option<PromptEvalRole> = None;
+    let mut fixture: Option<PathBuf> = None;
+    let mut meta_prompt: Option<PathBuf> = None;
+    let mut baseline_prompt: Option<PathBuf> = None;
+    let mut lang = Lang::Zh;
+
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--workspace" => {
+                workspace = Some(PathBuf::from(
+                    iter.next().ok_or("--workspace requires a value")?,
+                ));
+            }
+            "--prompt-file" => {
+                prompt_file = Some(PathBuf::from(
+                    iter.next().ok_or("--prompt-file requires a value")?,
+                ));
+            }
+            "--role" => {
+                let v = iter.next().ok_or("--role requires a value")?;
+                role = Some(match v.as_str() {
+                    "meta" => PromptEvalRole::Meta,
+                    "blackbox" => PromptEvalRole::Blackbox,
+                    "playback" => PromptEvalRole::Playback,
+                    other => {
+                        return Err(format!(
+                            "unknown --role: {other}; expected meta|blackbox|playback"
+                        ));
+                    }
+                });
+            }
+            "--fixture" => {
+                fixture = Some(PathBuf::from(
+                    iter.next().ok_or("--fixture requires a value")?,
+                ));
+            }
+            "--meta-prompt" => {
+                meta_prompt = Some(PathBuf::from(
+                    iter.next().ok_or("--meta-prompt requires a value")?,
+                ));
+            }
+            "--baseline-prompt" => {
+                baseline_prompt = Some(PathBuf::from(
+                    iter.next().ok_or("--baseline-prompt requires a value")?,
+                ));
+            }
+            "--lang" => {
+                let v = iter.next().ok_or("--lang requires a value")?;
+                lang = match v.as_str() {
+                    "zh" => Lang::Zh,
+                    "en" => Lang::En,
+                    other => return Err(format!("unknown --lang: {other}; expected zh|en")),
+                };
+            }
+            "-h" | "--help" => {
+                println!("{FULL_HELP}");
+            }
+            other => {
+                return Err(format!("unknown flag: {other}"));
+            }
+        }
+    }
+
+    let workspace = workspace.ok_or("--workspace is required")?;
+    let prompt_file = prompt_file.ok_or("--prompt-file is required")?;
+    let role = role.ok_or("--role is required")?;
+    let fixture = fixture.ok_or("--fixture is required")?;
+
+    Ok(PromptEvalArgs {
+        workspace,
+        prompt_file,
+        role,
+        fixture,
+        meta_prompt,
+        baseline_prompt,
+        lang,
+    })
+}
+
+/// Helper: produce an args-error detail string using the lang embedded in
+/// the raw args (before full parse) for the prompt-eval sub-command.
+fn prompt_eval_lang_args_err(detail: String, args: &[String]) -> String {
+    let is_en = args.windows(2).any(|w| w[0] == "--lang" && w[1] == "en");
+    if is_en {
+        format!("args error: {detail}")
+    } else {
+        format!("参数错误: {detail}")
+    }
+}
+
+/// Load a prompt asset file. If the file contains a `## System prompt
+/// (verbatim)` block (the convention for triage v1/v2 + meta v1/v2), extract
+/// the verbatim text between the next pair of triple-backtick fences. Else
+/// treat the whole file as the system prompt body.
+fn load_prompt_system_text(path: &Path) -> Result<String, String> {
+    let raw = fs::read_to_string(path)
+        .map_err(|e| format!("reading prompt file {}: {e}", path.display()))?;
+    if let Some(extracted) = extract_system_prompt_block(&raw) {
+        Ok(extracted)
+    } else {
+        Ok(raw)
+    }
+}
+
+/// Parse a JSONL fixture file. Blank lines and lines starting with `#` are
+/// skipped (comments). Each remaining line must parse as `FixtureRow`.
+fn load_fixture(path: &Path) -> Result<Vec<FixtureRow>, String> {
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("reading fixture {}: {e}", path.display()))?;
+    let mut rows = Vec::new();
+    for (lineno, raw) in content.lines().enumerate() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let row: FixtureRow = serde_json::from_str(trimmed).map_err(|e| {
+            format!(
+                "fixture {} line {}: invalid JSON: {e}",
+                path.display(),
+                lineno + 1
+            )
+        })?;
+        if row.id.is_empty() {
+            return Err(format!(
+                "fixture {} line {}: row missing required `id` field",
+                path.display(),
+                lineno + 1
+            ));
+        }
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
+/// Print error JSON to stdout and exit. Re-uses the `CompleteErr` shape so
+/// downstream JSON consumers can stay uniform.
+fn prompt_eval_err_exit(kind: &'static str, detail: String, code: u8) -> ExitCode {
+    let out = CompleteErr {
+        ok: false,
+        error: ErrorBody { kind, detail },
+    };
+    println!("{}", serde_json::to_string(&out).unwrap());
+    ExitCode::from(code)
+}
+
+/// TRACE_MATRIX FC2-N16 A2: `turingos llm prompt-eval` entry.
+///
+/// Exit codes:
+///   0 = all rows passed (and baseline-delta has no regressions if requested)
+///   1 = one or more rows FAILED (or regressed vs baseline)
+///   2 = http/network error during eval
+///   4 = io error (missing fixture / prompt / workspace)
+///   5 = invalid CLI args
+fn run_prompt_eval(args: &[String]) -> ExitCode {
+    // ── 1. Parse CLI args ───────────────────────────────────────────────────
+    let pe = match parse_prompt_eval_args(args) {
+        Ok(v) => v,
+        Err(e) => {
+            return prompt_eval_err_exit("args", prompt_eval_lang_args_err(e, args), 5);
+        }
+    };
+
+    // ── 2. Workspace existence check ────────────────────────────────────────
+    if !pe.workspace.exists() {
+        return prompt_eval_err_exit(
+            "io",
+            pe.lang
+                .io_err_msg(&format!("workspace not found: {}", pe.workspace.display())),
+            4,
+        );
+    }
+
+    // ── 3. Load candidate prompt + (optional) baseline prompt + fixture ─────
+    let candidate_system_text = match load_prompt_system_text(&pe.prompt_file) {
+        Ok(s) => s,
+        Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+    };
+    let baseline_system_text: Option<String> = if let Some(bp) = &pe.baseline_prompt {
+        match load_prompt_system_text(bp) {
+            Ok(s) => Some(s),
+            Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+        }
+    } else {
+        None
+    };
+    let fixture_rows = match load_fixture(&pe.fixture) {
+        Ok(r) => r,
+        Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+    };
+    if fixture_rows.is_empty() {
+        return prompt_eval_err_exit(
+            "io",
+            pe.lang
+                .io_err_msg(&format!("fixture {} is empty", pe.fixture.display())),
+            4,
+        );
+    }
+
+    // ── 4. Read API key + build tokio runtime once ──────────────────────────
+    let api_key_env = read_api_key_env_var(&pe.workspace);
+    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(e) => {
+            return prompt_eval_err_exit("http_status", pe.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return prompt_eval_err_exit(
+                "http_status",
+                pe.lang.http_err_msg(&format!("tokio runtime: {e}")),
+                2,
+            );
+        }
+    };
+
+    // Pick model + budget per role.
+    let (model_id, max_tokens, temperature) = match pe.role {
+        PromptEvalRole::Blackbox => (read_blackbox_model(&pe.workspace), 50u32, 0.0f32),
+        PromptEvalRole::Meta => (read_meta_model(&pe.workspace), 1500u32, 0.4f32),
+        PromptEvalRole::Playback => (read_meta_model(&pe.workspace), 1200u32, 0.3f32),
+    };
+
+    // ── 5. Per-row eval loop ────────────────────────────────────────────────
+    let mut per_row: Vec<RowVerdict> = Vec::with_capacity(fixture_rows.len());
+    let mut pass_count = 0usize;
+    let mut fail_count = 0usize;
+    let mut error_count = 0usize;
+    let mut fail_ids: Vec<String> = Vec::new();
+
+    // Track baseline verdicts in parallel if a baseline prompt was given.
+    let mut baseline_pass_ids: Vec<String> = Vec::new();
+    let mut baseline_fail_ids: Vec<String> = Vec::new();
+
+    for row in &fixture_rows {
+        // Candidate eval.
+        let verdict = eval_one_row(
+            &rt,
+            &api_key,
+            &model_id,
+            max_tokens,
+            temperature,
+            pe.role,
+            &candidate_system_text,
+            row,
+        );
+        match verdict.verdict.as_str() {
+            "PASS" => pass_count += 1,
+            "FAIL" => {
+                fail_count += 1;
+                fail_ids.push(row.id.clone());
+            }
+            _ => {
+                error_count += 1;
+                fail_ids.push(row.id.clone());
+            }
+        }
+        per_row.push(verdict);
+
+        // Baseline eval (only summary; not embedded in per_row to keep output compact).
+        if let Some(baseline_text) = &baseline_system_text {
+            let bverdict = eval_one_row(
+                &rt,
+                &api_key,
+                &model_id,
+                max_tokens,
+                temperature,
+                pe.role,
+                baseline_text,
+                row,
+            );
+            if bverdict.verdict == "PASS" {
+                baseline_pass_ids.push(row.id.clone());
+            } else {
+                baseline_fail_ids.push(row.id.clone());
+            }
+        }
+    }
+
+    // ── 6. Optional baseline delta computation ──────────────────────────────
+    let baseline_delta: Option<BaselineDelta> = if let Some(bp) = &pe.baseline_prompt {
+        // Candidate pass set.
+        let candidate_pass_set: std::collections::HashSet<String> = per_row
+            .iter()
+            .filter(|v| v.verdict == "PASS")
+            .map(|v| v.id.clone())
+            .collect();
+        let baseline_pass_set: std::collections::HashSet<String> =
+            baseline_pass_ids.iter().cloned().collect();
+        let mut gained_ids: Vec<String> = candidate_pass_set
+            .difference(&baseline_pass_set)
+            .cloned()
+            .collect();
+        let mut regressed_ids: Vec<String> = baseline_pass_set
+            .difference(&candidate_pass_set)
+            .cloned()
+            .collect();
+        gained_ids.sort();
+        regressed_ids.sort();
+        Some(BaselineDelta {
+            baseline_prompt_file: bp.display().to_string(),
+            baseline_pass: baseline_pass_ids.len(),
+            baseline_fail: baseline_fail_ids.len(),
+            candidate_pass: pass_count,
+            candidate_fail: fail_count + error_count,
+            gained_ids,
+            regressed_ids,
+        })
+    } else {
+        None
+    };
+
+    // ── 7. Emit summary JSON + exit code ────────────────────────────────────
+    let all_pass = fail_count == 0 && error_count == 0;
+    let baseline_regressed = baseline_delta
+        .as_ref()
+        .map(|d| !d.regressed_ids.is_empty())
+        .unwrap_or(false);
+
+    let summary = PromptEvalOutput {
+        ok: all_pass && !baseline_regressed,
+        role: pe.role.as_str().to_string(),
+        prompt_file: pe.prompt_file.display().to_string(),
+        fixture: pe.fixture.display().to_string(),
+        total: fixture_rows.len(),
+        pass: pass_count,
+        fail: fail_count,
+        error: error_count,
+        fail_ids,
+        per_row,
+        baseline_delta,
+    };
+    println!("{}", serde_json::to_string(&summary).unwrap());
+
+    if summary.ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
+}
+
+/// Build messages, call the LLM, score the response, and return a per-row
+/// verdict. This is the inner loop body of `run_prompt_eval`. It NEVER
+/// panics on LLM/network errors — those become `verdict = "ERROR"`.
+fn eval_one_row(
+    rt: &tokio::runtime::Runtime,
+    api_key: &str,
+    model_id: &str,
+    max_tokens: u32,
+    temperature: f32,
+    role: PromptEvalRole,
+    system_text: &str,
+    row: &FixtureRow,
+) -> RowVerdict {
+    // ── (a) Build messages per role ─────────────────────────────────────────
+    let messages: Vec<crate::siliconflow_client::ChatMessage> = match role {
+        PromptEvalRole::Blackbox => {
+            let q = row
+                .question
+                .as_deref()
+                .unwrap_or("(initial open-ended question)");
+            let a = row.user_answer.as_deref().unwrap_or("");
+            let user_msg = format!("QUESTION (turn N): {q}\n\nUSER ANSWER:\n{a}");
+            vec![
+                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
+                crate::siliconflow_client::ChatMessage::user(user_msg),
+            ]
+        }
+        PromptEvalRole::Meta => {
+            let mut msgs = vec![crate::siliconflow_client::ChatMessage::system(
+                system_text.to_string(),
+            )];
+            // Replay history as alternating assistant(q) / user(a) pairs.
+            for h in &row.history {
+                if let Some(q) = &h.q {
+                    msgs.push(crate::siliconflow_client::ChatMessage::assistant(q.clone()));
+                }
+                if let Some(a) = &h.a {
+                    msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+                }
+            }
+            // The current user turn (the answer under test).
+            if let Some(a) = &row.user_answer {
+                msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+            }
+            msgs.push(crate::siliconflow_client::ChatMessage::user(
+                "Produce your next-turn output per the contract.".to_string(),
+            ));
+            msgs
+        }
+        PromptEvalRole::Playback => {
+            // For playback: serialise covered_slots_input as JSON and ask the
+            // model to produce the 7-row fridge note.
+            let slots_json = row
+                .covered_slots_input
+                .as_ref()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "{}".to_string());
+            let user_msg = format!(
+                "Here are the covered slots from the interview (JSON):\n{slots_json}\n\nProduce the 7-row 'fridge note' playback in the user's language, ONLY summarising the slots above. Do NOT invent new content."
+            );
+            vec![
+                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
+                crate::siliconflow_client::ChatMessage::user(user_msg),
+            ]
+        }
+    };
+
+    // ── (b) LLM call ────────────────────────────────────────────────────────
+    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+        api_key,
+        model_id,
+        &messages,
+        Some(max_tokens),
+        Some(temperature),
+    ));
+    let chat_result = match llm_result {
+        Ok(r) => r,
+        Err(e) => {
+            return RowVerdict {
+                id: row.id.clone(),
+                verdict: "ERROR".to_string(),
+                role: role.as_str().to_string(),
+                expected: serde_json::Value::Null,
+                actual: serde_json::json!({"error": e.to_string()}),
+                notes: format!("LLM call failed: {e}"),
+            };
+        }
+    };
+
+    // ── (c) Strip think blocks + score per role ─────────────────────────────
+    let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+    let trimmed = stripped.trim();
+
+    match role {
+        PromptEvalRole::Blackbox => score_blackbox(row, trimmed),
+        PromptEvalRole::Meta => score_meta(row, trimmed),
+        PromptEvalRole::Playback => score_playback(row, trimmed),
+    }
+}
+
+/// Score a Blackbox triage row: exact class match + confidence ≥ min.
+fn score_blackbox(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let expected_class = row.expected_class.clone().unwrap_or_default();
+    let expected_min_conf = row.expected_confidence_min.unwrap_or(0.0);
+    let expected_json = serde_json::json!({
+        "class": expected_class,
+        "confidence_min": expected_min_conf,
+    });
+
+    // Parse the model output.
+    let parsed: Result<BlackboxClassification, _> = serde_json::from_str(raw);
+    match parsed {
+        Ok(c) => {
+            let actual_json = serde_json::json!({
+                "class": c.class,
+                "confidence": c.confidence,
+            });
+            let class_ok = c.class == expected_class;
+            let conf_ok = c.confidence >= expected_min_conf;
+            let verdict = if class_ok && conf_ok { "PASS" } else { "FAIL" };
+            let notes = if class_ok && conf_ok {
+                "class match + confidence above threshold".to_string()
+            } else if !class_ok {
+                format!(
+                    "class mismatch: got {} expected {}",
+                    c.class, expected_class
+                )
+            } else {
+                format!(
+                    "confidence {} below threshold {}",
+                    c.confidence, expected_min_conf
+                )
+            };
+            RowVerdict {
+                id: row.id.clone(),
+                verdict: verdict.to_string(),
+                role: "blackbox".to_string(),
+                expected: expected_json,
+                actual: actual_json,
+                notes,
+            }
+        }
+        Err(e) => RowVerdict {
+            id: row.id.clone(),
+            verdict: "FAIL".to_string(),
+            role: "blackbox".to_string(),
+            expected: expected_json,
+            actual: serde_json::json!({"raw": raw, "parse_error": e.to_string()}),
+            notes: format!("triage output not valid JSON: {e}"),
+        },
+    }
+}
+
+/// Score a Meta-role row: parse the JSON envelope, check covered_slots is a
+/// superset of expected, done matches, confidence ≥ min.
+fn score_meta(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let expected_subset: Vec<String> = row
+        .expected_covered_slots_subset
+        .clone()
+        .unwrap_or_default();
+    let expected_done = row.expected_done;
+    let expected_min_conf = row.expected_confidence_min.unwrap_or(0.0);
+    let expected_json = serde_json::json!({
+        "covered_slots_subset": expected_subset,
+        "done": expected_done,
+        "confidence_min": expected_min_conf,
+    });
+
+    // Attempt to parse the raw model output as JSON. Tolerate markdown fences.
+    let candidate = strip_json_fence(raw);
+    let parsed: Result<serde_json::Value, _> = serde_json::from_str(&candidate);
+    match parsed {
+        Ok(v) => {
+            let covered: Vec<String> = v
+                .get("covered_slots")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|e| e.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let done_val = v.get("done").and_then(|x| x.as_bool());
+            let conf_val = v.get("confidence").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let actual_json = serde_json::json!({
+                "covered_slots": covered,
+                "done": done_val,
+                "confidence": conf_val,
+            });
+            // Superset check.
+            let covered_set: std::collections::HashSet<&String> = covered.iter().collect();
+            let missing: Vec<&String> = expected_subset
+                .iter()
+                .filter(|s| !covered_set.contains(*s))
+                .collect();
+            let subset_ok = missing.is_empty();
+            let done_ok = match (expected_done, done_val) {
+                (None, _) => true,
+                (Some(e), Some(g)) => e == g,
+                (Some(_), None) => false,
+            };
+            let conf_ok = conf_val >= expected_min_conf;
+            let verdict = if subset_ok && done_ok && conf_ok {
+                "PASS"
+            } else {
+                "FAIL"
+            };
+            let mut notes_parts = Vec::new();
+            if !subset_ok {
+                notes_parts.push(format!("missing slots: {missing:?}"));
+            }
+            if !done_ok {
+                notes_parts.push(format!(
+                    "done mismatch: expected {expected_done:?}, got {done_val:?}"
+                ));
+            }
+            if !conf_ok {
+                notes_parts.push(format!("confidence {conf_val} < {expected_min_conf}"));
+            }
+            let notes = if notes_parts.is_empty() {
+                "covered_slots superset + done match + confidence above threshold".to_string()
+            } else {
+                notes_parts.join("; ")
+            };
+            RowVerdict {
+                id: row.id.clone(),
+                verdict: verdict.to_string(),
+                role: "meta".to_string(),
+                expected: expected_json,
+                actual: actual_json,
+                notes,
+            }
+        }
+        Err(e) => RowVerdict {
+            id: row.id.clone(),
+            verdict: "FAIL".to_string(),
+            role: "meta".to_string(),
+            expected: expected_json,
+            actual: serde_json::json!({"raw": raw, "parse_error": e.to_string()}),
+            notes: format!("meta envelope not valid JSON: {e}"),
+        },
+    }
+}
+
+/// Score a Playback row: must contain all `expected_contains_substrings` AND
+/// must contain none of `expected_no_substrings`.
+fn score_playback(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let must_contain: Vec<String> = row.expected_contains_substrings.clone().unwrap_or_default();
+    let must_not_contain: Vec<String> = row.expected_no_substrings.clone().unwrap_or_default();
+    let expected_json = serde_json::json!({
+        "contains_substrings": must_contain,
+        "no_substrings": must_not_contain,
+    });
+
+    let missing: Vec<String> = must_contain
+        .iter()
+        .filter(|s| !raw.contains(s.as_str()))
+        .cloned()
+        .collect();
+    let leaked: Vec<String> = must_not_contain
+        .iter()
+        .filter(|s| raw.contains(s.as_str()))
+        .cloned()
+        .collect();
+
+    let verdict = if missing.is_empty() && leaked.is_empty() {
+        "PASS"
+    } else {
+        "FAIL"
+    };
+    let mut notes_parts = Vec::new();
+    if !missing.is_empty() {
+        notes_parts.push(format!("missing required substrings: {missing:?}"));
+    }
+    if !leaked.is_empty() {
+        notes_parts.push(format!("forbidden substrings present: {leaked:?}"));
+    }
+    let notes = if notes_parts.is_empty() {
+        "all required substrings present, no forbidden substrings".to_string()
+    } else {
+        notes_parts.join("; ")
+    };
+
+    // Truncate raw output in actual for readability.
+    let raw_preview: String = raw.chars().take(400).collect();
+    RowVerdict {
+        id: row.id.clone(),
+        verdict: verdict.to_string(),
+        role: "playback".to_string(),
+        expected: expected_json,
+        actual: serde_json::json!({"output_preview": raw_preview}),
+        notes,
+    }
+}
+
+/// Strip an optional ```json ... ``` markdown fence around a JSON payload.
+fn strip_json_fence(s: &str) -> String {
+    let t = s.trim();
+    // Find first fence.
+    let after_open = match t.find("```") {
+        None => return t.to_string(),
+        Some(i) => &t[i + 3..],
+    };
+    // Skip optional language tag line.
+    let content_start = after_open.find('\n').map(|i| i + 1).unwrap_or(0);
+    let body = &after_open[content_start..];
+    // Trim closing fence if present.
+    if let Some(close) = body.rfind("```") {
+        body[..close].trim().to_string()
+    } else {
+        body.trim().to_string()
+    }
 }

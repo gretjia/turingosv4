@@ -1,0 +1,1 @@
+{"turn_index":8,"question_text":"聽起來，記帳頁面只有三樣東西：金額輸入框、檔口選擇器、儲存按鈕。那如果掃描的QR碼裡包含了金額和檔口名，這些欄位應該自動填好嗎？","covered_slots":["job","anchor","memory","first_run","robustness"],"open_slots":["scope","acceptance","mirror"],"confidence":0.7,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

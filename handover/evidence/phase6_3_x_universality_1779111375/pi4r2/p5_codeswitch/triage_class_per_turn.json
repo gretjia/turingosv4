@@ -1,0 +1,191 @@
+{
+  "T0_bootstrap": {
+    "http": 200,
+    "elapsed_ms": 6795,
+    "covered": [],
+    "open": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.0,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": []
+  },
+  "T1_answer": {
+    "http": 200,
+    "elapsed_ms": 9478,
+    "covered": [
+      "job"
+    ],
+    "open": [
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.15,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "job"
+    ]
+  },
+  "T2_answer": {
+    "http": 200,
+    "elapsed_ms": 8710,
+    "covered": [
+      "job",
+      "anchor"
+    ],
+    "open": [
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.3,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "anchor"
+    ]
+  },
+  "T3_answer": {
+    "http": 200,
+    "elapsed_ms": 8652,
+    "covered": [
+      "job",
+      "anchor",
+      "memory"
+    ],
+    "open": [
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.43,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "memory"
+    ]
+  },
+  "T4_answer": {
+    "http": 200,
+    "elapsed_ms": 8331,
+    "covered": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run"
+    ],
+    "open": [
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.57,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "first_run"
+    ]
+  },
+  "T5_answer": {
+    "http": 200,
+    "elapsed_ms": 8449,
+    "covered": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness"
+    ],
+    "open": [
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.7,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "robustness"
+    ]
+  },
+  "T6_answer": {
+    "http": 200,
+    "elapsed_ms": 8154,
+    "covered": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope"
+    ],
+    "open": [
+      "acceptance",
+      "mirror"
+    ],
+    "conf": 0.86,
+    "done": false,
+    "term": false,
+    "term_reason": null,
+    "spec_cid": null,
+    "delta": [
+      "scope"
+    ]
+  },
+  "T7_answer": {
+    "http": 200,
+    "elapsed_ms": 17665,
+    "covered": [
+      "job",
+      "anchor",
+      "memory",
+      "first_run",
+      "robustness",
+      "scope",
+      "acceptance",
+      "mirror"
+    ],
+    "open": [],
+    "conf": 1.0,
+    "done": true,
+    "term": true,
+    "term_reason": "llm_done_predicate_pass",
+    "spec_cid": "df983f438952e97c05e9ceb9e6c4674da9047e2ab45a00b8c3a9bf753f19519d",
+    "delta": [
+      "acceptance",
+      "mirror"
+    ]
+  }
+}

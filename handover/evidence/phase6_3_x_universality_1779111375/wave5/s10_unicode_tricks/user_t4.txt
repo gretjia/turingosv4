@@ -1,0 +1,1 @@
+robust‌ness: 断网时 queue 在 local, 重连 sync。scope 限定 ≤ 50 人的 startup。

@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"好的，我理解你想要一個幫助計算每日總和的工具。那麼，這個App明天早上打開時，應該記住什麼？比如昨天的總收入、未完成的交易，還是其他什麼？","covered_slots":["job","anchor"],"open_slots":["memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

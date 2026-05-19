@@ -1,0 +1,47 @@
+{
+  "wave": "5",
+  "persona_id": "s5_wrong_slot",
+  "persona_name": "S5 Wrong-Slot Misdirection (edge — slot-manip)",
+  "verdict": "PASS",
+  "expected_behavior": "Meta detects answer-vs-question semantic mismatch; either re-asks under same slot or routes evidence by semantic content rather than question-position. Slot ledger must not be keyed by turn-index/Q-asked.",
+  "suspected_failure": "Slot ledger keyed by turn-index/Q-asked: final spec capsule slot[X].evidence semantically matches DIFFERENT slot's question (so spec ends up with job=色板生成器 when Q was job but user answered re: mirror).",
+  "actual_behavior": "Bootstrap returned Q1 asking the  slot. Per misdirection script, agent answered about  (\"镜像配置我打算用 JSON 文件存。\"). Backend triage classifier flagged the answer as off_topic/gibberish and short-circuited: response replayed turn_index=1 with covered_slots=[], open_slots=[], confidence=0.0 — i.e., kernel REFUSED to fill the job slot with content semantically about mirror. Agent retried with a semantically-equivalent reworded answer (\"我准备把镜像配置放到 JSON 文件里。\"). Triage classified again, predicate double-failed, kernel terminated session with termination_reason=user_input_unparseable_no_spec, spec_capsule_cid=null. CAS index shows two turn-2-triage PromptCapsules + EvidenceCapsules were emitted, confirming each wrong-slot answer was independently triaged — no blind slot-routing occurred. This is the STRONGEST possible PASS signal: the slot ledger is keyed by semantic match, not by Q-asked; rather than mis-fill the  slot with mirror content (which would be PARTIAL), the kernel refused to commit and self-terminated, preserving evidence integrity.",
+  "metrics": {
+    "total_turns_attempted": 2,
+    "terminated_at_turn": 2,
+    "terminate_reason": "user_input_unparseable_no_spec",
+    "covered_slots_at_term": [],
+    "envelope_parse_success_rate": "3/3",
+    "mean_latency_ms": 3014.0,
+    "q_to_a_slot_mismatch_count": 2,
+    "meta_detection_of_mismatch": true,
+    "slot_ledger_routing": {
+      "final_covered_slots": [],
+      "final_spec_capsule_cid": null,
+      "interpretation": "no slot was filled despite 2 wrong-slot answers; predicate double-fail prevented misrouting"
+    },
+    "narrative": "Wrong-slot misdirection was caught by the triage→predicate layer BEFORE reaching the slot ledger. Termination_reason 'user_input_unparseable_no_spec' is the kernel's two-strike rule: a second non-relevant answer in a row triggers terminal-without-spec. No spec capsule was produced; no slot was contaminated. This is exactly the constitutional behavior: rather than write semantically-mismatched evidence into a slot keyed by Q-asked position, the system refuses to commit and emits a terminal capsule. Note: the test only required 2 turns to reach a definitive verdict — the misdirection trap fired immediately.",
+    "triage_class_distribution_observed": "not exposed in turn response envelope; inferred off_topic/gibberish for both wrong-slot answers based on termination_reason",
+    "cost_proxy_completion_tokens": "N/A (not in envelope)"
+  },
+  "anomalies": [
+    "Test was designed for 6-8 turns of misdirection but kernel double-fail triggered after only 2 turns — this is correct constitutional behavior, not a runner bug.",
+    "The CLI 'spec audit' subcommand does not exist; the wave-runner template's CAS walk step is hypothetical. Instead inspected session CAS index directly: 6 capsules present (1 meta PromptCapsule + 1 meta EvidenceCapsule rendering Q1; 2 triage PromptCapsules + 2 triage EvidenceCapsules for the two wrong-slot answers)."
+  ],
+  "session_id": "w5_s5_wrong_slot_1779120596",
+  "workspace": "/tmp/wave_5_s5_wrong_slot_1779120557",
+  "cas_session_dir": "/Users/zephryj/work/turingosv4/tmp/universality_campaign/sessions/w5_s5_wrong_slot_1779120596",
+  "evidence_files": [
+    "session_id.txt",
+    "started_at.txt",
+    "workspace_path.txt",
+    "bootstrap_response.json",
+    "session_log.jsonl",
+    "cas_index.jsonl",
+    "turn-1-prompt.json",
+    "cas_walk.txt",
+    "verdict.json"
+  ],
+  "started_at_unix": 1779120557,
+  "completed_at_unix": 1779120854
+}

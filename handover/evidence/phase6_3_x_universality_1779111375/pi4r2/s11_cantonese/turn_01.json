@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"你提到帮街市档主计埋条数，具体系想计啲咩数？例如系每日收入支出，定系存货管理，定系其他？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.15,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

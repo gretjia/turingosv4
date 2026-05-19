@@ -1,0 +1,111 @@
+{
+  "wave_run": "pi4.6_s9_gibberish_negctrl",
+  "session_id_file": "session_id.txt",
+  "session_id": "pi4_s9_negctrl_1779149905",
+  "backend": "http://127.0.0.1:8080",
+  "stack": "A6+A7v3+A8 (two-stage triage: coherence-first then register/abuse/relevance)",
+  "fixture": {
+    "persona": "S9 coherent-gibberish (grammatically valid Mandarin, semantically nonsensical)",
+    "answer_set": "IDENTICAL to W5.3 / M8 — true negative control",
+    "T1": "项目的核心价值是让月亮在周二的时候吃掉一片云, 因为编译器不喜欢西红柿。",
+    "T2": "锚定的方式是通过把蓝色的星期三焊接到香蕉的根号二上完成。",
+    "T3": "首次运行需要先让用户的影子签署一份关于柏拉图洞穴的合同。",
+    "T4": "稳健性来自于在台风季节朗诵 SQL 的第七章。",
+    "T5": "镜像就是把你自己放进冰箱然后等待波斯帝国。"
+  },
+  "regression_test_verdict": "PASS",
+  "headline": "v3 two-stage triage holds the line: gibberish blocked at T2, no spec produced, session terminated cleanly. NO REGRESSION from W5.3 v1 baseline despite v3 register tolerance for diverse personas.",
+  "turns_executed": [
+    {
+      "turn": 0,
+      "kind": "greeting_bootstrap",
+      "user_answer": null,
+      "status": 200,
+      "elapsed_s": 6,
+      "response_turn_index": 1,
+      "covered_slots": ["job"],
+      "open_slots": ["anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+      "confidence": 0.1,
+      "terminated": false,
+      "notes": "Greeting bootstrap heuristically pre-fills 'job' slot from context BEFORE any user input. Same baseline as mrs_chen pi4 run. Not a slot-fill-from-nonsense."
+    },
+    {
+      "turn": 1,
+      "user_answer_summary": "T1 gibberish: 月亮吃云 / 编译器不喜欢西红柿",
+      "status": 200,
+      "elapsed_s": 1,
+      "response_turn_index": 1,
+      "covered_slots": [],
+      "open_slots": [],
+      "confidence": 0.0,
+      "terminated": false,
+      "triage_classification_inferred": "gibberish",
+      "notes": "Slot rollback: ['job'] -> []. Triage rejected the nonsense. Same question_text echoed (no advancement). non_relevant counter: 1."
+    },
+    {
+      "turn": 2,
+      "user_answer_summary": "T2 gibberish: 蓝色星期三焊接到香蕉的根号二",
+      "status": 200,
+      "elapsed_s": 1,
+      "response_turn_index": 1,
+      "covered_slots": [],
+      "open_slots": [],
+      "confidence": 0.0,
+      "terminated": true,
+      "termination_reason": "user_input_unparseable_no_spec",
+      "triage_classification_inferred": "gibberish",
+      "notes": "non_relevant counter hit threshold (>=2). Session terminated. No spec_capsule_cid. Reason matches W5.3 baseline exactly."
+    },
+    {
+      "turn": 3,
+      "user_answer_summary": "T3 gibberish: 影子签署柏拉图洞穴合同 (sent to confirm session closed)",
+      "status": 400,
+      "elapsed_s": 0,
+      "response": {"error": "session already terminated", "kind": "session_terminated"},
+      "notes": "Backend correctly refused further input. T4 and T5 not sent — termination already confirmed at T2 per acceptance criteria; T3 was diagnostic."
+    }
+  ],
+  "triage_class_per_turn": {
+    "gibberish": 2,
+    "off_topic": 0,
+    "relevant": 0,
+    "note": "Counts apply to user-input turns 1 and 2. T0 is bootstrap; T3 was refused by session-terminated guard."
+  },
+  "covered_slots_trajectory": [
+    {"turn": 0, "slots": ["job"], "phase": "pre-user-input bootstrap"},
+    {"turn": 1, "slots": [], "phase": "post-user-input"},
+    {"turn": 2, "slots": [], "phase": "post-user-input, terminated"}
+  ],
+  "slot_fills_from_nonsense": 0,
+  "spec_capsule_cid": null,
+  "hallucinations_detected": 0,
+  "termination": {
+    "turn": 2,
+    "reason": "user_input_unparseable_no_spec",
+    "matches_W5_3_baseline": true
+  },
+  "pass_criteria_check": {
+    "zero_slot_fills_from_nonsense": "PASS (0 fills; turn-0 'job' heuristic is pre-user-input bootstrap)",
+    "zero_spec_capsule_cid": "PASS (spec_capsule_cid: null throughout)",
+    "termination_reason_user_input_unparseable_no_spec_at_T2_or_T3": "PASS (terminated at T2 with exact reason)",
+    "zero_hallucinations": "PASS (no model-fabricated content in any response)"
+  },
+  "regression_criteria_check": {
+    "ge1_slot_fills_from_nonsense": "NOT TRIGGERED",
+    "spec_capsule_cid_populated_with_absurd_content": "NOT TRIGGERED",
+    "survives_past_T2_with_relevant_classifications": "NOT TRIGGERED"
+  },
+  "narrative": {
+    "W5_3_v1_baseline": "Triage rejected ALL 5 as gibberish, terminated T2 with 0 slots. NO spec produced.",
+    "M8_Triage_v2_F8_regression": "3/5 classified relevant, 3 slot fills, terminated T5 with garbage in slots. REGRESSION.",
+    "Pi4_6_v3_result": "Triage rejected gibberish at T1 (slot rolled back), terminated T2 with user_input_unparseable_no_spec, 0 user-input slot fills, 0 spec. MATCHES W5.3 v1 baseline exactly.",
+    "interpretation": "v3 two-stage decision logic (coherence FIRST, then register/abuse/relevance) successfully holds the security line. The relaxation of register/persona tolerance in v3 (needed to accept diverse user styles like Mrs Chen, code-switchers, traditional-Chinese users, angry users, Cantonese) did NOT regress the gibberish detector. Coherence gating is independent of register gating, as designed.",
+    "caveat_turn0_job_slot": "Both this run and the mrs_chen baseline show covered_slots=['job'] AFTER the greeting bootstrap, BEFORE any user input. This is a backend heuristic (likely 'job=user-asked-for-a-tool/game' implied by the greeting context), NOT a slot fill from user nonsense. T1 immediately cleared it back to [] when the gibberish answer arrived — the correct behavior. Future cleanup could either (a) defer 'job' slot fill until first user turn, or (b) leave as-is since it's correctly rolled back on non-relevant input.",
+    "tail_turns_T3_T4_T5_not_sent": "Acceptance criteria explicitly allow termination at T2 OR T3. Termination occurred at T2. T3 was sent as a diagnostic confirmation (returned 400 session_terminated). T4 and T5 were not sent because the session is closed; further calls would all return 400 with no new information."
+  },
+  "evidence": {
+    "session_log_jsonl": "session_log.jsonl",
+    "turn_script": "turn.sh",
+    "session_id_file": "session_id.txt"
+  }
+}

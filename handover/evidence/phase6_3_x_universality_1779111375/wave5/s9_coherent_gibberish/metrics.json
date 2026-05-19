@@ -1,0 +1,115 @@
+{
+  "scenario": "W5.3 / S9 Coherent Gibberish (edge — triage-evade)",
+  "session_id": "w5_s9_gibberish_1779120559810",
+  "backend": "http://127.0.0.1:8080",
+  "workspace_resolved": "/Users/zephryj/work/turingosv4/tmp/universality_campaign",
+  "session_capsule_dir": "tmp/universality_campaign/sessions/w5_s9_gibberish_1779120559810",
+  "verdict": "PASS",
+  "verdict_strength": "stronger_than_predicted",
+  "verdict_note": "Scenario predicted PASS via triage-labels-gibberish path; observed PASS via F6 non_relevant_count>=2 termination predicate, fired on T2 (only 2 of 5 nonsense turns consumed).",
+  "turn_log": [
+    {
+      "turn": "T0_setup",
+      "request": {"user_answer": null, "lang": "zh"},
+      "http_status": 200,
+      "dur_s": 8.92,
+      "response_summary": {
+        "turn_index": 1,
+        "open_slots": ["job", "anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+        "covered_slots": [],
+        "confidence": 0.1,
+        "terminated": false
+      },
+      "note": "Server-emitted Q1 (slot=job)."
+    },
+    {
+      "turn": "T1",
+      "user_answer": "项目的核心价值是让月亮在周二的时候吃掉一片云, 因为编译器不喜欢西红柿。",
+      "http_status": 200,
+      "dur_s": 0.89,
+      "triage_class_inferred": "non_relevant",
+      "response_summary": {
+        "turn_index": 1,
+        "question_text": "<Q1 reasked>",
+        "open_slots": [],
+        "covered_slots": [],
+        "confidence": 0.0,
+        "terminated": false
+      },
+      "note": "Triage classified non-relevant; non_relevant_count=1; F6 bounce-back path (turn_index NOT advanced, prev_question returned)."
+    },
+    {
+      "turn": "T2",
+      "user_answer": "锚定的方式是通过把蓝色的星期三焊接到香蕉的根号二上完成。",
+      "http_status": 200,
+      "dur_s": 0.95,
+      "triage_class_inferred": "non_relevant",
+      "response_summary": {
+        "turn_index": 1,
+        "question_text": "",
+        "covered_slots": [],
+        "open_slots": [],
+        "confidence": 0.0,
+        "terminated": true,
+        "spec_capsule_cid": null,
+        "termination_reason": "user_input_unparseable_no_spec"
+      },
+      "note": "non_relevant_count reached 2 → F6 termination path; session marked terminated; SpecGrillComplete broadcast with empty spec_capsule_cid; no spec synthesized."
+    },
+    {
+      "turn": "T3",
+      "user_answer": "首次运行需要先让用户的影子签署一份关于柏拉图洞穴的合同。",
+      "http_status": 400,
+      "dur_s": 0.0006,
+      "error_kind": "session_terminated",
+      "note": "Rejected pre-handler (session marked terminated)."
+    },
+    {
+      "turn": "T4",
+      "user_answer": "稳健性来自于在台风季节朗诵 SQL 的第七章。",
+      "http_status": 400,
+      "dur_s": 0.0006,
+      "error_kind": "session_terminated",
+      "note": "Rejected pre-handler."
+    },
+    {
+      "turn": "T5",
+      "user_answer": "镜像就是把你自己放进冰箱然后等待波斯帝国。",
+      "http_status": 400,
+      "dur_s": 0.0006,
+      "error_kind": "session_terminated",
+      "note": "Rejected pre-handler."
+    }
+  ],
+  "triage_class_per_turn": {
+    "T1": "non_relevant (gibberish or off_topic — exact subclass not recorded in CAS; PromptCapsule body is binary-packed)",
+    "T2": "non_relevant",
+    "T3_T5": "n/a (session terminated before triage)"
+  },
+  "non_relevant_count_path": [0, 1, 2],
+  "slot_fills_from_nonsense": 0,
+  "covered_slots_growth_per_turn": {
+    "T0_setup": 0,
+    "T1": 0,
+    "T2": 0,
+    "T3": "n/a",
+    "T4": "n/a",
+    "T5": "n/a"
+  },
+  "final_spec_md_content": null,
+  "final_spec_md_content_note": "No spec_capsule produced. SpecGrillComplete broadcast sent with empty spec_capsule_cid. termination_reason='user_input_unparseable_no_spec' surfaces the truth to the client (F6 fix prevents the pre-F6 silent-failure mode where the user could not distinguish 'spec loading' from 'spec never produced').",
+  "cas_evidence": {
+    "session_capsule_dir": "handover/evidence/phase6_3_x_universality_1779111375/wave5/s9_coherent_gibberish/session_capsule_dir",
+    "cas_index_path": "session_capsule_dir/capsules/cas/.turingos_cas_index.jsonl",
+    "cas_object_count": 6,
+    "evidence_capsule_creators": [
+      "cmd_llm_complete/turn-1 (Meta Q1 generation)",
+      "cmd_llm_complete/turn-2-triage (T1 classification)",
+      "cmd_llm_complete/turn-2-triage (T2 classification)"
+    ],
+    "prompt_capsule_creators": ["turn-1", "turn-2-triage", "turn-2-triage"],
+    "all_triage_inputs_archived": true,
+    "spec_capsule_emitted": false
+  },
+  "narrative": "S9 Coherent Gibberish edge test PASSED stronger than the success-path prediction. The five turns were grammatically valid Chinese sentences with no semantic coherence — each contained slot keywords (核心价值/锚定/首次运行/稳健性/镜像) that surface-match the 8 canonical slots (job/anchor/first_run/robustness/mirror), engineered to evade triage that relies on n-gram validity. The F6-fixed triage path defeated all of them. T1's nonsense triggered a non-relevant verdict and the F6 bounce-back (turn_index NOT advanced, Q1 reasked). T2's nonsense triggered the second consecutive non-relevant verdict, hitting the non_relevant_count>=2 abort threshold; the session terminated with termination_reason='user_input_unparseable_no_spec' and zero slot fills. T3–T5 never reached triage (rejected as session_terminated). The slot ledger remained empty throughout; covered_slots never grew past 0; no spec_capsule was synthesized; the surface-keyword bait did not propagate into any spec field. CAS evidence is intact (6 capsules, all triage inputs archived). This validates two F6 invariants: (1) the triage layer is doing semantic classification, not n-gram validation — it correctly distinguishes well-formed-but-nonsensical Chinese from a relevant answer; (2) the F6 termination-reason surfacing replaces the pre-F6 silent-failure mode (which would have shelled out to a fictional --synthesize-only flag, blocked on SiliconFlow for ~15s, and returned spec_capsule_cid=None with no explanation). Latency profile is also healthier than predicted: T1+T2 cost ~1.85s total vs the pre-F6 ~10–15s abort-shellout penalty."
+}

@@ -229,6 +229,27 @@ pub mod agent_role_classifier;
 /// evaluator and §K clean-negative renderer.
 pub mod g7_structural_smoke;
 
+/// TRACE_MATRIX FC1-N5 + FC1-N7: grill turn-payload schema, parser, and validator.
+/// Phase 6.3.x Software 3.0 LLM-driven grill envelope parsing and structural validation.
+pub mod grill_envelope;
+
+/// TRACE_MATRIX FC1-N9: per-turn predicates + session-aggregate termination.
+/// Phase 6.3.x Software 3.0 LLM-driven grill semantic validation.
+pub mod grill_predicates;
+
+/// TRACE_MATRIX FC2-N16 + FC3-N4: spec CAS wire + grill turn/session capsule
+/// schemas. Phase 6.3.x A6 library-ized this module from `src/bin/turingos/`
+/// so the `turingos_web` binary can synthesise spec capsules in-process at
+/// predicate-pass + done=true (closing the F6
+/// `predicate_done_no_spec_pending_synthesis` deferred atom).
+pub mod spec_capsule;
+
+/// TRACE_MATRIX FC2-N16: pure helpers for spec.md synthesis
+/// (canonical 8-Q list, LLM-less body builder, header+appendix wrapper).
+/// Phase 6.3.x A6 lifted these from `cmd_spec.rs` so the web layer can render
+/// the same spec.md format the CLI driven path emits.
+pub mod spec_synthesis;
+
 /// TRACE_MATRIX Art.II/Art.III (REAL-BCAST-1 2026-05-16): CAS-backed,
 /// role-scoped Librarian broadcast digest. Materialized view only; no new
 /// TypedTx, sequencer admission, signing payload, or CAS ObjectType.

@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"听起来你是说，所有数据都存在手机本地，不联网，要记住室友名字、历史账单和付款状态，对吗？那么，你觉得这个工具最不能容忍的‘崩溃点’是什么？比如，不小心删了一个室友，所有历史记录都乱了，还是输入金额时App闪退？","covered_slots":["job","anchor","first_run","memory"],"open_slots":["robustness","scope","acceptance","mirror"],"confidence":0.7,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

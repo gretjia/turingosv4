@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"明白，數據就存在手機本地。那麼，當你第一次打開這個App時，你希望第一眼看到什麼畫面？是一個空白的表格？還是一個大大的『開始記帳』按鈕？","covered_slots":["job","memory"],"open_slots":["anchor","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

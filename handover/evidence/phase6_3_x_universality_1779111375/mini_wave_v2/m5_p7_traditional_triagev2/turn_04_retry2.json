@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"所以，打開網頁第一眼看到的就是一個可以拖放檔案的大區域，對嗎？那如果使用者不小心上傳一個100GB的檔案，或者上傳一個.txt純文字檔，你希望工具怎麼反應才不會『壞掉』？","covered_slots":["job","anchor","memory","first_run"],"open_slots":["robustness","scope","acceptance","mirror"],"confidence":0.7,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,22 @@
+{
+  "turn_index": 1,
+  "question_text": "你好！请告诉我，你希望这个工具或小游戏帮你完成一件什么具体的事情？描述一下那个让你觉得‘要是有个工具就好了’的时刻。",
+  "covered_slots": [
+    "job"
+  ],
+  "open_slots": [
+    "anchor",
+    "memory",
+    "first_run",
+    "robustness",
+    "scope",
+    "acceptance",
+    "mirror"
+  ],
+  "confidence": 0.1,
+  "done": false,
+  "playback": null,
+  "terminated": false,
+  "spec_capsule_cid": null,
+  "turn_capsule_cid": null
+}

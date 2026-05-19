@@ -1,0 +1,19 @@
+total 120
+drwxr-xr-x@ 11 zephryj  staff   352 May 19 00:33 .
+drwxr-xr-x@ 51 zephryj  staff  1632 May 19 00:30 ..
+drwxr-xr-x@  3 zephryj  staff    96 May 19 00:30 capsules
+-rw-r--r--@  1 zephryj  staff  3855 May 19 00:30 turn-1-prompt.json
+-rw-r--r--@  1 zephryj  staff  4179 May 19 00:30 turn-2-prompt.json
+-rw-r--r--@  1 zephryj  staff  4495 May 19 00:30 turn-3-prompt.json
+-rw-r--r--@  1 zephryj  staff  4811 May 19 00:31 turn-4-prompt.json
+-rw-r--r--@  1 zephryj  staff  4931 May 19 00:32 turn-5-prompt.json
+-rw-r--r--@  1 zephryj  staff  4978 May 19 00:32 turn-6-prompt.json
+-rw-r--r--@  1 zephryj  staff  4943 May 19 00:32 turn-7-prompt.json
+-rw-r--r--@  1 zephryj  staff  4917 May 19 00:33 turn-8-prompt.json
+
+--- capsules/cas (first 50) ---
+total 24
+drwxr-xr-x@ 4 zephryj  staff   128 May 19 00:33 .
+drwxr-xr-x@ 3 zephryj  staff    96 May 19 00:30 ..
+drwxr-xr-x@ 9 zephryj  staff   288 May 19 00:30 .git
+-rw-r--r--@ 1 zephryj  staff  9777 May 19 00:33 .turingos_cas_index.jsonl

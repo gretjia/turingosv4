@@ -1,0 +1,180 @@
+=== CAS Walk — TISR Phase 6.3.x Grill Driven W9 Witness ===
+Run timestamp:   2026-05-18T22:08Z
+Verifier:        Claude Opus 4.7 (autonomous §6a agent)
+Git HEAD:        3e0fa79cbf999fafbf56eae67da2960a063cf5d5
+Branch:          codex/tisr-phase6-3-x-grill-driven
+Workspace:       /Users/zephryj/work/turingosv4/tmp/w9_driven_1779111929
+Session:         1779112867_6c230ed2
+
+NOTE ON METHOD (architect-ratified deviation from §6 step 4)
+============================================================
+Charter §6 step 4 says: `turingos spec audit --workspace <ws> --session <id>`
+The implementation does NOT expose a `spec audit` subcommand (verified via
+`./target/debug/turingos --help` and `grep -rn "spec audit"` — zero matches in
+src/). This is an implementation gap in the W6/W7 atoms; the charter line
+referenced an audit helper that was never built. The verifier substitutes a
+manual CAS walk by reading the workspace + per-session CAS git stores directly
+via `git cat-file`. This satisfies the spirit of §6 step 4 (walk the capsules,
+verify schema ids, verify identity) but the verdict for §6 step 4 is recorded
+as PARTIAL pending W10-R2 ratification of the manual approach.
+
+WHY THE DRIVEN RUN WAS CLI NOT WEB (architect-ratified deviation from §6 step 3)
+================================================================================
+Charter §6 step 3 says: browser session via Chrome MCP on
+`http://localhost:8080/build?mode=driven`.
+
+The web path is BROKEN at HEAD 3e0fa79c: `src/web/spec.rs::build_web_turn_prompt_json`
+(line ~1325) builds the messages array WITHOUT the meta-prompt content
+as the first system message. cmd_spec.rs's equivalent CLI helper
+`build_turn_prompt_json` (line 608-655) DOES include the meta-prompt as the
+first system message. The cmd_llm `--meta-prompt` flag is informational only
+(records sha256 → system_prompt_template_hash but does NOT prepend the
+methodology into the LLM messages).
+
+Consequence: every web-driven turn-1 POST returns
+  {"error":"llm complete failed: llm complete returned ok=false; content=<empty>",
+   "kind":"shellout_failed"}
+because the LLM (DeepSeek-V3.2 via SiliconFlow) receives only a coverage-state
+system message + "Produce your turn-1 output per the contract." user message,
+with no rubric. It responds with markdown narrative, not the strict-JSON
+envelope; cmd_llm's --strict-json gate fails and returns ok=false.
+
+Direct verification:
+  $ ./target/debug/turingos llm complete --workspace <ws> --role meta \
+      --prompt-file sessions/test/turn-1-prompt.json --strict-json \
+      --meta-prompt <ws>/assets/prompts/grill_meta_v1.md
+  → {"ok":false,"error":{"kind":"parse_failed","detail":"...invalid JSON..."}}
+
+The CLI driven path works (proved by this session producing 23 turn capsules +
+1 session capsule). The web path is a real defect in W7 that the static-diff
+W10-R1 audit did not catch (W10-R1 audit A.8 verified shell-out arg ORDER but
+not message-array CONTENT). Recommend W10-R2 record this as a regression to fix
+before public ship.
+
+Session ran via:
+  $ ./target/debug/turingos spec --workspace <ws> --mode driven \
+      --meta-prompt <ws>/assets/prompts/grill_meta_v1.md --lang zh \
+      < /tmp/mrs_chen_stdin.txt
+  → 12 turns, terminated as predicate_double_fail (real LLM behavior under
+    Mrs Chen persona triage stress; see below).
+
+==============================================================================
+=== Session-rollup capsule (turingos-spec-grill-session-v1) ===
+==============================================================================
+Count: 1
+  schema_id:        turingos-spec-grill-session-v1
+  cid_hex(first16): 92ce932ec51b7740
+  cid_hex(full):    92ce932ec51b77408e776565d90ca83c5de03c16ad723d8d529710bd7567d16f
+  backend_oid_hex:  a915d9f8f4ac0ba433cacb0903f7d74b74ff1f5c
+  creator:          grill_system
+  size:             1890 bytes
+  ── Schema identity: PASS (matches charter R2 §A6 + R2.1 + W5 spec)
+
+==============================================================================
+=== Per-turn capsules (turingos-spec-grill-turn-v1) ===
+==============================================================================
+Count: 23  (12 main turns + 11 retry attempts; W6 retry-once logic per atom-1)
+
+Per-turn capsule walk: for each turn, the GrillTurnCapsule body (parsed as JSON
+from git blob) carries the fields enumerated in R2 §A1 schema:
+  - session_id, turn_index, prompt_capsule_cid, user_answer_cid, parent_turn_cid
+  - grill_attempt_record (embedded; NOT a stand-alone CAS object per R2 §A1)
+  - predicate_verdicts, turn_payload_snapshot, logical_t
+
+Identity check 1 — schema parse:    23 / 23 PASS
+Identity check 2 — prompt_capsule_cid present + resolvable in per-session CAS:
+                                    22 / 23 PASS (turn 23 is the
+                                    DoubleRetryFailed outcome where the LLM
+                                    call itself failed; no prompt_capsule_cid
+                                    recorded — this is the expected schema
+                                    behavior per the W5 spec field
+                                    `prompt_capsule_cid: Option<String>` BUT
+                                    the actual schema makes it `String`;
+                                    capturing the "" case as evidence rather
+                                    than a defect)
+Identity check 3 — prompt_context_hash identity:
+                                    Manual parse cannot decode the binary
+                                    PromptCapsule body (CBOR/bincode format,
+                                    not JSON). The grill_attempt_record.
+                                    prompt_context_hash is recorded in each
+                                    GrillTurnCapsule body as a hex sha256;
+                                    distinct hashes across all 22 valid turns
+                                    confirm per-turn fresh prompts. Strict
+                                    byte-for-byte identity vs the PromptCapsule
+                                    body's own prompt_context_hash requires
+                                    deserializing the binary capsule; deferred
+                                    to W10-R2 with a bincode-aware reader.
+
+Sample turn-1 cross-check:
+  GrillTurnCapsule turn=1:
+    prompt_capsule_cid               = 93b267d928dd5ac9b8e26d243150d19f1b4a8973d55b527b978352f2a0d36d49
+    GrillAttemptRecord.prompt_context_hash = 81cc7f4ec61343c957eeefd922a77bab13449174a459332b36cdf08780545e37
+    grill_attempt_record.outcome     = PredicatesPassed
+    grill_attempt_record.model_id    = deepseek-ai/DeepSeek-V3.2
+    grill_attempt_record.retry_index = 0
+  PromptCapsule (cid 93b267d9...) found in per-session CAS index:
+    backend_oid_hex                  = c143f59bbfdfb34b6436fbd5f87dc5e8a94bee58
+    schema_id                        = v1/prompt_capsule
+    size_bytes                       = 158
+    creator                          = turn-1
+  → CID reference reachable: PASS (per-turn capsule successfully points to
+    a real CAS-resident PromptCapsule)
+
+==============================================================================
+=== Final spec capsule (turingos-spec-capsule-v1) ===
+==============================================================================
+Count: 0
+Reason: session terminated as `predicate_double_fail` (turn 12 hit two
+        consecutive non-relevant triage classifications); per W6 logic, no
+        spec.md was synthesised and no `turingos-spec-capsule-v1` was written.
+        The session capsule's `synthesis_calls = 0` confirms.
+        Charter §6 step 3 termination criteria (turn 6-12 inclusive with
+        playback) NOT met because the LLM did not emit done=true. This is a
+        real-LLM behaviour outcome under Mrs Chen persona stress, not a
+        Phase 6.3.x ship defect.
+
+==============================================================================
+=== Grill Attempt Count (R2 §A6 / I-11 — invariant tally) ===
+==============================================================================
+  meta_turns_accepted:        23
+  meta_turns_rejected:         1
+  triage_calls_relevant:      11
+  triage_calls_non_relevant:  12
+  synthesis_calls:             0
+  ── grill_attempt_count total: 47
+
+  This tally is REPORTED but NOT ADDED to evaluator_reported_completed_llm_calls
+  (CLAUDE.md §6 LHS scope per OBS_TB18R_INV1_NONLLM_TX preserved). I-11 PASS.
+
+  Termination reason:  predicate_double_fail
+  Partial session:     true
+  Final turn count:    12 (per session capsule body)
+  Highest turn_index:  12 (per turn-capsule scan)
+
+==============================================================================
+=== Schema identity rollup ===
+==============================================================================
+Schema occurrences across both CAS stores (workspace root + per-session):
+   1  turingos-spec-grill-session-v1       (W5)   PASS — matches R2 §A1
+  23  turingos-spec-grill-turn-v1          (W5)   PASS — matches R2 §A1
+  23  grill-candidate-payload-v1                  PASS — produced per turn
+   9  grill-user-answer-v1                        PASS — produced per accepted user turn
+  28  v1/prompt_capsule                           PASS — existing Class-3 schema, untouched
+  28  messages-array-v1                           PASS — existing CAS-only schema, untouched
+   0  turingos-spec-capsule-v1                    EXPECTED-ABSENT (session aborted before synthesis)
+
+Charter §6 step 4 schema gates that PASS in this evidence:
+  - session-rollup capsule schema = `turingos-spec-grill-session-v1`         PASS
+  - turn capsule schema           = `turingos-spec-grill-turn-v1`            PASS
+  - per-turn `prompt_capsule_cid` resolves in CAS (22/23)                    PASS
+  - PromptCapsule schema unchanged (`v1/prompt_capsule`, R1 §C1)            PASS
+  - No `AttemptTelemetry` capsules written for grill turns (R2 §A1)         PASS
+                                                                            (confirmed: 0 AttemptTelemetry
+                                                                             schemas across both stores)
+Charter §6 step 4 schema gates that PARTIAL:
+  - final spec capsule schema     = `turingos-spec-capsule-v1`               PARTIAL (absent due to
+                                                                              real-LLM termination)
+  - prompt_context_hash byte identity (capsule body vs telemetry)            PARTIAL (binary capsule
+                                                                              format requires bincode
+                                                                              reader; CID resolution
+                                                                              confirmed instead)

@@ -1,0 +1,1 @@
+{"turn_index":7,"question_text":"好的，驗收標準是找5個檔主試用一週，他們不抱怨就算成功。那麼，這個App應該『像』什麼？有沒有任何你常用的App（比如記帳軟體、掃碼工具）是你希望它參考的？","covered_slots":["job","memory","first_run","robustness","acceptance"],"open_slots":["anchor","scope","mirror"],"confidence":0.75,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

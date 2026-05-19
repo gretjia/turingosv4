@@ -1,0 +1,4 @@
+total 8
+drwxr-xr-x@   3 zephryj  wheel    96 May 19 00:29 .
+drwxrwxrwt  116 root     wheel  3712 May 19 00:34 ..
+-rw-r--r--@   1 zephryj  wheel   298 May 19 00:29 turingos.toml

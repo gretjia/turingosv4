@@ -1,0 +1,48 @@
+=== Step 5 — Replay (CAS-only reconstruction with --offline) ===
+Run timestamp: 2026-05-18T22:10Z
+
+NOT-RUN — IMPLEMENTATION GAP
+============================
+
+Charter §6 step 5 says:
+> Re-run audit walk with `--offline` flag (does not call SiliconFlow)
+> Verify all per-turn data reconstructable from CAS only
+> This proves replay-without-recall (I-8)
+
+The implementation does not expose:
+  - any `turingos spec audit` subcommand (verified via `./target/debug/turingos --help`)
+  - any `--offline` flag on any spec-related subcommand
+  - any binary that walks the CAS to reconstruct turn payloads from
+    `turn_payload_snapshot` in the GrillTurnCapsule body without LLM calls
+
+The W6/W7 atom scope ends at writing capsules; the reverse walk (replay) was
+not built. This is the same gap as Step 4 (`turingos spec audit` absent) and
+was not surfaced in the W10-R1 static-diff audit.
+
+What IS verifiable from the existing CAS evidence (without a replay binary):
+
+  1. `turn_payload_snapshot: serde_json::Value` is present in every
+     GrillTurnCapsule body (verified by reading the JSON-formatted git blobs
+     in workspace CAS). The full parsed envelope (question, covered_slots,
+     done, playback, etc.) is stored per turn. A replay binary COULD
+     reconstruct each turn's LLM output from these snapshots alone, with
+     ZERO outbound LLM calls. The data is present.
+
+  2. `prompt_capsule_cid` reference per turn is reachable (Step 4 evidence).
+     A replay binary could reconstruct the prompt that produced each turn.
+
+  3. `grill_attempt_record.prompt_context_hash` per turn is hex sha256, and
+     all 22 valid-outcome turns carry distinct values, confirming per-turn
+     unique prompts (not a cached-and-rerun scenario).
+
+Conclusion for I-8 (replay-without-recall):
+  STRUCTURALLY PASS — the CAS evidence is sufficient to reconstruct the run
+                      without re-invoking the LLM.
+  MECHANICALLY UNVERIFIED — no binary walks it.
+
+Deferred to W10-R2: build a `turingos spec audit --offline` (or equivalent)
+and re-run this step. Alternatively, write a one-off Python script that
+reads the GrillTurnCapsule snapshots and emits the canonical replay output;
+diff against the original stdout.
+
+diff vs Step 4: N/A (no second-pass walk performed)

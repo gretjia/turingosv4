@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"听起来你是说，这个工具的核心任务是帮助员工在公司内部快速找到他们需要的代码，对吗？那么，它最像你用过或见过的哪个现有工具？（比如像GitHub的搜索，还是像Google那样的搜索框，或是别的什么？）","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.2,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

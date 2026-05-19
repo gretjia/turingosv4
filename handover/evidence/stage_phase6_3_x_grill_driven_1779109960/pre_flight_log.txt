@@ -1,0 +1,34 @@
+=== W9 pre-flight checks (started 2026-05-18 by Opus 4.7 W9) ===
+
+--- 1. Branch / HEAD ---
+HEAD: 3e0fa79cbf999fafbf56eae67da2960a063cf5d5
+branch: codex/tisr-phase6-3-x-grill-driven
+expected HEAD: 3e0fa79c on codex/tisr-phase6-3-x-grill-driven
+
+--- 2. Prompt assets ---
+OK assets/prompts/grill_meta_v1.md (    3463 bytes)
+OK assets/prompts/grill_triage_blackbox_v1.md (    1653 bytes)
+OK assets/prompts/grill_synthesis_zh.md (    1755 bytes)
+
+--- 3. Binaries ---
+OK target/debug/turingos (mtime May 18 20:50:39 2026)
+OK target/debug/turingos_web (mtime May 18 20:51:15 2026)
+
+--- 4. API key env vars ---
+TURINGOS_SILICONFLOW_API_KEY len: 0
+SILICONFLOW_API_KEY len: 0
+
+Workspace turingos.toml api_key_env settings:
+llm.meta.api_key_env = "SILICONFLOW_API_KEY"
+llm.blackbox.api_key_env = "SILICONFLOW_API_KEY"
+
+--- 5. Workspace presence ---
+total 0
+drwxr-xr-x@ 4 zephryj  staff  128 May 18 13:51 .
+drwxr-xr-x@ 8 zephryj  staff  256 May 18 13:17 ..
+drwxr-xr-x@ 7 zephryj  staff  224 May 18 13:19 1779081457_2c7e041a
+drwxr-xr-x@ 7 zephryj  staff  224 May 18 13:53 1779083508_ebb235d2
+
+--- 6. Chrome MCP availability ---
+Chrome MCP tools available (mcp__Claude_in_Chrome__*): YES (loaded via ToolSearch)
+Browser device list not yet checked — preflight aborted before browser session

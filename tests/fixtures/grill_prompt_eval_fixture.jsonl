@@ -1,0 +1,25 @@
+# TuringOS Phase 6.3.y A2 prompt-eval starter fixture.
+#
+# Each non-comment line is one fixture row (FixtureRow JSONL schema).
+# Fields used per role:
+#   blackbox: question, user_answer, expected_class, expected_confidence_min
+#   meta:     history[], user_answer, expected_covered_slots_subset, expected_done, expected_confidence_min
+#   playback: covered_slots_input, expected_contains_substrings, expected_no_substrings
+#
+# This starter fixture encodes the campaign's known wins (F8 register-tolerance
+# personas P5/S11) AND known losses (M8 gibberish regressions: S9/A9) so that
+# running prompt-eval on triage v1 vs v2 produces a decisive A/B signal:
+#   v1 → gibberish PASS, register FAIL (the original bias)
+#   v2 → register PASS, gibberish FAIL (the M8 regression we MUST catch)
+# Neither prompt should be promoted to production: this fixture defines the
+# bar for triage v3.
+#
+# 8 rows total: 2 meta (mrs_chen) + 4 triage (2 register-pos + 2 gibberish-neg) + 2 playback.
+{"id":"mrs_chen_t1_job","tags":["mrs_chen","meta","extraction","positive"],"history":[],"user_answer":"我儿子放学想玩俄罗斯方块那种简单的小游戏，不想他看手机，所以想给他做一个","expected_covered_slots_subset":["job"],"expected_done":false,"expected_confidence_min":0.05,"notes":"mrs chen baseline — first turn must extract job slot (tetris-like game for son)"}
+{"id":"mrs_chen_t2_anchor","tags":["mrs_chen","meta","extraction","positive"],"history":[{"q":"妈妈您好，您想做一个什么样的小游戏？","a":"我儿子放学想玩俄罗斯方块那种简单的小游戏，不想他看手机"}],"user_answer":"就跟我小时候玩的那个俄罗斯方块差不多，方块从上面掉下来，能转方向，凑成一行就消除","expected_covered_slots_subset":["job","anchor"],"expected_done":false,"expected_confidence_min":0.1,"notes":"mrs chen turn-2 must cover job+anchor (tetris reference)"}
+{"id":"p5_codeswitch_t2_anchor","tags":["codeswitch","register","triage","f8_win"],"question":"你想用什么作为这个工具的 anchor？","user_answer":"Anchor 就用 Jira issue key, 比如 PROJ-1234, 一个 sprint 大概 30-40 个 ticket","expected_class":"relevant","expected_confidence_min":0.5,"notes":"F8 win: code-switch zh+en technical content must classify as relevant (anchor=Jira key)"}
+{"id":"s11_cantonese_t2_anchor","tags":["cantonese","register","triage","f8_win"],"question":"anchor 是什么？","user_answer":"錨點咪就係每日埋數個陣嘅總和囉，唔使搞咁複雜","expected_class":"relevant","expected_confidence_min":0.5,"notes":"F8 win: Cantonese particles (咪就係/嘅/個陣/囉) must classify as relevant (anchor=daily closing sum)"}
+{"id":"s9_gibberish_t1_negctrl","tags":["gibberish","negative_control","triage","m8_regression"],"question":"你想做什么？","user_answer":"月亮在周二吃掉一片云然后变成绿色的钢琴","expected_class":"gibberish","expected_confidence_min":0.5,"notes":"M8 regression detector: syntactically valid but semantically incoherent — MUST stay gibberish on v2"}
+{"id":"a9_gibberish_random_negctrl","tags":["gibberish","negative_control","triage","m8_regression"],"question":"你想做什么？","user_answer":"asdfqwer 麻辣烫 鼠标 跳跃 蓝色 17 嗯嗯嗯 ???","expected_class":"gibberish","expected_confidence_min":0.4,"notes":"M8 regression detector: random-token noise + emojis MUST stay gibberish on v2"}
+{"id":"p7_traditional_playback_no_hallucination","tags":["playback","p7","no_hallucination","traditional"],"covered_slots_input":{"job":"影片轉檔工具，輸出 MP4","anchor":"SHA256 加原檔名","memory":"轉檔之後存到伺服器","first_run":"拖曳上傳介面","robustness":"檔案過大時降低解析度","scope":"只做 MP4 不做 GIF","acceptance":"轉檔速度 1分鐘內"},"expected_contains_substrings":["影片","SHA256"],"expected_no_substrings":["YouTube","highlights","Instagram"],"notes":"P7 playback: must faithfully reflect Traditional vocab job=影片轉檔; MUST NOT hallucinate YouTube/Instagram features"}
+{"id":"mrs_chen_playback_no_hallucination","tags":["playback","mrs_chen","no_hallucination"],"covered_slots_input":{"job":"给儿子做一个俄罗斯方块小游戏","anchor":"经典俄罗斯方块","memory":"无需保存进度","first_run":"打开就能直接玩","robustness":"手机和电脑都能玩","scope":"不需要联网对战","acceptance":"儿子愿意玩"},"expected_contains_substrings":["俄罗斯方块","儿子"],"expected_no_substrings":["microtransaction","loot box","Steam","ranking system"],"notes":"mrs chen playback: must reflect tetris-for-son intent; MUST NOT hallucinate gamer features"}

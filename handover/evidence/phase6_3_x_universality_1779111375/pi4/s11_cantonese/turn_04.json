@@ -1,0 +1,1 @@
+{"turn_index":5,"question_text":"聽起來你是說，第一次打開App時，畫面中央應該是一個大大的掃描QR碼按鈕，對嗎？那掃描之後，會直接跳到記帳畫面嗎？","covered_slots":["job","anchor","memory"],"open_slots":["first_run","robustness","scope","acceptance","mirror"],"confidence":0.5,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"我理解你的锚点是 Wunderlist。关于‘记忆’部分：明天早上你打开这个应用，希望看到什么还保留在那里？是所有任务的列表，还是只有今天到期的任务，或者别的什么？","covered_slots":["anchor"],"open_slots":["job","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.2,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

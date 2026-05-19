@@ -1,0 +1,4 @@
+8e2f3a594a25524f99bad3e0d8169c386476b5de21292953b1e6e4a769813bdb  /Users/zephryj/work/turingosv4/assets/prompts/grill_meta_v1.md
+8a72521273703082670f8f59d160da64ea223cca8ea9318203db9efa712c3ece  /Users/zephryj/work/turingosv4/assets/prompts/grill_triage_blackbox_v1.md
+f30888f599b0d2c59f2665f4f4ca6890d0f859f21315f0ff70494ae274f04c88  /Users/zephryj/work/turingosv4/assets/prompts/grill_synthesis_zh.md
+70d85326ac0a07199a348a267c74236df53c12fc9a60df8e52e2b0ad7498cd4c  /Users/zephryj/work/turingosv4/assets/prompts/grill_synthesis_en.md

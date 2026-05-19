@@ -1,0 +1,62 @@
+{
+  "wave": "W2.4",
+  "persona_id": "p8_voicenoise",
+  "persona_name": "P8 语音转文字噪声 (medium — input noise + low literacy)",
+  "verdict": "FAIL",
+  "expected_behavior": "Grill comprehends noisy voice-typing input (no punctuation, homophone errors like '圆形的图' for '原型图', '锚点'/'sequel' misuse); recovers semantic intent across ≥5/7 slots and terminates with a spec_capsule_cid whose spec.md captures cleaned, paraphrased intent.",
+  "suspected_failure": "P-predicate fails to parse long no-punctuation strings; slot boundaries misidentified; triage may misclassify legitimate noisy content.",
+  "actual_behavior": "Backend bootstrapped Q1 normally (Q asks for job; covered=['job'], conf=0.1). T1 answer (long no-punct accounting story including '圆形的图') was accepted with HTTP 200 and the grill paraphrased it back nearly verbatim — still saying '圆形的图' rather than recognising 'pie chart / 原型图'. covered_slots remained ['job'], confidence rose to 0.2, turn_index advanced to 2. T2 answer (anchor slot: '锚点就是每一笔账都是一个时间戳...') was returned with HTTP 200 but the response REGRESSED: covered_slots dropped to [], open_slots dropped to [], confidence collapsed to 0.0, turn_index stayed at 2, and the same Q1-paraphrase question_text was re-emitted (no progress, no new question). This is the classic predicate-fail re-ask pattern. T3 answer (memory slot: '存储就用手机本地...sequel 啥的') triggered server-side termination after one more turn at turn_index=2: terminated=true, question_text='', covered_slots=[], confidence=0.0, spec_capsule_cid=null, termination_reason='user_input_unparseable_no_spec'. The grill never recovered semantic content from the noisy strings, never produced a spec, and bailed at turn 3 of a planned 9-turn run. No transcription-correction behavior observed (grill literally echoed user noise without cleaning); 0 of 7 slots semantically recovered into a spec; predicate_double_fail / unparseable triage misfired on legitimate content. This matches the suspected P8 failure mode exactly.",
+  "metrics": {
+    "total_turns": 3,
+    "terminated_at_turn": 3,
+    "terminate_reason": "user_input_unparseable_no_spec",
+    "covered_slots_at_term": [],
+    "spec_capsule_cid": null,
+    "turn_index_trajectory": [1, 2, 2, 2],
+    "covered_slots_trajectory": [["job"], ["job"], [], []],
+    "confidence_trajectory": [0.1, 0.2, 0.0, 0.0],
+    "envelope_parse_success_rate": 1.0,
+    "envelope_parse_success_count": 4,
+    "envelope_parse_total_count": 4,
+    "mean_latency_ms": 4340.5,
+    "max_latency_ms": 8502,
+    "http_5xx_count": 0,
+    "cost_proxy_completion_tokens": null,
+    "transcription_corrections_observed": 0,
+    "semantic_recovery_score": 0,
+    "triage_gibberish_misfires": 2,
+    "narrative": "T1 echoed user noise verbatim ('圆形的图' not normalised to pie chart); T2 predicate-failed silently (covered regressed [job]→[], open→[], conf 0.2→0.0, turn_index stuck at 2); T3 forced termination with user_input_unparseable_no_spec. No spec capsule produced; 0/7 slots recovered semantically; persona's noisy-but-legitimate input was classified unparseable."
+  },
+  "anomalies": [
+    "T2 response regressed covered_slots from ['job'] to [] AND open_slots from 7-slot list to [] — open_slots emptying mid-session before any spec is plausibly an envelope bug (open_slots should remain populated until coverage closes them).",
+    "T2 and T3 both kept turn_index pinned at 2 — the predicate-fail re-ask did not increment, so the 15-turn ceiling cannot fire to bail gracefully; instead termination_reason='user_input_unparseable_no_spec' fires after 2 consecutive predicate fails.",
+    "Grill paraphrase preserves user's homophone error ('圆形的图') verbatim — no semantic normalisation of speech-to-text noise. This is consistent with P8 hypothesis: Meta LLM does not de-noise voice-typing input before predicates run.",
+    "No CAS audit walk possible — driven mode writes capsules server-side, and the session never reached spec emission (spec_capsule_cid=null)."
+  ],
+  "session_id": "w2_p8_voicenoise_1779118954",
+  "workspace": "/tmp/wave_w2_p8_voicenoise_1779118954",
+  "backend": "http://127.0.0.1:8080",
+  "lang": "zh",
+  "evidence_files": [
+    "session_id.txt",
+    "workspace_path.txt",
+    "session_log.jsonl",
+    "cas_walk.txt",
+    "verdict.json"
+  ],
+  "started_at_unix": 1779118906,
+  "completed_at_unix": 1779119050,
+  "answers_submitted": [
+    "我想做一个就是那个能够帮我记账的那个东西然后能够分类比如说吃饭和打车不一样的颜色然后到月底有一个那种圆形的图",
+    "锚点就是每一笔账都是一个时间戳然后金额然后那个备注就是简单写一下吃啥喝啥就行",
+    "存储就用手机本地的那个东西好了不要联网那种就用那个 sequel 啥的"
+  ],
+  "answers_not_submitted_due_to_early_termination": [
+    "T4 first_run: 第一次打开就是让我选几个常用的分类...",
+    "T5 robustness: 断网也能用是必须的...",
+    "T6 scope: 就我一个人用不需要跟别人一起记账...",
+    "T7 acceptance: 好用的话就是我能坚持记一个月不烦...",
+    "T8 mirror: 差不多就这样了你给我整理一下吧",
+    "T9 done-playback: 嗯可以差不多就这意思"
+  ]
+}

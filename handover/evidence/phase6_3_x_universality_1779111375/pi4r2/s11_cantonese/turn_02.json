@@ -1,0 +1,1 @@
+{"turn_index":3,"question_text":"咁個app會唔會需要記住啲嘢，例如上個月嘅數，或者每個檔主自己嘅設定？","covered_slots":["job","anchor"],"open_slots":["memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.3,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

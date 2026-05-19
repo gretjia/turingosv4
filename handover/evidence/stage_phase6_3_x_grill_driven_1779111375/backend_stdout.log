@@ -1,0 +1,3 @@
+TuringOS Phase 7 Web MVP — workspace: /Users/zephryj/work/turingosv4/tmp/w9_driven_1779111929
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080

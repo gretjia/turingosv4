@@ -1,0 +1,3 @@
+{"turn_index":1,"question_text":"你好！请描述一下你希望我帮你构建一个什么样的小工具或小游戏？它主要用来帮你完成一件什么事？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.1,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}
+HTTP_STATUS:200
+ELAPSED:6.420419

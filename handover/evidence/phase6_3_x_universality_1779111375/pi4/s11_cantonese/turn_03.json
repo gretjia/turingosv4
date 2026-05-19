@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"明白，數據就存在手機本地。那麼，當檔主第一次打開這個App時，他第一眼會看到什麼畫面？請描述一下最中間的幾個按鈕或數字。","covered_slots":["job","anchor","memory"],"open_slots":["first_run","robustness","scope","acceptance","mirror"],"confidence":0.4,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

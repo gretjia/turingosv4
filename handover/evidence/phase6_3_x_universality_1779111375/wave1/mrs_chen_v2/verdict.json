@@ -1,0 +1,120 @@
+{
+  "session_id": "w1v2_mrs_chen_1779118399",
+  "persona": "W1.1-V2 Mrs Chen (v2 prompt active, F1-F6 backend)",
+  "backend": "http://127.0.0.1:8080 (F1-F6 fixes + v2 grill_meta_v1.md)",
+  "prompt_sha256": "95d18da00cc5e609d63ba2ce4d8634f7401d369f96dda07ee4ab1c1ccc44a10e",
+  "prompt_sha256_matches_v2_expected": true,
+  "wave": "1",
+  "persona_id": "mrs_chen_v2",
+  "persona_name": "Mrs Chen (Tetris/no-network) — v2 prompt rerun",
+
+  "verdict": "PARTIAL",
+  "s2_verdict": "PARTIAL",
+  "verdict_rationale": "v2 prompt produced a qualitatively different and clearly improved grilling behaviour on the one turn where the LLM successfully responded: by the end of turn 1 the assistant had bound 3 required slots (job, anchor, robustness) and emitted a focused follow-up (anchor refinement) with no Voss-mirror opener — a dramatic change from v1 which after 3-7 turns never bound any required slot and re-emitted the same '听起来你是说' double-question. However, the session did not reach a spec_capsule: a transient HTTP 500 ('llm complete returned ok=false; content=<empty>', kind=shellout_failed) corrupted turn 1, then triage rejected the next two answers (anchor-redundant 'previous site needed network' answer + 'memory' answer that did not address the still-active anchor-refinement question), causing user_input_unparseable_no_spec termination at turn 3. Net: v2 strongly fixes the prompt-side defects (P1 and P3 hold), but P2 (confidence) and P5 (envelope) miss, the latter due to the orthogonal D8 shellout flake.",
+
+  "turns_total": 5,
+  "user_answers_sent": 4,
+  "successful_llm_turns": 1,
+  "final_turn_index": 1,
+  "terminated": true,
+  "termination_reason_observed": "user_input_unparseable_no_spec",
+  "spec_capsule_cid": null,
+
+  "covered_slots_trajectory": [
+    [],
+    ["job", "anchor", "robustness"],
+    [],
+    []
+  ],
+  "covered_slots_at_term": [],
+  "covered_required_count_peak": 3,
+  "open_slots_initial": ["job", "anchor", "memory", "first_run", "robustness", "scope", "acceptance", "mirror"],
+
+  "p1_covered_includes_3plus_required_by_turn_5": true,
+  "p1_evidence": "On turn 1 (successful retry) covered_slots = [job, anchor, robustness] — 3 required slots bound, satisfies '>=3 required by turn 5'.",
+
+  "p2_confidence_at_turn_5": 0.43,
+  "p2_evidence": "Confidence peaked at 0.43 on the one substantive turn (T1 retry). Subsequent triage-reject turns reset confidence to 0.0. Session terminated before turn 5, so the 'at turn 5' value is effectively 0.0 with peak 0.43 — below the 0.5 threshold either way.",
+
+  "p3_voss_mirror_count_first_5_turns": 0,
+  "p3_evidence": "Across all 5 server responses (T0 bootstrap + T1 500 + T2 triage-reject + T1 retry + T2 triage-reject + T3 terminate), zero question_text openings began with '听起来你是说' or '你是说'. T1 retry opened with '所以核心是...对吗？' which is a confirm-then-pivot frame, not the Voss-mirror declarative-disguised-as-question pattern. Massive improvement vs v1 (4/4 or 2/2) and r2 (2/2).",
+
+  "p4_consecutive_same_slot_count": 0,
+  "p4_evidence": "Only one substantive LLM-generated question was emitted (T1 retry, targeting anchor refinement). T0 bootstrap and the triage-reject re-emissions do not count as distinct slot-targeted turns. P4 is therefore vacuously satisfied (0 same-slot pairs) but not strongly tested.",
+
+  "p5_no_envelope_violations": false,
+  "p5_evidence": "One HTTP 500 occurred on T1 first attempt with body {error: 'llm complete failed: llm complete returned ok=false; content=<empty>', kind: 'shellout_failed'} — this is the D8 SiliconFlow/LLM transient empty-content flake, NOT a v2-prompt regression. All other 6 responses returned HTTP 200 with valid envelope. No JSON schema violations from v2-prompt LLM output.",
+
+  "any_5xx": true,
+  "5xx_count": 1,
+  "5xx_turn_indices": [1],
+  "5xx_kind": "shellout_failed (LLM empty content — orthogonal D8 flake, not v2-prompt regression)",
+  "zero_response_count": 0,
+  "voss_mirror_question_count": 0,
+  "max_latency_ms_per_turn": 11000,
+  "mean_latency_ms_per_turn": 6166,
+
+  "anomalies": [
+    {
+      "turn": 1,
+      "type": "shellout_failed_500",
+      "note": "LLM returned ok=false with empty content; HTTP 500 surfaced cleanly (no silent zero-response). Retry succeeded normally and bound 3 slots."
+    },
+    {
+      "turn": 2,
+      "type": "triage_reject_short_circuit",
+      "note": "User answer '之前在一个网站上玩，但需要网络' was triage-rejected against the active 'anchor/scope' question; response replayed prior Q with covered=[]/open=[], turn_index held at 1 — consistent with F6 fix #2."
+    },
+    {
+      "turn": 3,
+      "type": "premature_termination_user_input_unparseable",
+      "note": "After two consecutive triage-rejects, server terminated with termination_reason=user_input_unparseable_no_spec. F6 fix #3 verified — explicit reason surfaced, no silent null."
+    }
+  ],
+
+  "s2_dimensions": {
+    "slot_binding_speed": "STRONGLY IMPROVED — 3 required slots after 1 successful turn vs v1's 0/7 after 7 turns and r2's 0/7 after 3 turns.",
+    "confidence_dynamics": "PARTIALLY IMPROVED — 0.43 vs v1's 0.2; but did not cross 0.5 before session ended.",
+    "voss_mirror_frequency": "STRONGLY IMPROVED — 0 vs v1's 4/4 and r2's 2/2. The new opener '所以核心是...对吗？' is a confirm-then-pivot frame, not a hidden declarative.",
+    "termination_behaviour": "NEUTRAL — same triage-reject + user_input_unparseable_no_spec pathway as r2. F6 fixes still verified working.",
+    "schema_envelope_quality": "NEUTRAL — no schema regressions from v2 prompt; the 500 was an upstream LLM flake."
+  },
+
+  "f6_fix_verifications": {
+    "no_silent_zero_responses": "PASS — the empty-content LLM result was surfaced as HTTP 500 with kind=shellout_failed, not as a silent question_text=''.",
+    "turn_index_preserved_on_triage_reject": "PASS — turn_index stayed at 1 across the T2 triage-reject after T1 retry success.",
+    "termination_reason_field_present": "PASS — final response carries termination_reason='user_input_unparseable_no_spec'."
+  },
+
+  "narrative": "v2 prompt clearly works on the dimensions it was designed to fix. On the one turn where the LLM successfully responded (T1 retry after a D8 shellout flake), the model bound three required slots — job, anchor, robustness — in a single pass and produced a focused, non-mirror-framed follow-up. That is a step-change from the v1 baseline, where Mrs Chen got 0/7 slots across 3-7 turns and the LLM looped on the canonical '听起来你是说...对吗？那么...' double-question. P1 (≥3 required slots by turn 5) and P3 (≤1 Voss mirror opener) both hold strongly. P2 (confidence ≥ 0.5) misses at 0.43 — close but not over the line on a single successful turn. P4 is vacuously true (only one slot-targeted turn happened, so no consecutive-same-slot pairs are observable).\n\nThe session did not reach a spec_capsule. Two unrelated forces dragged it down: (a) the D8 LLM-empty-content flake (HTTP 500, kind=shellout_failed) cost the first turn 1 attempt — this is orthogonal to v2 prompt quality, since the retry on identical inputs worked perfectly; and (b) the triage layer rejected the next two playbook answers ('previous site needed network' against an active anchor-refinement question, and 'remember last level' against the same still-active question), triggering F6's user_input_unparseable_no_spec termination at turn 3. The triage behaviour matches r2's pattern but is not a v2 regression. Verdict: S2-PARTIAL — Software 3.0 strongly improves slot-binding speed and removes the Voss-mirror pathology, but the session-completion problem persists, driven by triage strictness and the D8 LLM flake rather than by prompt quality.",
+
+  "comparison_vs_v1_baseline": {
+    "v1_first_run": {
+      "turns": 7,
+      "covered_required_count": 0,
+      "voss_mirror_count_first_5": 4,
+      "verdict": "FAIL"
+    },
+    "v1_r2_rerun": {
+      "turns": 3,
+      "covered_required_count": 0,
+      "voss_mirror_count_first_5": 2,
+      "verdict": "PARTIAL (F6 verification only)"
+    },
+    "v2_this_run": {
+      "turns": 4,
+      "covered_required_count_peak": 3,
+      "voss_mirror_count_first_5": 0,
+      "verdict": "PARTIAL (v2 prompt strongly improves slot binding + removes Voss-mirror; session still doesn't synthesise spec)"
+    }
+  },
+
+  "evidence_files": [
+    "session_id.txt",
+    "session_log.jsonl",
+    "session_dir_listing.txt",
+    "cas_index.jsonl",
+    "cas_capsules.txt",
+    "verdict.json"
+  ]
+}

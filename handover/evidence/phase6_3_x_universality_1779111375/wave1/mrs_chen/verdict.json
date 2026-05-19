@@ -1,0 +1,58 @@
+{
+  "wave": "1",
+  "persona_id": "mrs_chen",
+  "persona_name": "Mrs Chen (Tetris/no-network)",
+  "verdict": "FAIL",
+  "session_id": "w1_mrs_chen_probe_1779116119",
+  "total_turns_submitted": 7,
+  "terminated_at_turn": 7,
+  "terminate_reason_inferred": "predicate_double_fail",
+  "covered_slots_at_term": [],
+  "covered_required_count": 0,
+  "spec_capsule_cid": null,
+  "any_5xx": false,
+  "max_latency_ms_per_turn": 14992,
+  "mean_latency_ms_per_turn": 8153,
+  "anomalies": [
+    {
+      "turn": 2,
+      "type": "empty_question_text",
+      "note": "predicate triage likely failed; returned with empty open_slots and covered=[]"
+    },
+    {
+      "turn": 6,
+      "type": "empty_question_text",
+      "note": "predicate triage likely failed; returned with empty open_slots and covered=[]"
+    },
+    {
+      "turn": 7,
+      "type": "empty_question_text",
+      "note": "predicate triage likely failed; returned with empty open_slots and covered=[]"
+    },
+    {
+      "turn": 2,
+      "type": "covered_slots_regression",
+      "lost": [
+        "job"
+      ],
+      "current": []
+    },
+    {
+      "turn": 6,
+      "type": "covered_slots_regression",
+      "lost": [
+        "job"
+      ],
+      "current": []
+    },
+    {
+      "type": "terminated_without_spec_capsule",
+      "note": "terminated:true but spec_capsule_cid is null"
+    },
+    {
+      "type": "terminated_with_zero_required_slots",
+      "note": "covered_slots=[] required=['job', 'anchor', 'memory', 'first_run', 'robustness', 'scope', 'acceptance']"
+    }
+  ],
+  "narrative": "Mrs Chen 的会话在第 7 轮被强制 terminated，但 spec_capsule_cid 为 null 且 covered_slots=[]，明显属于 predicate 双重失败式中止而非真正完成。前两轮（fixed_turn_1/2）LLM 正常推进，第 1 轮成功捕获 job 槽；但从第 3 轮起出现 covered_slots 回归（{'job'} ↔ []）和 question_text 间歇为空（turn 2/6/7），强烈提示 turn-N-triage 阶段的 LLM 返回不可解析，触发了 6.3.x 的 predicate fallback 路径并最终升级为强制终止。Mrs Chen 的回答本身完全在 persona 范围内（口语化、简短、生活化），未提供任何超规模或不可解析的输入。因此责任在产线侧：triage 解析鲁棒性不足 + covered_slots 在 triage 失败时被错误清零 + 终止路径未生成 spec_capsule。Universality 标准下视为 FAIL（终止时 0/7 required slots 覆盖、无 spec capsule、有 covered 回归三处异常）。"
+}

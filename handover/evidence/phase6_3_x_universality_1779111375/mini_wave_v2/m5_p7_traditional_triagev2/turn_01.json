@@ -1,0 +1,1 @@
+{"turn_index":2,"question_text":"好的，你想要一個影片轉檔工具。那麼，它最像你目前用過的哪個現有工具或網站？比如說，像線上轉檔網站，還是像電腦上的某個軟體？","covered_slots":["job"],"open_slots":["anchor","memory","first_run","robustness","scope","acceptance","mirror"],"confidence":0.15,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}

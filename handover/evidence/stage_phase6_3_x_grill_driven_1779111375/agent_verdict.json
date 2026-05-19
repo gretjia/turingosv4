@@ -1,0 +1,176 @@
+{
+  "schema": "tisr.phase6_3_x.w9.agent_verdict.v1",
+  "stage": "stage_phase6_3_x_grill_driven_1779111375",
+  "agent": "clean-context Opus 4.7 W9 autonomous verifier (this run REPLACES prior ABORT verdict)",
+  "verdict": "FAIL",
+  "verdict_class": "implementation_defect_blocks_web_path",
+  "rationale_short": "Charter §6 step 3 (browser-driven E2E) cannot complete: POST /api/spec/turn returns HTTP 500 'shellout_failed' on the first turn because src/web/spec.rs::build_web_turn_prompt_json omits the meta-prompt content from the LLM message array. Charter §6 step 4 + 5 (`turingos spec audit` and `--offline` replay) reference subcommands that do not exist in the binary at HEAD 3e0fa79c. The CLI driven path (`turingos spec --mode driven`) WORKS end-to-end with real LLM and writes the full capsule schema set; Step 6 (legacy static) passed exit-0. Three implementation gaps surfaced that the static-diff W10-R1 audit did not catch.",
+  "run_metadata": {
+    "verifier": "Claude Opus 4.7 (autonomous §6a agent, clean context)",
+    "started_utc": "2026-05-18T21:25Z",
+    "ended_utc": "2026-05-18T22:18Z",
+    "wall_clock_minutes": 53,
+    "git_head": "3e0fa79cbf999fafbf56eae67da2960a063cf5d5",
+    "git_head_match": true,
+    "branch": "codex/tisr-phase6-3-x-grill-driven",
+    "workspace_driven": "/Users/zephryj/work/turingosv4/tmp/w9_driven_1779111929",
+    "workspace_legacy": "/Users/zephryj/work/turingosv4/tmp/w9_legacy_1779111929",
+    "api_key_loaded": true,
+    "api_key_source": "/Users/zephryj/projects/turingosv3/.env (architect-corrected path)",
+    "binary_freshness": "rebuilt cargo build --bin turingos --bin turingos_web --features web against pinned HEAD (mtime newer than HEAD commit time)"
+  },
+  "per_step_verdicts": [
+    {
+      "step": 1,
+      "name": "Backend startup",
+      "verdict": "PASS",
+      "notes": [
+        "cargo build succeeded; turingos_web binary started; pid=40691 listening on 127.0.0.1:8080 (lsof confirmed LISTEN)",
+        "GET /build returns 200; GET /api/dashboard returns 200",
+        "DEVIATION FROM CHARTER: no /health endpoint exists (verified via grep of src/web/router.rs); §6a alternate criterion 'lsof :8080 showing LISTEN' satisfied",
+        "Backend started with TURINGOS_WEB_WORKSPACE=/Users/zephryj/work/turingosv4/tmp/w9_driven_1779111929 + SILICONFLOW_API_KEY in env (per W10-R1 audit pre-W9 action #1)"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Frontend build",
+      "verdict": "PASS",
+      "notes": [
+        "frontend/package.json: `tsc --noEmit && esbuild` succeeded in <1s; output dist/main.js = 85959 bytes",
+        "DEVIATION FROM CHARTER: frontend has no `npm run serve` script. The architecture serves the bundle via the Rust backend at /static/main.js (embedded via include_bytes! at compile time, src/web/router.rs:79). No separate dev server on :5173 needed",
+        "Verified GET /static/main.js returns 200 with 85959 bytes — bundle is freshly embedded"
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Browser driven session (Chrome MCP)",
+      "verdict": "FAIL",
+      "notes": [
+        "Navigation to http://localhost:8080/build?mode=driven succeeded; 'TISR · LLM 驱动访谈' banner + '开始 spec 访谈' CTA rendered correctly (Phase 7 chrome + spec-grill component mounted)",
+        "Click on CTA fires _drivenStart() → POST /api/spec/turn with user_answer=null",
+        "POST returns HTTP 500 body {\"error\":\"llm complete failed: llm complete returned ok=false; content=<empty>\",\"kind\":\"shellout_failed\"}",
+        "Frontend correctly handles 5xx per W8 spec (drivenNudge = '服务器错误 (500)…', recent5xx=1, waits for second 5xx before fallback)",
+        "ROOT CAUSE — IMPLEMENTATION DEFECT: src/web/spec.rs::build_web_turn_prompt_json (line ~1325) builds the LLM messages array as [{role:system, content:coverage_summary}, {role:user, content:'Produce turn-N output per the contract'}] — meta-prompt content (grill methodology + JSON envelope contract) is NEVER included. Comment 'the shell-out to turingos llm complete --meta-prompt handles that server-side' is incorrect: cmd_llm.rs treats --meta-prompt as informational only (sha256 → system_prompt_template_hash) and does NOT prepend the asset to the message array. Compare cmd_spec.rs::build_turn_prompt_json (line 608) which DOES include meta_prompt_content as first system message — this works for the CLI driven path",
+        "REPRODUCTION: $ ./target/debug/turingos llm complete --workspace <ws> --role meta --prompt-file <ws>/sessions/<id>/turn-1-prompt.json --strict-json --meta-prompt <ws>/assets/prompts/grill_meta_v1.md → {\"ok\":false,\"error\":{\"kind\":\"parse_failed\",\"detail\":\"解析失败: invalid JSON\"}}. Without --strict-json, content is markdown narrative ('Priya, a freelance graphic designer...') not the JSON envelope",
+        "Per-turn mechanical checks (charter §6a): NOT APPLICABLE — no successful turn payload received. covered_slots monotonicity, question_text ≠ canonical, turn 6-12 termination, playback, SpecGrillComplete WS event — all UNVERIFIABLE because turn 1 fails",
+        "Console: 0 page-level errors. The 9 EXCEPTION lines captured are Chrome extension MV3 message-channel artifacts (origin :0:0, not the frontend bundle)",
+        "Network: 1 POST /api/spec/turn → 500 (charter §6a 'zero 5xx' criterion: FAIL)"
+      ]
+    },
+    {
+      "step": 3.5,
+      "name": "Compensating evidence — CLI driven path",
+      "verdict": "PASS",
+      "notes": [
+        "Charter §6 step 3 requires the browser path. Since the browser path is broken, the verifier ran the CLI driven path with Mrs Chen answers piped to stdin to produce real CAS evidence for Steps 4-5",
+        "$ ./target/debug/turingos spec --workspace <ws> --mode driven --meta-prompt <ws>/assets/prompts/grill_meta_v1.md --lang zh < /tmp/mrs_chen_stdin.txt",
+        "Wall time: 335s; 12 turns; 23 turn capsules (with retries); 1 session capsule (cid=92ce932ec51b77408e776565d90ca83c5de03c16ad723d8d529710bd7567d16f); termination_reason=predicate_double_fail",
+        "Real DeepSeek-V3.2 invoked end-to-end via SiliconFlow; full capsule schema set written (turingos-spec-grill-turn-v1 + turingos-spec-grill-session-v1 + v1/prompt_capsule + grill-candidate-payload-v1 + grill-user-answer-v1)",
+        "Termination NOT clean (predicate_double_fail @ turn 12 instead of clean done=true) because the LLM-driven triage classifier flagged Mrs Chen's 'WiFi 断了游戏不能停' and similar answers as off_topic, triggering nudge loops, and her concise persona-style answers eventually tripped double-non-relevant abort. This is real-LLM behavior under stress, not a phase ship defect — the W6 logic ran correctly through the failure path"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "CAS walk verification",
+      "verdict": "PARTIAL",
+      "notes": [
+        "DEVIATION FROM CHARTER: charter §6 step 4 invokes `turingos spec audit --workspace <ws> --session <id>` — this subcommand does NOT exist in the binary at HEAD 3e0fa79c (verified via `./target/debug/turingos --help` + `grep -rn 'spec audit' src/`). The W7 atom built /api/spec/turn but did not add the audit walker described in the charter",
+        "Verifier substituted a manual CAS walk reading both CAS git stores directly (tmp/w9_driven/cas + tmp/w9_driven/sessions/<id>/capsules/cas). Output: cas_walk_output.txt (full schema breakdown + per-turn prompt_capsule_cid resolution + I-11 tally)",
+        "PASS: session-rollup capsule schema = turingos-spec-grill-session-v1 (1 entry)",
+        "PASS: per-turn capsule schema = turingos-spec-grill-turn-v1 (23 entries)",
+        "PASS: per-turn prompt_capsule_cid resolves in per-session CAS index (22 of 23 turns have a valid prompt_capsule_cid; turn 23 outcome=DoubleRetryFailed where the LLM call itself failed)",
+        "PASS: No AttemptTelemetry capsules written for grill turns (R2 §A1 invariant I-9 confirmed: 0 attempt-telemetry schemas across both CAS stores)",
+        "PASS: I-11 grill_attempt_tally reported in session capsule body: meta_turns_accepted=23, meta_turns_rejected=1, triage_calls_relevant=11, triage_calls_non_relevant=12, synthesis_calls=0. Tally is REPORTED separately, NOT summed into evaluator_reported_completed_llm_calls (CLAUDE.md §6 LHS scope preserved)",
+        "PARTIAL: prompt_context_hash byte identity (GrillAttemptRecord vs PromptCapsule body) — the PromptCapsule blob is binary (CBOR/bincode), not JSON; verifier could not decode without a bincode-aware reader. CID resolution confirmed instead. Strict byte identity deferred to W10-R2",
+        "PARTIAL: final spec capsule (turingos-spec-capsule-v1) absent because session aborted before synthesis (synthesis_calls=0 in session capsule body)"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Replay (CAS-only reconstruction with --offline)",
+      "verdict": "NOT-RUN",
+      "notes": [
+        "DEVIATION FROM CHARTER: no `--offline` flag exists on any subcommand (verified via grep); no audit walker binary exists either. The replay-without-recall code path described in §6 step 5 was not built in W6/W7",
+        "STRUCTURAL ANALYSIS for I-8: GrillTurnCapsule.turn_payload_snapshot stores the full parsed envelope per turn; prompt_capsule_cid + parent_turn_cid form a per-turn chain. A replay binary COULD reconstruct the run from CAS alone with zero LLM calls. The DATA is present; the BINARY that reads it back is not",
+        "I-8 verdict: STRUCTURALLY PASS / MECHANICALLY UNVERIFIED. Deferred to W10-R2"
+      ]
+    },
+    {
+      "step": 6,
+      "name": "Legacy --mode static byte-compat",
+      "verdict": "PARTIAL-PASS",
+      "notes": [
+        "Inline 8-answer fixture (Mrs Chen) used per orchestrator authorization (charter fixture file does not exist; W10-R1 audit O2 ratified this deferral)",
+        "$ ./target/debug/turingos spec --workspace <ws3> --answers-file <inline.json> --mode static --lang zh → exit 0",
+        "Output: spec.md (4705 bytes) + spec_transcript.jsonl + CAS capsule (cid=7c92d026e4e63118e9c1f178887c8c46e2b50fe134d69b36654568011d944691, schema=turingos-spec-capsule-v1)",
+        "PASS: exit code 0; spec.md generated; CAS capsule written with unchanged schema (turingos-spec-capsule-v1, R2 §A1 honored)",
+        "PARTIAL: sha256 byte-identity comparison NOT performed (no committed snapshot per W10-R1 audit O2; static --skip-llm path recommended for W10-R2 as deterministic baseline). sha256 of produced spec.md recorded in legacy_byte_compat_hash.txt"
+      ]
+    }
+  ],
+  "invariant_rollup": [
+    {"id": "I-1", "name": "FC1 anchoring via grill EvidenceCapsule (NOT AttemptTelemetry)", "verdict": "PASS", "evidence": "0 AttemptTelemetry capsules in either CAS store; all 23 turns embedded GrillAttemptRecord in turingos-spec-grill-turn-v1 body"},
+    {"id": "I-2", "name": "PromptCapsule per turn with hidden_fields_redacted=true", "verdict": "PASS-STRUCTURAL", "evidence": "28 v1/prompt_capsule entries across all turns; binary body not decoded but R2 §A2 invariant proved by W10-R1 audit static analysis (hardcoded true at cmd_llm.rs:907)"},
+    {"id": "I-3", "name": "covered_slots monotonicity per turn", "verdict": "STRUCTURAL-PASS", "evidence": "23 turn capsules show turn_index progression 1→12 with retry indices; full payload snapshot per turn in turn_payload_snapshot field; web path could not be tested mechanically"},
+    {"id": "I-4", "name": "Predicate retry budget = 1 per turn", "verdict": "PASS", "evidence": "Retry capsules visible in session: 11 retry attempts visible in CAS index; turns 3-5 + 8-9 + 12 retried"},
+    {"id": "I-5", "name": "Turn ceiling = 15 hard cap", "verdict": "PASS-NOT-EXERCISED", "evidence": "Session terminated at turn 12 via predicate_double_fail; ceiling not reached"},
+    {"id": "I-6", "name": "Termination predicate = covered_slots superset REQUIRED and confidence >= 0.8 and turn >= 4", "verdict": "PASS-STRUCTURAL", "evidence": "W10-R1 audit confirmed implementation at grill_predicates.rs:217-235; this run did not reach termination predicate pass because triage loop prevented coverage from completing"},
+    {"id": "I-7", "name": "Legacy --mode static byte-identical to pre-W6", "verdict": "PARTIAL", "evidence": "Charter snapshot absent (O2 deferral); static run exit 0 + spec.md produced + schema unchanged; sha256 recorded in legacy_byte_compat_hash.txt; mechanical byte-comparison deferred to W10-R2"},
+    {"id": "I-8", "name": "Replay-without-recall (reconstruct from CAS, no LLM)", "verdict": "STRUCTURAL-PASS-MECHANICAL-NOT-RUN", "evidence": "turn_payload_snapshot present in every GrillTurnCapsule (data sufficient); no audit walker binary exists to mechanically prove (W6/W7 implementation gap)"},
+    {"id": "I-9", "name": "Grill turns do NOT write AttemptTelemetry", "verdict": "PASS", "evidence": "0 AttemptTelemetry capsules in either CAS store"},
+    {"id": "I-10", "name": "Termination predicate 7-slot subset + confidence + turn >= 4", "verdict": "PASS-STRUCTURAL", "evidence": "Implementation verified by W10-R1 audit"},
+    {"id": "I-11", "name": "grill_attempt_count parallel tally, NOT summed into evaluator_reported_completed_llm_calls", "verdict": "PASS", "evidence": "Session capsule body grill_attempt_tally {meta_turns_accepted:23, meta_turns_rejected:1, triage_calls_relevant:11, triage_calls_non_relevant:12, synthesis_calls:0}; reported separately under 'Grill Attempt Count' header in cas_walk_output.txt"}
+  ],
+  "implementation_gaps_surfaced_by_w9": [
+    {
+      "id": "GAP-1",
+      "severity": "BLOCKING-FOR-SHIP",
+      "surface": "src/web/spec.rs::build_web_turn_prompt_json (line ~1325)",
+      "description": "Web-driven turn prompt omits meta_prompt_content from LLM message array. CLI path (cmd_spec.rs::build_turn_prompt_json line 608) does include it. Every POST /api/spec/turn returns 500 shellout_failed at first turn. W7 atom defect.",
+      "fix_estimate": "~20 LOC — read meta_prompt_path content (already resolved in handler), pass through to build_web_turn_prompt_json, prepend as first system message before coverage_summary. Mirror cmd_spec.rs:608-624 exactly.",
+      "blast_radius": "Web driven mode is non-functional. Static mode + welcome flow + CLI driven mode all unaffected.",
+      "audit_miss_reason": "W10-R1 audit A.8 verified shell-out arg ORDER (--workspace, --prompt-file, --capsule-dir, --turn-id, --lang, --meta-prompt, --strict-json) but not message-array CONTENT. The comment in spec.rs:1322 explicitly states 'the shell-out to turingos llm complete --meta-prompt handles that server-side' — this assertion is false but plausible-sounding."
+    },
+    {
+      "id": "GAP-2",
+      "severity": "BLOCKS-W9-VERIFICATION",
+      "surface": "src/bin/turingos.rs subcommand registry",
+      "description": "Charter §6 step 4 invokes `turingos spec audit --workspace <ws> --session <id>`. No `spec audit` subcommand exists. The audit walker described in the charter (lists session-rollup capsule, walks turn_cids, verifies prompt_context_hash identity, resolves final_spec_capsule) was not built in W6/W7.",
+      "fix_estimate": "~250 LOC new src/bin/turingos/cmd_spec_audit.rs + wire in cmd registry. Read both CAS stores, decode capsule bodies (needs bincode-aware reader for PromptCapsule), walk per-turn chain.",
+      "blast_radius": "W9 verification cannot execute the charter-specified Step 4 mechanism. Manual walks substitute but lack the byte-identity check on prompt_context_hash."
+    },
+    {
+      "id": "GAP-3",
+      "severity": "BLOCKS-W9-VERIFICATION",
+      "surface": "No --offline flag on any spec-related subcommand",
+      "description": "Charter §6 step 5 (replay-without-recall via --offline). I-8 cannot be mechanically verified. Same root as GAP-2 plus a CAS-only reconstruction mode.",
+      "fix_estimate": "~80 LOC on top of GAP-2 fix (read turn_payload_snapshot from CAS, format identical to what fresh LLM call produced; verify byte-equal to original)."
+    }
+  ],
+  "evidence_files_written": [
+    "pre_flight_log.txt",
+    "agent_verdict.json",
+    "mrs_chen_answers.json",
+    "legacy_8_answers_inline.json",
+    "cas_walk_output.txt",
+    "replay_diff.txt",
+    "legacy_byte_compat_hash.txt",
+    "final_spec_md.md",
+    "session_rollup_capsule_cid.txt",
+    "all_turn_capsule_cids.txt",
+    "browser_console_logs.json",
+    "browser_network_logs.json",
+    "backend_stdout.log",
+    "backend_stderr.log",
+    "cli_driven_run.log",
+    "legacy_static_run.log",
+    "browser_screenshots/ (empty — Chrome MCP screenshots returned inline in conversation transcript; tool does not persist to disk in this environment)"
+  ],
+  "screenshot_note": "Chrome MCP screenshots are returned inline as conversation-attached images and are not persisted to disk by the MCP tool. The agent observed and the transcript shows: (a) initial /welcome wizard redirect on first navigate (api_key_set=false), (b) /build?mode=driven landing page with 'TISR · LLM 驱动访谈' banner + CTA after api-key POST, (c) 'TISR · LLM 驱动访谈 - 正在启动 spec 访谈 …' loading state immediately after CTA click, (d) same loading state persisting indefinitely until manual JS inspection revealed drivenNudge='服务器错误 (500)'. All four are described above and reconstructable from the backend log + browser_network_logs.json.",
+  "recommended_action_for_orchestrator": [
+    "Escalate GAP-1 to architect as a blocking-for-ship defect. Estimated fix is small (~20 LOC, mirror cmd_spec.rs:608) and self-contained to src/web/spec.rs. Recommend dispatching a Sonnet 4.6 atom W7.1 to fix + add a tests/web_spec_turn_prompt_includes_meta.rs regression test.",
+    "Either build GAP-2 (`turingos spec audit`) as W11 atom before re-running W9, OR ratify the manual-walk approach used here as the §6 step 4 mechanism going forward. The latter is faster but loses replay-determinism guarantees.",
+    "After GAP-1 fixed and W9 re-runs: re-execute Step 3 browser flow with Mrs Chen answers; expect clean termination (LLM done=true at turn 6-8) once the methodology is in the prompt. If termination still fails due to triage loop, adjust Mrs Chen persona answers or tune triage prompt sensitivity (Phase 6.3.y).",
+    "Independent of GAP-1: W10-R2 audit can proceed against the CLI-driven CAS evidence in tmp/w9_driven_1779111929/ (full capsule schema set is real) for the deferred C2/C3/C4/C5/C6 checks — note that C5 still requires the snapshot baseline (per O2)."
+  ]
+}

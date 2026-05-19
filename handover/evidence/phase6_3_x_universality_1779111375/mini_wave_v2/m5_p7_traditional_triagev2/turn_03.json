@@ -1,0 +1,1 @@
+{"turn_index":4,"question_text":"聽起來你是說，你希望工具記住過去七天的轉檔任務狀態，但原始檔案會一直存在 GCS 裡，對嗎？那麼，當你第一次打開這個工具時，你第一眼看到和第一個點擊的畫面會是什麼？","covered_slots":["job","anchor","memory"],"open_slots":["first_run","robustness","scope","acceptance","mirror"],"confidence":0.4,"done":false,"playback":null,"terminated":false,"spec_capsule_cid":null,"turn_capsule_cid":null}
