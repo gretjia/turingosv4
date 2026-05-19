@@ -234,6 +234,45 @@ pub struct GrillSession {
     pub meta_turns_rejected: u32,
     pub triage_calls_relevant: u32,
     pub triage_calls_non_relevant: u32,
+    /// FIX F6 (2026-05-18): the question_text emitted by the most recent
+    /// accepted Meta turn. This is the question the user is now answering on
+    /// the next POST /api/spec/turn. Used as `--question` for triage so the
+    /// triage Blackbox model has Q/A context (without it, triage almost
+    /// always classifies terse answers as non-relevant, producing spurious
+    /// HTTP 200 empty-zero responses + premature `terminated=true`).
+    ///
+    /// Pre-F6, the handler derived `prev_question` from
+    /// `last_3_turns.back().0`, but that slot stores the PREVIOUS prev_question
+    /// (a one-turn-stale value), and on turn 1 it's empty. So triage was always
+    /// run with `--question ""`. The Q1 the bootstrap turn emitted was never
+    /// persisted at all.
+    pub last_question_emitted: String,
+    /// FIX A6 (2026-05-19): full ordered list of every triage-relevant user
+    /// answer collected this session. `last_3_turns` is a rolling window
+    /// (size 3) so it cannot back the post-`done` spec.md synthesis path,
+    /// which needs the complete answer history. Pushed in
+    /// `spec_turn_handler` step 9 right after the triage-relevant
+    /// `last_3_turns.push_back(...)`. Mirrors the CLI driven path's
+    /// `DrivenState::all_user_answers` (cmd_spec.rs:391/1289).
+    ///
+    /// NOTE (F10, 2026-05-19): kept as a chronological audit trail, but the
+    /// spec.md synthesis path no longer relies on positional indexing into
+    /// this Vec — see [`Self::slot_evidence`].
+    pub all_user_answers: Vec<String>,
+    /// FIX F10 (2026-05-19): slot-keyed evidence map. The KEY is the canonical
+    /// slot id (`job`, `anchor`, `memory`, `first_run`, `robustness`, `scope`,
+    /// `acceptance`, `mirror`); the VALUE is the most-recent triage-relevant
+    /// user answer that the Meta-turn LLM credited toward that slot.
+    ///
+    /// Populated in `spec_turn_handler` step 11 by diffing the new
+    /// `covered_slots` against `last_prev_covered`: every slot present in the
+    /// new set but absent from the prev set is attributed to THIS turn's user
+    /// answer. The deterministic LLM-less spec.md synthesiser then looks up
+    /// each canonical slot in this map rather than indexing positionally into
+    /// `all_user_answers`, which was the root cause of D-NEW-3a (Π4.3 P7 +
+    /// Π4.4 S11 producing spec.md with content shifted into the wrong slot
+    /// headers because the LLM asked slots in non-canonical adaptive order).
+    pub slot_evidence: std::collections::BTreeMap<String, String>,
 }
 
 // ---------------------------------------------------------------------------

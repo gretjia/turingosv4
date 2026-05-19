@@ -115,6 +115,8 @@ fn spec_turn_response_shape_serializes() {
         terminated: false,
         spec_capsule_cid: None,
         turn_capsule_cid: Some("abc123def456".into()),
+        // F6 (2026-05-18): new field, None for normal in-progress turns.
+        termination_reason: None,
     };
 
     let json = serde_json::to_string(&resp).expect("serialize SpecTurnResponse");
@@ -173,6 +175,9 @@ fn spec_turn_response_done_true_has_playback() {
         terminated: true,
         spec_capsule_cid: Some("deadbeef1234567890".into()),
         turn_capsule_cid: Some("turn_cid_final".into()),
+        // F6 (2026-05-18): clean synthesis path — termination_reason is None
+        // when spec_capsule_cid is populated.
+        termination_reason: None,
     };
 
     let json = serde_json::to_string(&resp).expect("serialize");
@@ -205,6 +210,13 @@ fn grill_session_default_constructs() {
         meta_turns_rejected: 0,
         triage_calls_relevant: 0,
         triage_calls_non_relevant: 0,
+        // F6 (2026-05-18): new field defaults empty on fresh session.
+        last_question_emitted: String::new(),
+        // A6 (2026-05-19): new field defaults empty; full answer history.
+        all_user_answers: Vec::new(),
+        // F10 (2026-05-19): new field defaults empty; slot-keyed evidence
+        // map populated in step-11 from the `covered_slots` delta.
+        slot_evidence: std::collections::BTreeMap::new(),
     };
 
     // Initial state
