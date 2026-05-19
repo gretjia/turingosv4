@@ -62,6 +62,14 @@ USAGE:
                         [--lang <zh|en>]
                         [--capsule-dir <PATH>]
                         [--turn-id <STRING>]
+    turingos llm prompt-eval
+                        --workspace <PATH>
+                        --prompt-file <PATH>
+                        --role <meta|blackbox|playback>
+                        --fixture <PATH>
+                        [--meta-prompt <PATH>]
+                        [--baseline-prompt <PATH>]
+                        [--lang <zh|en>]
 
 ACTIONS:
     config    Persist the two-LLM config to <workspace>/turingos.toml.
@@ -82,6 +90,13 @@ ACTIONS:
               Outputs a single JSON line with class (relevant|off_topic|abusive|
               gibberish) and confidence. Always uses Blackbox model.
               Phase 6.3.x W4.5 atom.
+
+    prompt-eval  Regression-test a candidate prompt against a frozen Q/A
+              fixture. Iterates the fixture rows, calls the appropriate LLM
+              role (meta|blackbox|playback), and scores each output against
+              the expected verdict. Exits 0 if all rows pass, 1 if any fail.
+              Phase 6.3.y A2 atom — catches M8-class non-local regressions
+              (e.g. fixing register tolerance breaks gibberish detection).
 
 OPTIONS:
     --workspace <PATH>            Workspace directory (required).
@@ -106,6 +121,8 @@ OPTIONS:
                                   Default: assets/prompts/grill_meta_v1.md.
     --user-answer <STRING|->      (triage) User answer text, or - for stdin.
     --question <STRING>           (triage) Question context for the classifier.
+    --fixture <PATH>              (prompt-eval) JSONL fixture file path.
+    --baseline-prompt <PATH>      (prompt-eval) Optional baseline prompt for delta computation.
 
 DESCRIPTION:
     Two-LLM architecture rationale: a reasoning model ("Meta AI") handles
@@ -175,6 +192,13 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     // W4.5: dispatch `triage` action (Blackbox classifier).
     if args.first().map(String::as_str) == Some("triage") {
         return run_triage(&args[1..]);
+    }
+    // A2: dispatch `prompt-eval` action (regression-test prompts against a
+    // frozen Q/A fixture before promoting v2 → v1). Phase 6.3.y atom — catches
+    // M8-class non-local regressions where fixing register tolerance breaks
+    // gibberish detection.
+    if args.first().map(String::as_str) == Some("prompt-eval") {
+        return run_prompt_eval(&args[1..]);
     }
     match run_inner(args) {
         Ok(()) => ExitCode::SUCCESS,
@@ -743,8 +767,22 @@ fn run_complete(args: &[String]) -> ExitCode {
     };
 
     // ── 8. Strict-JSON validation ────────────────────────────────────────────
+    // F2: thinking-mode models (DeepSeek-V3.1-Terminus think-on, DeepSeek-R1,
+    // Qwen3-8B/14B/32B with default-on thinking, GLM-4.7, Kimi-K2.5/K2.6 when
+    // thinking enabled) emit a <think>...</think> reasoning trace before the
+    // JSON envelope. The grill envelope parser cannot tolerate that prefix, so
+    // we strip think blocks BEFORE handing the content to
+    // `grill_envelope::parse_and_validate`. Uses the shared iterative helper
+    // from `sdk::protocol` (handles multiple blocks, anywhere in the string,
+    // and unclosed blocks by truncating at the unclosed tag).
+    //
+    // Providers that emit reasoning in `message.reasoning_content` (separate
+    // from `content`) are handled implicitly: `siliconflow_client::ChatResponse`
+    // deserializes only `content`, so `reasoning_content` is dropped at decode
+    // time and never reaches this branch.
     let parsed_envelope: Option<serde_json::Value> = if ca.strict_json {
-        match turingosv4::runtime::grill_envelope::parse_and_validate(&chat_result.content) {
+        let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+        match turingosv4::runtime::grill_envelope::parse_and_validate(stripped.trim()) {
             Ok(tp) => Some(serde_json::to_value(&tp).unwrap_or(serde_json::Value::Null)),
             Err(e) => {
                 return complete_err_exit("parse_failed", ca.lang.parse_err_msg(&e.to_string()), 3);
@@ -1180,9 +1218,14 @@ fn run_triage(args: &[String]) -> ExitCode {
     };
 
     // ── 8. Parse and validate Blackbox classification response ───────────────
-    // Strip optional thinking-tag wrappers that some Qwen3 models emit.
-    let raw_content = chat_result.content.trim();
-    let json_str = strip_thinking_wrapper(raw_content);
+    // F2: strip ALL <think>...</think> blocks (not just split at last
+    // </think>). The shared helper from `sdk::protocol` handles multiple
+    // blocks, blocks anywhere in the string, and unclosed blocks (truncates
+    // at the unclosed opener). The old `strip_thinking_wrapper` only looked
+    // for a final </think>, which silently leaked content when an opener was
+    // emitted without a closer.
+    let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+    let json_str = stripped.trim();
 
     let classification: BlackboxClassification = match serde_json::from_str(json_str) {
         Ok(v) => v,
@@ -1304,19 +1347,6 @@ fn extract_system_prompt_block(asset: &str) -> Option<String> {
     Some(content[..fence_close].trim_end_matches('\n').to_string())
 }
 
-/// Strip Qwen3 <think>...</think> wrapper if present, returning the trailing
-/// JSON fragment. If no wrapper, returns the input unchanged.
-fn strip_thinking_wrapper(s: &str) -> &str {
-    // Some Qwen3 models emit "<think>...\n</think>\n{...}".
-    if let Some(pos) = s.rfind("</think>") {
-        let after = s[pos + "</think>".len()..].trim_start();
-        if !after.is_empty() {
-            return after;
-        }
-    }
-    s
-}
-
 /// Helper: produce an args-error detail string using the lang embedded in
 /// the raw args (before full parse) for the triage sub-command.
 fn triage_lang_args_err(detail: String, args: &[String]) -> String {
@@ -1325,5 +1355,806 @@ fn triage_lang_args_err(detail: String, args: &[String]) -> String {
         format!("args error: {detail}")
     } else {
         format!("参数错误: {detail}")
+    }
+}
+
+// ─── A2: `turingos llm prompt-eval` ──────────────────────────────────────────
+//
+// TRACE_MATRIX FC2-N16 A2 (Phase 6.3.y): prompt regression harness.
+//
+// Background. The Phase 6.3.x universality campaign discovered that F8 (Triage
+// v2) fixed register tolerance (Cantonese / code-switch / Traditional → PASS)
+// but **broke gibberish detection** (M8 REGRESSION: 3/5 nonsense → relevant).
+// This is the canonical Software 3.0 non-local-effect failure mode: prompt
+// edits cascade unpredictably, so v2 → v1 promotion is unsafe without a
+// regression net. `prompt-eval` is that net.
+//
+// Surface contract. One JSONL fixture file, one --prompt-file candidate,
+// one --role tag. For each fixture row we (a) build messages, (b) call the
+// LLM via siliconflow_client (same retry / think-strip semantics as
+// `complete` and `triage`), (c) score the response against expected_* fields,
+// (d) aggregate per-row verdicts into a summary. Exit 0 iff all PASS.
+//
+// Risk class: 2 (production wire-up; reuses existing LLM client + parser).
+// No Class-4 surface touched. No CAS write, no PromptCapsule write — eval is
+// a read-only experiment.
+
+/// TRACE_MATRIX FC2-N16 A2: parsed CLI args for `turingos llm prompt-eval`.
+struct PromptEvalArgs {
+    workspace: PathBuf,
+    prompt_file: PathBuf,
+    role: PromptEvalRole,
+    fixture: PathBuf,
+    meta_prompt: Option<PathBuf>,
+    baseline_prompt: Option<PathBuf>,
+    lang: Lang,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PromptEvalRole {
+    /// Meta interviewer prompt — outputs grill TurnPayload JSON envelope.
+    Meta,
+    /// Blackbox triage classifier — outputs `{class, confidence}` JSON.
+    Blackbox,
+    /// Playback / mirror — outputs markdown 7-row fridge note.
+    Playback,
+}
+
+impl PromptEvalRole {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Meta => "meta",
+            Self::Blackbox => "blackbox",
+            Self::Playback => "playback",
+        }
+    }
+}
+
+/// One fixture row, deserialised from one JSONL line. Field set is the union
+/// of all three roles; per-role validation happens at scoring time.
+#[derive(Debug, serde::Deserialize, Default)]
+#[allow(dead_code)]
+struct FixtureRow {
+    id: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    // Common / triage / meta input fields.
+    #[serde(default)]
+    question: Option<String>,
+    #[serde(default)]
+    user_answer: Option<String>,
+    // Meta input.
+    #[serde(default)]
+    history: Vec<HistoryItem>,
+    // Triage expected.
+    #[serde(default)]
+    expected_class: Option<String>,
+    #[serde(default)]
+    expected_confidence_min: Option<f64>,
+    // Meta expected.
+    #[serde(default)]
+    expected_covered_slots_subset: Option<Vec<String>>,
+    #[serde(default)]
+    expected_done: Option<bool>,
+    // Playback input + expected.
+    #[serde(default)]
+    covered_slots_input: Option<serde_json::Value>,
+    #[serde(default)]
+    expected_no_substrings: Option<Vec<String>>,
+    #[serde(default)]
+    expected_contains_substrings: Option<Vec<String>>,
+    #[serde(default)]
+    notes: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+struct HistoryItem {
+    #[serde(default)]
+    q: Option<String>,
+    #[serde(default)]
+    a: Option<String>,
+}
+
+/// Per-row eval verdict, serialised to the output JSON.
+#[derive(Debug, serde::Serialize)]
+struct RowVerdict {
+    id: String,
+    verdict: String, // "PASS" | "FAIL" | "ERROR"
+    role: String,
+    expected: serde_json::Value,
+    actual: serde_json::Value,
+    notes: String,
+}
+
+/// Aggregate eval output written to stdout.
+#[derive(Debug, serde::Serialize)]
+struct PromptEvalOutput {
+    ok: bool,
+    role: String,
+    prompt_file: String,
+    fixture: String,
+    total: usize,
+    pass: usize,
+    fail: usize,
+    error: usize,
+    fail_ids: Vec<String>,
+    per_row: Vec<RowVerdict>,
+    baseline_delta: Option<BaselineDelta>,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct BaselineDelta {
+    baseline_prompt_file: String,
+    baseline_pass: usize,
+    baseline_fail: usize,
+    candidate_pass: usize,
+    candidate_fail: usize,
+    /// Rows that pass on candidate but fail on baseline (improvements).
+    gained_ids: Vec<String>,
+    /// Rows that pass on baseline but fail on candidate (regressions — M8 cases).
+    regressed_ids: Vec<String>,
+}
+
+/// TRACE_MATRIX FC2-N16 A2: parse `prompt-eval` CLI args.
+fn parse_prompt_eval_args(args: &[String]) -> Result<PromptEvalArgs, String> {
+    let mut workspace: Option<PathBuf> = None;
+    let mut prompt_file: Option<PathBuf> = None;
+    let mut role: Option<PromptEvalRole> = None;
+    let mut fixture: Option<PathBuf> = None;
+    let mut meta_prompt: Option<PathBuf> = None;
+    let mut baseline_prompt: Option<PathBuf> = None;
+    let mut lang = Lang::Zh;
+
+    let mut iter = args.iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--workspace" => {
+                workspace = Some(PathBuf::from(
+                    iter.next().ok_or("--workspace requires a value")?,
+                ));
+            }
+            "--prompt-file" => {
+                prompt_file = Some(PathBuf::from(
+                    iter.next().ok_or("--prompt-file requires a value")?,
+                ));
+            }
+            "--role" => {
+                let v = iter.next().ok_or("--role requires a value")?;
+                role = Some(match v.as_str() {
+                    "meta" => PromptEvalRole::Meta,
+                    "blackbox" => PromptEvalRole::Blackbox,
+                    "playback" => PromptEvalRole::Playback,
+                    other => {
+                        return Err(format!(
+                            "unknown --role: {other}; expected meta|blackbox|playback"
+                        ));
+                    }
+                });
+            }
+            "--fixture" => {
+                fixture = Some(PathBuf::from(
+                    iter.next().ok_or("--fixture requires a value")?,
+                ));
+            }
+            "--meta-prompt" => {
+                meta_prompt = Some(PathBuf::from(
+                    iter.next().ok_or("--meta-prompt requires a value")?,
+                ));
+            }
+            "--baseline-prompt" => {
+                baseline_prompt = Some(PathBuf::from(
+                    iter.next().ok_or("--baseline-prompt requires a value")?,
+                ));
+            }
+            "--lang" => {
+                let v = iter.next().ok_or("--lang requires a value")?;
+                lang = match v.as_str() {
+                    "zh" => Lang::Zh,
+                    "en" => Lang::En,
+                    other => return Err(format!("unknown --lang: {other}; expected zh|en")),
+                };
+            }
+            "-h" | "--help" => {
+                println!("{FULL_HELP}");
+            }
+            other => {
+                return Err(format!("unknown flag: {other}"));
+            }
+        }
+    }
+
+    let workspace = workspace.ok_or("--workspace is required")?;
+    let prompt_file = prompt_file.ok_or("--prompt-file is required")?;
+    let role = role.ok_or("--role is required")?;
+    let fixture = fixture.ok_or("--fixture is required")?;
+
+    Ok(PromptEvalArgs {
+        workspace,
+        prompt_file,
+        role,
+        fixture,
+        meta_prompt,
+        baseline_prompt,
+        lang,
+    })
+}
+
+/// Helper: produce an args-error detail string using the lang embedded in
+/// the raw args (before full parse) for the prompt-eval sub-command.
+fn prompt_eval_lang_args_err(detail: String, args: &[String]) -> String {
+    let is_en = args.windows(2).any(|w| w[0] == "--lang" && w[1] == "en");
+    if is_en {
+        format!("args error: {detail}")
+    } else {
+        format!("参数错误: {detail}")
+    }
+}
+
+/// Load a prompt asset file. If the file contains a `## System prompt
+/// (verbatim)` block (the convention for triage v1/v2 + meta v1/v2), extract
+/// the verbatim text between the next pair of triple-backtick fences. Else
+/// treat the whole file as the system prompt body.
+fn load_prompt_system_text(path: &Path) -> Result<String, String> {
+    let raw = fs::read_to_string(path)
+        .map_err(|e| format!("reading prompt file {}: {e}", path.display()))?;
+    if let Some(extracted) = extract_system_prompt_block(&raw) {
+        Ok(extracted)
+    } else {
+        Ok(raw)
+    }
+}
+
+/// Parse a JSONL fixture file. Blank lines and lines starting with `#` are
+/// skipped (comments). Each remaining line must parse as `FixtureRow`.
+fn load_fixture(path: &Path) -> Result<Vec<FixtureRow>, String> {
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("reading fixture {}: {e}", path.display()))?;
+    let mut rows = Vec::new();
+    for (lineno, raw) in content.lines().enumerate() {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let row: FixtureRow = serde_json::from_str(trimmed).map_err(|e| {
+            format!(
+                "fixture {} line {}: invalid JSON: {e}",
+                path.display(),
+                lineno + 1
+            )
+        })?;
+        if row.id.is_empty() {
+            return Err(format!(
+                "fixture {} line {}: row missing required `id` field",
+                path.display(),
+                lineno + 1
+            ));
+        }
+        rows.push(row);
+    }
+    Ok(rows)
+}
+
+/// Print error JSON to stdout and exit. Re-uses the `CompleteErr` shape so
+/// downstream JSON consumers can stay uniform.
+fn prompt_eval_err_exit(kind: &'static str, detail: String, code: u8) -> ExitCode {
+    let out = CompleteErr {
+        ok: false,
+        error: ErrorBody { kind, detail },
+    };
+    println!("{}", serde_json::to_string(&out).unwrap());
+    ExitCode::from(code)
+}
+
+/// TRACE_MATRIX FC2-N16 A2: `turingos llm prompt-eval` entry.
+///
+/// Exit codes:
+///   0 = all rows passed (and baseline-delta has no regressions if requested)
+///   1 = one or more rows FAILED (or regressed vs baseline)
+///   2 = http/network error during eval
+///   4 = io error (missing fixture / prompt / workspace)
+///   5 = invalid CLI args
+fn run_prompt_eval(args: &[String]) -> ExitCode {
+    // ── 1. Parse CLI args ───────────────────────────────────────────────────
+    let pe = match parse_prompt_eval_args(args) {
+        Ok(v) => v,
+        Err(e) => {
+            return prompt_eval_err_exit("args", prompt_eval_lang_args_err(e, args), 5);
+        }
+    };
+
+    // ── 2. Workspace existence check ────────────────────────────────────────
+    if !pe.workspace.exists() {
+        return prompt_eval_err_exit(
+            "io",
+            pe.lang
+                .io_err_msg(&format!("workspace not found: {}", pe.workspace.display())),
+            4,
+        );
+    }
+
+    // ── 3. Load candidate prompt + (optional) baseline prompt + fixture ─────
+    let candidate_system_text = match load_prompt_system_text(&pe.prompt_file) {
+        Ok(s) => s,
+        Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+    };
+    let baseline_system_text: Option<String> = if let Some(bp) = &pe.baseline_prompt {
+        match load_prompt_system_text(bp) {
+            Ok(s) => Some(s),
+            Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+        }
+    } else {
+        None
+    };
+    let fixture_rows = match load_fixture(&pe.fixture) {
+        Ok(r) => r,
+        Err(e) => return prompt_eval_err_exit("io", pe.lang.io_err_msg(&e), 4),
+    };
+    if fixture_rows.is_empty() {
+        return prompt_eval_err_exit(
+            "io",
+            pe.lang
+                .io_err_msg(&format!("fixture {} is empty", pe.fixture.display())),
+            4,
+        );
+    }
+
+    // ── 4. Read API key + build tokio runtime once ──────────────────────────
+    let api_key_env = read_api_key_env_var(&pe.workspace);
+    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(e) => {
+            return prompt_eval_err_exit("http_status", pe.lang.http_err_msg(&e.to_string()), 2);
+        }
+    };
+    let rt = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            return prompt_eval_err_exit(
+                "http_status",
+                pe.lang.http_err_msg(&format!("tokio runtime: {e}")),
+                2,
+            );
+        }
+    };
+
+    // Pick model + budget per role.
+    let (model_id, max_tokens, temperature) = match pe.role {
+        PromptEvalRole::Blackbox => (read_blackbox_model(&pe.workspace), 50u32, 0.0f32),
+        PromptEvalRole::Meta => (read_meta_model(&pe.workspace), 1500u32, 0.4f32),
+        PromptEvalRole::Playback => (read_meta_model(&pe.workspace), 1200u32, 0.3f32),
+    };
+
+    // ── 5. Per-row eval loop ────────────────────────────────────────────────
+    let mut per_row: Vec<RowVerdict> = Vec::with_capacity(fixture_rows.len());
+    let mut pass_count = 0usize;
+    let mut fail_count = 0usize;
+    let mut error_count = 0usize;
+    let mut fail_ids: Vec<String> = Vec::new();
+
+    // Track baseline verdicts in parallel if a baseline prompt was given.
+    let mut baseline_pass_ids: Vec<String> = Vec::new();
+    let mut baseline_fail_ids: Vec<String> = Vec::new();
+
+    for row in &fixture_rows {
+        // Candidate eval.
+        let verdict = eval_one_row(
+            &rt,
+            &api_key,
+            &model_id,
+            max_tokens,
+            temperature,
+            pe.role,
+            &candidate_system_text,
+            row,
+        );
+        match verdict.verdict.as_str() {
+            "PASS" => pass_count += 1,
+            "FAIL" => {
+                fail_count += 1;
+                fail_ids.push(row.id.clone());
+            }
+            _ => {
+                error_count += 1;
+                fail_ids.push(row.id.clone());
+            }
+        }
+        per_row.push(verdict);
+
+        // Baseline eval (only summary; not embedded in per_row to keep output compact).
+        if let Some(baseline_text) = &baseline_system_text {
+            let bverdict = eval_one_row(
+                &rt,
+                &api_key,
+                &model_id,
+                max_tokens,
+                temperature,
+                pe.role,
+                baseline_text,
+                row,
+            );
+            if bverdict.verdict == "PASS" {
+                baseline_pass_ids.push(row.id.clone());
+            } else {
+                baseline_fail_ids.push(row.id.clone());
+            }
+        }
+    }
+
+    // ── 6. Optional baseline delta computation ──────────────────────────────
+    let baseline_delta: Option<BaselineDelta> = if let Some(bp) = &pe.baseline_prompt {
+        // Candidate pass set.
+        let candidate_pass_set: std::collections::HashSet<String> = per_row
+            .iter()
+            .filter(|v| v.verdict == "PASS")
+            .map(|v| v.id.clone())
+            .collect();
+        let baseline_pass_set: std::collections::HashSet<String> =
+            baseline_pass_ids.iter().cloned().collect();
+        let mut gained_ids: Vec<String> = candidate_pass_set
+            .difference(&baseline_pass_set)
+            .cloned()
+            .collect();
+        let mut regressed_ids: Vec<String> = baseline_pass_set
+            .difference(&candidate_pass_set)
+            .cloned()
+            .collect();
+        gained_ids.sort();
+        regressed_ids.sort();
+        Some(BaselineDelta {
+            baseline_prompt_file: bp.display().to_string(),
+            baseline_pass: baseline_pass_ids.len(),
+            baseline_fail: baseline_fail_ids.len(),
+            candidate_pass: pass_count,
+            candidate_fail: fail_count + error_count,
+            gained_ids,
+            regressed_ids,
+        })
+    } else {
+        None
+    };
+
+    // ── 7. Emit summary JSON + exit code ────────────────────────────────────
+    let all_pass = fail_count == 0 && error_count == 0;
+    let baseline_regressed = baseline_delta
+        .as_ref()
+        .map(|d| !d.regressed_ids.is_empty())
+        .unwrap_or(false);
+
+    let summary = PromptEvalOutput {
+        ok: all_pass && !baseline_regressed,
+        role: pe.role.as_str().to_string(),
+        prompt_file: pe.prompt_file.display().to_string(),
+        fixture: pe.fixture.display().to_string(),
+        total: fixture_rows.len(),
+        pass: pass_count,
+        fail: fail_count,
+        error: error_count,
+        fail_ids,
+        per_row,
+        baseline_delta,
+    };
+    println!("{}", serde_json::to_string(&summary).unwrap());
+
+    if summary.ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    }
+}
+
+/// Build messages, call the LLM, score the response, and return a per-row
+/// verdict. This is the inner loop body of `run_prompt_eval`. It NEVER
+/// panics on LLM/network errors — those become `verdict = "ERROR"`.
+fn eval_one_row(
+    rt: &tokio::runtime::Runtime,
+    api_key: &str,
+    model_id: &str,
+    max_tokens: u32,
+    temperature: f32,
+    role: PromptEvalRole,
+    system_text: &str,
+    row: &FixtureRow,
+) -> RowVerdict {
+    // ── (a) Build messages per role ─────────────────────────────────────────
+    let messages: Vec<crate::siliconflow_client::ChatMessage> = match role {
+        PromptEvalRole::Blackbox => {
+            let q = row
+                .question
+                .as_deref()
+                .unwrap_or("(initial open-ended question)");
+            let a = row.user_answer.as_deref().unwrap_or("");
+            let user_msg = format!("QUESTION (turn N): {q}\n\nUSER ANSWER:\n{a}");
+            vec![
+                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
+                crate::siliconflow_client::ChatMessage::user(user_msg),
+            ]
+        }
+        PromptEvalRole::Meta => {
+            let mut msgs = vec![crate::siliconflow_client::ChatMessage::system(
+                system_text.to_string(),
+            )];
+            // Replay history as alternating assistant(q) / user(a) pairs.
+            for h in &row.history {
+                if let Some(q) = &h.q {
+                    msgs.push(crate::siliconflow_client::ChatMessage::assistant(q.clone()));
+                }
+                if let Some(a) = &h.a {
+                    msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+                }
+            }
+            // The current user turn (the answer under test).
+            if let Some(a) = &row.user_answer {
+                msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+            }
+            msgs.push(crate::siliconflow_client::ChatMessage::user(
+                "Produce your next-turn output per the contract.".to_string(),
+            ));
+            msgs
+        }
+        PromptEvalRole::Playback => {
+            // For playback: serialise covered_slots_input as JSON and ask the
+            // model to produce the 7-row fridge note.
+            let slots_json = row
+                .covered_slots_input
+                .as_ref()
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "{}".to_string());
+            let user_msg = format!(
+                "Here are the covered slots from the interview (JSON):\n{slots_json}\n\nProduce the 7-row 'fridge note' playback in the user's language, ONLY summarising the slots above. Do NOT invent new content."
+            );
+            vec![
+                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
+                crate::siliconflow_client::ChatMessage::user(user_msg),
+            ]
+        }
+    };
+
+    // ── (b) LLM call ────────────────────────────────────────────────────────
+    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+        api_key,
+        model_id,
+        &messages,
+        Some(max_tokens),
+        Some(temperature),
+    ));
+    let chat_result = match llm_result {
+        Ok(r) => r,
+        Err(e) => {
+            return RowVerdict {
+                id: row.id.clone(),
+                verdict: "ERROR".to_string(),
+                role: role.as_str().to_string(),
+                expected: serde_json::Value::Null,
+                actual: serde_json::json!({"error": e.to_string()}),
+                notes: format!("LLM call failed: {e}"),
+            };
+        }
+    };
+
+    // ── (c) Strip think blocks + score per role ─────────────────────────────
+    let stripped = turingosv4::sdk::protocol::strip_think_blocks(&chat_result.content);
+    let trimmed = stripped.trim();
+
+    match role {
+        PromptEvalRole::Blackbox => score_blackbox(row, trimmed),
+        PromptEvalRole::Meta => score_meta(row, trimmed),
+        PromptEvalRole::Playback => score_playback(row, trimmed),
+    }
+}
+
+/// Score a Blackbox triage row: exact class match + confidence ≥ min.
+fn score_blackbox(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let expected_class = row.expected_class.clone().unwrap_or_default();
+    let expected_min_conf = row.expected_confidence_min.unwrap_or(0.0);
+    let expected_json = serde_json::json!({
+        "class": expected_class,
+        "confidence_min": expected_min_conf,
+    });
+
+    // Parse the model output.
+    let parsed: Result<BlackboxClassification, _> = serde_json::from_str(raw);
+    match parsed {
+        Ok(c) => {
+            let actual_json = serde_json::json!({
+                "class": c.class,
+                "confidence": c.confidence,
+            });
+            let class_ok = c.class == expected_class;
+            let conf_ok = c.confidence >= expected_min_conf;
+            let verdict = if class_ok && conf_ok { "PASS" } else { "FAIL" };
+            let notes = if class_ok && conf_ok {
+                "class match + confidence above threshold".to_string()
+            } else if !class_ok {
+                format!(
+                    "class mismatch: got {} expected {}",
+                    c.class, expected_class
+                )
+            } else {
+                format!(
+                    "confidence {} below threshold {}",
+                    c.confidence, expected_min_conf
+                )
+            };
+            RowVerdict {
+                id: row.id.clone(),
+                verdict: verdict.to_string(),
+                role: "blackbox".to_string(),
+                expected: expected_json,
+                actual: actual_json,
+                notes,
+            }
+        }
+        Err(e) => RowVerdict {
+            id: row.id.clone(),
+            verdict: "FAIL".to_string(),
+            role: "blackbox".to_string(),
+            expected: expected_json,
+            actual: serde_json::json!({"raw": raw, "parse_error": e.to_string()}),
+            notes: format!("triage output not valid JSON: {e}"),
+        },
+    }
+}
+
+/// Score a Meta-role row: parse the JSON envelope, check covered_slots is a
+/// superset of expected, done matches, confidence ≥ min.
+fn score_meta(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let expected_subset: Vec<String> = row
+        .expected_covered_slots_subset
+        .clone()
+        .unwrap_or_default();
+    let expected_done = row.expected_done;
+    let expected_min_conf = row.expected_confidence_min.unwrap_or(0.0);
+    let expected_json = serde_json::json!({
+        "covered_slots_subset": expected_subset,
+        "done": expected_done,
+        "confidence_min": expected_min_conf,
+    });
+
+    // Attempt to parse the raw model output as JSON. Tolerate markdown fences.
+    let candidate = strip_json_fence(raw);
+    let parsed: Result<serde_json::Value, _> = serde_json::from_str(&candidate);
+    match parsed {
+        Ok(v) => {
+            let covered: Vec<String> = v
+                .get("covered_slots")
+                .and_then(|x| x.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|e| e.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let done_val = v.get("done").and_then(|x| x.as_bool());
+            let conf_val = v.get("confidence").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let actual_json = serde_json::json!({
+                "covered_slots": covered,
+                "done": done_val,
+                "confidence": conf_val,
+            });
+            // Superset check.
+            let covered_set: std::collections::HashSet<&String> = covered.iter().collect();
+            let missing: Vec<&String> = expected_subset
+                .iter()
+                .filter(|s| !covered_set.contains(*s))
+                .collect();
+            let subset_ok = missing.is_empty();
+            let done_ok = match (expected_done, done_val) {
+                (None, _) => true,
+                (Some(e), Some(g)) => e == g,
+                (Some(_), None) => false,
+            };
+            let conf_ok = conf_val >= expected_min_conf;
+            let verdict = if subset_ok && done_ok && conf_ok {
+                "PASS"
+            } else {
+                "FAIL"
+            };
+            let mut notes_parts = Vec::new();
+            if !subset_ok {
+                notes_parts.push(format!("missing slots: {missing:?}"));
+            }
+            if !done_ok {
+                notes_parts.push(format!(
+                    "done mismatch: expected {expected_done:?}, got {done_val:?}"
+                ));
+            }
+            if !conf_ok {
+                notes_parts.push(format!("confidence {conf_val} < {expected_min_conf}"));
+            }
+            let notes = if notes_parts.is_empty() {
+                "covered_slots superset + done match + confidence above threshold".to_string()
+            } else {
+                notes_parts.join("; ")
+            };
+            RowVerdict {
+                id: row.id.clone(),
+                verdict: verdict.to_string(),
+                role: "meta".to_string(),
+                expected: expected_json,
+                actual: actual_json,
+                notes,
+            }
+        }
+        Err(e) => RowVerdict {
+            id: row.id.clone(),
+            verdict: "FAIL".to_string(),
+            role: "meta".to_string(),
+            expected: expected_json,
+            actual: serde_json::json!({"raw": raw, "parse_error": e.to_string()}),
+            notes: format!("meta envelope not valid JSON: {e}"),
+        },
+    }
+}
+
+/// Score a Playback row: must contain all `expected_contains_substrings` AND
+/// must contain none of `expected_no_substrings`.
+fn score_playback(row: &FixtureRow, raw: &str) -> RowVerdict {
+    let must_contain: Vec<String> = row.expected_contains_substrings.clone().unwrap_or_default();
+    let must_not_contain: Vec<String> = row.expected_no_substrings.clone().unwrap_or_default();
+    let expected_json = serde_json::json!({
+        "contains_substrings": must_contain,
+        "no_substrings": must_not_contain,
+    });
+
+    let missing: Vec<String> = must_contain
+        .iter()
+        .filter(|s| !raw.contains(s.as_str()))
+        .cloned()
+        .collect();
+    let leaked: Vec<String> = must_not_contain
+        .iter()
+        .filter(|s| raw.contains(s.as_str()))
+        .cloned()
+        .collect();
+
+    let verdict = if missing.is_empty() && leaked.is_empty() {
+        "PASS"
+    } else {
+        "FAIL"
+    };
+    let mut notes_parts = Vec::new();
+    if !missing.is_empty() {
+        notes_parts.push(format!("missing required substrings: {missing:?}"));
+    }
+    if !leaked.is_empty() {
+        notes_parts.push(format!("forbidden substrings present: {leaked:?}"));
+    }
+    let notes = if notes_parts.is_empty() {
+        "all required substrings present, no forbidden substrings".to_string()
+    } else {
+        notes_parts.join("; ")
+    };
+
+    // Truncate raw output in actual for readability.
+    let raw_preview: String = raw.chars().take(400).collect();
+    RowVerdict {
+        id: row.id.clone(),
+        verdict: verdict.to_string(),
+        role: "playback".to_string(),
+        expected: expected_json,
+        actual: serde_json::json!({"output_preview": raw_preview}),
+        notes,
+    }
+}
+
+/// Strip an optional ```json ... ``` markdown fence around a JSON payload.
+fn strip_json_fence(s: &str) -> String {
+    let t = s.trim();
+    // Find first fence.
+    let after_open = match t.find("```") {
+        None => return t.to_string(),
+        Some(i) => &t[i + 3..],
+    };
+    // Skip optional language tag line.
+    let content_start = after_open.find('\n').map(|i| i + 1).unwrap_or(0);
+    let body = &after_open[content_start..];
+    // Trim closing fence if present.
+    if let Some(close) = body.rfind("```") {
+        body[..close].trim().to_string()
+    } else {
+        body.trim().to_string()
     }
 }
