@@ -25,8 +25,10 @@ mod cmd_init;
 mod common;
 #[path = "turingos/siliconflow_client.rs"]
 mod siliconflow_client;
-#[path = "turingos/spec_capsule.rs"]
-mod spec_capsule;
+// A6 (2026-05-19): `spec_capsule` was library-ized to
+// `src/runtime/spec_capsule.rs`; bin callers now use
+// `turingosv4::runtime::spec_capsule`. The previous `#[path = "turingos/spec_capsule.rs"] mod spec_capsule;`
+// declaration was removed (file no longer exists at that path).
 // MODULES-REGISTRY-BEGIN
 // (each Wave 1-3 atom appends `#[path = ...] mod cmd_<name>;` lines here, before END anchor)
 #[path = "turingos/cmd_agent.rs"]

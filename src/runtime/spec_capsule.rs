@@ -20,22 +20,32 @@
 //! change. ObjectType::EvidenceCapsule + schema_id tag keep the spec
 //! capsule cleanly separable from any other EvidenceCapsule the rest of
 //! the kernel might emit on the same workspace.
+//!
+//! A6 LIBRARY-IZATION (2026-05-19):
+//! Module was relocated from `src/bin/turingos/spec_capsule.rs` (binary-only)
+//! to `src/runtime/spec_capsule.rs` (library) so the `turingos_web` binary can
+//! synthesise spec capsules in-process at predicate-pass + done=true. Pre-move
+//! this surface was visibility-trapped in the `turingos` CLI binary; the web
+//! handler could only shell out (deleted in F6) or surface
+//! `termination_reason: "predicate_done_no_spec_pending_synthesis"`. The fix
+//! is a pure move + `pub(crate) → pub` visibility promotion; no schema-id,
+//! no on-wire byte change, no Class 4 surface touched.
 
 use std::path::Path;
 use std::process::ExitCode;
 
-use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
-use turingosv4::bottom_white::cas::store::CasStore;
+use crate::bottom_white::cas::schema::{Cid, ObjectType};
+use crate::bottom_white::cas::store::CasStore;
 
 /// TRACE_MATRIX FC2-N16 + FC3-N4 (CAS evidence binding):
 /// Schema-id tag for spec capsules — lets `welcome` find them in the index
 /// without scanning bytes. Versioned so a future format bump (e.g. a binary
 /// canonical encoding) can coexist with the v1 markdown form.
-pub(crate) const SPEC_CAPSULE_SCHEMA_ID: &str = "turingos-spec-capsule-v1";
+pub const SPEC_CAPSULE_SCHEMA_ID: &str = "turingos-spec-capsule-v1";
 
 /// TRACE_MATRIX FC2-N16: error taxonomy for spec-capsule CAS operations.
 #[derive(Debug)]
-pub(crate) enum CapsuleError {
+pub enum CapsuleError {
     /// CAS store could not be opened (e.g. workspace/cas missing or libgit2 error).
     Open(String),
     /// CAS put failed.
@@ -59,7 +69,7 @@ impl std::fmt::Display for CapsuleError {
 /// Resolve the per-workspace CAS path. `<workspace>/cas/` is created by
 /// `turingos init`. If `cas/` doesn't yet exist as a directory, CasStore::open
 /// will create it via git2 Repository::init (which creates the dir + .git/).
-pub(crate) fn cas_path(workspace: &Path) -> std::path::PathBuf {
+pub fn cas_path(workspace: &Path) -> std::path::PathBuf {
     workspace.join("cas")
 }
 
@@ -70,7 +80,7 @@ pub(crate) fn cas_path(workspace: &Path) -> std::path::PathBuf {
 /// `turingos` CLI uses Unix-epoch seconds as the source so multiple runs
 /// against the same workspace produce monotonic-enough timestamps without
 /// needing a sequencer call.
-pub(crate) fn write_spec_capsule(
+pub fn write_spec_capsule(
     workspace: &Path,
     spec_md: &str,
     creator: &str,
@@ -100,7 +110,7 @@ pub(crate) fn write_spec_capsule(
 /// Return Some(cid_hex) if a spec capsule exists in this workspace's CAS,
 /// or None. Picks the most-recent by created_at_logical_t when multiple
 /// exist (welcome wants the latest, not the first).
-pub(crate) fn latest_spec_capsule_cid(workspace: &Path) -> Result<Option<String>, CapsuleError> {
+pub fn latest_spec_capsule_cid(workspace: &Path) -> Result<Option<String>, CapsuleError> {
     let cas_dir = cas_path(workspace);
     if !cas_dir.exists() {
         return Ok(None);
@@ -129,7 +139,7 @@ pub(crate) fn latest_spec_capsule_cid(workspace: &Path) -> Result<Option<String>
 /// Read spec.md bytes back from CAS by CID hex. Used by `turingos generate`
 /// to re-hydrate the spec from canonical evidence rather than re-reading
 /// the on-disk spec.md (which could be stale or hand-edited).
-pub(crate) fn read_spec_capsule(workspace: &Path, cid_hex: &str) -> Result<Vec<u8>, CapsuleError> {
+pub fn read_spec_capsule(workspace: &Path, cid_hex: &str) -> Result<Vec<u8>, CapsuleError> {
     let cas_dir = cas_path(workspace);
     let store = CasStore::open(&cas_dir).map_err(|e| CapsuleError::Read(e.to_string()))?;
     let cid_bytes =
@@ -157,7 +167,7 @@ fn decode_cid_hex(s: &str) -> Result<[u8; 32], String> {
 /// Convenience: best-effort error printer that maps CapsuleError to a CLI
 /// ExitCode + clear stderr message. Used by the spec/generate handlers.
 #[allow(dead_code)]
-pub(crate) fn capsule_error_exit(prefix: &str, err: CapsuleError) -> ExitCode {
+pub fn capsule_error_exit(prefix: &str, err: CapsuleError) -> ExitCode {
     eprintln!("{prefix}: {err}");
     ExitCode::from(2)
 }
@@ -168,13 +178,13 @@ pub(crate) fn capsule_error_exit(prefix: &str, err: CapsuleError) -> ExitCode {
 // R2 §A6: independent grill_attempt_count tally (not summed into evaluator).
 // ---------------------------------------------------------------------------
 
-use turingosv4::runtime::grill_predicates::PredicateBundle;
+use crate::runtime::grill_predicates::PredicateBundle;
 
 /// Schema id for per-turn EvidenceCapsule body. Tail-additive; do not change.
-pub(crate) const SPEC_GRILL_TURN_CAPSULE_SCHEMA_ID: &str = "turingos-spec-grill-turn-v1";
+pub const SPEC_GRILL_TURN_CAPSULE_SCHEMA_ID: &str = "turingos-spec-grill-turn-v1";
 
 /// Schema id for session-rollup EvidenceCapsule body. Tail-additive.
-pub(crate) const SPEC_GRILL_SESSION_CAPSULE_SCHEMA_ID: &str = "turingos-spec-grill-session-v1";
+pub const SPEC_GRILL_SESSION_CAPSULE_SCHEMA_ID: &str = "turingos-spec-grill-session-v1";
 
 /// Grill-specific outcome enum. Byte-stable discriminants. Tail-additive only.
 /// R2 §A1: this is NOT an extension of `AttemptOutcome`; grill turns do NOT
@@ -286,7 +296,7 @@ pub struct GrillSessionCapsuleBody {
 // Writers / readers (mirror existing write_spec_capsule pattern at line 73)
 // ---------------------------------------------------------------------------
 
-pub(crate) fn write_grill_turn_capsule(
+pub fn write_grill_turn_capsule(
     workspace: &Path,
     body: &GrillTurnCapsuleBody,
 ) -> Result<String, CapsuleError> {
@@ -312,7 +322,7 @@ pub(crate) fn write_grill_turn_capsule(
     Ok(cid.hex())
 }
 
-pub(crate) fn read_grill_turn_capsule(
+pub fn read_grill_turn_capsule(
     workspace: &Path,
     cid_hex: &str,
 ) -> Result<GrillTurnCapsuleBody, CapsuleError> {
@@ -328,7 +338,7 @@ pub(crate) fn read_grill_turn_capsule(
         .map_err(|e| CapsuleError::Read(format!("deserialize body: {e}")))
 }
 
-pub(crate) fn write_grill_session_capsule(
+pub fn write_grill_session_capsule(
     workspace: &Path,
     body: &GrillSessionCapsuleBody,
 ) -> Result<String, CapsuleError> {
@@ -354,7 +364,7 @@ pub(crate) fn write_grill_session_capsule(
     Ok(cid.hex())
 }
 
-pub(crate) fn read_grill_session_capsule(
+pub fn read_grill_session_capsule(
     workspace: &Path,
     cid_hex: &str,
 ) -> Result<GrillSessionCapsuleBody, CapsuleError> {
@@ -370,7 +380,7 @@ pub(crate) fn read_grill_session_capsule(
         .map_err(|e| CapsuleError::Read(format!("deserialize body: {e}")))
 }
 
-pub(crate) fn list_grill_session_capsules(workspace: &Path) -> Result<Vec<String>, CapsuleError> {
+pub fn list_grill_session_capsules(workspace: &Path) -> Result<Vec<String>, CapsuleError> {
     let cas_dir = cas_path(workspace);
     if !cas_dir.exists() {
         return Ok(Vec::new());
@@ -394,7 +404,7 @@ pub(crate) fn list_grill_session_capsules(workspace: &Path) -> Result<Vec<String
 #[cfg(test)]
 mod grill_capsule_tests {
     use super::*;
-    use turingosv4::runtime::grill_predicates::PredicateVerdict;
+    use crate::runtime::grill_predicates::PredicateVerdict;
 
     fn temp_workspace() -> tempfile::TempDir {
         tempfile::tempdir().expect("create temp workspace")

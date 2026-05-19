@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::common::shell_quote_path;
-use crate::spec_capsule;
+use turingosv4::runtime::spec_capsule;
 
 /// TRACE_MATRIX FC2-N16: `welcome` short-help
 pub(crate) const SHORT_HELP: &str =

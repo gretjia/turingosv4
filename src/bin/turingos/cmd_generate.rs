@@ -29,7 +29,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cmd_llm;
 use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
-use crate::spec_capsule;
+use turingosv4::runtime::spec_capsule;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =

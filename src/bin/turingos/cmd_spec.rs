@@ -38,7 +38,7 @@ use sha2::{Digest, Sha256};
 
 use crate::cmd_llm;
 use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
-use crate::spec_capsule;
+use turingosv4::runtime::spec_capsule;
 
 /// TRACE_MATRIX FC2-N16: `spec` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -1502,54 +1502,30 @@ incomplete — corrections help me. If you want to add anything directly, write 
     }
 }
 
+/// A8b (2026-05-19): synthesis prompt moved from inline Rust literal to
+/// runtime fs load from `<workspace>/assets/prompts/grill_synthesis_{lang}.md`.
+/// Mirrors F4 meta-prompt pattern. Enables A/B without rebuild.
+/// Fallback (read failure): bake-in v1 content via include_str! at compile time
+/// so the binary never crashes on missing assets.
 fn system_prompt(lang: Lang) -> String {
-    match lang {
-        Lang::Zh => r#"你是 TuringOS Meta AI，一名以非开发者用户为对象的需求引导专家。
-你的任务：根据下面的 8 个问题 + 用户的 8 个回答，综合出一份 spec.md。
+    system_prompt_from(lang, std::path::Path::new("."))
+}
 
-**严格要求**：
-1. 假设用户**不是程序员**。不要使用任何技术术语（"数据模型"、"用户流"、"API"、"schema"、"endpoint"、"validation"等）。
-2. 输出 **Markdown** 格式，分为以下小节（章节标题用中文）：
-   - `## 一句话目标`（用户原话提炼）
-   - `## 我们要做什么 (Goal)`（一段话，2-4 句）
-   - `## 像谁 (Reference)`（最像的现成产品 / 现有做法）
-   - `## 程序要记住的东西 (Memory)`（项目符号列表，每条 ≤ 12 字）
-   - `## 第一次使用 (First Run)`（编号步骤，最多 7 步）
-   - `## 不能搞坏的情况 (Robustness)`（项目符号；每条≤ 20 字）
-   - `## 故意不做的 (Out of Scope)`（项目符号）
-   - `## 算成功 (Acceptance)`（可测量的成功指标 1-3 条）
-   - `## Given/When/Then 用例`（3-5 个验收用例，BDD 格式）
-   - `## 一句话给 AI 编程员`（给下一步 codegen 的纯文本提示，一段话）
-3. 如果你**发现矛盾**（比如用户说"要简单"但列出 17 个功能），在 spec 末尾加 `## 我听到的矛盾` 小节，用 Voss-label 方式描述：
-   "听起来 X 对你很重要，同时你也说了 Y。如果要砍掉一个，你会保留哪个？"
-4. 不要扩写用户没说的功能。如果某项信息缺失，在 spec 末尾加 `## 还没问到` 小节。
-5. 最后一行必须是单独一行的 `<!-- TURINGOS_SPEC_END -->`。
-
-输出**只有 spec.md 正文**，不要前后加任何 "好的我来帮你"之类的客套话。"#.into(),
-        Lang::En => r#"You are TuringOS Meta AI, a requirements-elicitation specialist for non-developer users.
-Task: from the 8 questions + 8 answers below, synthesise a spec.md.
-
-**Strict rules**:
-1. Assume the user is **not a programmer**. NO jargon ("data model", "user flow", "API",
-   "schema", "endpoint", "validation"). Translate to plain English.
-2. Output **Markdown** with these exact sections:
-   - `## One-line Goal`
-   - `## What We're Building (Goal)` (2-4 sentences)
-   - `## Like What (Reference)`
-   - `## What the Program Remembers (Memory)` (bullets, ≤ 8 words each)
-   - `## First Run (First Click Walk)` (numbered, ≤ 7 steps)
-   - `## What It Must Not Break On (Robustness)` (bullets)
-   - `## Deliberately NOT Doing (Out of Scope)` (bullets)
-   - `## Success Looks Like (Acceptance)` (1-3 measurable lines)
-   - `## Given/When/Then Examples` (3-5 BDD scenarios)
-   - `## One-line Brief to the AI Coder`
-3. If you spot contradictions, append a `## Contradictions I Heard` section using
-   Voss labeling: "It sounds like X matters AND you also said Y — which one wins?"
-4. Don't invent features the user didn't mention. If something is missing, append
-   `## Not Yet Asked` listing what.
-5. Final line MUST be `<!-- TURINGOS_SPEC_END -->` alone.
-
-Output ONLY the spec.md body, no preamble."#.into(),
+fn system_prompt_from(lang: Lang, workspace: &std::path::Path) -> String {
+    let (filename, fallback) = match lang {
+        Lang::Zh => (
+            "grill_synthesis_zh.md",
+            include_str!("../../../assets/prompts/grill_synthesis_zh.md"),
+        ),
+        Lang::En => (
+            "grill_synthesis_en.md",
+            include_str!("../../../assets/prompts/grill_synthesis_en.md"),
+        ),
+    };
+    let path = workspace.join("assets/prompts").join(filename);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => fallback.to_string(),
     }
 }
 
