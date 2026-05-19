@@ -69,6 +69,16 @@ const MIN_SIZE_BYTES: u64 = 2 * 1024; // 2 KB
 #[cfg(feature = "web")]
 const MAX_SIZE_BYTES: u64 = 100 * 1024; // 100 KB
 
+/// F11 (2026-05-19): minimum artifact size for `VerifyMode::MinimumBar`.
+///
+/// Used by the domain-agnostic HTML5 bar. 500 bytes is small enough to
+/// accept a stub-shaped one-page UI (the Π4.3 P7 video converter is 5384
+/// bytes; a minimal todo HTML can be ~800 bytes; the rationale floor sits
+/// below either), and large enough to reject obvious truncation
+/// (`<html></html>` is 13 bytes, an empty boilerplate skeleton is ~200).
+#[cfg(feature = "web")]
+const MIN_SIZE_BYTES_MINIMUM: u64 = 500;
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
@@ -77,12 +87,90 @@ const MAX_SIZE_BYTES: u64 = 100 * 1024; // 100 KB
 ///
 /// Returns `VerifyOutcome` with a list of human-readable failure reasons.
 /// I/O errors (file not found, permission denied) propagate as `io::Error`.
+///
+/// F11 (2026-05-19) — domain-agnostic universality fix.
+/// Default verification mode is now `VerifyMode::MinimumBar`, which checks
+/// only HTML5-shape predicates (doctype/html, non-empty body, has
+/// script/style/link, minimum size, no placeholder text). Game-shape
+/// heuristics (canvas / keydown / requestAnimationFrame / etc.) are now
+/// gated behind `VerifyMode::GameShape`, selected by `generate_handler`
+/// only when the spec.md mentions game-related keywords. This restores
+/// universality for non-game specs (video converter, todo app, dashboard,
+/// CRUD form) that were false-positive-rejected by the W8 v1 game-shape
+/// gate.
 #[cfg(feature = "web")]
 pub(crate) fn verify_artifact_html(path: &Path) -> std::io::Result<VerifyOutcome> {
+    verify_artifact_html_with_mode(path, VerifyMode::GameShape)
+}
+
+/// F11 (2026-05-19): mode-aware artifact verification.
+///
+/// `VerifyMode::GameShape` — strict game-shape heuristics (W8 legacy).
+/// `VerifyMode::MinimumBar` — domain-agnostic HTML5 minimum bar (Option B).
+#[cfg(feature = "web")]
+pub(crate) fn verify_artifact_html_with_mode(
+    path: &Path,
+    mode: VerifyMode,
+) -> std::io::Result<VerifyOutcome> {
     let metadata = fs::metadata(path)?;
     let size_bytes = metadata.len();
     let html = fs::read_to_string(path)?;
-    Ok(verify_html_contents(&html, size_bytes))
+    Ok(verify_html_contents_with_mode(&html, size_bytes, mode))
+}
+
+/// F11 (2026-05-19): verification mode discriminant.
+///
+/// `GameShape` preserves the W8 strict heuristics (canvas/keydown/raf etc.).
+/// `MinimumBar` applies only HTML5-shape predicates so non-game specs
+/// (video converter, todo, dashboard, CRUD) are not false-positive rejected.
+#[cfg(feature = "web")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VerifyMode {
+    /// Strict game-shape heuristics (canvas/playfield + keyboard + raf loop).
+    GameShape,
+    /// Domain-agnostic HTML5 minimum bar.
+    MinimumBar,
+}
+
+/// F11 (2026-05-19): detect whether a spec.md describes a game-shaped artifact.
+///
+/// Used by `generate_handler` to pick `VerifyMode::GameShape` vs
+/// `VerifyMode::MinimumBar`. Matches either English game keywords or
+/// Simplified/Traditional Chinese 游戏/遊戲, plus a handful of well-known
+/// game-shape genres (tetris/snake/breakout/canvas/playfield). Case-insensitive
+/// for ASCII; the Chinese characters are matched literally.
+///
+/// Conservative bias: a non-game artifact tagged as a game by accident only
+/// pays the cost of stricter checks (and the user sees the strict failure
+/// reasons). A game-spec misclassified as non-game passes the lower bar
+/// (acceptable degradation: the artifact may not actually be playable, but
+/// the user can still inspect / regenerate). Default is MinimumBar.
+#[cfg(feature = "web")]
+pub(crate) fn spec_looks_like_game(spec_md: &str) -> bool {
+    let lower = spec_md.to_ascii_lowercase();
+    let ascii_keywords = [
+        "game", "tetris", "snake", "breakout", "pong", "pacman", "pac-man",
+        "minesweeper", "2048", "arcade", "playfield", "canvas",
+    ];
+    if ascii_keywords.iter().any(|k| lower.contains(k)) {
+        return true;
+    }
+    // Chinese keywords (Simplified + Traditional) — match on raw spec text,
+    // not lowercased (no-op for non-ASCII).
+    let zh_keywords = [
+        "游戏",       // SC: game
+        "遊戲",       // TC: game
+        "俄罗斯方块", // SC: Tetris
+        "俄羅斯方塊", // TC: Tetris
+        "贪吃蛇",     // SC: Snake
+        "貪吃蛇",     // TC: Snake
+        "扫雷",       // SC: Minesweeper
+        "掃雷",       // TC: Minesweeper
+    ];
+    if zh_keywords.iter().any(|k| spec_md.contains(k)) {
+        return true;
+    }
+    false
 }
 
 /// TRACE_MATRIX FC1-N5: detect a visible game-surface rendering technology.
@@ -139,9 +227,180 @@ fn has_playfield(lower: &str) -> bool {
 ///
 /// Separated from the I/O wrapper so unit tests can exercise the checks
 /// without writing temp files. Called by `verify_artifact_html` after
-/// loading the file.
+/// loading the file. Defaults to game-shape mode for backwards-compat with
+/// the W8 test suite; F11 callers (generate_handler) prefer the mode-aware
+/// `verify_html_contents_with_mode`.
 #[cfg(feature = "web")]
 pub(crate) fn verify_html_contents(html: &str, size_bytes: u64) -> VerifyOutcome {
+    verify_html_contents_with_mode(html, size_bytes, VerifyMode::GameShape)
+}
+
+/// F11 (2026-05-19): mode-aware heuristic over already-loaded HTML text.
+///
+/// Branches on `VerifyMode`:
+///   - `GameShape`: full W8 strict heuristics (canvas/keyboard/raf + size +
+///     no external scripts/styles + balanced braces/tags + no inverted
+///     nullish guard + keydown on document/window).
+///   - `MinimumBar`: domain-agnostic HTML5 bar (Option B). Accepts if:
+///     1) <html> or <!DOCTYPE html> present,
+///     2) non-empty <body>,
+///     3) at least one of <script>, <style>, <link rel="stylesheet">,
+///     4) total size >= 500 bytes,
+///     5) no placeholder strings (TODO / FIXME / lorem ipsum / placeholder).
+#[cfg(feature = "web")]
+pub(crate) fn verify_html_contents_with_mode(
+    html: &str,
+    size_bytes: u64,
+    mode: VerifyMode,
+) -> VerifyOutcome {
+    match mode {
+        VerifyMode::GameShape => verify_game_shape(html, size_bytes),
+        VerifyMode::MinimumBar => verify_minimum_bar(html, size_bytes),
+    }
+}
+
+/// F11 (2026-05-19): domain-agnostic HTML5 minimum bar.
+///
+/// Returns PASS iff every check below passes:
+///   1. Contains `<html` or `<!doctype html` (case-insensitive).
+///   2. Contains a non-empty `<body>...</body>`.
+///   3. Contains at least one of `<script`, `<style`, `<link rel="stylesheet"`.
+///   4. Total size >= MIN_SIZE_BYTES_MINIMUM (500 bytes).
+///   5. Does not contain placeholder text (TODO / FIXME / lorem ipsum /
+///      <!-- placeholder --> case-insensitive).
+///
+/// Each failed check appends a descriptive `reason:` string. Safe to surface.
+#[cfg(feature = "web")]
+fn verify_minimum_bar(html: &str, size_bytes: u64) -> VerifyOutcome {
+    let mut failure_reasons: Vec<String> = Vec::new();
+    let lower = html.to_ascii_lowercase();
+
+    // Check 1: HTML shape — <html> or <!DOCTYPE html>.
+    let has_doctype = lower.contains("<!doctype html");
+    let has_html_tag = lower.contains("<html");
+    if !(has_doctype || has_html_tag) {
+        failure_reasons.push(
+            "missing_html_root: 找不到 <html> 或 <!DOCTYPE html> — 不是 HTML 文档".to_string(),
+        );
+    }
+
+    // Check 2: non-empty <body>.
+    if !has_nonempty_body(&lower) {
+        failure_reasons.push(
+            "missing_or_empty_body: 找不到 <body>...</body>，或 body 内容为空 — 无可见内容".to_string(),
+        );
+    }
+
+    // Check 3: at least one of <script>, <style>, <link rel="stylesheet">.
+    let has_script = lower.contains("<script");
+    let has_style = lower.contains("<style");
+    let has_stylesheet_link =
+        lower.contains("rel=\"stylesheet\"") || lower.contains("rel='stylesheet'");
+    if !(has_script || has_style || has_stylesheet_link) {
+        failure_reasons.push(
+            "no_script_or_style: 既没有 <script>、<style>，也没有 <link rel=\"stylesheet\"> — 缺少交互或样式".to_string(),
+        );
+    }
+
+    // Check 4: total size >= MIN_SIZE_BYTES_MINIMUM.
+    if size_bytes < MIN_SIZE_BYTES_MINIMUM {
+        failure_reasons.push(format!(
+            "too_small: artifact is {} 字节 (< {} 字节最小阈值) — 疑似桩代码",
+            size_bytes, MIN_SIZE_BYTES_MINIMUM
+        ));
+    }
+
+    // Check 5: no placeholder text.
+    // NOTE: case-sensitive on raw `html` for TODO/FIXME so legitimate
+    // domain words like "Todo App" / "todoList" don't trip a false positive.
+    // `lorem ipsum` and `<!-- placeholder -->` are matched case-insensitively
+    // via `lower`.
+    if let Some(found) = first_placeholder_match(html, &lower) {
+        failure_reasons.push(format!(
+            "placeholder_content: 检测到占位文本 {:?} — 模型未完成生成",
+            found
+        ));
+    }
+
+    VerifyOutcome {
+        passed: failure_reasons.is_empty(),
+        failure_reasons,
+        artifact_size_bytes: size_bytes,
+    }
+}
+
+/// F11 helper: true iff `lower` contains a `<body>` opening tag, a matching
+/// `</body>` closing tag, and at least one non-whitespace character between
+/// them.
+#[cfg(feature = "web")]
+fn has_nonempty_body(lower: &str) -> bool {
+    let body_open = match lower.find("<body") {
+        Some(i) => i,
+        None => return false,
+    };
+    let body_open_close = match lower[body_open..].find('>') {
+        Some(i) => body_open + i + 1,
+        None => return false,
+    };
+    let body_close = match lower[body_open_close..].find("</body") {
+        Some(i) => body_open_close + i,
+        None => return false,
+    };
+    let inner = &lower[body_open_close..body_close];
+    inner.chars().any(|c| !c.is_whitespace())
+}
+
+/// F11 helper: returns the first placeholder substring found in `html`/
+/// `lower`, or `None` if no placeholder.
+///
+/// `lorem ipsum` and `<!-- placeholder -->` are canonical "model gave up"
+/// markers and matched case-insensitively (on `lower`).
+///
+/// `TODO` / `FIXME` are matched CASE-SENSITIVELY on `html`, and only when
+/// they appear in placeholder shape:
+///   - `// TODO` (line comment)
+///   - `/* TODO` (block comment opening)
+///   - `<!-- TODO` (HTML comment)
+///   - `TODO:` (label-style)
+/// This lets legitimate identifiers like `todoList`, `<h1>Tasks</h1>`, or
+/// `<title>Todo App</title>` pass without false positives.
+#[cfg(feature = "web")]
+fn first_placeholder_match(html: &str, lower: &str) -> Option<&'static str> {
+    // Case-insensitive exact substrings.
+    let exact_lower = ["lorem ipsum", "<!-- placeholder -->"];
+    for needle in exact_lower {
+        if lower.contains(needle) {
+            return Some(needle);
+        }
+    }
+    // Case-sensitive comment-shaped TODO / FIXME markers.
+    let comment_markers = [
+        "// TODO",
+        "/* TODO",
+        "<!-- TODO",
+        "TODO:",
+        "// FIXME",
+        "/* FIXME",
+        "<!-- FIXME",
+        "FIXME:",
+    ];
+    for needle in comment_markers {
+        if html.contains(needle) {
+            // Return the static label, not the exact match string.
+            if needle.contains("TODO") {
+                return Some("TODO");
+            }
+            return Some("FIXME");
+        }
+    }
+    None
+}
+
+/// F11 (2026-05-19): legacy W8 game-shape heuristics, preserved verbatim
+/// behind `VerifyMode::GameShape`. Caller must still pass a content-aware
+/// mode (generate_handler picks based on spec.md keywords).
+#[cfg(feature = "web")]
+fn verify_game_shape(html: &str, size_bytes: u64) -> VerifyOutcome {
     let mut failure_reasons: Vec<String> = Vec::new();
 
     // Check 1: size bounds.

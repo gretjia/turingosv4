@@ -41,7 +41,7 @@ use std::path::PathBuf;
 #[cfg(feature = "web")]
 use super::spec::SpecError;
 #[cfg(feature = "web")]
-use super::verify::verify_artifact_html;
+use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, VerifyMode};
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
 
@@ -177,14 +177,37 @@ pub(crate) async fn generate_handler(
     let session_dir_str = session_dir.to_string_lossy().into_owned();
     let artifacts_dir = session_dir.join("artifacts");
 
+    // F11 (2026-05-19): pick verify mode from spec.md content.
+    //
+    // Default is `MinimumBar` (domain-agnostic HTML5 floor). If the spec
+    // mentions game-related keywords, escalate to `GameShape` to keep the
+    // W8 strict heuristics. spec.md is small (<10 KB typically); read once
+    // here, outside the retry loop. Read failure → conservative MinimumBar.
+    let verify_mode = match std::fs::read_to_string(&spec_md_path) {
+        Ok(spec_md) => {
+            if spec_looks_like_game(&spec_md) {
+                VerifyMode::GameShape
+            } else {
+                VerifyMode::MinimumBar
+            }
+        }
+        Err(e) => {
+            log::warn!(
+                "generate_handler: spec.md read for verify-mode detection failed: {e}; defaulting to MinimumBar"
+            );
+            VerifyMode::MinimumBar
+        }
+    };
+
     log::info!(
-        "generate_handler: bin={:?} session_id={:?} session_dir={:?} from_capsule={} max_files={:?} max_attempts={}",
+        "generate_handler: bin={:?} session_id={:?} session_dir={:?} from_capsule={} max_files={:?} max_attempts={} verify_mode={:?}",
         bin,
         req.session_id,
         session_dir_str,
         req.from_capsule,
         req.max_files,
         MAX_GENERATE_ATTEMPTS,
+        verify_mode,
     );
 
     // Step 6: W8 retry loop — attempt up to MAX_GENERATE_ATTEMPTS times.
@@ -302,10 +325,10 @@ pub(crate) async fn generate_handler(
             Some(entry) => {
                 let abs_path = artifacts_dir.join(&entry.path);
                 last_artifact_path_for_inspection = Some(entry.path.clone());
-                match verify_artifact_html(&abs_path) {
+                match verify_artifact_html_with_mode(&abs_path, verify_mode) {
                     Ok(outcome) => Some(outcome),
                     Err(e) => {
-                        log::warn!("verify_artifact_html failed: {e}");
+                        log::warn!("verify_artifact_html_with_mode failed: {e}");
                         None
                     }
                 }
