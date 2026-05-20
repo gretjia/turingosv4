@@ -1,0 +1,44 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1779167896592_100403",
+  "title": "Bootstrap TuringOS V5 meta harness",
+  "module": "V5Harness",
+  "molecule_or_atom": "molecule",
+  "requested_risk_class": 1,
+  "risk_class": 1,
+  "fc_nodes": [
+    "FC1-N5",
+    "FC1-N6",
+    "FC1-N11",
+    "FC1-N13",
+    "FC2-N16",
+    "FC2-N21",
+    "FC3-N32",
+    "FC3-N33"
+  ],
+  "allowed_paths": [
+    "../TURINGOS_V5_FINAL_HARNESS_PLAN_v0.7.md",
+    "../turingosv5/AGENT_ENTRY.md",
+    "../turingosv5/AGENTS.md",
+    "../turingosv5/CLAUDE.md",
+    "../turingosv5/GEMINI.md",
+    "../turingosv5/CODEX.md",
+    "../turingosv5/docs/harness",
+    "../turingosv5/docs/lineage",
+    "../turingosv5/docs/classes",
+    "../turingosv5/docs/contracts",
+    "../turingosv5/docs/ci",
+    "../turingosv5/docs/pr",
+    "../turingosv5/.github"
+  ],
+  "restricted_surface_hits": [],
+  "acceptance_commands": [
+    "git -C /home/zephryj/projects/turingosv5 diff --check",
+    "cargo test --test harness_task_board"
+  ],
+  "audit_required": false,
+  "human_intent": "Create clean V5 repo bootstrap with universal agent entry, task broadcast harness, brand adapter files, schemas, and initial CLI-worker handoff boundary.",
+  "ratification": null,
+  "git_head": "300fb563ae57d971610b923d83fc55ab083ae245",
+  "created_at_unix_ms": 1779167896592
+}

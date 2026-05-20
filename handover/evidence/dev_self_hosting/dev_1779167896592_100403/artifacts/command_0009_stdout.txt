@@ -1,0 +1,2 @@
+7fb6ec74ef8238c3555b6ed6cfa9a852b85ce44d7f94a01b4b3c9165ad31cb38  /home/zephryj/projects/TURINGOS_V5_FINAL_HARNESS_PLAN_v0.7.md
+7fb6ec74ef8238c3555b6ed6cfa9a852b85ce44d7f94a01b4b3c9165ad31cb38  /home/zephryj/projects/turingosv5/TURINGOS_V5_FINAL_HARNESS_PLAN_v0.7.md

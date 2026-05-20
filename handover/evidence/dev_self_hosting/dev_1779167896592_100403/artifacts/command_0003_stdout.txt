@@ -1,0 +1,4 @@
+/home/zephryj/projects/turingosv5               b4f49e8 [main]
+/home/zephryj/projects/turingosv5-claude        b4f49e8 [worker/claude-idle]
+/home/zephryj/projects/turingosv5-codex-worker  b4f49e8 [worker/codex-idle]
+/home/zephryj/projects/turingosv5-gemini        b4f49e8 [worker/gemini-idle]

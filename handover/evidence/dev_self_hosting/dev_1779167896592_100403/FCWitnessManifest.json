@@ -1,0 +1,16 @@
+{
+  "schema_version": "turingos.dev_harness.v1",
+  "run_id": "dev_1779167896592_100403",
+  "fc_nodes": [
+    "FC1-N5",
+    "FC1-N6",
+    "FC1-N11",
+    "FC1-N13",
+    "FC2-N16",
+    "FC2-N21",
+    "FC3-N32",
+    "FC3-N33"
+  ],
+  "expected_witness": "Diff, command evidence, and audit verdict must cite these FC nodes.",
+  "evidence_artifacts": []
+}

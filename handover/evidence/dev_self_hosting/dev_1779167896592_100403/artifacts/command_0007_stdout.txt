@@ -1,0 +1,9 @@
+
+running 4 tests
+test harness_v5_does_not_carry_minif2f_development_dataset ... ok
+test harness_agent_entry_and_brand_adapters_point_to_shared_agents ... ok
+test harness_task_board_declares_meta_only_writer_and_valid_packets ... ok
+test harness_runtime_does_not_read_agent_broadcast ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
