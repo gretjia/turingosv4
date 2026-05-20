@@ -48,44 +48,8 @@ use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 // ── Harness (mirrors constitution_cpmm_pool.rs pattern) ─────────────────────
 
-struct Harness {
-    _tmp: TempDir,
-    seq: Sequencer,
-    rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
-    _ledger: Arc<RwLock<dyn LedgerWriter>>,
-}
-
-fn fresh_harness(initial_q: QState) -> Harness {
-    let tmp = TempDir::new().expect("tempdir");
-    let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
-    let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
-    let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
-    let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(PredicateRegistry::new());
-    let tools = Arc::new(ToolRegistry::new());
-    let epoch = SystemEpoch::new(1);
-    let mut pinned = PinnedSystemPubkeys::new();
-    pinned.insert(epoch, keypair.public_key());
-    let pinned_pubkeys = Arc::new(pinned);
-    let (seq, rx) = Sequencer::new(
-        cas,
-        keypair,
-        epoch,
-        writer.clone(),
-        rejection_writer,
-        preds,
-        tools,
-        pinned_pubkeys,
-        initial_q,
-        16,
-    );
-    Harness {
-        _tmp: tmp,
-        seq,
-        rx,
-        _ledger: writer,
-    }
-}
+mod support;
+use support::{fresh_harness, Harness};
 
 fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QState {
     let mut q = QState::genesis();
