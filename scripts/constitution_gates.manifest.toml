@@ -1,0 +1,656 @@
+# Constitution Gate Manifest
+# 
+# This manifest authorizes all constitutional gates that CI must run.
+# Each entry maps a gate name to the architect directive that authorized it.
+#
+# Rules:
+# - Discovered gates (tests/constitution_*.rs) MUST exist in this manifest
+# - Missing tests for manifest entries cause CI failure
+# - Gates may only be added via explicit architect directive
+# 
+# Authority: See RUN_CONSTITUTION_GATES_HISTORY.md for K-1.5 migration rationale
+#
+# NOTE: Gates marked with "extracted-from-original-runner" were part of the
+# original 67-gate hard-coded array. Gates added after 2026-05-20 reference
+# the directive that authorized them.
+
+
+[[gate]]
+name = "constitution_admission_no_fail_open_default"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_aggregate_report"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_architect_verbatim_struct_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_art_v3_amendment_log"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_audit_tamper_3_of_3"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_audit_views"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_benchmark_manifest"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_class4_atomic_rollback_witness"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_closure_3_no_trivial_asserts"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_completeset_hardening"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_completeset_merge"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_cpmm_pool"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_cpmm_swap"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_diversity"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_economy_gate"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_economy_strict_equality"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_fc1_runtime_loop"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_fc2_boot"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_fc3_evidence_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_fc3_inv1_capsule_integrity_regen"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_fc3_meta"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g1_2_batch_continuation_manifest"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g1_2_chain_tape_lease"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g1_2_persistence_evidence_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g1_2_resume_preflight"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g1_resume"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2_dashboard_no_trade_rows"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2_failed_invest_l4e"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2_no_trade_reason_taxonomy"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2p_peer_verify_coverage"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2p_pending_peer_reviews"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g2p_verify_reward_bond_return"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g3_bankruptcy_risk_cap"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g3_pnl"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g3_pnl_trajectory_evidence_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g3_your_position_prompt"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g7_structural_smoke"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_head_t_c2_multi_ref"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_head_t_witness"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_l4e_body_integrity"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_market_quarantine"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_market_seed_hardening"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_minif2f_boundary"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_n1_agent_economy_a3"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_n1_agent_economy_a4"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_n2_event_resolve"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_no_evidence_drift_in_tests"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_no_parallel_ledger"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_pcp_corpus"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_pcp_corpus_phase2"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_polymarket_event_state_gate"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_polymarket_smoke"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_predicate_gate"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_prompt_capsule"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real6_attempt_prediction_market"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real8_market_ab_benchmark"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real9_launch_synthesis"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_router_buy_with_coin"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_router_price_quote"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_runner_invariant_formula"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_shielding_evidence_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_shielding_gate"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_tape_canonical_gate"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_tb_n3_a3_emit"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_tb_n3_invest_routing"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_wave3_evidence_binding"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_wilson_ci"
+authority = "extracted-from-original-runner-amendment-history (see RUN_CONSTITUTION_GATES_HISTORY.md)"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_dev_harness"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g4_multi_llm"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g4_no_hidden_model_switch"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g5_action_menu"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g5_role_classifier"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g5_scheduler"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g6_observe_only"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_g6_unresolved_challenged_not_safe"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_digest"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_half_async"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_market_no_trade"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_no_raw_leakage"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_prompt_injection"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_real_evidence_binding"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_role_projector"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_selector"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_librarian_source_scope"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_market_autonomy_research_envelope"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_policy_trader_trace"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real10_emergence_metrics"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real10_trace_cleanup"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_claim_boundary"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_e2_micro_probe"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_evidence_hygiene"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_market_opportunity_trace"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_market_tx_category"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_matrix_update"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_no_live_real6b"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_router_positive_control"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real11_trader_pnl_visibility"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_bull_bear_positive_control"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_claim_boundary"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_economic_judgment"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_live_micro_probe"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_role_specialization"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_role_views"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real12_task_market_action"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real13a_display_coin"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real13a_ev_decision_trace"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real13b_market_review_window"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real13d_signal_purification"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real13h_market_pressure_probe"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real14_e2_candidate_verifier"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real14g_positive_ev_ignored"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real15_role_differentiation"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real16_market_performance"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real17_evaluator_prompt_provenance_wire"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real17_market_decision_provenance_link"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real17_market_order_ticket"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_architect_veto_scaffold"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_prompt_capsule_v2"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_role_assignment"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_role_based_smoke"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_role_scoped_view"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_tick_budget"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_trader_activation"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_typed_generation_gateway"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5_verifier_challenger"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real5s_scaffold_ratification"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real6_conviction_budget"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
+
+[[gate]]
+name = "constitution_real6_task_outcome_market"
+authority = "discovered-post-k15-migration-pending-architect-review"
+added = "2026-05-20"
