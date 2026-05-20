@@ -290,7 +290,62 @@ All agents must strictly adhere to the following coding and architectural guidel
 - **Karpathy Architect Skill**: Apply first-principles architecture, data-flow-first design, monolithic/flat default architecture, and micro-implementation. See [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md).
 - **Karpathy Simple Code Skill**: Focus on direct computation, small state machines, transparent data flow, and minimal abstractions. Avoid unnecessary dependencies and boilerplate lifecycle complexity. See [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md).
 
-## 14. Codex Guidance Maintenance
+## 14. Class-by-Class Cadence & Audit Checklist (K-4.1, v3 plan §5)
+
+### Cadence
+
+Match ceremony to risk class — Karpathy: surgical changes. Old loop (charter →
+atom → self-audit → external audit → more docs → delayed test) is forbidden;
+required loop is constitution gate → real run → debug → fix → rerun → audit →
+ship.
+
+| Class | Charter | Directive | Matrix update | §8 | Independent audit (witness only) | Memory |
+|-------|---------|-----------|---------------|-----|-----------------------------------|--------|
+| 0 docs | no | no | no | no | no | only recurring rule |
+| 1 additive | no | no | no | no | predicate self-test only | only recurring rule |
+| 2 wire-up | brief | optional | yes | no | clean-context Codex audit (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
+| 3 auth/money/CAS | TB charter | yes | yes | required | full dual independent witness (Codex + Gemini) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | dual independent witness PRE-§8 | yes |
+
+**Audit witness is not judge.** Ship gate = predicates GREEN (hard judge —
+`cargo test --workspace`, `bash scripts/run_constitution_gates.sh`,
+`cargo test --test constitution_matrix_drift`) ∧ audit witness output ≠
+unresolved violation. Subjective code-style / performance / coverage /
+architecture-preference opinions are out-of-scope per constitutional Veto-AI
+boundary (output domain `{PASS, VETO}`).
+
+### Predicate verification checklist (pre-merge, machine-deterministic)
+
+Auditor copy-pastes this batch; no human judgment in any line:
+
+- [ ] PR title states risk class
+- [ ] `git diff main --name-only` 未触及 §6 restricted-surface 列表，OR 该 PR 引用 per-atom §8 directive 文件
+- [ ] `cargo test --workspace --no-fail-fast` exit 0
+- [ ] `bash scripts/run_constitution_gates.sh` exit 0
+- [ ] `cargo test --test constitution_matrix_drift` exit 0
+- [ ] PR body 含 acceptance-criteria 命令块与期望输出
+- [ ] 该 atom 自身的 predicate verification recipe 输出 `PREDICATES-GREEN`
+- [ ] 无新 `Manager` / `Factory` / `Engine` / `Platform` / `Framework` type（structural grep）
+- [ ] 无新 trait + 单一非-idiomatic impl（structural grep）
+- [ ] 无新 board-as-truth 文件存在 evidence chain 外
+- [ ] 无新 global latest pointer 作为 canonical input
+
+### Independent audit witness verdict domain
+
+Clean-context Codex / Gemini audit 可合法输出（仅这四个）:
+- `NO-VIOLATION`（扫了 N 条款，无违宪发现）
+- `VIOLATION-FOUND <constitutional-clause> <file>:<line>`
+- `RECONSTRUCTION-FAILURE <which-tape-or-cas-path-cannot-be-reconstructed>`
+- `SECOND-SOURCE-DRIFT <which-derived-view-is-usurping-ground-truth>`
+
+出现以下即越界，可由 user 或 Claude 主体拒收该次 audit 报告：
+- "I think the code style ..."
+- "Performance could be improved ..."
+- "Test coverage feels low ..."
+- "Architecture would be better if ..."
+- 任何其他主观品味 / 性能 / 覆盖率 / 架构偏好类语句
+
+## 15. Codex Guidance Maintenance
 
 This file should stay concise and load-bearing. If Codex repeats the same
 mistake twice, update `AGENTS.md` or create a small referenced playbook/skill.
