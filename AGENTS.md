@@ -37,10 +37,11 @@ For a new non-trivial task, read in this order:
 2. `HARNESS_MANUAL.md`
 3. `constitution.md`
 4. `handover/ai-direct/LATEST.md`
-5. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-6. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
-7. Current directives/charters relevant to the task
-8. Source files and tests for the touched surface
+5. Key Coding Principles: [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md)
+6. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+7. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+8. Current directives/charters relevant to the task
+9. Source files and tests for the touched surface
 
 Optional Claude memory lives outside the repo at
 `~/.claude/projects/-home-zephryj-projects-turingosv4/memory/MEMORY.md`.
@@ -237,11 +238,18 @@ audit.
 
 A task is done only when:
 
-- relevant gates/tests for the risk class pass
-- the diff has been reviewed against touched FC nodes
-- evidence is linked or intentionally not required for the risk class
-- Class 3/4 or ship-path work has clean-context Codex review
-- `handover/ai-direct/LATEST.md` changes only when dynamic state truly changes
+- The touched FC nodes and risk class are stated.
+- Relevant unit/integration/constitution gates pass.
+- Evidence-bearing changes have a minimal real run or an explicit reason why no
+  real run is required.
+- The diff is reviewed for regressions, hidden Class 4 surfaces, evidence
+  rewrite, ID namespace drift, and money/tape/shielding violations.
+- Clean-context Codex audit is completed for high-risk or ship-path work.
+- Dynamic handover files are updated only if current project state actually
+  changed.
+
+For docs-only changes like this file, no Rust tests are required unless the doc
+change also modifies scripts, source code, or executable workflow.
 
 ## 12. Engineering Rules
 
@@ -265,24 +273,14 @@ No workaround closures: do not turn a failing gate into a skip, null pointer,
 empty evidence path, or dashboard-only proof. Align with the constitution and
 FC1/FC2/FC3, or stop.
 
-## 11. Done Definition
+## 13. Key Coding Principles (Karpathy Skills)
 
-A task is done only when:
+All agents must strictly adhere to the following coding and architectural guidelines:
 
-- The touched FC nodes and risk class are stated.
-- Relevant unit/integration/constitution gates pass.
-- Evidence-bearing changes have a minimal real run or an explicit reason why no
-  real run is required.
-- The diff is reviewed for regressions, hidden Class 4 surfaces, evidence
-  rewrite, ID namespace drift, and money/tape/shielding violations.
-- Clean-context Codex audit is completed for high-risk or ship-path work.
-- Dynamic handover files are updated only if current project state actually
-  changed.
+- **Karpathy Architect Skill**: Apply first-principles architecture, data-flow-first design, monolithic/flat default architecture, and micro-implementation. See [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md).
+- **Karpathy Simple Code Skill**: Focus on direct computation, small state machines, transparent data flow, and minimal abstractions. Avoid unnecessary dependencies and boilerplate lifecycle complexity. See [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md).
 
-For docs-only changes like this file, no Rust tests are required unless the doc
-change also modifies scripts, source code, or executable workflow.
-
-## 12. Codex Guidance Maintenance
+## 14. Codex Guidance Maintenance
 
 This file should stay concise and load-bearing. If Codex repeats the same
 mistake twice, update `AGENTS.md` or create a small referenced playbook/skill.

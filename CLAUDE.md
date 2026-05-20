@@ -870,10 +870,11 @@ Default read order:
 1. `CLAUDE.md`
 2. `constitution.md`
 3. `handover/ai-direct/LATEST.md`
-4. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-5. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
-6. current TB charter / directive
-7. only then supporting docs
+4. Key Coding Principles: [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md)
+5. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+6. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+7. current TB charter / directive
+8. only then supporting docs
 
 If a directive conflicts with constitution or flowcharts:
 
