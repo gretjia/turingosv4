@@ -345,6 +345,40 @@ Clean-context Codex / Gemini audit 可合法输出（仅这四个）:
 - "Architecture would be better if ..."
 - 任何其他主观品味 / 性能 / 覆盖率 / 架构偏好类语句
 
+## 14a. PR-only workflow (K-HARDEN-7, 2026-05-20) — universal across agent runtimes
+
+**All coding agents may only create pull requests. Approval + merge is the
+orchestrator's responsibility.**
+
+Applies to: Claude Code, Codex CLI, Gemini CLI, Aider, Cursor, human shell
+sessions, CI bots, every future coding-agent runtime. Cross-platform enforced
+via three independent layers:
+
+| Layer | Scope | Bypass |
+|-------|-------|--------|
+| GitHub branch protection on main | Server-side, universal | Repo admin only |
+| `scripts/hooks/pre-push.harden` (git pre-push hook) | Any agent that respects git hooks | `--no-verify` or `GIT_HARDEN_ALLOW_MAIN=1` |
+| Claude Code `.claude/hooks/validate_git_push.sh` | Claude Code only | env var or other agent |
+
+Install local hooks once per clone:
+```
+bash scripts/install_hooks.sh
+```
+
+Enable GitHub-side server protection (one-time, admin):
+```
+bash scripts/setup_branch_protection.sh
+```
+
+Legitimate orchestrator bypass (merging a vetted PR locally):
+```
+GIT_HARDEN_ALLOW_MAIN=1 git push origin main
+```
+
+See `skills/SUBAGENT_HARNESS.md` for prompt-template patterns and
+`handover/architect-insights/K_HARDEN_PROPOSAL_2026-05-20.md` for design
+rationale.
+
 ## 15. Codex Guidance Maintenance
 
 This file should stay concise and load-bearing. If Codex repeats the same
