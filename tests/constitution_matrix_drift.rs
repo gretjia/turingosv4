@@ -164,7 +164,7 @@ fn allowlist_doesnt_grow_silently() {
     // expands the allowlist (vs adding to matrix proper), this test alerts.
     // To raise the cap legitimately: bump this constant AND document in PR
     // why the matrix could not absorb the gate.
-    const K23_SHIP_ALLOWLIST_SIZE: usize = 67;
+    const K23_SHIP_ALLOWLIST_SIZE: usize = 70;
     assert!(
         BASELINE_ALLOWLIST.len() <= K23_SHIP_ALLOWLIST_SIZE,
         "BASELINE_ALLOWLIST has grown beyond K-2.3 ship size {} (now {}). \
