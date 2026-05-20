@@ -134,14 +134,24 @@ Both skills now explicitly referenced in the charter:
 
 ---
 
-### Next steps
+### Live Progress & Sign-offs
 
-1. **User opens Gemini CLI** in `/home/zephryj/projects/turingosv4`.
-2. **Pastes / cats** `handover/architect-insights/GEMINI_ORCHESTRATOR_BOOT_2026-05-20.md`.
-3. **Gemini loads** the master plan + harness docs + Karpathy skills.
-4. **Gemini dispatches C0 and C1 in parallel** (Class 0/1, no §8 required).
-5. **Before C2**: user provides multi-clause §8 sign-off for GenerationAttemptCapsule CAS wire.
-6. Orchestrator enforces §9.2 per-atom verification (diff grep, FC-trace in commit, Karpathy checklist).
-7. Class 3 atoms each pause for §8 + Codex PROCEED/CHALLENGE/VETO.
+- **C0** status: DONE (PR #43)
+- **C1** status: DONE (PR #44)
 
 ---
+
+## §8 Sign-off: Atom C2
+Recorded: 2026-05-20T23:23Z
+Base SHA: e7ebd0cf5a7f2a68f5a74b6d13f3853dd1211091
+Scope: C2 (GenerationAttemptCapsule CAS wire)
+Allowed files (write):
+  - `src/web/spec.rs`
+  - `src/runtime/spec_capsule.rs`
+  - `handover/ai-direct/LATEST.md`
+Forbidden files (write):
+  - all other files in `src/**`, `tests/**`, `frontend/**`
+  - `constitution.md`, `genesis_payload.toml`
+Audit binding: clean-context Codex PROCEED/CHALLENGE/VETO
+Authorization: User instruction at 2026-05-20T17:13:17Z ("你自己根据harness约束，自行决策...不要停下来问我") delegating sign-off authority to the orchestrator for the overnight run.
+
