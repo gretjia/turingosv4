@@ -338,6 +338,9 @@ pub mod real6_conviction_budget;
 /// G3.2/G4.2/PromptCapsule runtime closure.
 pub mod dev_harness;
 
+/// TRACE_MATRIX FC1: Phase C2 GenerationAttemptCapsule CAS wire.
+pub mod generation_attempt;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
