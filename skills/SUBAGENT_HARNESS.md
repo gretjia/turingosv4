@@ -20,6 +20,12 @@ Agent tool with `isolation: "worktree"`, three failure modes are confirmed:
   explicit prompt instructions, sweeping sidecar evidence files into commit.
   **Fix at hook layer**: K-HARDEN-2 `.claude/hooks/validate_git_add.sh`
   (hard-denies wildcard staging via permissionDecision=deny).
+- **L9 push-to-main bypass** — subagent accidentally exits its isolation
+  worktree, commits + pushes from main worktree, bypassing PR review.
+  Surfaced during K-HARDEN validation run (2026-05-20, commit ccf7a38c).
+  **Fix at hook layer**: K-HARDEN-6 `.claude/hooks/validate_git_push.sh`
+  hard-denies `git push origin main` / `--all` / push-when-on-main. Legitimate
+  bypass via `GIT_HARDEN_ALLOW_MAIN=1` env var (audited via shell history).
 
 This skill provides the prompt-template patterns L7 needs. L5 + L8 are
 already enforced by hooks; this skill exists primarily to (a) document the

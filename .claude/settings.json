@@ -32,6 +32,11 @@
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/validate_git_add.sh\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.claude/hooks/validate_git_push.sh\"",
+            "timeout": 5
           }
         ]
       }
