@@ -665,3 +665,8 @@ added = "2026-05-20"
 name = "constitution_rules_ci_mirror"
 authority = "K-3.1' (Phase 5): CI redundancy mirror of rules/active/R-*.yaml (subset). Engine.py remains primary PreToolUse enforcement."
 added = "2026-05-20"
+
+[[gate]]
+name = "constitution_demo_filesystem_check"
+authority = "Task A adversarial test (Karpathy v3 plan post-completion harness validation)"
+added = "2026-05-20"
