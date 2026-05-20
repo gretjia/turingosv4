@@ -39,10 +39,8 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_audit_views",
     "constitution_benchmark_manifest",
     "constitution_class4_atomic_rollback_witness",
-    "constitution_completeset_hardening",
     "constitution_completeset_merge",
     "constitution_cpmm_pool",
-    "constitution_cpmm_swap",
     "constitution_dev_harness",
     "constitution_economy_strict_equality",
     "constitution_g1_2_persistence_evidence_binding",
@@ -94,7 +92,6 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_real5_trader_activation",
     "constitution_real5_typed_generation_gateway",
     "constitution_real5_verifier_challenger",
-    "constitution_router_buy_with_coin",
     "constitution_router_price_quote",
     "constitution_runner_invariant_formula",
     "constitution_tape_canonical_gate",
@@ -104,6 +101,8 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     // These post-K-2.3-ship gates are exempt from initial matrix coverage.
     "constitution_matrix_drift",
     "constitution_rules_ci_mirror",
+    // Task A adversarial test: trivial gate exercising K-1.5/K-2.3 harness wires end-to-end.
+    "constitution_demo_filesystem_check",
 ];
 
 fn manifest_gates() -> HashSet<String> {
@@ -165,7 +164,7 @@ fn allowlist_doesnt_grow_silently() {
     // expands the allowlist (vs adding to matrix proper), this test alerts.
     // To raise the cap legitimately: bump this constant AND document in PR
     // why the matrix could not absorb the gate.
-    const K23_SHIP_ALLOWLIST_SIZE: usize = 69;
+    const K23_SHIP_ALLOWLIST_SIZE: usize = 67;
     assert!(
         BASELINE_ALLOWLIST.len() <= K23_SHIP_ALLOWLIST_SIZE,
         "BASELINE_ALLOWLIST has grown beyond K-2.3 ship size {} (now {}). \
