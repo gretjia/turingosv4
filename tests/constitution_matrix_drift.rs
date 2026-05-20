@@ -105,6 +105,8 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_demo_filesystem_check",
     // K-HARDEN-4 (2026-05-20): meta-gate verifying L5/L7/L8 hardening infrastructure.
     "constitution_subagent_pr_hygiene",
+    // K-HARDEN validation run (probe gate, can be deleted after validation)
+    "constitution_harden_validation_probe",
 ];
 
 fn manifest_gates() -> HashSet<String> {
@@ -166,7 +168,7 @@ fn allowlist_doesnt_grow_silently() {
     // expands the allowlist (vs adding to matrix proper), this test alerts.
     // To raise the cap legitimately: bump this constant AND document in PR
     // why the matrix could not absorb the gate.
-    const K23_SHIP_ALLOWLIST_SIZE: usize = 68;
+    const K23_SHIP_ALLOWLIST_SIZE: usize = 69;
     assert!(
         BASELINE_ALLOWLIST.len() <= K23_SHIP_ALLOWLIST_SIZE,
         "BASELINE_ALLOWLIST has grown beyond K-2.3 ship size {} (now {}). \
