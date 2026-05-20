@@ -4,6 +4,13 @@ TuringOS v4 is a tape-first constitutional operating substrate for LLM/AGI
 agents. The authoritative state of a run is ChainTape plus CAS evidence; reports,
 dashboards, and handover notes are materialized views.
 
+## Handover state
+
+Active: `handover/ai-direct/LATEST.md` (session #55, 2026-05-20 — V4 Product-CAK Hardening charter).
+
+Sessions #1–#54 archived at:
+`handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`
+
 ## Current Main Status
 
 `main` currently includes PR #3, #4, #5, #6, #7, #8, #10, and #11. PR #1,
