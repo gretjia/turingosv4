@@ -192,6 +192,7 @@ async fn seed_pool(
 /// 4_166_667. k_post >= k_pre (architect integer invariant `>=`).
 #[tokio::test]
 async fn buy_yes_with_coin_matches_formula() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-1");
     let mut h = fresh_harness(q0);
 
@@ -290,6 +291,7 @@ async fn buy_yes_with_coin_matches_formula() {
 /// 4M - 1_333_333 = 2_666_667.
 #[tokio::test]
 async fn buy_no_with_coin_matches_symmetric_formula() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-2");
     let mut h = fresh_harness(q0);
 
@@ -349,6 +351,7 @@ async fn buy_no_with_coin_matches_symmetric_formula() {
 /// preserved.
 #[tokio::test]
 async fn buy_yes_debits_coin_locks_collateral() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-3");
     let mut h = fresh_harness(q0);
 
@@ -443,6 +446,7 @@ async fn buy_yes_debits_coin_locks_collateral() {
 ///   Sum_yes == sum_no == collateral ✓ (complete-set mint witnessed).
 #[tokio::test]
 async fn buy_yes_mints_complete_set() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-4");
     let mut h = fresh_harness(q0);
 
@@ -531,6 +535,7 @@ fn sum_event_no(q: &QState, task: &str) -> u128 {
 /// outY independently and asserting the sum.
 #[tokio::test]
 async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-5");
     let mut h = fresh_harness(q0);
 
@@ -576,6 +581,7 @@ async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
 /// one-above-floor (reject) boundaries.
 #[tokio::test]
 async fn buy_yes_respects_min_yes_out() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-6");
     let mut h = fresh_harness(q0);
 
@@ -752,6 +758,7 @@ fn buy_yes_no_f64() {
 /// shares without collateral; no collateral without claims).
 #[tokio::test]
 async fn buy_yes_no_ghost_liquidity() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 =
         genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50), ("carol", 50)], "evt-7");
     let mut h = fresh_harness(q0);
