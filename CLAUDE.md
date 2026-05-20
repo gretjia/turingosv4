@@ -46,6 +46,24 @@ Canonical IDs and shadow IDs must not be mixed.
 No workaround closures: do not turn a failing gate into a skip, null pointer,
 empty evidence path, or dashboard-only proof.
 
+### Canonical FC1 invariant (preserved for tooling binding)
+
+Externalized attempt count equality (per OBS_TB18R_INV1_NONLLM_TX_2026-05-07
+clarification):
+
+```
+evaluator_reported_completed_llm_calls
+=
+  tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err
+```
+
+This is the canonical LHS scope. The LHS must NOT use
+`evaluator_reported_tx_count` (which inflates with architect-mandated non-LLM
+admin scaffold). Each of `step` / `parse_fail` / `llm_err` corresponds to one
+`r2_write_attempt_telemetry` call site — one externalized LLM-Lean cycle.
+
+If this equality fails: HALT; do not continue benchmark; do not audit as pass.
+
 ## 5. Pre-action skill gates
 
 Before drafting TB charter / dispatching G1 audit: `/constitution-landing-check`
