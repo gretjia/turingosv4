@@ -1,0 +1,78 @@
+name: K-HARDEN-5 — validate agent PR for L5/L8 contamination
+
+# Server-side defense-in-depth: even if local PreToolUse hook + git pre-commit
+# hook are bypassed, the GitHub PR cannot merge if its diff contains:
+#   - handover/evidence/dev_self_hosting/dev_*/ sidecar files (L8)
+#   - .claude/worktrees/ subagent workspace files (L5)
+#
+# Triggers on PR open / synchronize / reopen. Fail-fast on any contamination.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+jobs:
+  validate-agent-pr:
+    name: validate PR has no sidecar contamination
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Get changed files from PR
+        id: changed-files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          FILES="$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path')"
+          echo "Changed files in PR #${PR_NUMBER}:"
+          echo "$FILES" | sed 's/^/  /'
+          # Persist for next step
+          {
+            echo 'files<<EOF'
+            echo "$FILES"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check for L8 sidecar contamination
+        env:
+          FILES: ${{ steps.changed-files.outputs.files }}
+        run: |
+          set -euo pipefail
+          VIOLATIONS=""
+          if echo "$FILES" | grep -q '^handover/evidence/dev_self_hosting/dev_'; then
+            VIOLATIONS="${VIOLATIONS}\n  - handover/evidence/dev_self_hosting/dev_*/ sidecar files"
+          fi
+          if echo "$FILES" | grep -q '^\.claude/worktrees/'; then
+            VIOLATIONS="${VIOLATIONS}\n  - .claude/worktrees/ subagent workspace files"
+          fi
+          if [ -n "$VIOLATIONS" ]; then
+            echo "::error::K-HARDEN-5: PR contains forbidden sidecar paths"
+            echo -e "Violations:$VIOLATIONS"
+            echo ""
+            echo "Resolution: rebase + unstage the offending files, force-push the cleaned branch."
+            echo "Or close this PR and re-create a clean cherry-pick excluding sidecar paths."
+            exit 1
+          fi
+          echo "K-HARDEN-5: no sidecar contamination detected"
+
+      - name: Check PR diff size envelope (advisory, soft warn)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          FILE_COUNT="$(gh pr view "$PR_NUMBER" --json files --jq '.files | length')"
+          if [ "$FILE_COUNT" -gt 25 ] && [[ "${{ github.event.pull_request.head.ref }}" =~ ^(harden|karpathy|adversarial) ]]; then
+            echo "::warning::K-HARDEN-5: agent-style branch (harden/karpathy/adversarial prefix) has $FILE_COUNT files — review for cross-task contamination (L5)"
+          fi
+          echo "PR file count: $FILE_COUNT"
