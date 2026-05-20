@@ -100,6 +100,10 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_tape_canonical_gate",
     "constitution_tb_n3_a3_emit",
     "constitution_tb_n3_invest_routing",
+    // Phase 5 fix-up: added by K-3.1' (CI mirror) and K-2.3 (matrix drift self-mirror).
+    // These post-K-2.3-ship gates are exempt from initial matrix coverage.
+    "constitution_matrix_drift",
+    "constitution_rules_ci_mirror",
 ];
 
 fn manifest_gates() -> HashSet<String> {
@@ -161,7 +165,7 @@ fn allowlist_doesnt_grow_silently() {
     // expands the allowlist (vs adding to matrix proper), this test alerts.
     // To raise the cap legitimately: bump this constant AND document in PR
     // why the matrix could not absorb the gate.
-    const K23_SHIP_ALLOWLIST_SIZE: usize = 67;
+    const K23_SHIP_ALLOWLIST_SIZE: usize = 69;
     assert!(
         BASELINE_ALLOWLIST.len() <= K23_SHIP_ALLOWLIST_SIZE,
         "BASELINE_ALLOWLIST has grown beyond K-2.3 ship size {} (now {}). \
