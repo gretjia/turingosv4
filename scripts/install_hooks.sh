@@ -1,31 +1,54 @@
 #!/usr/bin/env bash
-# CO1.13.2 — install tracked git hooks.
+# CO1.13.2 + K-HARDEN-7 — install tracked git hooks.
 #
-# Idempotent: removes existing .git/hooks/pre-commit if present (warns on
-# non-symlink so user can rescue local content); creates symlink
-# .git/hooks/pre-commit -> ../../scripts/hooks/pre-commit.r022.
+# Idempotent: removes existing .git/hooks/pre-commit + pre-push if present
+# (warns on non-symlink so user can rescue local content); creates symlinks
+#   .git/hooks/pre-commit -> ../../scripts/hooks/pre-commit.r022
+#   .git/hooks/pre-push   -> ../../scripts/hooks/pre-push.harden
 #
 # Run as part of dev-setup. CI does NOT run this; CI uses
 # `scripts/check_trace_matrix.py --mode ci` directly via
 # .github/workflows/co1_13_r022_ci.yml.
+#
+# K-HARDEN-7 (2026-05-20) addition: pre-push hook blocks direct push to main
+# universally (any agent runtime — Claude / Codex / Gemini / human). Closes
+# L9 push-to-main bypass. PR-only workflow now mandatory.
+
 set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 HOOK_DIR="$PROJECT_ROOT/.git/hooks"
-HOOK_TARGET="../../scripts/hooks/pre-commit.r022"
-HOOK_LINK="$HOOK_DIR/pre-commit"
+
+install_hook() {
+    local hook_name="$1"      # e.g. pre-commit
+    local target_relpath="$2" # e.g. ../../scripts/hooks/pre-commit.r022
+    local target_abspath="$PROJECT_ROOT/$(echo "$target_relpath" | sed 's|^\.\./\.\./||')"
+    local link="$HOOK_DIR/$hook_name"
+
+    if [ -e "$link" ] || [ -L "$link" ]; then
+        if [ -L "$link" ]; then
+            rm "$link"
+        else
+            echo "warn: $link exists and is NOT a symlink; backing up to ${link}.bak"
+            mv "$link" "${link}.bak"
+        fi
+    fi
+
+    ln -s "$target_relpath" "$link"
+    chmod +x "$target_abspath"
+    echo "installed: $link -> $target_relpath"
+}
 
 mkdir -p "$HOOK_DIR"
 
-if [ -e "$HOOK_LINK" ] || [ -L "$HOOK_LINK" ]; then
-    if [ -L "$HOOK_LINK" ]; then
-        rm "$HOOK_LINK"
-    else
-        echo "warn: $HOOK_LINK exists and is NOT a symlink; backing up to ${HOOK_LINK}.bak"
-        mv "$HOOK_LINK" "${HOOK_LINK}.bak"
-    fi
-fi
+# CO1.13.2 — R-022 pre-commit shim
+install_hook "pre-commit" "../../scripts/hooks/pre-commit.r022"
 
-ln -s "$HOOK_TARGET" "$HOOK_LINK"
-chmod +x "$PROJECT_ROOT/scripts/hooks/pre-commit.r022"
-echo "installed: $HOOK_LINK -> $HOOK_TARGET"
+# K-HARDEN-7 — universal pre-push (any-agent block on push-to-main)
+install_hook "pre-push" "../../scripts/hooks/pre-push.harden"
+
+echo ""
+echo "K-HARDEN-7 note: enable GitHub branch protection on main as the"
+echo "ultimate server-side enforcement (works across all agents incl. agents"
+echo "that bypass local hooks with --no-verify):"
+echo "  bash scripts/setup_branch_protection.sh"

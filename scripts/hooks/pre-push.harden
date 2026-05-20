@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# K-HARDEN-7: universal pre-push hook (any agent that uses git).
+#
+# Closes L9 + new PR-only rule (2026-05-20): coding agents (Claude / Codex
+# CLI / Gemini CLI / Aider / Cursor / human) must ONLY create PRs. Approval
+# and merge are orchestrator-side responsibilities.
+#
+# Unlike .claude/hooks/validate_git_push.sh (Claude-Code-only), this hook is
+# enforced by GIT itself — fires for every `git push` regardless of which
+# agent runtime invoked it.
+#
+# Mechanism: git invokes pre-push with stdin "<local_ref> <local_sha> <remote_ref> <remote_sha>"
+# lines for each ref being pushed. We deny if any line targets refs/heads/main
+# on origin.
+#
+# Installation: bash scripts/install_hooks.sh (idempotent; installs both
+# pre-commit and pre-push).
+#
+# Legitimate bypass: GIT_HARDEN_ALLOW_MAIN=1 git push origin main
+# (intended for human-orchestrator merging a vetted PR locally then pushing).
+# Bypass is logged in git reflog + shell history.
+
+set -euo pipefail
+
+# Allow bypass via env var (for orchestrator merge workflow)
+if [ "${GIT_HARDEN_ALLOW_MAIN:-0}" = "1" ]; then
+  exit 0
+fi
+
+REMOTE="${1:-}"
+URL="${2:-}"
+
+# Read refs from stdin (git pre-push contract)
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Block any push that writes to refs/heads/main on origin (or any remote)
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    cat >&2 <<EOF
+─────────────────────────────────────────────────────────────────────────
+K-HARDEN-7: BLOCKED push to main (PR-only workflow)
+─────────────────────────────────────────────────────────────────────────
+Direct push to main bypasses PR review. The new rule (2026-05-20):
+coding agents (Claude / Codex CLI / Gemini CLI / Aider / human) may only
+create pull requests; approval + merge is orchestrator-side.
+
+  Attempted:  push to ${remote_ref} on ${REMOTE:-origin}
+  Local ref:  ${local_ref} @ ${local_sha:0:12}
+
+Fix:
+  1. Create a feature branch:
+       git checkout -b harden/my-fix
+  2. Push the feature branch:
+       git push -u origin harden/my-fix
+  3. Open a PR:
+       gh pr create
+
+Legitimate bypass (orchestrator merging a vetted PR locally):
+  GIT_HARDEN_ALLOW_MAIN=1 git push origin main
+
+See: skills/SUBAGENT_HARNESS.md + handover/architect-insights/K_HARDEN_PROPOSAL_2026-05-20.md
+─────────────────────────────────────────────────────────────────────────
+EOF
+    exit 1
+  fi
+done
+
+exit 0

@@ -236,3 +236,97 @@ fn l9_git_push_hook_exists_and_blocks_main() {
         "L9 hook must support legitimate-bypass env var"
     );
 }
+
+#[test]
+fn l9_universal_git_pre_push_hook_exists() {
+    let path = "scripts/hooks/pre-push.harden";
+    assert!(
+        Path::new(path).exists(),
+        "K-HARDEN-7 universal pre-push hook missing: {} — required for cross-agent (Codex/Gemini/etc.) push-to-main block",
+        path
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(path).expect("hook stat").permissions().mode();
+        assert!(
+            mode & 0o111 != 0,
+            "Universal pre-push hook must be executable: {} (mode={:o})",
+            path,
+            mode
+        );
+    }
+    let content = fs::read_to_string(path).expect("hook readable");
+    assert!(
+        content.contains("refs/heads/main"),
+        "Pre-push hook must check refs/heads/main target"
+    );
+    assert!(
+        content.contains("GIT_HARDEN_ALLOW_MAIN"),
+        "Pre-push hook must support legitimate-bypass env var"
+    );
+    assert!(
+        content.contains("exit 1"),
+        "Pre-push hook must exit 1 on violation (git aborts push)"
+    );
+}
+
+#[test]
+fn install_hooks_script_installs_pre_push() {
+    let content = fs::read_to_string("scripts/install_hooks.sh")
+        .expect("install_hooks.sh readable");
+    assert!(
+        content.contains("pre-push"),
+        "scripts/install_hooks.sh must install pre-push hook (K-HARDEN-7)"
+    );
+    assert!(
+        content.contains("pre-push.harden"),
+        "scripts/install_hooks.sh must link to scripts/hooks/pre-push.harden"
+    );
+}
+
+#[test]
+fn setup_branch_protection_script_exists() {
+    let path = "scripts/setup_branch_protection.sh";
+    assert!(
+        Path::new(path).exists(),
+        "K-HARDEN-7 branch protection setup script missing: {} — required for server-side cross-agent enforcement",
+        path
+    );
+    let content = fs::read_to_string(path).expect("script readable");
+    assert!(
+        content.contains("branches/main/protection"),
+        "Branch protection script must target main branch protection API"
+    );
+    assert!(
+        content.contains("allow_force_pushes") && content.contains("allow_deletions"),
+        "Branch protection script must lock force-push and delete on main"
+    );
+}
+
+#[test]
+fn agents_md_documents_pr_only_workflow() {
+    let content = fs::read_to_string("AGENTS.md").expect("AGENTS.md readable");
+    assert!(
+        content.contains("PR-only") || content.contains("PR only"),
+        "AGENTS.md must document PR-only workflow rule (K-HARDEN-7)"
+    );
+    assert!(
+        content.contains("K-HARDEN-7") || content.contains("branch protection"),
+        "AGENTS.md must reference K-HARDEN-7 or branch protection mechanism"
+    );
+}
+
+#[test]
+fn subagent_skill_documents_pr_only_workflow() {
+    let content = fs::read_to_string("skills/SUBAGENT_HARNESS.md")
+        .expect("SUBAGENT_HARNESS readable");
+    assert!(
+        content.contains("PR-only") || content.contains("PR only"),
+        "SUBAGENT_HARNESS skill must document PR-only workflow rule"
+    );
+    assert!(
+        content.contains("Codex") || content.contains("Gemini"),
+        "SUBAGENT_HARNESS skill must mention cross-agent (Codex/Gemini) scope"
+    );
+}

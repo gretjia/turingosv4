@@ -1,8 +1,34 @@
 # Subagent Harness — Standard Dispatch Template
 
 K-HARDEN-3 (2026-05-20) — canonical pattern for dispatching flash-multi-agent
-Claude Code subagents safely. Closes lesson L5/L7/L8 from Karpathy v3 plan
+Claude Code subagents safely. Closes lesson L5/L7/L8/L9 from Karpathy v3 plan
 adversarial validation.
+
+## NEW MANDATORY RULE (K-HARDEN-7, 2026-05-20): PR-only workflow
+
+**All coding agents** — Claude Code, Codex CLI, Gemini CLI, Aider, Cursor,
+human-driven shell sessions — **may only create pull requests**.
+
+**Approval + merge** is the orchestrator's responsibility (a human user,
+or Claude main acting as orchestrator).
+
+Direct `git push origin main` from any agent runtime is blocked by:
+1. **GitHub branch protection** (server-side, universal across all agents).
+   Enabled via `bash scripts/setup_branch_protection.sh`. This is the
+   strongest layer — GitHub rejects the push at the server.
+2. **Git `pre-push` hook** (`scripts/hooks/pre-push.harden`, installed by
+   `scripts/install_hooks.sh`). Fires for any agent that respects git
+   hooks. Local enforcement, can be bypassed with `--no-verify`.
+3. **Claude Code PreToolUse hook** (`.claude/hooks/validate_git_push.sh`).
+   Claude-specific extra layer; redundant with the universal hooks but
+   provides earlier-in-loop feedback for Claude.
+
+**Legitimate bypass** for orchestrator merging a vetted PR locally:
+```
+GIT_HARDEN_ALLOW_MAIN=1 git push origin main
+```
+Logged in shell history + git reflog. Reserved for the orchestrator's
+merge-PR-locally workflow when GitHub-side merge is unavailable.
 
 ## Background
 
