@@ -43,3 +43,12 @@ handover/evidence/**/tamper2/
 
 # W4.3: Phase 7 §6a verifier workspace scratch dir (setup/teardown scripts)
 tmp/
+
+# K-HARDEN-1 (2026-05-20): block dev-evidence sidecar runs from auto-staging.
+# turingos_dev sidecar generates dev_<timestamp>_<pid>/ run dirs under
+# handover/evidence/dev_self_hosting/. Existing tracked runs stay tracked; new
+# runs require explicit `git add -f` (intentional commit) to enter index. This
+# prevents subagent `git add .` / `git add -A` from sweeping sidecar evidence
+# into commits — L8 root cause for adversarial Task B contamination on
+# 2026-05-20.
+handover/evidence/dev_self_hosting/dev_*/
