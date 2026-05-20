@@ -201,4 +201,38 @@ fn settings_json_wires_worktree_create_and_validate_git_add() {
         content.contains("validate_git_add.sh"),
         ".claude/settings.json must wire validate_git_add.sh on PreToolUse Bash matcher (K-HARDEN-2)"
     );
+    assert!(
+        content.contains("validate_git_push.sh"),
+        ".claude/settings.json must wire validate_git_push.sh on PreToolUse Bash matcher (K-HARDEN-6)"
+    );
+}
+
+#[test]
+fn l9_git_push_hook_exists_and_blocks_main() {
+    let path = ".claude/hooks/validate_git_push.sh";
+    assert!(Path::new(path).exists(), "L9 mitigation hook missing: {}", path);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(path).expect("hook stat").permissions().mode();
+        assert!(
+            mode & 0o111 != 0,
+            "L9 hook must be executable: {} (mode={:o})",
+            path,
+            mode
+        );
+    }
+    let content = fs::read_to_string(path).expect("hook readable");
+    assert!(
+        content.contains("permissionDecision") && content.contains(r#""deny""#),
+        "L9 hook must emit permissionDecision=deny JSON"
+    );
+    assert!(
+        content.contains("origin") && content.contains("main"),
+        "L9 hook must check for push to origin/main"
+    );
+    assert!(
+        content.contains("GIT_HARDEN_ALLOW_MAIN"),
+        "L9 hook must support legitimate-bypass env var"
+    );
 }
