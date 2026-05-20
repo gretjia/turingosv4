@@ -23,6 +23,8 @@ for Gemini CLI orchestrator dispatch.
 
 ### Current state of `main` (unchanged from session #54)
 
+> 📍 **Reality Seal**: [V4_PRODUCT_BASELINE_REALITY_SEAL.md](../../docs/roadmap/V4_PRODUCT_BASELINE_REALITY_SEAL.md)
+
 `main` carries PR #3, #4, #5, #6, #7, #8, #10, #11. PR #1, #2, #9 closed without merge.
 
 **Works on main** (code unchanged from session #54 / PR #11):
