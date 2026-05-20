@@ -1,13 +1,49 @@
 #!/usr/bin/env bash
-# CO1.13.2 — R-022 commit-time hook (tracked shim).
+# CO1.13.2 — R-022 commit-time hook (tracked shim) + K-HARDEN-2 sidecar block.
 #
 # Per spec § 1.2 v1.1.1: this shim is the canonical source of truth for the
 # pre-commit hook. `.git/hooks/pre-commit` is created as a symlink to this
 # file by `scripts/install_hooks.sh`. Any updates land here, not in the
 # untracked `.git/hooks/` directory.
 #
+# This hook does TWO things in order:
+#   (1) K-HARDEN-2 sidecar contamination block (added 2026-05-20):
+#       fail if any staged file is under handover/evidence/dev_self_hosting/dev_*/
+#       or under .claude/worktrees/ (catches subagent `git add .` mishaps even
+#       when committed by humans, e.g. via cherry-pick or rebase squash).
+#   (2) R-022 trace-matrix backlink discipline (original purpose):
+#       defer to scripts/check_trace_matrix.py --mode commit.
+#
 # FC-trace: FC3-Alignment (TRACE_MATRIX_v3 backlink discipline).
+
 set -euo pipefail
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# ─── (1) K-HARDEN-2: sidecar contamination block ──────────────────────────
+STAGED="$(git diff --cached --name-only || true)"
+VIOLATIONS=""
+
+if echo "$STAGED" | grep -q '^handover/evidence/dev_self_hosting/dev_'; then
+  VIOLATIONS="${VIOLATIONS}\n  - handover/evidence/dev_self_hosting/dev_*/ sidecar files"
+fi
+
+if echo "$STAGED" | grep -q '^\.claude/worktrees/'; then
+  VIOLATIONS="${VIOLATIONS}\n  - .claude/worktrees/ subagent workspace files"
+fi
+
+if [ -n "$VIOLATIONS" ]; then
+  echo "K-HARDEN-2 pre-commit: BLOCKED — staged files include forbidden patterns:" >&2
+  echo -e "$VIOLATIONS" >&2
+  echo "" >&2
+  echo "Staged file list:" >&2
+  echo "$STAGED" | sed 's/^/  /' >&2
+  echo "" >&2
+  echo "Resolution:" >&2
+  echo "  - Unstage: git restore --staged <file>" >&2
+  echo "  - Or force: git commit --no-verify (logged in reflog)" >&2
+  exit 1
+fi
+
+# ─── (2) R-022 trace-matrix backlink discipline ───────────────────────────
 exec python3 "$PROJECT_ROOT/scripts/check_trace_matrix.py" --mode commit
