@@ -654,8 +654,3 @@ added = "2026-05-20"
 name = "constitution_real6_task_outcome_market"
 authority = "discovered-post-k15-migration-pending-architect-review"
 added = "2026-05-20"
-
-[[gate]]
-name = "constitution_bogus_fail_proof_test"
-authority = "K-1.5 fail-proof test"
-added = "2026-05-20"
