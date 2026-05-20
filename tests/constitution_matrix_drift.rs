@@ -103,6 +103,8 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_rules_ci_mirror",
     // Task A adversarial test: trivial gate exercising K-1.5/K-2.3 harness wires end-to-end.
     "constitution_demo_filesystem_check",
+    // K-HARDEN-4 (2026-05-20): meta-gate verifying L5/L7/L8 hardening infrastructure.
+    "constitution_subagent_pr_hygiene",
 ];
 
 fn manifest_gates() -> HashSet<String> {
@@ -164,7 +166,7 @@ fn allowlist_doesnt_grow_silently() {
     // expands the allowlist (vs adding to matrix proper), this test alerts.
     // To raise the cap legitimately: bump this constant AND document in PR
     // why the matrix could not absorb the gate.
-    const K23_SHIP_ALLOWLIST_SIZE: usize = 67;
+    const K23_SHIP_ALLOWLIST_SIZE: usize = 68;
     assert!(
         BASELINE_ALLOWLIST.len() <= K23_SHIP_ALLOWLIST_SIZE,
         "BASELINE_ALLOWLIST has grown beyond K-2.3 ship size {} (now {}). \

@@ -670,3 +670,8 @@ added = "2026-05-20"
 name = "constitution_demo_filesystem_check"
 authority = "Task A adversarial test (Karpathy v3 plan post-completion harness validation)"
 added = "2026-05-20"
+
+[[gate]]
+name = "constitution_subagent_pr_hygiene"
+authority = "K-HARDEN-4 (2026-05-20): meta-gate verifying L5/L7/L8 hardening infrastructure stays in place"
+added = "2026-05-20"
