@@ -60,17 +60,26 @@ Human Intent
 
 ## 3. Truth Order
 
-冲突时按这个顺序裁决：
+冲突时按这个顺序裁决（3-tier 扁平化；见 `handover/architect-insights/K-2-2_TRUTH_TIER_GREP_RECEIPTS.md` 获取 src/ 查询证据）：
 
+**Tier 1: Axioms**（编译/启动时检查，不可变）
 1. `constitution.md`
-2. canonical flowcharts and hashes
-3. ChainTape + CAS
-4. executable gates and replay/audit verifiers
-5. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-6. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
-7. `handover/ai-direct/LATEST.md`
-8. current charter / directive / ratification
-9. dashboard、report、README、stdout、agent summary
+2. 3 个规范 flowchart hashes（存储在测试和文档中）
+
+**Tier 2: Facts**（实时状态机）
+3. ChainTape（L4 + L4.E transitions）
+4. CAS（evidence objects，indexed by content hash）
+5. Replay/audit verifier（从 ChainTape + CAS 确定性重建）
+
+**Tier 3: Workspace pointers**（可变，派生）
+6. Current charter / directive / ratification
+7. `handover/ai-direct/LATEST.md`（explicit derived view；冲突时信 ChainTape）
+
+**Derived views**（所有 tier 3 以下 — per K-2.2 receipts 无 src/ runtime reader）：
+- `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+- `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+- `handover/tracer_bullets/TB_LOG.tsv`
+- dashboard、report、README、stdout、agent summary
 
 如果 stdout 说成功，但 gate 或 tape 不能重建成功，按失败处理。
 如果 report 和 ChainTape/CAS 冲突，信 ChainTape/CAS。

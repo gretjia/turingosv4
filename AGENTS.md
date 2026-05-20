@@ -13,21 +13,31 @@ contract, then the deeper/more specific adapter for tool-local mechanics.
 TuringOS v4 is a tape-first constitutional operating substrate for LLM/AGI
 agents. If meaningful activity is not on tape, it is not a TuringOS run.
 
-Supreme truth order:
+Truth order (3 tiers, flat — receipt-driven; see
+`handover/architect-insights/K-2-2_TRUTH_TIER_GREP_RECEIPTS.md` for src/ grep
+evidence):
 
-1. `constitution.md`
-2. The canonical constitution flowcharts and their hashes
-3. ChainTape + CAS evidence
-4. Executable gates and replay/audit verifiers
-5. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-6. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
-7. `handover/ai-direct/LATEST.md`
-8. Current TB charter / directive / ratification
-9. Dashboards, reports, README files, stdout logs
+**Tier 1: Axioms** (immutable, checked at compile/start time)
+- `constitution.md`
+- The 3 canonical flowchart hashes (stored in tests and docs)
 
-Dashboards, reports, evaluator counters, README files, smoke summaries, and
-audit text are materialized views. If a report contradicts ChainTape/CAS, trust
-ChainTape/CAS. If ChainTape/CAS contradicts constitution gates, stop.
+**Tier 2: Facts** (live state machine)
+- ChainTape (L4 + L4.E transitions)
+- CAS (evidence objects, indexed by content hash)
+- Replay/audit verifier (deterministic reconstruction from ChainTape + CAS)
+
+**Tier 3: Workspace pointers** (mutable, derived)
+- Current TB charter / directive / ratification
+- `handover/ai-direct/LATEST.md` (explicit derived view; ChainTape wins if conflict)
+
+**Derived views** (all below tier 3 — no src/ runtime reader, per K-2.2 receipts):
+- `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+- `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+- `handover/tracer_bullets/TB_LOG.tsv` (append-only log)
+- Dashboards, reports, README files, stdout logs
+
+If a derived view contradicts ChainTape/CAS, trust ChainTape/CAS.
+If ChainTape/CAS contradicts constitution gates, stop.
 
 ## 2. Cold Start
 
