@@ -1,5 +1,11 @@
 # Constitution Execution Matrix (TB-C0, 2026-05-06)
 
+> **Drift-gated** by `tests/constitution_matrix_drift.rs` (K-2.3).
+> When new gates are added to `scripts/constitution_gates.manifest.toml`, this
+> matrix MUST be updated to reference each gate, OR the gate name added to
+> `BASELINE_ALLOWLIST` in the K-2.3 test file (with PR justification). The
+> allowlist size cannot grow beyond `K23_SHIP_ALLOWLIST_SIZE` (67) silently.
+
 **Purpose**: Turn `constitution.md` from natural-language law into repo-side executable CI. Every row binds a constitution clause / FC node / engineering invariant to (a) a code surface that should enforce it, (b) a test that asserts it, (c) the smoke-evidence path that demonstrates it under real load, (d) current status, (e) a kill condition that flips the row RED.
 
 **Authority**: TB-C0 charter `handover/tracer_bullets/TB-C0_charter_2026-05-06.md`; directive `handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md`.

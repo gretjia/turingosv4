@@ -655,3 +655,8 @@ name = "constitution_real6_task_outcome_market"
 authority = "handover/directives/2026-05-15_REAL5S_REAL6_REAL7_REAL8_REAL9_EXECUTION_PLAN_APPROVED.md"
 added = "2026-05-20"
 
+
+[[gate]]
+name = "constitution_matrix_drift"
+authority = "K-2.3 (Phase 4): matrix drift detection; references handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md"
+added = "2026-05-20"
