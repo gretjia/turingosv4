@@ -79,6 +79,8 @@ mod cmd_verify_chaintape;
 mod cmd_verify_e2_candidate;
 #[path = "turingos/cmd_welcome.rs"]
 mod cmd_welcome;
+#[path = "turingos/cmd_spec_audit.rs"]
+mod cmd_spec_audit;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -216,6 +218,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "generate",
         short_help: cmd_generate::SHORT_HELP,
         run: cmd_generate::run,
+    },
+    Subcommand {
+        name: "spec audit",
+        short_help: cmd_spec_audit::SHORT_HELP,
+        run: cmd_spec_audit::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
