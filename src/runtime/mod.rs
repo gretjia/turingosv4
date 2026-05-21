@@ -253,6 +253,9 @@ pub mod preview_run;
 /// TRACE_MATRIX FC2-N16: build session derived view computed from CAS.
 pub mod build_session_view;
 
+/// TRACE_MATRIX FC1 + FC2: offline CAS replay and cross-CID reference verification.
+pub mod replay;
+
 /// TRACE_MATRIX FC2-N16: pure helpers for spec.md synthesis
 /// (canonical 8-Q list, LLM-less body builder, header+appendix wrapper).
 /// Phase 6.3.x A6 lifted these from `cmd_spec.rs` so the web layer can render
