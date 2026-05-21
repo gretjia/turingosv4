@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# CO1.13.2 — R-022 commit-time hook (tracked shim) + K-HARDEN-2 sidecar block.
+# CO1.13.2 — pre-commit hook (tracked shim) — K-HARDEN-2 sidecar block.
 #
 # Per spec § 1.2 v1.1.1: this shim is the canonical source of truth for the
-# pre-commit hook. `.git/hooks/pre-commit` is created as a symlink to this
-# file by `scripts/install_hooks.sh`. Any updates land here, not in the
-# untracked `.git/hooks/` directory.
+# pre-commit hook. .git/hooks/pre-commit is created as a symlink to this
+# file by scripts/install_hooks.sh. Any updates land here, not in the
+# untracked .git/hooks/ directory.
 #
-# This hook does TWO things in order:
-#   (1) K-HARDEN-2 sidecar contamination block (added 2026-05-20):
+# This hook does ONE thing now:
+#   K-HARDEN-2 sidecar contamination block (added 2026-05-20):
 #       fail if any staged file is under handover/evidence/dev_self_hosting/dev_*/
 #       or under .claude/worktrees/ (catches subagent `git add .` mishaps even
 #       when committed by humans, e.g. via cherry-pick or rebase squash).
-#   (2) R-022 trace-matrix backlink discipline (original purpose):
-#       defer to scripts/check_trace_matrix.py --mode commit.
 #
-# FC-trace: FC3-Alignment (TRACE_MATRIX_v3 backlink discipline).
+# The R-022 trace-matrix backlink check moved to scripts/hooks/commit-msg.r022
+# (R022_HOOK_FIX_2026-05-22) because pre-commit cannot read the in-flight
+# commit message for `git commit -m` / `-F` — git writes COMMIT_EDITMSG only
+# after pre-commit succeeds.
+#
+# FC-trace: FC3-Alignment (sidecar evidence-contamination block).
 
 set -euo pipefail
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-
-# ─── (1) K-HARDEN-2: sidecar contamination block ──────────────────────────
 STAGED="$(git diff --cached --name-only || true)"
 VIOLATIONS=""
 
@@ -45,5 +45,4 @@ if [ -n "$VIOLATIONS" ]; then
   exit 1
 fi
 
-# ─── (2) R-022 trace-matrix backlink discipline ───────────────────────────
-exec python3 "$PROJECT_ROOT/scripts/check_trace_matrix.py" --mode commit
+exit 0

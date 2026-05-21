@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# CO1.13.2 — R-022 commit-msg hook (tracked shim).
+#
+# Why commit-msg instead of pre-commit:
+#   git only writes .git/COMMIT_EDITMSG AFTER pre-commit succeeds when the
+#   user runs `git commit -m "msg"` or `git commit -F file`. A pre-commit
+#   hook that reads COMMIT_EDITMSG therefore sees the PREVIOUS commit's
+#   message (or empty), so it cannot validate the in-flight commit's
+#   [R-022-skip: ...] token. The commit-msg hook DOES receive the in-flight
+#   message file as $1 regardless of -m / -F / interactive.
+#
+# Per spec § 1.2 v1.1.1 + R022_HOOK_FIX_2026-05-22.md: this shim is the
+# canonical source of truth for the commit-msg hook. .git/hooks/commit-msg
+# is created as a symlink to this file by scripts/install_hooks.sh.
+#
+# K-HARDEN-2 sidecar contamination block stays in pre-commit.r022 (separate
+# concern; it diffs staged files and does not need the commit message).
+#
+# FC-trace: FC3-Alignment (TRACE_MATRIX_v3 backlink discipline).
+
+set -euo pipefail
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+COMMIT_MSG_FILE="$1"
+
+exec python3 "$PROJECT_ROOT/scripts/check_trace_matrix.py" \
+    --mode commit \
+    --message-file "$COMMIT_MSG_FILE"

@@ -5,9 +5,13 @@ Per spec handover/specs/CO1_13_TRACE_MATRIX_IMPL_v1_2026-04-29.md v1.1.1
 § 1.2 + § 1.3 + § 2.1 + § 2.2.
 
 Modes:
-  --mode commit      Pre-commit: diff git index against HEAD for NEW pub items.
-                     BLOCK on missing /// TRACE_MATRIX backlink unless § J
-                     orphan or commit-msg [R-022-skip:] token justifies.
+  --mode commit      Commit-msg hook: diff git index against HEAD for NEW pub
+                     items. BLOCK on missing /// TRACE_MATRIX backlink unless
+                     § J orphan or commit-msg [R-022-skip:] token justifies.
+                     Pass --message-file <path> with the in-flight commit-msg
+                     file (git's commit-msg hook receives this as $1). Falls
+                     back to GIT_COMMIT_MSG env then .git/COMMIT_EDITMSG for
+                     test/interactive flows.
   --mode ci          PR-style: diff against origin/main (or --base-ref).
                      Catches PRs that bypassed install_hooks.sh.
   --mode reverse-map Shared parser: walk src/*.rs and emit (file, line,
@@ -66,8 +70,17 @@ class PubItem:
 
 
 # ───────────────────────── git helpers ────────────────────────────────
-def run(cmd: list[str], cwd: Path = PROJECT_ROOT, check: bool = False) -> str:
-    res = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=check)
+def run(cmd: list[str], cwd: Path | None = None, check: bool = False) -> str:
+    # Lazy-bind PROJECT_ROOT so tests that monkey-patch it after import (to
+    # point at a throwaway repo) get the patched value rather than the
+    # default captured at function-definition time.
+    res = subprocess.run(
+        cmd,
+        cwd=cwd if cwd is not None else PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=check,
+    )
     return res.stdout
 
 
@@ -97,11 +110,18 @@ def staged_tree_hash(mode: str) -> str:
     return run(["git", "rev-parse", "HEAD"]).strip()
 
 
-def commit_message(mode: str) -> str:
+def commit_message(mode: str, message_file: str | None = None) -> str:
     if mode == "commit":
-        # Test override takes precedence so integration tests can supply a message
-        # without running an actual `git commit` (the message is only written to
-        # COMMIT_EDITMSG by git's own commit driver).
+        # Priority: explicit --message-file (commit-msg hook receives this as
+        # $1 and it always holds the in-flight message) > GIT_COMMIT_MSG env
+        # (test override) > .git/COMMIT_EDITMSG (interactive `git commit`
+        # editor flow). The COMMIT_EDITMSG fallback is unreliable for `git
+        # commit -m` / `-F` because git only writes it AFTER pre-commit
+        # passes — hence the move to a commit-msg hook with --message-file.
+        if message_file:
+            mf = Path(message_file)
+            if mf.exists():
+                return mf.read_text(errors="replace")
         env_msg = os.environ.get("GIT_COMMIT_MSG", "")
         if env_msg:
             return env_msg
@@ -287,12 +307,12 @@ def log_event(
 
 
 # ─────────────────────── modes ────────────────────────────────────────
-def mode_check(mode: str, base_ref: str | None) -> int:
+def mode_check(mode: str, base_ref: str | None, message_file: str | None = None) -> int:
     diff = git_diff(mode, base_ref)
     added = parse_added_lines(diff)
     removed_traces = parse_removed_trace_lines(diff)
 
-    msg = commit_message(mode)
+    msg = commit_message(mode, message_file)
     skip_ok, skip_reason = skip_token_justification(msg)
     tree_hash = staged_tree_hash(mode)
 
@@ -411,10 +431,15 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--mode", required=True, choices=["commit", "ci", "reverse-map"])
     p.add_argument("--base-ref", default=None, help="for --mode ci (default origin/main)")
+    p.add_argument(
+        "--message-file",
+        default=None,
+        help="for --mode commit: path to commit-msg file (commit-msg hook passes $1)",
+    )
     args = p.parse_args()
     if args.mode == "reverse-map":
         return mode_reverse_map()
-    return mode_check(args.mode, args.base_ref)
+    return mode_check(args.mode, args.base_ref, args.message_file)
 
 
 if __name__ == "__main__":
