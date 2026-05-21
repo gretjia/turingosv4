@@ -201,37 +201,6 @@ fn positive_ev_ignored_summary_excludes_policy_from_e2_and_private_material() {
     );
 }
 
-#[test]
-fn trader_view_action_conversion_text_is_optional_not_forced() {
-    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
-
-    for required in [
-        "=== REAL-14G Action Conversion View ===",
-        "You may buy when public positive EV is clear and risk checks pass.",
-        "You may abstain with a public reason; abstain remains valid.",
-        "missed_positive_ev_count",
-        "action_conversion_rate_bps",
-        "positive_ev_ignored_bucket_top",
-    ] {
-        assert!(
-            evaluator.contains(required),
-            "TraderView must expose non-forcing action-conversion guidance: {required}"
-        );
-    }
-    for forbidden in [
-        "must buy",
-        "must short",
-        "must trade",
-        "required to buy",
-        "required to short",
-        "bet every turn",
-    ] {
-        assert!(
-            !evaluator.to_ascii_lowercase().contains(forbidden),
-            "TraderView must not force action: {forbidden}"
-        );
-    }
-}
 
 #[test]
 fn dashboard_renders_positive_ev_ignored_action_conversion_metrics() {

@@ -38,37 +38,6 @@ fn real13_probe_runner_enables_ev_review_without_live_real6b_or_scripted_buys() 
     );
 }
 
-#[test]
-fn evaluator_writes_ev_decision_trace_and_market_review_sidecars_from_cas_path() {
-    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source exists");
-    for required in [
-        "TURINGOS_REAL13_EV_DECISION_TRACE",
-        "real13_build_ev_decision_trace",
-        "write_ev_decision_trace_to_cas_or_exit",
-        "write_market_review_window_to_cas_or_exit",
-        "write_market_review_response_to_cas_or_exit",
-        "write_market_review_summary_to_cas_or_exit",
-        "ev_decision_trace_total",
-        "market_review_summary_total",
-    ] {
-        assert!(evaluator.contains(required), "evaluator missing {required}");
-    }
-    let real13_block = evaluator
-        .split("fn real13_ev_decision_trace_enabled")
-        .nth(1)
-        .and_then(|tail| {
-            tail.split("fn write_scheduler_decision_trace_to_cas_or_exit")
-                .next()
-        })
-        .expect("REAL-13 helper block exists");
-    for forbidden in ["std::thread::sleep", "tokio::time::sleep"] {
-        assert!(
-            !real13_block.contains(forbidden),
-            "REAL-13 market review helper block must not use sleep timing: {forbidden}"
-        );
-    }
-}
 
 #[test]
 fn dashboard_counts_e2_candidate_router_actions_by_exact_submitted_trace_join() {

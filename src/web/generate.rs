@@ -96,6 +96,10 @@ pub(crate) struct GenerateResponse {
     pub(crate) artifacts: Vec<ArtifactEntry>,
     pub(crate) transcript_excerpt: Option<String>,
     pub(crate) total_attempts: u8,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) artifact_bundle_cid: Option<String>,
 }
 
 /// TRACE_MATRIX FC1-N5: one artifact file entry in the generate response.
@@ -108,6 +112,10 @@ pub(crate) struct ArtifactEntry {
     pub(crate) size_bytes: u64,
     /// MIME type sniffed by extension.
     pub(crate) content_type: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) cid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) sha256: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -398,11 +406,52 @@ pub(crate) async fn generate_handler(
             artifacts: artifact_paths,
         });
 
+        // Retrieve latest artifact bundle CID from CAS for this session.
+        let mut bundle_cid = None;
+        let mut manifest: Option<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest> = None;
+        let ws_path = std::path::Path::new(&workspace);
+        if let Ok(Some(cid_str)) = turingosv4::runtime::artifact_bundle::latest_artifact_bundle_cid_for_session(ws_path, &req.session_id) {
+            if let Some(cid) = cid_from_hex(&cid_str) {
+                let cas_dir = turingosv4::runtime::spec_capsule::cas_path(ws_path);
+                if let Ok(store) = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir) {
+                    if let Ok(bytes) = store.get(&cid) {
+                        if let Ok(m) = serde_json::from_slice::<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest>(&bytes) {
+                            manifest = Some(m);
+                            bundle_cid = Some(cid_str);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut response_artifacts = Vec::new();
+        for mut entry in artifact_entries {
+            let mut cid = None;
+            let mut sha256 = None;
+            if let Some(ref m) = manifest {
+                if let Some(file_entry) = m.files.iter().find(|f| f.path == entry.path) {
+                    cid = Some(file_entry.cid.clone());
+                    sha256 = Some(file_entry.sha256.clone());
+                }
+            }
+            entry.cid = cid;
+            entry.sha256 = sha256;
+            response_artifacts.push(entry);
+        }
+
+        let status = if bundle_cid.is_some() {
+            Some("success".to_string())
+        } else {
+            None
+        };
+
         return Ok(Json(GenerateResponse {
             session_id: req.session_id,
-            artifacts: artifact_entries,
+            artifacts: response_artifacts,
             transcript_excerpt,
             total_attempts: attempt,
+            status,
+            artifact_bundle_cid: bundle_cid,
         }));
     }
 
@@ -509,6 +558,8 @@ fn collect_dir_entries(
                 path: rel,
                 size_bytes,
                 content_type,
+                cid: None,
+                sha256: None,
             });
             if out.len() >= 32 {
                 return;
@@ -591,6 +642,19 @@ fn resolve_workspace() -> String {
         }
     }
     "tmp/phase7_active".to_string()
+}
+
+#[cfg(feature = "web")]
+fn cid_from_hex(s: &str) -> Option<turingosv4::bottom_white::cas::schema::Cid> {
+    if s.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        let hex_byte = &s[i * 2..i * 2 + 2];
+        bytes[i] = u8::from_str_radix(hex_byte, 16).ok()?;
+    }
+    Some(turingosv4::bottom_white::cas::schema::Cid(bytes))
 }
 
 // ---------------------------------------------------------------------------

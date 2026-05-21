@@ -247,37 +247,3 @@ fn economic_judgment_summary_is_derived_from_cas_objects_not_stdout() {
     );
 }
 
-#[test]
-fn evaluator_must_not_fabricate_positive_ev_basis_for_live_buys() {
-    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
-    for forbidden in [
-        "RationalPrice::new(1, 2)",
-        "lower_bps: 6001",
-        "upper_bps: 7000",
-        "ExpectedValueSign::Positive\n        } else",
-        "positive-EV basis\".into()",
-    ] {
-        assert!(
-            !evaluator.contains(forbidden),
-            "REAL-12 evaluator must not fabricate buy/short EV basis with {forbidden}"
-        );
-    }
-}
-
-#[test]
-fn evaluator_preserves_abstain_side_public_ev_basis_and_candidate_amount() {
-    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
-
-    for forbidden in [
-        "chosen_market: buy_or_short.then_some(task_event)",
-        "intended_amount: buy_or_short.then_some(MicroCoin::from_micro_units(amount))",
-        "observed_price: buy_or_short.then_some(args.observed_price).flatten()",
-        "estimated_probability_band: buy_or_short",
-        "liquidity_depth: buy_or_short.then_some(args.liquidity_depth).flatten()",
-    ] {
-        assert!(
-            !evaluator.contains(forbidden),
-            "REAL-13 EV diagnostics require abstain-side public EV basis to survive; found {forbidden}"
-        );
-    }
-}

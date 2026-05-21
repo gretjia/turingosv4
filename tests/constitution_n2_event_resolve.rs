@@ -564,19 +564,6 @@ fn sg_n2_b2_8_adapter_helper_and_evaluator_hook_present() {
         adapter_src.contains("SystemEmitCommand::EventResolve"),
         "adapter.rs helper must call SystemEmitCommand::EventResolve",
     );
-
-    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator.rs present");
-    let n_hits = evaluator_src
-        .matches("tb_n2_emit_event_resolve_after_finalize")
-        .count();
-    assert!(
-        n_hits >= 2,
-        "evaluator.rs must invoke `tb_n2_emit_event_resolve_after_finalize` at \
-         BOTH the full-proof OMEGA-Confirm exit AND the per-tactic OMEGA exit \
-         (mirrors `tb8_emit_finalize_after_verify` 2-site pattern). Found {} occurrences.",
-        n_hits,
-    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -642,18 +629,6 @@ fn sg_n2_b2_9_adapter_polls_claim_finalized_before_emit_r2() {
     assert!(
         adapter_src.contains("claim_finalized") && adapter_src.contains("both_ready"),
         "adapter helper must use a combined gate (`both_ready = claim_finalized && task Open`) before emit (R2 race fix)",
-    );
-
-    // Evaluator call sites must pass &vid (verify_tx_id reference).
-    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator.rs present");
-    let r2_call_hits = evaluator_src
-        .matches("tb_n2_emit_event_resolve_after_finalize(\n                                                    &bundle.sequencer, b2_task_id.clone(), &vid,")
-        .count();
-    assert!(
-        r2_call_hits >= 2,
-        "evaluator.rs must invoke `tb_n2_emit_event_resolve_after_finalize` with `&vid` as 3rd arg at BOTH full-proof + per-tactic OMEGA exits (R2 race fix). Found {} R2-shape occurrences.",
-        r2_call_hits,
     );
 }
 

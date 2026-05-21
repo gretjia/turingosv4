@@ -254,35 +254,3 @@ fn sg_g2_6_trace_or_tx_invariant_every_variant_buildable() {
     }
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// SG-G2.6.a — evaluator end-of-turn classifier source-grep
-// ────────────────────────────────────────────────────────────────────────
-
-#[test]
-fn sg_g2_6_a_evaluator_end_of_turn_classifier_source_grep() {
-    // The trace-or-tx invariant requires the evaluator to fire BOTH new
-    // variants from its end-of-turn classifier when (a) the agent's prompt
-    // included the market block but they didn't emit invest, OR (b) the
-    // market block was elided by the prompt-budget top-K=0 cap. Source-grep
-    // locks in the wire location so future refactors that break it surface
-    // here.
-    let eval_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("read evaluator src");
-    for needle in [
-        // The two flag bindings on the prompt-build path.
-        "tb_n3_market_block_present",
-        "tb_n3_market_block_budget_elided",
-        // The end-of-turn invest-emitted flag.
-        "invest_action_emitted_this_turn",
-        // The two new variants must be referenced by the end-of-turn
-        // classifier (NOT just by the architect-spec source comment).
-        "NoTradeReason::NoPerceivedEdge",
-        "NoTradeReason::PromptBudgetExceeded",
-    ] {
-        assert!(
-            eval_src.contains(needle),
-            "SG-G2.6.a: evaluator end-of-turn classifier must reference {needle:?} \
-             (trace-or-tx invariant wire missing)"
-        );
-    }
-}

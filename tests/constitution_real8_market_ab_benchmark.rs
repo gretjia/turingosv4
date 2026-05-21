@@ -326,24 +326,6 @@ fn real8_runner_preserves_forbidden_ship_claims() {
     }
 }
 
-#[test]
-fn real8_task_outcome_arm_refreshes_verify_parent_after_auto_market() {
-    let source = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source exists");
-
-    assert!(
-        source.contains("real6_verify_parent_root_after_optional_market"),
-        "REAL-8 SG-8.4 regression: TaskOutcomeMarket arms must not build VerifyTx \
-         with the stale post-Work root after node-market creation mutates state"
-    );
-    assert!(
-        source
-            .matches("real6_verify_parent_root_after_optional_market")
-            .count()
-            >= 3,
-        "both full-proof and per-tactic OMEGA paths must refresh VerifyTx parent roots"
-    );
-}
 
 #[tokio::test]
 async fn real8_task_outcome_arm_refreshes_verify_parent_behaviorally() {

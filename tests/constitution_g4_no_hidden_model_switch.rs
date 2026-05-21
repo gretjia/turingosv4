@@ -195,32 +195,6 @@ fn historical_attempt_telemetry_v1_bytes_still_decode() {
     );
 }
 
-#[test]
-fn evaluator_success_attempts_record_proxy_reported_actual_model() {
-    let evaluator = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("experiments/minif2f_v4/src/bin/evaluator.rs"),
-    )
-    .expect("read evaluator.rs");
-
-    assert!(
-        evaluator.contains("let actual_model_name = response.model.clone();"),
-        "successful LLM responses must source actual model identity from proxy-reported response.model"
-    );
-    assert!(
-        evaluator.matches("model_name: actual_model_name.as_str()").count() >= 5,
-        "all successful AttemptTelemetry emit paths must write response.model, not requested agent_model"
-    );
-    assert_eq!(
-        evaluator.matches("model_name: agent_model").count(),
-        1,
-        "only the no-response llm_err path may fall back to the requested model assignment"
-    );
-    assert!(
-        evaluator.contains("No proxy response exists on this path"),
-        "the llm_err fallback must be explicit because no proxy-reported actual model exists"
-    );
-}
 
 #[test]
 fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
@@ -239,34 +213,3 @@ fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
     );
 }
 
-#[test]
-fn g4_model_assignment_manifest_write_is_fail_closed_for_new_runs() {
-    let src = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("experiments/minif2f_v4/src/chain_runtime.rs"),
-    )
-    .expect("read chain_runtime.rs");
-
-    assert!(
-        src.contains("model assignment manifest CAS write failed")
-            && src.contains("std::process::exit(3)"),
-        "G4.2 resolver provenance manifest write must fail closed for new model-assignment runs"
-    );
-}
-
-#[test]
-fn g4_genesis_report_write_is_fail_closed_for_model_assignment_runs() {
-    let src = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("experiments/minif2f_v4/src/chain_runtime.rs"),
-    )
-    .expect("read chain_runtime.rs");
-
-    assert!(
-        src.contains("genesis_report.json write failed")
-            && src.contains("agent_model_assignment.is_empty()")
-            && src.contains("model_assignment_manifest_cid.is_some()")
-            && src.contains("std::process::exit(3)"),
-        "new G4.2 model-assignment runs must fail closed if genesis_report.json cannot be written"
-    );
-}

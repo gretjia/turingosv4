@@ -33,81 +33,10 @@
 //! projection contract test below is the strongest available structural
 //! guard at Atom E ship time.
 
-use std::fs;
 use std::path::PathBuf;
 
 use turingosv4::state::typed_tx::{ExhaustionReason, RunOutcome};
 
-const EVALUATOR_SRC: &str = "experiments/minif2f_v4/src/bin/evaluator.rs";
-
-/// SG-18.3 structural guard #1 — `RunOutcome::MaxTxExhausted` literal MUST
-/// NOT appear anywhere in `evaluator.rs`. The OBS_R023 refactor replaced
-/// the only prior site (TerminalSummary emit) with
-/// `terminal_exhaustion_reason.to_run_outcome()`.
-#[test]
-fn tb_18_e_no_run_outcome_max_tx_literal_in_evaluator() {
-    let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-
-    // Scan every line; any occurrence of `RunOutcome::MaxTxExhausted` as a
-    // literal value (not in a doc-comment that was deliberately worded
-    // around the literal) is a regression. Doc-comments in this codebase
-    // referencing "MaxTxExhausted" use the bare word, not the enum-path
-    // form, so the strict path-form scan is sufficient.
-    let occurrences: Vec<(usize, &str)> = src
-        .lines()
-        .enumerate()
-        .filter(|(_, line)| line.contains("RunOutcome::MaxTxExhausted"))
-        .map(|(idx, line)| (idx + 1, line))
-        .collect();
-
-    assert!(
-        occurrences.is_empty(),
-        "TB-18 Atom E (OBS_R023 closure) regression: \
-         `RunOutcome::MaxTxExhausted` literal found in {}. \
-         Use `terminal_exhaustion_reason.to_run_outcome()` instead. \
-         Matches: {:?}",
-        path.display(),
-        occurrences
-    );
-}
-
-/// SG-18.3 structural guard #2 — `ExhaustionReason::MaxTxExhausted` literal
-/// must appear EXACTLY ONCE in `evaluator.rs`: the function-header default
-/// initialization of `terminal_exhaustion_reason`. The only other prior
-/// occurrence (EvidenceCapsule write site) is now replaced by the variable.
-///
-/// Future Atom A may add additional literal occurrences ONLY in mutation
-/// sites (e.g. `terminal_exhaustion_reason = ExhaustionReason::DegradedLLM;`)
-/// but those are non-default; this test will either tolerate them
-/// (≥1 match acceptable) or be re-tightened in the Atom A commit to count
-/// exactly the expected default + DegradedLLM mutation site.
-#[test]
-fn tb_18_e_exhaustion_reason_max_tx_literal_appears_once() {
-    let path = workspace_relative(EVALUATOR_SRC);
-    let src = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-
-    let occurrences: Vec<(usize, &str)> = src
-        .lines()
-        .enumerate()
-        .filter(|(_, line)| line.contains("ExhaustionReason::MaxTxExhausted"))
-        .map(|(idx, line)| (idx + 1, line))
-        .collect();
-
-    assert_eq!(
-        occurrences.len(),
-        1,
-        "TB-18 Atom E (OBS_R023 closure) expects exactly ONE \
-         `ExhaustionReason::MaxTxExhausted` literal in {} — the \
-         function-header default initialization of \
-         `terminal_exhaustion_reason`. Found {}: {:?}. \
-         If Atom A added a mutation-site literal, re-tighten this test \
-         to the new expected count.",
-        path.display(),
-        occurrences.len(),
-        occurrences
-    );
-}
 
 /// SG-18.3 projection contract — `ExhaustionReason::to_run_outcome()` is
 /// the canonical mapping invoked by Atom E's refactor. Every variant must

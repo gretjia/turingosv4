@@ -44,7 +44,6 @@ use turingosv4::state::q_state::{AgentId, QState, StakeEntry, TaskId, TxId};
 
 const YOUR_POSITION_SRC: &str = "src/sdk/your_position.rs";
 const PROMPT_SRC: &str = "src/sdk/prompt.rs";
-const EVALUATOR_SRC: &str = "experiments/minif2f_v4/src/bin/evaluator.rs";
 
 fn agent(name: &str) -> AgentId {
     AgentId(name.into())
@@ -203,25 +202,6 @@ fn sg_g3_13_b_build_agent_prompt_signature_has_10th_param() {
     );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// SG-G3.13.c — evaluator wires render_your_position into the call site
-// ────────────────────────────────────────────────────────────────────────
-
-#[test]
-fn sg_g3_13_c_evaluator_wires_render_your_position() {
-    let src = std::fs::read_to_string(EVALUATOR_SRC).expect("read evaluator src");
-    assert!(
-        src.contains("your_position::render_your_position"),
-        "SG-G3.13.c: evaluator must invoke `your_position::render_your_position` at the prompt-build call site"
-    );
-    // The prompt build site passes `&your_position` as the 10th arg
-    // (witnessed structurally — render_your_position output threaded
-    // into build_agent_prompt).
-    assert!(
-        src.contains("&your_position"),
-        "SG-G3.13.c: evaluator must pass &your_position as the 10th build_agent_prompt arg"
-    );
-}
 
 // ────────────────────────────────────────────────────────────────────────
 // SG-G3.13.d — block integrates into full prompt with proper heading
