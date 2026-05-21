@@ -1,5 +1,24 @@
 # TuringOS v4
 
+> 🚨 **AGENT COLD-START — READ THIS FIRST** 🚨
+>
+> Any coding-agent CLI (Claude / Codex / Gemini / Aider / Cursor / Windsurf /
+> Copilot / Warp / etc.) entering this repo MUST first read:
+>
+> 1. **`AGENTS.md`** — canonical universal agent contract (single source of truth)
+> 2. **`HARNESS_PLAYBOOK.md`** — full operating manual (L1-L9 lessons, K-HARDEN 1-8)
+> 3. **`skills/SUBAGENT_HARNESS.md`** — mandatory PRELUDE/POSTLUDE for subagent dispatch
+> 4. **`handover/ai-direct/LATEST.md`** — current session state (derived view)
+>
+> Hard rules enforced mechanically (see `AGENTS.md` §14a):
+> **PR-only workflow** · no `git push origin main` · no `git add .` · no sidecar staging
+>
+> If your CLI has its own discovery file (`GEMINI.md`, `CONVENTIONS.md`,
+> `.cursorrules`, etc.) it's a thin pointer to `AGENTS.md`. **AGENTS.md wins
+> on any conflict.**
+
+---
+
 TuringOS v4 is a tape-first constitutional operating substrate for LLM/AGI
 agents. The authoritative state of a run is ChainTape plus CAS evidence; reports,
 dashboards, and handover notes are materialized views.
