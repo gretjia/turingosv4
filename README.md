@@ -147,6 +147,24 @@ Read these first for a cold start:
 Truth order is defined in `AGENTS.md`: constitution and flowchart contracts
 outrank ChainTape/CAS, gates, handover, dashboards, and README text.
 
+## Build
+
+To build the project with the web-enabled features, you must build the frontend first. The canonical build sequence is:
+
+1. Build the frontend assets:
+   ```bash
+   cd frontend
+   npm ci
+   npm run build
+   cd ..
+   ```
+2. Build the Rust binary:
+   ```bash
+   cargo build --features web --bin turingos_web
+   ```
+
+If you attempt to run `cargo build --features web` without building the frontend first, the build will fail with an error message instructing you to build the frontend.
+
 ## Core Checks
 
 Preferred ship-level checks:
