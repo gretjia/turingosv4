@@ -205,3 +205,108 @@ fn prompt_eval_v2_catches_m8_gibberish_regression() {
          got fail_ids={fail_ids:?}"
     );
 }
+
+// ─── C10: prompt-eval --from --to --eval-set promotion receipt CLI tests ──────
+
+#[test]
+fn test_llm_prompt_eval_promote_writes_receipt() {
+    use turingosv4::runtime::prompt_promotion::{
+        sha256_hex_of_prompt, PROMPT_PROMOTION_RECEIPT_SCHEMA_ID, PromptPromotionReceipt,
+    };
+    use turingosv4::bottom_white::cas::schema::ObjectType;
+    use turingosv4::bottom_white::cas::store::CasStore;
+    use turingosv4::runtime::spec_capsule::cas_path;
+
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let ws = dir.path();
+
+    // Init workspace
+    let init = Command::new(bin_path())
+        .args(["init", "--project"])
+        .arg(ws)
+        .status()
+        .expect("run init");
+    assert!(init.success(), "init failed");
+
+    let v1_path = ws.join("prompt_v1.txt");
+    let v2_path = ws.join("prompt_v2.txt");
+    std::fs::write(&v1_path, "system prompt v1 content").expect("write v1");
+    std::fs::write(&v2_path, "system prompt v2 content improved").expect("write v2");
+
+    let v2_bytes = b"system prompt v2 content improved";
+    let v2_expected_cid = sha256_hex_of_prompt(v2_bytes);
+    let eval_set = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+
+    let output = Command::new(bin_path())
+        .args(["llm", "prompt-eval"])
+        .arg("--workspace").arg(ws)
+        .arg("--from").arg(&v1_path)
+        .arg("--to").arg(&v2_path)
+        .arg("--eval-set").arg(eval_set)
+        .output()
+        .expect("run prompt-eval");
+
+    assert!(
+        output.status.success(),
+        "prompt-eval --from --to --eval-set should exit 0: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout)
+        .expect(&format!("expected JSON output, got: {}", stdout));
+
+    assert_eq!(json["ok"], true, "ok must be true: {}", stdout);
+    assert!(json["receipt_cid"].is_string(), "receipt_cid must be in output");
+    assert_eq!(json["to_prompt_cid"], v2_expected_cid, "to_prompt_cid must match");
+    assert_eq!(json["eval_set_cid"], eval_set);
+    assert_eq!(json["promotion_decision"], "promote");
+
+    // Verify receipt in CAS
+    let cas_dir = cas_path(ws);
+    let mut store = CasStore::open(&cas_dir).expect("open cas");
+    let _ = store.reload_index_from_sidecar();
+    let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
+    let mut found = false;
+    for cid in cids {
+        let meta = match store.metadata(&cid) { Some(m) => m, None => continue };
+        if meta.schema_id.as_deref() != Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID) { continue; }
+        let bytes = store.get(&cid).expect("read");
+        let r: PromptPromotionReceipt = serde_json::from_slice(&bytes).expect("deserialize");
+        assert_eq!(r.to_prompt_cid, v2_expected_cid);
+        assert_eq!(r.eval_set_cid, eval_set);
+        found = true;
+    }
+    assert!(found, "PromptPromotionReceipt not found in CAS");
+}
+
+#[test]
+fn test_llm_prompt_eval_promote_rejects_missing_eval_set() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let ws = dir.path();
+
+    let init = Command::new(bin_path())
+        .args(["init", "--project"])
+        .arg(ws)
+        .status()
+        .expect("run init");
+    assert!(init.success());
+
+    let v1 = ws.join("p1.txt");
+    let v2 = ws.join("p2.txt");
+    std::fs::write(&v1, "p1").expect("write");
+    std::fs::write(&v2, "p2").expect("write");
+
+    // Without --eval-set, falls back to normal prompt-eval which needs --fixture
+    let output = Command::new(bin_path())
+        .args(["llm", "prompt-eval"])
+        .arg("--workspace").arg(ws)
+        .arg("--from").arg(&v1)
+        .arg("--to").arg(&v2)
+        // no --eval-set
+        .output()
+        .expect("run");
+
+    assert!(!output.status.success(), "must fail without --eval-set or --fixture");
+}
+
