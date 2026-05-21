@@ -40,4 +40,3 @@ required-features = ["web"]
 
 [workspace]
 members = [".", "spike/gix_capability"]
-exclude = ["experiments/minif2f_v4"]
