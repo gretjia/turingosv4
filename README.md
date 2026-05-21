@@ -6,15 +6,78 @@ dashboards, and handover notes are materialized views.
 
 ## Handover state
 
-Active: `handover/ai-direct/LATEST.md` (session #55, 2026-05-20 — V4 Product-CAK Hardening charter).
+Active: `handover/ai-direct/LATEST.md` (session #56 close 2026-05-21 — V4 Product-CAK Hardening P7.z COMPLETE).
+
+Session #56 audit + remediation evidence:
+- `handover/audits/CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md` (clean-context audit of overnight Gemini delivery)
+- `handover/audits/CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md` (Claude orchestrator session report)
+- `handover/audits/CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` (§8 sign-off records for C2-split, C10, C11, Cz Class 4)
 
 Sessions #1–#54 archived at:
 `handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`
 
 ## Current Main Status
 
-`main` currently includes PR #3, #4, #5, #6, #7, #8, #10, and #11. PR #1,
-#2, and #9 were closed without merge and are not mainline state.
+`main` currently includes PR #3, #4, #5, #6, #7, #8, #10, #11, the
+complete **V4 Product-CAK Hardening P7.z charter** (atoms C0 through C11 +
+Cz Trust Root rehash), and session #56 audit docs. PR #1, #2, #9, #45–#55
+were merged or closed; no charter PRs remain open. Latest main tip:
+`9bdaddee` (Cz cumulative Trust Root).
+
+### V4 Product-CAK Hardening (P7.z) — 2026-05-20/21
+
+`main` now contains the full Product-CAK evidence chain from spec interview
+through artifact generation, preview, test run, and rejection — every step
+anchored as a `ObjectType::EvidenceCapsule` in CAS with a deterministic
+`schema_id` tag. The chain shape:
+
+```
+SpecCapsule
+  └─ GenerationAttemptCapsule (C2)
+        └─ ArtifactBundleManifest (C3) — typed `role` enum, path-traversal
+              regex, cross-field invariants, immutability rule (every regen
+              = new CID)
+              ├─ PreviewRunCapsule (C6) — read-only observation; world head
+              │                            unchanged
+              ├─ TestRunCapsule (C11) — spec-derived TestScenarioSet,
+              │                          hidden-oracle shielded,
+              │                          accepted_delivery gate
+              └─ GenerateRejectionCapsule (C8, L4.E) — v5-derived 4-tuple +
+                    world_head_unchanged invariant; private_diagnostic_cid
+                    shielded from HTTP body and BuildSessionView
+                    └─ BuildSessionView (C7, derived projection, not
+                          capsule) — rebuilds session from CAS without UI
+                          session cache
+                          └─ Offline replay + spec audit (C9) — CAS-only
+                                `turingos replay --offline` with cross-CID
+                                reference verification
+```
+
+Plus production-admission **C10**: `PromptPromotionReceipt` runtime guard
+wired into 3 LLM startup sites in `cmd_generate.rs` and `cmd_llm.rs`;
+refuses to start LLM unless a CAS-anchored promotion receipt with matching
+prompt CID exists. Env-var bypass forbidden (`TURINGOS_BYPASS_PROMOTION_GUARD`
+ignored).
+
+**Cz Class 4** atom aligned `genesis_payload.toml`'s `trust_root` section
+with post-merge content: rehashed `src/runtime/mod.rs`, `Cargo.toml`,
+`src/bottom_white/cas/store.rs`, `tests/tb_7_legacy_append_regression.rs`;
+removed 14 deleted `experiments/minif2f_v4/*` pins (user-authorized minif2f
+deletion was part of C3); added 6 missing `pub mod` declarations
+(`preview_run`, `build_session_view`, `replay`, `prompt_promotion`,
+`test_scenario`, `test_run`). User §8 + Codex independent witness PROCEED.
+
+Verification: `cargo test --lib boot::tests::` 8/8 PASS, including
+`verify_trust_root_passes_on_intact_repo` (was failing on main pre-Cz with
+`Tampered { expected: "05bf7151...", actual: "a3a09109..." }`).
+
+7 new schema-ids in CAS, all `ObjectType::EvidenceCapsule`-tagged:
+`turingos-generation-attempt-v1`, `turingos-artifact-bundle-v1`,
+`turingos-preview-run-v1`, `turingos-generate-rejection-v1`,
+`turingos-prompt-promotion-v1`, `turingos-test-scenario-set-v1`,
+`turingos-test-run-v1`.
+
+### Pre-P7.z baseline (preserved through session #56)
 
 - `main` includes the audited **TISR Phase 6.3.y grill-driven Generative UI
   ship unit** merged by PR #11 as merge commit
@@ -88,9 +151,13 @@ Sessions #1–#54 archived at:
   `refs/chaintape/cas` advances as a CAS commit head for new writes, and
   `CasStore::open()` / reload paths take the same chain lock used by
   `put()`.
-- MiniF2F is a development benchmark package, not a fixed TuringOS kernel
-  or OS gate. It is excluded from the root workspace and is only run
-  explicitly via `--manifest-path experiments/minif2f_v4/Cargo.toml`.
+- **MiniF2F deletion** (2026-05-19/20, user-authorized cleanup): the
+  `experiments/minif2f_v4/` subproject was removed from main as part of PR
+  #46 (Atom C3). It is no longer a development benchmark package in this
+  repository. The trust_root section in `genesis_payload.toml` was updated
+  by Cz to drop the 14 minif2f file pins. Use `~/projects/turingosv3` or
+  the prior session archives for any historical minif2f research; the
+  current main is minif2f-free.
 
 ## Pull Request Ledger
 
@@ -100,6 +167,22 @@ evidence instead.
 
 | PR | State | Main commit | Key information |
 |---|---|---|---|
+| Cz | MERGED via orchestrator local-merge on 2026-05-21 (no PR number; supersedes closed PR #55) | `9bdaddee` | Class 4 cumulative Trust Root realignment after all charter PRs landed. Updated 4 SHA pins (`src/runtime/mod.rs`, `Cargo.toml`, `src/bottom_white/cas/store.rs`, `tests/tb_7_legacy_append_regression.rs`); removed 14 deleted `experiments/minif2f_v4/*` pins; added 6 `pub mod` declarations missing from `src/runtime/mod.rs` (`preview_run`, `build_session_view`, `replay`, `prompt_promotion`, `test_scenario`, `test_run`); fixed `src/runtime/replay.rs` imports to source rejection types from `rejection_capsule` module. User §8 + Codex independent witness PROCEED. `cargo test --lib boot::tests::` 8/8 PASS post-Cz. |
+| [#56](https://github.com/gretjia/turingosv4/pull/56) | MERGED to `main` on 2026-05-21 | `298a1a7b` | Docs-only audit records from session #56 (Class 0). Adds `CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md`, `CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md`, and `CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` to `handover/audits/`. §8 sign-offs for the 4 Class 3+ atoms remediated this session (C2-split, C10, C11, Cz). |
+| [#55](https://github.com/gretjia/turingosv4/pull/55) | CLOSED, superseded | n/a | Initial Cz 1-line trust-root fix. Codex independent witness PROCEED on initial diff, but scope insufficient after charter PRs merged — the cumulative Cz commit (above) replaces it. |
+| [#54](https://github.com/gretjia/turingosv4/pull/54) | SQUASH-MERGED to `main` on 2026-05-21 | `028f9881` | Atom C11: spec-derived `TestRunCapsule` + producer wire. `TestScenario` enum trimmed to 3 producer-bound variants (`EntrypointExists`, `HtmlParses`, `SandboxPolicyPreserved`); `TestRunCapsule` carries separate `test_scenario_set_cid` per v5 hidden-oracle pattern; producer wired in `cmd_generate.rs` post-bundle-write (helper in `test_run.rs` to preserve hidden-oracle static-grep); `BuildStatus::Accepted` derivation NOT wired into `src/state/sequencer.rs` (anti-wire invariant). 19 subtests across 6 test files PASS. §8 + Sonnet audit PROCEED. |
+| [#53](https://github.com/gretjia/turingosv4/pull/53) | SQUASH-MERGED to `main` on 2026-05-21 | `412ebf6d` | Atom C10: `PromptPromotionReceipt` runtime guard wired into 3 LLM startup sites (`cmd_generate.rs::run_inner` before `chat_complete_blocking`, `cmd_llm.rs::run_triage`, `cmd_llm.rs::run_prompt_eval`); skipped `run_complete` (user-supplied prompt) and `run_prompt_promote` (no LLM call). Scaffold `--force` arg position fix. Env-var bypass forbidden test passes. §8 + Sonnet audit PROCEED 7/7. |
+| [#52](https://github.com/gretjia/turingosv4/pull/52) | SQUASH-MERGED to `main` on 2026-05-21 | `a699dd61` | Atom C9: `turingos replay --offline` CLI flag wired to `runtime::replay::reconstruct_session()` (CAS-only). Existing 7-indicator ChainTape replay preserved as default mode. 3 spec-named tests added (`artifact_bundle_replay_reads_cas`, `build_session_replay_after_cache_delete`, `replay_verifies_all_cross_cid_references_resolve`). Static no-LLM proof via dependency grep (NOT runtime tracing). |
+| [#51](https://github.com/gretjia/turingosv4/pull/51) | SQUASH-MERGED to `main` on 2026-05-21 | `0039bc6e` | Atom C8: L4.E `GenerateRejectionCapsule` HTTP shielding + 5 missing spec tests (`generate_fail_goes_l4e`, `user_error_does_not_leak_panic`, `privacy_fail_not_retryable`, `rejection_capsule_world_head_unchanged`, `rejection_capsule_4_tuple_present`). `world_head_unchanged: true` is writer contract; operationally verified via `CHAINTAPE_CAS_REF` ≤+2 commit check. v5-derived 4-tuple invariant. §8 self-signed under user delegation. |
+| [#50](https://github.com/gretjia/turingosv4/pull/50) | SQUASH-MERGED to `main` on 2026-05-21 | `e35df8f9` | Atom C7: `BuildSessionView` derived from CAS via `schema_id` scan. Not a capsule; no `schema_id`, no CAS write. Private diagnostic CID + scenario set CID intentionally excluded. 6 spec-named test files (split + struct-field fix to align with current schemas). Ordering `(logical_t, cid)`. |
+| [#49](https://github.com/gretjia/turingosv4/pull/49) | SQUASH-MERGED to `main` on 2026-05-21 | `9929bfc8` | Atom C6: `PreviewRunCapsule` + `GET /api/preview/:artifact_bundle_cid/file` endpoint. `SandboxPolicy` byte-stable enum (not free-form String). World-head unchanged operational test asserts exactly one commit advance on `CHAINTAPE_CAS_REF` per preview (the capsule put itself). No headless browser introduced. |
+| [#48](https://github.com/gretjia/turingosv4/pull/48) | SQUASH-MERGED to `main` on 2026-05-21 | `074f6fe3` | Atom C5: CAS-backed bundle file serve route `GET /api/bundle/:artifact_bundle_cid/file?path=<rel>` with namespace shielding (rejects CIDs whose `schema_id != turingos-artifact-bundle-v1`). Path-traversal regex reused. Legacy `/api/artifact/:session_id/:name` route preserved. |
+| [#47](https://github.com/gretjia/turingosv4/pull/47) | SQUASH-MERGED to `main` on 2026-05-21 | `35d53a1f` | Atom C4: `POST /api/generate` web response carries `artifact_bundle_cid: Option<String>` plus per-file `cid` and `sha256`. Additive only; serde `skip_serializing_if = "Option::is_none"` for backward-compatible JSON shape. Reads bundle CID from CAS via `latest_artifact_bundle_cid_for_session`, NOT a filesystem pointer. |
+| [#46](https://github.com/gretjia/turingosv4/pull/46) | SQUASH-MERGED to `main` on 2026-05-21 | `364242f1` + `b81d2ce6` (hotfix for stranded conflict markers) | Atom C3: `ArtifactBundleManifest` CAS wire — typed `ArtifactFileRole` enum (Entrypoint/Source/Asset/Manifest/Test/Other), `entrypoint_must_match_files_path` cross-field invariant, path-traversal regex `^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+`, `previous_bundle_cid` provenance chain (every regen = new CID), `latest_artifact_bundle_cid_for_session` lookup. Also user-authorized `experiments/minif2f_v4/` deletion in same commit. |
+| [#45](https://github.com/gretjia/turingosv4/pull/45) | SQUASH-MERGED to `main` on 2026-05-21 | `efc23c0c` | Atom C2: `GenerationAttemptCapsule` CAS wire — 1 LLM call → 1 capsule per `feedback_chaintape_externalized_proposal`; `AttemptOutcome` enum (`Success=0, ParseFailed=1, LlmApiError=2, NoFilesParsed=3, InternalIo=4`); `parent_attempt_cid` ordering chain. Includes C2/C8 split (rejection_capsule schema relocated from `generation_attempt.rs` to its own module `src/runtime/rejection_capsule.rs` per master plan §C8 spec). §8 + Sonnet audit PROCEED 10/10. |
+| [#44](https://github.com/gretjia/turingosv4/pull/44) | SQUASH-MERGED to `main` on 2026-05-20 | `bed3589c` | Atom C1: V4 product baseline reality seal — `docs/roadmap/V4_PRODUCT_BASELINE_REALITY_SEAL.md` with machine-provable assertions for the spec→generate loop (grep/test commands per fact). Class 0 docs-only. |
+| [#43](https://github.com/gretjia/turingosv4/pull/43) | SQUASH-MERGED to `main` on 2026-05-20 | `18c5163f` | Atom C0: fresh-clone web build gate. `build.rs` emits actionable error message (`run: cd frontend && npm ci && npm run build`) when `frontend/dist/main.js` is missing instead of silent failure. Class 1 build-adapter only. |
+| [#42](https://github.com/gretjia/turingosv4/pull/42) | SQUASH-MERGED to `main` on 2026-05-20 | `e7ebd0cf` | Session #55 docs: V4 Product-CAK Hardening execution plan (master charter) + Gemini orchestrator boot prompt + LATEST.md archive (sessions #1–#54 → archive file). Class 0 docs-only. |
 | [#11](https://github.com/gretjia/turingosv4/pull/11) | MERGED to `main` on 2026-05-19 | `300fb563ae57d971610b923d83fc55ab083ae245` | Phase 6.3.y grill-driven Generative UI ship unit. Ships F1-F11 + A2/A6/A8b code fixes, A2 prompt-eval CLI, runtime `spec_capsule`, web spec-loop hardening, domain-agnostic generate quality predicates, v2/v3 prompt candidates archived but not active, and the ultraplan evidence/audit trail. |
 | [#10](https://github.com/gretjia/turingosv4/pull/10) | MERGED to `main` on 2026-05-18 | `7a2ae7f7bf6fa2f9ce3cbfcf7a307462b7c69db1` | REAL-17 Polymarket robustness increment. Adds `real17p21.market_order_ticket.v1` CAS sidecar, Bull/Bear market-order evidence wiring, forced positive-control router/settlement gates, slippage/balance/finalized-market rejection gates, YES/NO settlement and redeem checks, and explicit no-overclaim boundary. |
 | [#9](https://github.com/gretjia/turingosv4/pull/9) | CLOSED, not merged | n/a | Superseded REAL-17 Polymarket robustness branch. It did not land on `main`; use PR #10 as the mainline Polymarket robustness record. |
@@ -126,11 +209,15 @@ evidence instead.
    PR #11. The Phase 7 ship report claimed a lower cap, and no automated CI
    assertion currently catches future drift. Either bump the documented cap
    or add a bundle-size assertion to the web route tests.
-5. **Frontend-build dependency**: `src/web/router.rs` uses
+5. ~~**Frontend-build dependency**: `src/web/router.rs` uses
    `include_bytes!("../../frontend/dist/main.js")`, but `frontend/dist/`
    is gitignored. Fresh-clone `cargo build --features web` fails until
    `cd frontend && npm ci && npm run build`. Recommended: a `build.rs` that
-   fails with a clear `npm run build` hint, or commit the dist artefact.
+   fails with a clear `npm run build` hint, or commit the dist artefact.~~
+   **RESOLVED by Atom C0 (PR #43, 2026-05-20)**: `build.rs` now emits an
+   actionable error message instructing the contributor to run
+   `cd frontend && npm ci && npm run build` when `frontend/dist/main.js`
+   is missing.
 
 ## Authoritative Orientation
 
