@@ -44,9 +44,10 @@ use turingosv4::runtime::artifact_bundle::{
     write_artifact_bundle, latest_artifact_bundle_cid_for_session,
     ARTIFACT_BUNDLE_SCHEMA_ID
 };
-use turingosv4::runtime::test_run::{run_and_write_test_pipeline, format_test_run_summary};
-use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::runtime::test_run::{run_and_write_test_pipeline, format_test_run_summary, TestRunCapsule};
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::test_scenario::TestScenario;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -239,23 +240,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         }
     };
 
-    let messages = vec![
-        ChatMessage::system(blackbox_system_prompt()),
-        ChatMessage::user(format!(
-            "Below is the spec. Generate the working code per the rules.\n\nspec source: {source}\n\n{spec_md}"
-        )),
-    ];
-
-    let canonical_prompt = format!(
-        "system: {}\nuser: Below is the spec. Generate the working code per the rules.\n\nspec source: {}\n\n{}",
-        blackbox_system_prompt(),
-        source,
-        spec_md
-    );
-    let mut hasher = Sha256::new();
-    hasher.update(canonical_prompt.as_bytes());
-    let prompt_hash = format!("{:x}", hasher.finalize());
-
+    // Resolve session_id and retry_index FIRST — needed for tape-relay read below.
     let session_id = if workspace.parent().map(|p| p.file_name().map(|n| n == "sessions").unwrap_or(false)).unwrap_or(false) {
         workspace.file_name().and_then(|n| n.to_str()).unwrap_or("default").to_string()
     } else {
@@ -288,6 +273,35 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             parent_attempt_cid = Some(last.1.clone());
         }
     }
+
+    // TRACE_MATRIX FC1-N4: Tape-relay read. If a prior rejection exists for
+    // this session, prepend its diagnostics so the LLM can avoid repeating
+    // the prior failure. This closes the parent_attempt_cid chain's missing
+    // READ side (chain was previously write-only).
+    let prior_feedback = read_prior_rejection_feedback(&workspace, &session_id);
+    let user_msg = if let Some(ref fb) = prior_feedback {
+        eprintln!("[generate] tape-relay: feeding prior rejection diagnostics into LLM prompt (attempt #{})", retry_index);
+        format!(
+            "{fb}Below is the spec. Generate the working code per the rules.\n\nspec source: {source}\n\n{spec_md}"
+        )
+    } else {
+        format!(
+            "Below is the spec. Generate the working code per the rules.\n\nspec source: {source}\n\n{spec_md}"
+        )
+    };
+    let messages = vec![
+        ChatMessage::system(blackbox_system_prompt()),
+        ChatMessage::user(user_msg.clone()),
+    ];
+
+    let canonical_prompt = format!(
+        "system: {}\nuser: {}",
+        blackbox_system_prompt(),
+        user_msg,
+    );
+    let mut hasher = Sha256::new();
+    hasher.update(canonical_prompt.as_bytes());
+    let prompt_hash = format!("{:x}", hasher.finalize());
 
     let logical_t = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -674,6 +688,114 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     }
 
     run_result
+}
+
+/// TRACE_MATRIX FC1-N4 / FC2-N18: Read prior rejection diagnostics from CAS
+/// and format them for inclusion in the LLM prompt. Returns Some(feedback_text)
+/// if a usable prior rejection exists for this session; None otherwise.
+///
+/// This is the TAPE-RELAY READ: the canonical "agent reads what previous
+/// agent wrote on the tape" pattern. Without this, parent_attempt_cid chains
+/// are write-only.
+fn read_prior_rejection_feedback(
+    workspace: &Path,
+    session_id: &str,
+) -> Option<String> {
+    let cas_dir = workspace.join("cas");
+    let store = CasStore::open(&cas_dir).ok()?;
+
+    // Find latest GenerateRejectionCapsule for this session by logical_t.
+    let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
+    let mut candidates: Vec<(u64, GenerateRejectionCapsule)> = Vec::new();
+    for cid in cids {
+        let meta = store.metadata(&cid)?;
+        if meta.schema_id.as_deref() == Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID) {
+            if let Ok(bytes) = store.get(&cid) {
+                if let Ok(cap) = serde_json::from_slice::<GenerateRejectionCapsule>(&bytes) {
+                    if cap.session_id == session_id {
+                        candidates.push((cap.logical_t, cap));
+                    }
+                }
+            }
+        }
+    }
+    candidates.sort_by_key(|x| x.0);
+    let latest = candidates.into_iter().last()?.1;
+
+    // Construct feedback text. Format it as concrete actionable guidance,
+    // not a raw debug dump.
+    let mut feedback = String::from(
+        "=== PRIOR ATTEMPT FEEDBACK (relayed from CAS tape) ===\n\n",
+    );
+    feedback.push_str(&format!(
+        "Your previous attempt for this same session FAILED.\n\
+         Failure class: {:?}\n\
+         Public summary: {}\n\
+         Reason: {}\n\n",
+        latest.reject_class, latest.public_error_summary, latest.reason,
+    ));
+
+    // If this was a HeuristicFailed (C11 test pipeline), find the linked
+    // TestRunCapsule and surface the failed scenario names.
+    if matches!(latest.reject_class, RejectClass::HeuristicFailed) {
+        // Parse test_run_cid from reason field: "heuristic_failed:test_run_cid=<hex>"
+        if let Some(idx) = latest.reason.find("test_run_cid=") {
+            let cid_hex = &latest.reason[idx + "test_run_cid=".len()..];
+            let cid_hex = cid_hex.split_whitespace().next().unwrap_or(cid_hex);
+            if let Some(failed_scenarios) = read_failed_scenarios_by_cid(&store, cid_hex) {
+                if !failed_scenarios.is_empty() {
+                    feedback.push_str("Specific failed test scenarios:\n");
+                    for (name, detail) in failed_scenarios {
+                        feedback.push_str(&format!("  - {}: {}\n", name, detail));
+                    }
+                    feedback.push('\n');
+                }
+            }
+        }
+    }
+
+    feedback.push_str(
+        "INSTRUCTIONS: This is your second (or later) chance. Please:\n\
+         1. Re-read the spec below carefully.\n\
+         2. Address the specific failure mode above.\n\
+         3. Produce a CORRECTED file set in the same `### File: <path>` + fenced-code-block format.\n\
+         4. Do not repeat the prior mistake.\n\n\
+         === END FEEDBACK ===\n\n",
+    );
+    Some(feedback)
+}
+
+/// Helper: parse a hex CID string and read the linked TestRunCapsule,
+/// returning the list of (scenario_name, detail) for failed scenarios.
+fn read_failed_scenarios_by_cid(
+    store: &CasStore,
+    cid_hex: &str,
+) -> Option<Vec<(String, String)>> {
+    if cid_hex.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&cid_hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    let cid = Cid(bytes);
+    let raw = store.get(&cid).ok()?;
+    let capsule: TestRunCapsule = serde_json::from_slice(&raw).ok()?;
+
+    let mut failed = Vec::new();
+    for r in capsule.results {
+        if !r.pass {
+            let name = match &r.scenario {
+                TestScenario::EntrypointExists => "EntrypointExists".to_string(),
+                TestScenario::HtmlParses => "HtmlParses".to_string(),
+                TestScenario::SandboxPolicyPreserved { .. } => {
+                    "SandboxPolicyPreserved".to_string()
+                }
+            };
+            failed.push((name, r.detail));
+        }
+    }
+    Some(failed)
 }
 
 fn blackbox_system_prompt() -> &'static str {
