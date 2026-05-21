@@ -259,6 +259,12 @@ pub mod replay;
 /// TRACE_MATRIX FC2 + FC3: prompt promotion receipt schema and runtime guard (C10).
 pub mod prompt_promotion;
 
+/// TRACE_MATRIX FC1 + FC3: test scenario set schema (C11).
+pub mod test_scenario;
+
+/// TRACE_MATRIX FC1 + FC3: test run capsule schema and CAS runner (C11).
+pub mod test_run;
+
 /// TRACE_MATRIX FC2-N16: pure helpers for spec.md synthesis
 /// (canonical 8-Q list, LLM-less body builder, header+appendix wrapper).
 /// Phase 6.3.x A6 lifted these from `cmd_spec.rs` so the web layer can render

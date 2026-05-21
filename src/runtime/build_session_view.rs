@@ -12,6 +12,9 @@ use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SC
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
 
 /// TRACE_MATRIX FC2-N16: build status enum of a build session.
+///
+/// NOTE: `Accepted` is derived from `TestRunCapsule.overall_pass == true`.
+/// This status MUST NOT flow into any `src/state/sequencer.rs` admission rule.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildStatus {
@@ -20,6 +23,9 @@ pub enum BuildStatus {
     Generating,
     Generated,
     Rejected,
+    /// C11: Delivery accepted — `TestRunCapsule.overall_pass == true`.
+    /// Anti-wire: this variant MUST NOT be read by `src/state/sequencer.rs`.
+    Accepted,
 }
 
 /// TRACE_MATRIX FC2-N16: build session view struct containing all session event CIDs.
@@ -32,6 +38,10 @@ pub struct BuildSessionView {
     pub preview_runs: Vec<String>,
     pub rejection_events: Vec<String>,
     pub current_status: BuildStatus,
+    /// C11: true iff the latest TestRunCapsule for this session has overall_pass=true.
+    /// Anti-wire: MUST NOT be consumed by sequencer admission logic.
+    #[serde(default)]
+    pub accepted_delivery: bool,
 }
 
 /// TRACE_MATRIX FC2-N16: reconstructs the BuildSessionView from CAS objects.
@@ -49,6 +59,7 @@ pub fn derive_build_session_view(
             preview_runs: Vec::new(),
             rejection_events: Vec::new(),
             current_status: BuildStatus::SpecPending,
+            accepted_delivery: false,
         });
     }
 
@@ -63,6 +74,7 @@ pub fn derive_build_session_view(
                 preview_runs: Vec::new(),
                 rejection_events: Vec::new(),
                 current_status: BuildStatus::SpecPending,
+                accepted_delivery: false,
             });
         }
     };
@@ -213,6 +225,26 @@ pub fn derive_build_session_view(
         }
     };
 
+    // C11: check for passing TestRunCapsule to derive accepted_delivery.
+    // Accepted = latest artifact bundle has a TestRunCapsule with overall_pass=true.
+    let accepted_delivery = if let Some(&(_, ref latest_bundle_cid)) = artifact_bundles.last() {
+        let bundle_cid_hex = latest_bundle_cid.hex();
+        let test_run = crate::runtime::test_run::latest_test_run_for_bundle(
+            workspace,
+            &bundle_cid_hex,
+        );
+        test_run.map(|r| r.overall_pass).unwrap_or(false)
+    } else {
+        false
+    };
+
+    // If accepted, upgrade status to Accepted.
+    let current_status = if accepted_delivery && current_status == BuildStatus::Generated {
+        BuildStatus::Accepted
+    } else {
+        current_status
+    };
+
     Ok(BuildSessionView {
         session_id: session_id.to_string(),
         spec_capsule_cid,
@@ -221,5 +253,6 @@ pub fn derive_build_session_view(
         preview_runs: preview_runs_hex,
         rejection_events: rejection_events_hex,
         current_status,
+        accepted_delivery,
     })
 }
