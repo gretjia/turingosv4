@@ -147,15 +147,17 @@ fn failed_generate_cids_on_stderr_with_prefix() {
         "stderr must contain the actual error message; got:\nstderr={stderr}"
     );
 
-    // Ordering: [failed run] BEFORE the HTTP error line.
-    if let (Some(prefix_pos), Some(error_pos)) = (
-        stderr.find("[failed run]"),
+    // Ordering: error message BEFORE the [failed run] CID lines (X1 fix).
+    // Non-experts reading top-to-bottom must see the error first.
+    if let (Some(error_pos), Some(cid_pos)) = (
         stderr.find("HTTP 400").or_else(|| stderr.find("turingos generate:")),
+        stderr.find("[failed run] generation_attempt_cid=")
+            .or_else(|| stderr.find("[failed run] rejection_cid=")),
     ) {
         assert!(
-            prefix_pos < error_pos,
-            "[failed run] prefix must appear BEFORE the error message in stderr;\
-             \nprefix_pos={prefix_pos}, error_pos={error_pos}\nstderr={stderr}"
+            error_pos < cid_pos,
+            "error message must appear BEFORE [failed run] CID lines in stderr (X1 fix);\
+             \nerror_pos={error_pos}, cid_pos={cid_pos}\nstderr={stderr}"
         );
     }
 }

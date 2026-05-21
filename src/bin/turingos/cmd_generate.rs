@@ -101,6 +101,8 @@ enum GenError {
     Capsule(spec_capsule::CapsuleError),
     NoFilesParsed,
     TooManyFiles { found: usize, max: usize },
+    /// X1: carries CID footer lines to be printed AFTER the error message.
+    WithFooter { inner: Box<GenError>, footer: String },
 }
 
 impl std::fmt::Display for GenError {
@@ -122,6 +124,7 @@ impl std::fmt::Display for GenError {
             Self::TooManyFiles { found, max } => {
                 write!(f, "Blackbox LLM emitted {found} files; --max-files cap is {max}")
             }
+            Self::WithFooter { inner, .. } => write!(f, "{inner}"),
         }
     }
 }
@@ -147,7 +150,13 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     match run_inner(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
+            // X1: print error FIRST, then the CID footer lines (if any).
+            // This ensures non-experts reading top-to-bottom see the error
+            // before the diagnostic identifiers.
             eprintln!("turingos generate: {e}");
+            if let GenError::WithFooter { footer, .. } = &e {
+                eprintln!("{footer}");
+            }
             ExitCode::from(2)
         }
     }
@@ -407,23 +416,23 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 world_head_unchanged: true,
                 logical_t,
             };
-            if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
-                eprintln!("[failed run] generate did not deliver — see error below");
-                eprintln!("[failed run] rejection_cid={}", rej_cid);
-            }
-            return Err(GenError::Capsule(e));
+            let footer = if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
+                format!("[failed run] rejection_cid={rej_cid}")
+            } else {
+                String::new()
+            };
+            return Err(GenError::WithFooter {
+                inner: Box::new(GenError::Capsule(e)),
+                footer,
+            });
         }
     };
 
-    // B3: on success, CIDs go to stderr without prefix (informational only).
-    // On failure, CIDs go to stderr with [failed run] prefix, before the error
-    // message that run() will print after run_inner() returns.
+    // X1/B3: on success, CIDs go to stderr without prefix (informational only).
+    // On failure, CIDs are deferred to AFTER the error message is printed by
+    // run() — so non-experts reading top-to-bottom see the error first.
     if outcome == AttemptOutcome::Success {
         eprintln!("generation_attempt_cid={}", attempt_cid);
-    } else {
-        // [failed run] header + CIDs first; error message follows from run().
-        eprintln!("[failed run] generate did not deliver — see error below");
-        eprintln!("[failed run] generation_attempt_cid={}", attempt_cid);
     }
 
     if outcome != AttemptOutcome::Success {
@@ -460,9 +469,20 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             world_head_unchanged: true,
             logical_t,
         };
+        // X1: Collect CID footer; run() will emit it AFTER the error message.
+        let mut footer_parts = vec![
+            format!("[failed run] generation_attempt_cid={}", attempt_cid),
+        ];
         if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
-            eprintln!("[failed run] rejection_cid={}", rej_cid);
+            footer_parts.push(format!("[failed run] rejection_cid={rej_cid}"));
         }
+        let footer = footer_parts.join("\n");
+        // Shadow run_result to wrap any error with the CID footer.
+        let run_result = run_result.map_err(|inner| GenError::WithFooter {
+            inner: Box::new(inner),
+            footer,
+        });
+        return run_result;
     }
 
     if run_result.is_ok() {
@@ -567,14 +587,18 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             world_head_unchanged: true,
                             logical_t,
                         };
-                        if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
-                            // B3: test-fail rejection is also a failed run.
-                            eprintln!("[failed run] generate did not deliver — see error below");
-                            eprintln!("[failed run] rejection_cid={}", rej_cid);
-                        }
-                        return Err(GenError::Io(
-                            "generated artifacts failed spec-derived tests".to_string()
-                        ));
+                        // X1: collect footer; run() emits it after the error message.
+                        let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                            format!("[failed run] rejection_cid={rej_cid}")
+                        } else {
+                            String::new()
+                        };
+                        return Err(GenError::WithFooter {
+                            inner: Box::new(GenError::Io(
+                                "generated artifacts failed spec-derived tests".to_string()
+                            )),
+                            footer,
+                        });
                     }
                     // overall_pass=true — proceed to success output below.
                 }
@@ -594,12 +618,16 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         world_head_unchanged: true,
                         logical_t,
                     };
-                    if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
-                        // B3: pipeline error is also a failed run.
-                        eprintln!("[failed run] generate did not deliver — see error below");
-                        eprintln!("[failed run] rejection_cid={}", rej_cid);
-                    }
-                    return Err(GenError::Io(format!("test pipeline error: {}", e)));
+                    // X1: collect footer; run() emits it after the error message.
+                    let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                        format!("[failed run] rejection_cid={rej_cid}")
+                    } else {
+                        String::new()
+                    };
+                    return Err(GenError::WithFooter {
+                        inner: Box::new(GenError::Io(format!("test pipeline error: {}", e))),
+                        footer,
+                    });
                 }
             }
 
