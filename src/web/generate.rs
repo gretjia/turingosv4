@@ -118,6 +118,21 @@ pub(crate) struct ArtifactEntry {
     pub(crate) sha256: Option<String>,
 }
 
+/// TRACE_MATRIX FC1-N5 + FC2-N16: C8 — sanitized generate rejection response.
+///
+/// Returned by POST /api/generate when the CLI emits a `rejection_cid=` on
+/// stderr. Contains only the public-facing fields from `GenerateRejectionCapsule`.
+/// `private_diagnostic_cid` is explicitly excluded by design.
+#[cfg(feature = "web")]
+#[derive(Debug, Serialize)]
+pub(crate) struct GenerateRejectionResponse {
+    pub(crate) rejection_cid: String,
+    pub(crate) reject_class: String,
+    pub(crate) public_error_summary: String,
+    pub(crate) reason: String,
+    pub(crate) retryable: bool,
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/generate handler
 // ---------------------------------------------------------------------------
@@ -290,17 +305,54 @@ pub(crate) async fn generate_handler(
         let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
         last_stdout = stdout_str.clone();
 
-        // Non-zero exit → failure, broadcast and (maybe) retry.
+        // Non-zero exit → C8: try to load the rejection capsule and return
+        // a sanitized 4xx response. Never expose raw stderr or
+        // private_diagnostic_cid in the HTTP body.
         if !output.status.success() {
             let stderr_str = String::from_utf8_lossy(&output.stderr).into_owned();
+
+            // C8: parse rejection_cid from stderr (format: "rejection_cid=<hex>")
+            let rejection_loaded = parse_rejection_cid_from_stderr(&stderr_str)
+                .and_then(|rej_cid| load_rejection_capsule_from_cas(&workspace, &rej_cid));
+
+            if let Some(rej_resp) = rejection_loaded {
+                let _ = state
+                    .broadcast_tx
+                    .send(WsBroadcastMsg::GenerateAttemptFailed {
+                        session_id: req.session_id.clone(),
+                        attempt,
+                        max_attempts: MAX_GENERATE_ATTEMPTS,
+                        reason: rej_resp.public_error_summary.clone(),
+                    });
+
+                // If retryable=false (e.g. PrivacyBlocked), skip further retries.
+                let should_retry = rej_resp.retryable && attempt < MAX_GENERATE_ATTEMPTS;
+                if should_retry {
+                    last_failure_reason = rej_resp.public_error_summary.clone();
+                    last_failure_kind = "generate_rejected";
+                    continue;
+                }
+                // Return sanitized 4xx (422 Unprocessable Entity for rejection).
+                return Err((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(SpecError {
+                        reason: format!(
+                            "{{\"rejection_cid\":\"{}\",\"reject_class\":\"{}\",\"public_error_summary\":\"{}\",\"reason\":\"{}\",\"retryable\":{}}}",
+                            rej_resp.rejection_cid,
+                            rej_resp.reject_class,
+                            rej_resp.public_error_summary.replace('"', "'"),
+                            rej_resp.reason,
+                            rej_resp.retryable
+                        ),
+                        kind: "generate_rejected",
+                    }),
+                ));
+            }
+
+            // Fallback: no rejection_cid in stderr — use a safe generic error.
+            // Do NOT include raw stderr/stdout in the response body.
             let exit_code = output.status.code().unwrap_or(-1);
-            let combined = format!("stdout: {} | stderr: {}", stdout_str, stderr_str);
-            let truncated = if combined.len() > 512 {
-                format!("{}…", &combined[..512])
-            } else {
-                combined
-            };
-            let reason = format!("shellout_exit_{exit_code}: {truncated}");
+            let reason = format!("generate exited with code {exit_code}");
             let _ = state
                 .broadcast_tx
                 .send(WsBroadcastMsg::GenerateAttemptFailed {
@@ -655,6 +707,63 @@ fn cid_from_hex(s: &str) -> Option<turingosv4::bottom_white::cas::schema::Cid> {
         bytes[i] = u8::from_str_radix(hex_byte, 16).ok()?;
     }
     Some(turingosv4::bottom_white::cas::schema::Cid(bytes))
+}
+
+/// TRACE_MATRIX FC1-N5: C8 — parse `rejection_cid=<hex>` from stderr output.
+///
+/// The CLI emits this as the last line on the failure stderr path.
+/// Returns `None` if no such line exists.
+#[cfg(feature = "web")]
+fn parse_rejection_cid_from_stderr(stderr: &str) -> Option<String> {
+    for line in stderr.lines().rev() {
+        let line = line.trim();
+        if let Some(hex) = line.strip_prefix("rejection_cid=") {
+            let hex = hex.trim();
+            if hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Some(hex.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// TRACE_MATRIX FC1-N5: C8 — load GenerateRejectionCapsule from CAS.
+///
+/// Returns `None` on any failure (missing CAS, bad CID, wrong schema, etc.).
+/// `private_diagnostic_cid` is intentionally dropped and never exposed.
+#[cfg(feature = "web")]
+fn load_rejection_capsule_from_cas(
+    workspace: &str,
+    rejection_cid_hex: &str,
+) -> Option<GenerateRejectionResponse> {
+    use turingosv4::runtime::generation_attempt::{
+        GenerateRejectionCapsule, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
+    };
+    use turingosv4::runtime::spec_capsule::cas_path;
+    use turingosv4::bottom_white::cas::store::CasStore;
+
+    let ws_path = std::path::Path::new(workspace);
+    let cas_dir = cas_path(ws_path);
+    let store = CasStore::open(&cas_dir).ok()?;
+    let cid = cid_from_hex(rejection_cid_hex)?;
+
+    // Verify schema before deserializing (namespace shielding).
+    let meta = store.metadata(&cid)?;
+    if meta.schema_id.as_deref() != Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID) {
+        return None;
+    }
+
+    let bytes = store.get(&cid).ok()?;
+    let capsule: GenerateRejectionCapsule = serde_json::from_slice(&bytes).ok()?;
+
+    // Build response without private_diagnostic_cid (intentional exclusion).
+    Some(GenerateRejectionResponse {
+        rejection_cid: rejection_cid_hex.to_string(),
+        reject_class: format!("{:?}", capsule.reject_class),
+        public_error_summary: capsule.public_error_summary,
+        reason: capsule.reason,
+        retryable: capsule.retryable,
+    })
 }
 
 // ---------------------------------------------------------------------------
