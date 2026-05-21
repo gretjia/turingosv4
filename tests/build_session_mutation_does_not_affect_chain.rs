@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody};
+use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody, GrillAttemptTally};
 use turingosv4::runtime::generation_attempt::{
     GenerationAttemptCapsule, AttemptOutcome, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
@@ -91,12 +91,15 @@ async fn build_session_mutation_does_not_affect_chain() {
     // Setup initial state
     let spec_cid_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
     let grill_body = GrillSessionCapsuleBody {
-        schema_id: "turingos-spec-grill-session-v1".to_string(),
         session_id: session_id.to_string(),
         turn_cids: vec![],
         final_spec_capsule_cid: spec_cid_hex.clone(),
         termination_reason: "done".to_string(),
-        created_at_logical_t: 10,
+        total_turns: 0,
+        partial_session: false,
+        lang: "en".to_string(),
+        grill_attempt_tally: GrillAttemptTally::default(),
+        logical_t: 10,
     };
     let grill_bytes = serde_json::to_vec(&grill_body).unwrap();
     let grill_cid = store.put(

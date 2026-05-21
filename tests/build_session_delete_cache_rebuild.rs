@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody};
+use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody, GrillAttemptTally};
 use turingosv4::runtime::generation_attempt::{
     GenerationAttemptCapsule, AttemptOutcome, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
@@ -91,12 +91,15 @@ async fn build_session_delete_cache_rebuild() {
     // Setup initial state
     let spec_cid_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
     let grill_body = GrillSessionCapsuleBody {
-        schema_id: "turingos-spec-grill-session-v1".to_string(),
         session_id: session_id.to_string(),
         turn_cids: vec![],
         final_spec_capsule_cid: spec_cid_hex.clone(),
         termination_reason: "done".to_string(),
-        created_at_logical_t: 10,
+        total_turns: 0,
+        partial_session: false,
+        lang: "en".to_string(),
+        grill_attempt_tally: GrillAttemptTally::default(),
+        logical_t: 10,
     };
     let grill_bytes = serde_json::to_vec(&grill_body).unwrap();
     let grill_cid = store.put(
@@ -111,10 +114,16 @@ async fn build_session_delete_cache_rebuild() {
         schema_id: GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string(),
         session_id: session_id.to_string(),
         spec_capsule_cid: Some(spec_cid_hex.clone()),
+        spec_source: "ondisk_spec_md".to_string(),
+        model_id: "test".to_string(),
+        model_seed: None,
+        prompt_hash: "deadbeef".to_string(),
+        raw_output_cid: None,
+        usage_total_tokens: None,
+        retry_index: 0,
+        parent_attempt_cid: None,
         outcome: AttemptOutcome::Success,
-        world_head_parent: "parent_head".to_string(),
-        world_head_resulting: "result_head".to_string(),
-        bounty_t_spent: 100,
+        parsed_file_count: 1,
         logical_t: 20,
     };
     let attempt_bytes = serde_json::to_vec(&attempt_body).unwrap();
@@ -130,7 +139,10 @@ async fn build_session_delete_cache_rebuild() {
         schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
         session_id: session_id.to_string(),
         spec_capsule_cid: Some(spec_cid_hex.clone()),
+        generation_attempt_cid: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        previous_bundle_cid: None,
         files: vec![],
+        bundle_size_bytes_total: 0,
         entrypoint: "index.html".to_string(),
         created_at_logical_t: 30,
     };
