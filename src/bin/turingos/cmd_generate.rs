@@ -84,6 +84,7 @@ enum GenError {
     Capsule(spec_capsule::CapsuleError),
     NoFilesParsed,
     TooManyFiles { found: usize, max: usize },
+    TestRunFailed(String),
 }
 
 impl std::fmt::Display for GenError {
@@ -105,6 +106,7 @@ impl std::fmt::Display for GenError {
             Self::TooManyFiles { found, max } => {
                 write!(f, "Blackbox LLM emitted {found} files; --max-files cap is {max}")
             }
+            Self::TestRunFailed(detail) => write!(f, "test run failed: {detail}"),
         }
     }
 }
@@ -491,6 +493,34 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
             let bundle_cid = write_artifact_bundle(&workspace, &manifest)?;
             println!("artifact_bundle_cid={}", bundle_cid);
+
+            // C11 producer wire (added 2026-05-21 remediation)
+            // Run TestScenarioSet against the just-written artifact bundle.
+            // Hidden-oracle: test_scenario_set_cid stays inside TestRunCapsule only,
+            // never surfaced here or in the public response.
+            let spec_cid_for_test = spec_capsule_cid.as_deref().unwrap_or("");
+            match turingosv4::runtime::test_run::run_and_write_test_pipeline(
+                &workspace,
+                spec_md.as_bytes(),
+                spec_cid_for_test,
+                &bundle_cid,
+                logical_t,
+            ) {
+                Ok((test_run_cid, overall_pass)) => {
+                    eprintln!("test_run_cid={}", test_run_cid);
+                    eprintln!("test_run_pass={}", overall_pass);
+                    if !overall_pass {
+                        return Err(GenError::TestRunFailed(
+                            format!("test_run_cid={} overall_pass=false", test_run_cid),
+                        ));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("test_run_error={}", e);
+                    // Non-fatal: test pipeline failure doesn't block artifact delivery.
+                    // Evidence gap is visible in logs; production does not halt.
+                }
+            }
 
             if emit_transcript {
                 let transcript = serde_json::json!({

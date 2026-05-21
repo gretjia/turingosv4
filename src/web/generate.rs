@@ -89,6 +89,14 @@ pub(crate) struct GenerateRequest {
 ///   passed heuristic verification. `1` means single-shot success; `>=2`
 ///   means at least one retry happened. The frontend can show
 ///   "✓ (经过 N 次尝试)" if `total_attempts > 1`.
+/// `test_run_cid` (C11): CAS CID of the TestRunCapsule written by the CLI,
+///   if the C11 test pipeline ran. Absent if the pipeline was skipped.
+/// `test_run_pass` (C11): overall_pass value from the TestRunCapsule.
+///   Absent if the pipeline was skipped.
+///
+/// NOTE: `test_scenario_set_cid` is intentionally NOT included here.
+/// The hidden-oracle invariant requires that the scenario set CID never
+/// appears in any public response.
 #[cfg(feature = "web")]
 #[derive(Debug, Serialize)]
 pub(crate) struct GenerateResponse {
@@ -100,6 +108,12 @@ pub(crate) struct GenerateResponse {
     pub(crate) status: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) artifact_bundle_cid: Option<String>,
+    /// C11: CAS CID of the TestRunCapsule (hex). Absent if test pipeline did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) test_run_cid: Option<String>,
+    /// C11: overall_pass from the TestRunCapsule. Absent if test pipeline did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) test_run_pass: Option<bool>,
 }
 
 /// TRACE_MATRIX FC1-N5: one artifact file entry in the generate response.
@@ -458,6 +472,12 @@ pub(crate) async fn generate_handler(
             artifacts: artifact_paths,
         });
 
+        // C11: parse test_run_cid and test_run_pass from stderr.
+        // Hidden-oracle: test_scenario_set_cid is intentionally NOT parsed here.
+        let stderr_str = String::from_utf8_lossy(&output.stderr).into_owned();
+        let test_run_cid = parse_key_from_stderr(&stderr_str, "test_run_cid=");
+        let test_run_pass = parse_bool_from_stderr(&stderr_str, "test_run_pass=");
+
         // Retrieve latest artifact bundle CID from CAS for this session.
         let mut bundle_cid = None;
         let mut manifest: Option<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest> = None;
@@ -504,6 +524,8 @@ pub(crate) async fn generate_handler(
             total_attempts: attempt,
             status,
             artifact_bundle_cid: bundle_cid,
+            test_run_cid,
+            test_run_pass,
         }));
     }
 
@@ -707,6 +729,34 @@ fn cid_from_hex(s: &str) -> Option<turingosv4::bottom_white::cas::schema::Cid> {
         bytes[i] = u8::from_str_radix(hex_byte, 16).ok()?;
     }
     Some(turingosv4::bottom_white::cas::schema::Cid(bytes))
+}
+
+/// TRACE_MATRIX FC1-N5: C11 — parse a `<key><value>` line from stderr.
+///
+/// Scans all lines (not just the last) to be robust against ordering.
+/// Returns None if no matching line exists.
+#[cfg(feature = "web")]
+fn parse_key_from_stderr(stderr: &str, prefix: &str) -> Option<String> {
+    for line in stderr.lines() {
+        let line = line.trim();
+        if let Some(val) = line.strip_prefix(prefix) {
+            let val = val.trim();
+            if !val.is_empty() {
+                return Some(val.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// TRACE_MATRIX FC1-N5: C11 — parse a `<key>true|false` line from stderr.
+#[cfg(feature = "web")]
+fn parse_bool_from_stderr(stderr: &str, prefix: &str) -> Option<bool> {
+    parse_key_from_stderr(stderr, prefix).and_then(|v| match v.as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    })
 }
 
 /// TRACE_MATRIX FC1-N5: C8 — parse `rejection_cid=<hex>` from stderr output.

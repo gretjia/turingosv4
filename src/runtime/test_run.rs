@@ -241,6 +241,46 @@ pub fn write_test_run_capsule(
 // Helper: read TestRunCapsule from CAS for a session (latest by logical_t)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// C11 producer pipeline — called from cmd_generate post-bundle
+// ---------------------------------------------------------------------------
+
+/// TRACE_MATRIX FC1 + FC3: Full C11 producer pipeline.
+///
+/// Derives a TestScenarioSet from `spec_bytes`, writes it to CAS (hidden — CID
+/// not returned to caller), runs scenarios against the artifact bundle in CAS,
+/// writes the TestRunCapsule to CAS, and returns `(test_run_cid, overall_pass)`.
+///
+/// **Hidden-oracle contract**: the scenario set CID is intentionally NOT returned
+/// to the caller and must NOT appear in any generation prompt or public response.
+/// Only `test_run_cid` and `overall_pass` are surfaced.
+pub fn run_and_write_test_pipeline(
+    workspace: &Path,
+    spec_bytes: &[u8],
+    spec_capsule_cid: &str,
+    artifact_bundle_cid_hex: &str,
+    logical_t: u64,
+) -> Result<(String, bool), String> {
+    use crate::runtime::test_scenario::derive_scenario_set_from_spec;
+
+    // Derive scenario set — bytes stay in this call, never reach LLM prompt.
+    let scenario_set = derive_scenario_set_from_spec(spec_bytes, spec_capsule_cid, logical_t);
+
+    // Write scenario set to CAS (hidden CID — not propagated to callers).
+    let scenario_set_cid = write_scenario_set(workspace, &scenario_set)?;
+
+    // Run scenarios against the artifact bundle.
+    let mut capsule = run_test_scenario_set(workspace, artifact_bundle_cid_hex, &scenario_set)
+        .map_err(|e| e.to_string())?;
+
+    // Attach the scenario set CID (stays inside TestRunCapsule only).
+    capsule.test_scenario_set_cid = scenario_set_cid;
+
+    // Write capsule and return its CID + overall result.
+    let run_cid = write_test_run_capsule(workspace, &capsule)?;
+    Ok((run_cid, capsule.overall_pass))
+}
+
 /// TRACE_MATRIX FC1: Find the latest TestRunCapsule for the given artifact_bundle_cid.
 ///
 /// Returns None if no TestRunCapsule exists for the bundle.
