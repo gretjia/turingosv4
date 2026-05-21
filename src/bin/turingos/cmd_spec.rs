@@ -62,10 +62,13 @@ OPTIONS:
                              for scripted runs / demos / regression tests.
                              Only valid in --mode static (default).
     --lang <zh|en>           Interview language. Default: zh (中文).
-    --skip-llm               Skip LLM calls (use the canonical 8 questions
-                             verbatim + emit a minimal spec.md). Useful when
-                             SILICONFLOW_API_KEY is unset and you only want
-                             to test the CAS wire. Only valid in --mode static.
+    --skip-llm               Synthesize spec.md from raw answers without an
+                             LLM-driven narrative call. Use when the LLM
+                             provider is unavailable or to skip the synthesis
+                             pass. Output is functionally equivalent: spec.md
+                             + spec_transcript.jsonl + CAS capsule are written
+                             normally and `turingos generate` proceeds as usual.
+                             Only valid in --mode static.
     --mode {static|driven}   Interview mode. Default: static (back-compat).
                              static: original 8-hardcoded-question flow.
                              driven: W6 LLM-driven turn loop; Meta model
