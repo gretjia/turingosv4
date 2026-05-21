@@ -119,7 +119,7 @@ impl std::fmt::Display for GenError {
             Self::Capsule(e) => write!(f, "{e}"),
             Self::NoFilesParsed => write!(
                 f,
-                "Blackbox LLM emitted no parseable files. Expected `### File: <path>` followed by a fenced code block."
+                "Blackbox LLM emitted no parseable files. Expected `### File: <path>` followed by a fenced code block.\n  (Transient API error? Try running `turingos generate` again.)"
             ),
             Self::TooManyFiles { found, max } => {
                 write!(f, "Blackbox LLM emitted {found} files; --max-files cap is {max}")
