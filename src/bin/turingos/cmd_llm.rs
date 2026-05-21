@@ -29,6 +29,7 @@ use sha2::{Digest, Sha256};
 
 use crate::common::shell_quote_path;
 use crate::siliconflow_client::{DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
+use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
 
 /// TRACE_MATRIX FC2-N16: `llm` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -1183,6 +1184,24 @@ fn run_triage(args: &[String]) -> ExitCode {
         }
     };
 
+    // C10 promotion guard: gate LLM startup on a CAS-anchored PromptPromotionReceipt.
+    // Keyed on the canonical triage system prompt loaded from the asset file.
+    // NoCasStore (uninitialized workspace) is allowed for dev ergonomics.
+    let triage_prompt_cid = sha256_hex_of_prompt(system_prompt_text.as_bytes());
+    match check_promotion_guard(&ta.workspace, &triage_prompt_cid) {
+        Ok(()) => {}
+        Err(PromotionGuardError::NoCasStore(_)) => {
+            // Workspace CAS not yet initialized — allow startup for dev ergonomics.
+        }
+        Err(e) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("promotion guard: {e}")),
+                2,
+            );
+        }
+    }
+
     // ── 7. LLM call (max_tokens=50, temperature=0.0) ────────────────────────
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1714,6 +1733,25 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
             return prompt_eval_err_exit("http_status", pe.lang.http_err_msg(&e.to_string()), 2);
         }
     };
+
+    // C10 promotion guard: gate LLM startup on a CAS-anchored PromptPromotionReceipt.
+    // Keyed on the candidate system prompt bytes.
+    // NoCasStore (uninitialized workspace) is allowed for dev ergonomics.
+    let candidate_prompt_cid = sha256_hex_of_prompt(candidate_system_text.as_bytes());
+    match check_promotion_guard(&pe.workspace, &candidate_prompt_cid) {
+        Ok(()) => {}
+        Err(PromotionGuardError::NoCasStore(_)) => {
+            // Workspace CAS not yet initialized — allow startup for dev ergonomics.
+        }
+        Err(e) => {
+            return prompt_eval_err_exit(
+                "http_status",
+                pe.lang.http_err_msg(&format!("promotion guard: {e}")),
+                2,
+            );
+        }
+    }
+
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

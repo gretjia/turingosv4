@@ -43,6 +43,7 @@ use turingosv4::runtime::artifact_bundle::{
 };
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -251,6 +252,21 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
+
+    // C10 promotion guard: gate LLM startup on a CAS-anchored PromptPromotionReceipt.
+    // Guard is keyed on the canonical system prompt bytes (blackbox_system_prompt()).
+    // NoCasStore means the workspace CAS is not initialized yet (dev / fresh workspace) —
+    // allow that case to preserve ergonomics. All other errors block startup.
+    let system_prompt_cid = sha256_hex_of_prompt(blackbox_system_prompt().as_bytes());
+    match check_promotion_guard(&workspace, &system_prompt_cid) {
+        Ok(()) => {}
+        Err(PromotionGuardError::NoCasStore(_)) => {
+            // Workspace CAS not yet initialized — allow startup for dev ergonomics.
+        }
+        Err(e) => {
+            return Err(GenError::Io(format!("promotion guard: {e}")));
+        }
+    }
 
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
     let llm_res = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2));

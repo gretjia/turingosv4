@@ -220,10 +220,11 @@ fn test_llm_prompt_eval_promote_writes_receipt() {
     let dir = tempfile::TempDir::new().expect("tempdir");
     let ws = dir.path();
 
-    // Init workspace
+    // Init workspace (--force because TempDir::new pre-creates the directory)
     let init = Command::new(bin_path())
         .args(["init", "--project"])
         .arg(ws)
+        .arg("--force")
         .status()
         .expect("run init");
     assert!(init.success(), "init failed");
@@ -285,9 +286,11 @@ fn test_llm_prompt_eval_promote_rejects_missing_eval_set() {
     let dir = tempfile::TempDir::new().expect("tempdir");
     let ws = dir.path();
 
+    // Init workspace (--force because TempDir::new pre-creates the directory)
     let init = Command::new(bin_path())
         .args(["init", "--project"])
         .arg(ws)
+        .arg("--force")
         .status()
         .expect("run init");
     assert!(init.success());
