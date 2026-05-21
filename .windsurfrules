@@ -1,0 +1,27 @@
+# Windsurf cold-start entry (K-HARDEN-8 cross-CLI alignment)
+
+This project uses a cross-agent harness. Windsurf follows the same canonical
+contract as Claude Code, Codex CLI, Gemini CLI, Aider, and Cursor.
+
+## Read order
+1. AGENTS.md (canonical shared agent contract)
+2. HARNESS_PLAYBOOK.md (operating manual)
+3. skills/SUBAGENT_HARNESS.md (subagent template)
+4. constitution.md (axioms)
+
+## Hard rules (enforced by hooks)
+- PR-only: never `git push origin main`. Always feature branch + PR.
+  Server-side GitHub branch protection blocks direct push universally.
+- No wildcard staging: never `git add .` / `-A` / `--all`. Explicit paths only.
+- No sidecar: never stage handover/evidence/dev_self_hosting/dev_*/
+- Restricted surfaces (AGENTS.md §6) need per-atom architect §8.
+
+## Coding style
+- skills/KARPATHY_ARCHITECT.md — first-principles, monolithic-flat
+- skills/KARPATHY_SIMPLE_CODE.md — transparent data flow, no Manager/Factory/Engine
+
+## Setup once per clone
+- bash scripts/install_hooks.sh
+- bash scripts/setup_branch_protection.sh
+
+AGENTS.md is canonical. Conflicts → AGENTS.md wins.

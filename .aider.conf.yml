@@ -1,0 +1,25 @@
+# K-HARDEN-8: Aider config — auto-load shared harness contract on cold start.
+#
+# Aider loads these as read-only context every session, ensuring Aider sees
+# the same canonical harness contract as Claude / Codex / Gemini.
+
+# Auto-load conventions + canonical agent contract.
+# Order matters: AGENTS.md is read first (highest signal), then CONVENTIONS.md
+# adds Aider-specific shape, then HARNESS_PLAYBOOK.md provides operating detail.
+read:
+  - AGENTS.md
+  - CONVENTIONS.md
+  - HARNESS_PLAYBOOK.md
+  - skills/SUBAGENT_HARNESS.md
+
+# Sanity: enable verbose chat history so PRELUDE/POSTLUDE compliance is auditable.
+chat-history-file: .aider.chat.history.md
+
+# Don't auto-commit; we want explicit PR workflow.
+auto-commits: false
+
+# Don't lint with aider's built-in — we have our own constitution gates.
+auto-lint: false
+
+# Test command for sanity checks (run before PR).
+test-cmd: bash scripts/run_constitution_gates.sh

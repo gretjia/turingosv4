@@ -41,22 +41,39 @@ If ChainTape/CAS contradicts constitution gates, stop.
 
 ## 2. Cold Start
 
-For a new non-trivial task, read in this order:
+**THIS file (`AGENTS.md`) is the canonical universal entry for ALL coding
+agent CLIs** — Claude Code, Codex CLI, Gemini CLI, Aider, Cursor, Windsurf,
+GitHub Copilot, Warp, and any future runtime. Each CLI has its own thin
+discovery file (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`, `.cursorrules`,
+`.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
+`.github/copilot-instructions.md`, `WARP.md`) but those files all redirect
+here. If any thin entry file contradicts `AGENTS.md`, **`AGENTS.md` wins**.
 
-1. `CLAUDE.md`
-2. `HARNESS_MANUAL.md`
-3. `constitution.md`
-4. `handover/ai-direct/LATEST.md`
-5. Key Coding Principles: [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md)
-6. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-7. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
-8. Current directives/charters relevant to the task
-9. Source files and tests for the touched surface
+For a new non-trivial task, read in this order regardless of CLI:
 
-Optional Claude memory lives outside the repo at
-`~/.claude/projects/-home-zephryj-projects-turingosv4/memory/MEMORY.md`.
-Use it only as supporting context; do not make repo behavior depend on that path
-existing on another machine.
+1. `AGENTS.md` (this file — canonical agent contract)
+2. `HARNESS_PLAYBOOK.md` (full operating manual — K-HARDEN, lessons L1-L9, K-2.3 drift, etc.)
+3. `HARNESS_MANUAL.md` (legacy bilingual ops howto — supplemental)
+4. `constitution.md` (axiom layer)
+5. `handover/ai-direct/LATEST.md` (current session state — derived view)
+6. Key Coding Principles: [KARPATHY_ARCHITECT.md](skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](skills/KARPATHY_SIMPLE_CODE.md)
+7. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
+8. `handover/alignment/TRACE_FLOWCHART_MATRIX.md`
+9. Current directives/charters relevant to the task
+10. Source files and tests for the touched surface
+
+CLI-specific notes:
+- **Claude Code** additionally reads `CLAUDE.md` (Claude-Code-specific adapter)
+  + optional memory under `~/.claude/projects/.../memory/MEMORY.md` (do not
+  depend on this path existing on other machines)
+- **Codex CLI** reads `AGENTS.md` directly (this file is the canonical entry)
+- **Gemini CLI** reads `GEMINI.md` (thin pointer to this file)
+- **Aider** reads `CONVENTIONS.md` + `.aider.conf.yml` (auto-loads this file)
+- **Cursor** reads `.cursor/rules/000-agents-alignment.mdc` (modern) or
+  `.cursorrules` (legacy fallback)
+- **Windsurf** reads `.windsurfrules`
+- **GitHub Copilot** reads `.github/copilot-instructions.md`
+- **Warp** reads `WARP.md`
 
 Dynamic state belongs in `handover/ai-direct/LATEST.md` and
 `handover/tracer_bullets/TB_LOG.tsv`, not in this file. Do not encode current
