@@ -44,6 +44,7 @@ use turingosv4::runtime::artifact_bundle::{
     write_artifact_bundle, latest_artifact_bundle_cid_for_session,
     ARTIFACT_BUNDLE_SCHEMA_ID
 };
+use turingosv4::runtime::test_run::run_and_write_test_pipeline;
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
 
@@ -511,6 +512,67 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
             let bundle_cid = write_artifact_bundle(&workspace, &manifest)?;
             println!("artifact_bundle_cid={}", bundle_cid);
+
+            // C11 producer: run spec-derived test scenarios against the artifact bundle.
+            // Hidden-oracle: spec_bytes are passed but scenario set CID is NOT returned
+            // (run_and_write_test_pipeline intentionally hides it).
+            let spec_capsule_cid_for_test = spec_capsule_cid.as_deref().unwrap_or("");
+            match run_and_write_test_pipeline(
+                &workspace,
+                spec_md.as_bytes(),
+                spec_capsule_cid_for_test,
+                &bundle_cid,
+                logical_t,
+            ) {
+                Ok((test_run_cid, overall_pass)) => {
+                    eprintln!("test_run_cid={}", test_run_cid);
+                    if !overall_pass {
+                        // Artifacts failed spec-derived test gate — reject as HeuristicFailed.
+                        let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
+                            schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+                            session_id: session_id.clone(),
+                            spec_capsule_cid: spec_capsule_cid.clone(),
+                            generation_attempt_cid: Some(attempt_cid.clone()),
+                            triage_attempted: true,
+                            reject_class: turingosv4::runtime::rejection_capsule::RejectClass::HeuristicFailed,
+                            public_error_summary: "generated artifacts failed spec-derived tests".to_string(),
+                            reason: format!("heuristic_failed:test_run_cid={}", test_run_cid),
+                            private_diagnostic_cid: None,
+                            retryable: true,
+                            world_head_unchanged: true,
+                            logical_t,
+                        };
+                        if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                            eprintln!("rejection_cid={}", rej_cid);
+                        }
+                        return Err(GenError::Io(
+                            "generated artifacts failed spec-derived tests".to_string()
+                        ));
+                    }
+                    // overall_pass=true — proceed to success output below.
+                }
+                Err(e) => {
+                    // Internal pipeline failure (CAS IO / bundle read error) — reject as InternalIo.
+                    let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
+                        schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+                        session_id: session_id.clone(),
+                        spec_capsule_cid: spec_capsule_cid.clone(),
+                        generation_attempt_cid: Some(attempt_cid.clone()),
+                        triage_attempted: true,
+                        reject_class: turingosv4::runtime::rejection_capsule::RejectClass::InternalIo,
+                        public_error_summary: "internal test pipeline error".to_string(),
+                        reason: format!("test_pipeline_error:{}", e),
+                        private_diagnostic_cid: None,
+                        retryable: false,
+                        world_head_unchanged: true,
+                        logical_t,
+                    };
+                    if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                        eprintln!("rejection_cid={}", rej_cid);
+                    }
+                    return Err(GenError::Io(format!("test pipeline error: {}", e)));
+                }
+            }
 
             if emit_transcript {
                 let transcript = serde_json::json!({

@@ -10,6 +10,7 @@ use crate::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody};
 use crate::runtime::generation_attempt::{GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID};
 use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
+use crate::runtime::test_run::{TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
 
 /// TRACE_MATRIX FC2-N16: build status enum of a build session.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -20,6 +21,9 @@ pub enum BuildStatus {
     Generating,
     Generated,
     Rejected,
+    /// C11: artifacts passed spec-derived test scenarios (accepted_delivery=true).
+    /// MUST NOT flow into src/state/sequencer.rs admission (anti-wire invariant).
+    Accepted,
 }
 
 /// TRACE_MATRIX FC2-N16: build session view struct containing all session event CIDs.
@@ -32,6 +36,10 @@ pub struct BuildSessionView {
     pub preview_runs: Vec<String>,
     pub rejection_events: Vec<String>,
     pub current_status: BuildStatus,
+    /// C11: true iff the latest TestRunCapsule for the latest artifact bundle has overall_pass=true.
+    /// Hidden-oracle: test_scenario_set_cid is NOT exposed here — only this bool.
+    #[serde(default)]
+    pub accepted_delivery: bool,
 }
 
 /// TRACE_MATRIX FC2-N16: reconstructs the BuildSessionView from CAS objects.
@@ -49,6 +57,7 @@ pub fn derive_build_session_view(
             preview_runs: Vec::new(),
             rejection_events: Vec::new(),
             current_status: BuildStatus::SpecPending,
+            accepted_delivery: false,
         });
     }
 
@@ -63,6 +72,7 @@ pub fn derive_build_session_view(
                 preview_runs: Vec::new(),
                 rejection_events: Vec::new(),
                 current_status: BuildStatus::SpecPending,
+                accepted_delivery: false,
             });
         }
     };
@@ -77,6 +87,8 @@ pub fn derive_build_session_view(
     let mut artifact_bundles: Vec<(u64, Cid)> = Vec::new();
     let mut preview_runs: Vec<(u64, Cid)> = Vec::new();
     let mut rejection_events: Vec<(u64, Cid)> = Vec::new();
+    // C11: collect TestRunCapsules (keyed by artifact_bundle_cid for post-loop lookup).
+    let mut test_run_capsules: Vec<TestRunCapsule> = Vec::new();
 
     for cid in cids {
         let meta = match store.metadata(&cid) {
@@ -128,6 +140,13 @@ pub fn derive_build_session_view(
                             rejection_events.push((meta.created_at_logical_t, cid));
                         }
                     }
+                }
+            }
+        } else if schema_id == TEST_RUN_CAPSULE_SCHEMA_ID {
+            // C11: collect all TestRunCapsules for cross-referencing with artifact bundles.
+            if let Ok(bytes) = store.get(&cid) {
+                if let Ok(cap) = serde_json::from_slice::<TestRunCapsule>(&bytes) {
+                    test_run_capsules.push(cap);
                 }
             }
         }
@@ -190,6 +209,21 @@ pub fn derive_build_session_view(
         }
     }
 
+    // C11: Determine accepted_delivery from latest TestRunCapsule for the latest bundle.
+    // TestScenarioSet CID is intentionally NOT surfaced (hidden-oracle invariant).
+    let accepted_delivery = if let Some(&(_, ref latest_bundle_cid)) = artifact_bundles.last() {
+        let latest_bundle_cid_hex = latest_bundle_cid.hex();
+        // Find the latest TestRunCapsule for this bundle by logical_t.
+        test_run_capsules
+            .iter()
+            .filter(|cap| cap.artifact_bundle_cid == latest_bundle_cid_hex)
+            .max_by_key(|cap| cap.logical_t)
+            .map(|cap| cap.overall_pass)
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     // Determine current status
     let current_status = if spec_capsule_cid.is_none() {
         BuildStatus::SpecPending
@@ -199,7 +233,7 @@ pub fn derive_build_session_view(
         let latest_rejection_t = rejection_events.last().map(|&(t, _)| t);
         let latest_artifact_t = artifact_bundles.last().map(|&(t, _)| t);
 
-        match (latest_rejection_t, latest_artifact_t) {
+        let base_status = match (latest_rejection_t, latest_artifact_t) {
             (Some(rej_t), Some(art_t)) => {
                 if rej_t >= art_t {
                     BuildStatus::Rejected
@@ -210,6 +244,14 @@ pub fn derive_build_session_view(
             (Some(_), None) => BuildStatus::Rejected,
             (None, Some(_)) => BuildStatus::Generated,
             (None, None) => BuildStatus::Generating,
+        };
+
+        // Promote Generated → Accepted when accepted_delivery=true.
+        // MUST NOT flow into src/state/sequencer.rs (C11 anti-wire invariant).
+        if accepted_delivery && base_status == BuildStatus::Generated {
+            BuildStatus::Accepted
+        } else {
+            base_status
         }
     };
 
@@ -221,5 +263,6 @@ pub fn derive_build_session_view(
         preview_runs: preview_runs_hex,
         rejection_events: rejection_events_hex,
         current_status,
+        accepted_delivery,
     })
 }
