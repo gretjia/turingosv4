@@ -10,8 +10,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome, GenerateRejectionCapsule, RejectClass,
-    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
+    GenerationAttemptCapsule, AttemptOutcome,
+    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
+use turingosv4::runtime::rejection_capsule::{
+    GenerateRejectionCapsule, RejectClass,
+    GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::artifact_bundle::{
     ArtifactBundleManifest, ArtifactFileEntry, ArtifactFileRole, ARTIFACT_BUNDLE_SCHEMA_ID,
