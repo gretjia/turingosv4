@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
 # CO1.13.2 + K-HARDEN-7 — install tracked git hooks.
 #
-# Idempotent: removes existing .git/hooks/pre-commit + pre-push if present
-# (warns on non-symlink so user can rescue local content); creates symlinks
+# Idempotent: removes existing .git/hooks/pre-commit + commit-msg + pre-push
+# if present (warns on non-symlink so user can rescue local content); creates
+# symlinks
 #   .git/hooks/pre-commit -> ../../scripts/hooks/pre-commit.r022
+#   .git/hooks/commit-msg -> ../../scripts/hooks/commit-msg.r022
 #   .git/hooks/pre-push   -> ../../scripts/hooks/pre-push.harden
 #
 # Run as part of dev-setup. CI does NOT run this; CI uses
 # `scripts/check_trace_matrix.py --mode ci` directly via
 # .github/workflows/co1_13_r022_ci.yml.
+#
+# R022_HOOK_FIX_2026-05-22: R-022 trace-matrix backlink check moved from
+# pre-commit to commit-msg because pre-commit cannot read the in-flight
+# commit message for `git commit -m` / `-F` (git writes COMMIT_EDITMSG only
+# after pre-commit succeeds). pre-commit.r022 now does only the K-HARDEN-2
+# sidecar contamination block.
 #
 # K-HARDEN-7 (2026-05-20) addition: pre-push hook blocks direct push to main
 # universally (any agent runtime — Claude / Codex / Gemini / human). Closes
@@ -41,8 +49,12 @@ install_hook() {
 
 mkdir -p "$HOOK_DIR"
 
-# CO1.13.2 — R-022 pre-commit shim
+# CO1.13.2 — K-HARDEN-2 sidecar contamination block
 install_hook "pre-commit" "../../scripts/hooks/pre-commit.r022"
+
+# CO1.13.2 — R-022 trace-matrix backlink check (commit-msg phase so the
+# in-flight commit message is reachable via $1 for `git commit -m` / `-F`)
+install_hook "commit-msg" "../../scripts/hooks/commit-msg.r022"
 
 # K-HARDEN-7 — universal pre-push (any-agent block on push-to-main)
 install_hook "pre-push" "../../scripts/hooks/pre-push.harden"
