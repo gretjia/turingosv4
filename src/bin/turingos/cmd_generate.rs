@@ -197,7 +197,8 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     };
 
     let model_id = cmd_llm::read_blackbox_model(&workspace);
-    let api_key_env = cmd_llm::read_api_key_env_var(&workspace);
+    let api_key_env = cmd_llm::read_blackbox_api_key_env(&workspace)
+        .map_err(|e| GenError::Io(e.to_string()))?;
     let api_key = require_api_key(&api_key_env)?;
 
     let messages = vec![
