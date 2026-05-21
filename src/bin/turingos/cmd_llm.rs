@@ -29,6 +29,7 @@ use sha2::{Digest, Sha256};
 
 use crate::common::shell_quote_path;
 use crate::siliconflow_client::{DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
+use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
 
 /// TRACE_MATRIX FC2-N16: `llm` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -198,6 +199,14 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     // M8-class non-local regressions where fixing register tolerance breaks
     // gibberish detection.
     if args.first().map(String::as_str) == Some("prompt-eval") {
+        // C10: if --from and --to and --eval-set are ALL present, this is a
+        // promotion receipt write (not a live fixture eval). Dispatch separately.
+        let is_promote = args.iter().any(|a| a == "--from")
+            && args.iter().any(|a| a == "--to")
+            && args.iter().any(|a| a == "--eval-set");
+        if is_promote {
+            return run_prompt_promote(&args[1..]);
+        }
         return run_prompt_eval(&args[1..]);
     }
     match run_inner(args) {
@@ -1175,6 +1184,24 @@ fn run_triage(args: &[String]) -> ExitCode {
         }
     };
 
+    // C10 promotion guard: gate LLM startup on a CAS-anchored PromptPromotionReceipt.
+    // Keyed on the canonical triage system prompt loaded from the asset file.
+    // NoCasStore (uninitialized workspace) is allowed for dev ergonomics.
+    let triage_prompt_cid = sha256_hex_of_prompt(system_prompt_text.as_bytes());
+    match check_promotion_guard(&ta.workspace, &triage_prompt_cid) {
+        Ok(()) => {}
+        Err(PromotionGuardError::NoCasStore(_)) => {
+            // Workspace CAS not yet initialized — allow startup for dev ergonomics.
+        }
+        Err(e) => {
+            return complete_err_exit(
+                "http_status",
+                ta.lang.http_err_msg(&format!("promotion guard: {e}")),
+                2,
+            );
+        }
+    }
+
     // ── 7. LLM call (max_tokens=50, temperature=0.0) ────────────────────────
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1706,6 +1733,25 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
             return prompt_eval_err_exit("http_status", pe.lang.http_err_msg(&e.to_string()), 2);
         }
     };
+
+    // C10 promotion guard: gate LLM startup on a CAS-anchored PromptPromotionReceipt.
+    // Keyed on the candidate system prompt bytes.
+    // NoCasStore (uninitialized workspace) is allowed for dev ergonomics.
+    let candidate_prompt_cid = sha256_hex_of_prompt(candidate_system_text.as_bytes());
+    match check_promotion_guard(&pe.workspace, &candidate_prompt_cid) {
+        Ok(()) => {}
+        Err(PromotionGuardError::NoCasStore(_)) => {
+            // Workspace CAS not yet initialized — allow startup for dev ergonomics.
+        }
+        Err(e) => {
+            return prompt_eval_err_exit(
+                "http_status",
+                pe.lang.http_err_msg(&format!("promotion guard: {e}")),
+                2,
+            );
+        }
+    }
+
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -2156,5 +2202,145 @@ fn strip_json_fence(s: &str) -> String {
         body[..close].trim().to_string()
     } else {
         body.trim().to_string()
+    }
+}
+
+// ─── C10: `turingos llm prompt-eval --from <v1> --to <v2> --eval-set <cid>` ──
+//
+// Writes a PromptPromotionReceipt to CAS when the operator certifies that
+// `--to` was evaluated against `--eval-set` and the decision is Promote.
+//
+// This subpath does NOT call any LLM — it records a human/operator assertion.
+// For a live fixture-based eval, use the existing `prompt-eval --fixture` path.
+//
+// FC-trace: FC3 (eval evidence binding)
+// Risk class: Class 3
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC3 C10: `prompt-eval --from --to --eval-set` promotion receipt writer.
+fn run_prompt_promote(args: &[String]) -> ExitCode {
+    let mut workspace: Option<std::path::PathBuf> = None;
+    let mut from_prompt_path: Option<std::path::PathBuf> = None;
+    let mut to_prompt_path: Option<std::path::PathBuf> = None;
+    let mut eval_set_cid: Option<String> = None;
+    let mut eval_before_cid: Option<String> = None;
+    let mut eval_after_cid: Option<String> = None;
+    let mut decision = turingosv4::runtime::prompt_promotion::PromotionDecision::Promote;
+
+    let mut iter = args.iter();
+    while let Some(a) = iter.next() {
+        match a.as_str() {
+            "--workspace" => {
+                workspace = iter.next().map(|s| std::path::PathBuf::from(s));
+            }
+            "--from" => {
+                from_prompt_path = iter.next().map(|s| std::path::PathBuf::from(s));
+            }
+            "--to" => {
+                to_prompt_path = iter.next().map(|s| std::path::PathBuf::from(s));
+            }
+            "--eval-set" => {
+                eval_set_cid = iter.next().cloned();
+            }
+            "--eval-before-cid" => {
+                eval_before_cid = iter.next().cloned();
+            }
+            "--eval-after-cid" => {
+                eval_after_cid = iter.next().cloned();
+            }
+            "--reject" => {
+                decision = turingosv4::runtime::prompt_promotion::PromotionDecision::Reject;
+            }
+            _ => {}
+        }
+    }
+
+    let workspace = match workspace {
+        Some(p) => p,
+        None => {
+            eprintln!("turingos llm prompt-eval: --workspace required");
+            return ExitCode::from(5);
+        }
+    };
+    let from_path = match from_prompt_path {
+        Some(p) => p,
+        None => {
+            eprintln!("turingos llm prompt-eval: --from required");
+            return ExitCode::from(5);
+        }
+    };
+    let to_path = match to_prompt_path {
+        Some(p) => p,
+        None => {
+            eprintln!("turingos llm prompt-eval: --to required");
+            return ExitCode::from(5);
+        }
+    };
+    let eval_set = match eval_set_cid {
+        Some(s) if !s.is_empty() => s,
+        _ => {
+            eprintln!("turingos llm prompt-eval: --eval-set <cid> required and must be non-empty");
+            return ExitCode::from(5);
+        }
+    };
+
+    let from_bytes = match std::fs::read(&from_path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("turingos llm prompt-eval: cannot read --from {:?}: {e}", from_path);
+            return ExitCode::from(4);
+        }
+    };
+    let to_bytes = match std::fs::read(&to_path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("turingos llm prompt-eval: cannot read --to {:?}: {e}", to_path);
+            return ExitCode::from(4);
+        }
+    };
+
+    use turingosv4::runtime::prompt_promotion::{
+        sha256_hex_of_prompt, write_promotion_receipt, PromptPromotionReceipt,
+        PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
+    };
+
+    let from_cid = sha256_hex_of_prompt(&from_bytes);
+    let to_cid = sha256_hex_of_prompt(&to_bytes);
+
+    let logical_t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(1000);
+
+    let receipt = PromptPromotionReceipt {
+        schema_id: PROMPT_PROMOTION_RECEIPT_SCHEMA_ID.to_string(),
+        from_prompt_cid: from_cid.clone(),
+        to_prompt_cid: to_cid.clone(),
+        eval_set_cid: eval_set,
+        eval_before_cid: eval_before_cid.unwrap_or_else(|| from_cid.clone()),
+        eval_after_cid: eval_after_cid.unwrap_or_else(|| to_cid.clone()),
+        promotion_decision: decision,
+        logical_t,
+    };
+
+    match write_promotion_receipt(&workspace, &receipt, logical_t) {
+        Ok(receipt_cid) => {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "ok": true,
+                    "receipt_cid": receipt_cid,
+                    "from_prompt_cid": receipt.from_prompt_cid,
+                    "to_prompt_cid": receipt.to_prompt_cid,
+                    "eval_set_cid": receipt.eval_set_cid,
+                    "promotion_decision": format!("{:?}", receipt.promotion_decision).to_lowercase(),
+                })
+            );
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("turingos llm prompt-eval: failed to write receipt: {e}");
+            ExitCode::from(2)
+        }
     }
 }
