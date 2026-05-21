@@ -30,6 +30,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::cmd_llm;
 use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use turingosv4::runtime::spec_capsule;
+use sha2::{Digest, Sha256};
+use turingosv4::runtime::generation_attempt::{
+    GenerationAttemptCapsule, AttemptOutcome, write_generation_attempt_capsule,
+    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
+use turingosv4::runtime::rejection_capsule::{
+    GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
+    GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
+};
+use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::bottom_white::cas::store::CasStore;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -150,7 +161,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         return Err(GenError::WorkspaceNotFound(workspace.display().to_string()));
     }
 
-    let (spec_md, source) = if from_capsule {
+    let (spec_md, source, spec_capsule_cid) = if from_capsule {
         let cid_hex = spec_capsule::latest_spec_capsule_cid(&workspace)?.ok_or_else(|| {
             GenError::NoSpec(format!("no spec capsule in {}/cas", workspace.display()))
         })?;
@@ -159,16 +170,25 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             String::from_utf8(bytes)
                 .map_err(|e| GenError::Io(format!("CAS capsule is not UTF-8: {e}")))?,
             format!("CAS capsule {cid_hex}"),
+            Some(cid_hex),
         )
     } else {
         let p = workspace.join("spec.md");
         if !p.exists() {
             return Err(GenError::NoSpec(p.display().to_string()));
         }
+        let latest_cid = spec_capsule::latest_spec_capsule_cid(&workspace).ok().flatten();
         (
             fs::read_to_string(&p).map_err(|e| GenError::Io(e.to_string()))?,
             p.display().to_string(),
+            latest_cid,
         )
+    };
+
+    let spec_source = if from_capsule {
+        "cas_capsule".to_string()
+    } else {
+        "ondisk_spec_md".to_string()
     };
 
     let model_id = cmd_llm::read_blackbox_model(&workspace);
@@ -181,90 +201,269 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             "Below is the spec. Generate the working code per the rules.\n\nspec source: {source}\n\n{spec_md}"
         )),
     ];
-    eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let result = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2))?;
-    eprintln!(
-        "[generate] LLM returned {} chars, {} tokens",
-        result.content.len(),
-        result.usage.total_tokens
+
+    let canonical_prompt = format!(
+        "system: {}\nuser: Below is the spec. Generate the working code per the rules.\n\nspec source: {}\n\n{}",
+        blackbox_system_prompt(),
+        source,
+        spec_md
     );
+    let mut hasher = Sha256::new();
+    hasher.update(canonical_prompt.as_bytes());
+    let prompt_hash = format!("{:x}", hasher.finalize());
 
-    let files = parse_emitted_files(&result.content);
-    if files.is_empty() {
-        // Save the raw response so the user can debug
-        let raw_path = workspace.join("generate_raw_response.txt");
-        let _ = fs::write(&raw_path, &result.content);
-        eprintln!("[generate] raw response saved to {}", raw_path.display());
-        return Err(GenError::NoFilesParsed);
-    }
-    if files.len() > max_files {
-        return Err(GenError::TooManyFiles {
-            found: files.len(),
-            max: max_files,
-        });
-    }
+    let session_id = if workspace.parent().map(|p| p.file_name().map(|n| n == "sessions").unwrap_or(false)).unwrap_or(false) {
+        workspace.file_name().and_then(|n| n.to_str()).unwrap_or("default").to_string()
+    } else {
+        "default".to_string()
+    };
 
-    let artifacts_dir = workspace.join("artifacts");
-    fs::create_dir_all(&artifacts_dir)
-        .map_err(|e| GenError::Io(format!("create artifacts dir: {e}")))?;
+    let cas_dir = workspace.join("cas");
+    let mut retry_index = 0u32;
+    let mut parent_attempt_cid: Option<String> = None;
 
-    let mut written = Vec::new();
-    for f in &files {
-        let safe_rel = sanitize_relative_path(&f.path).map_err(GenError::Io)?;
-        let full = artifacts_dir.join(&safe_rel);
-        if let Some(parent) = full.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| GenError::Io(format!("create dir {}: {e}", parent.display())))?;
+    if let Ok(store) = CasStore::open(&cas_dir) {
+        let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
+        let mut attempts = Vec::new();
+        for cid in cids {
+            if let Some(meta) = store.metadata(&cid) {
+                if meta.schema_id.as_deref() == Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID) {
+                    if let Ok(bytes) = store.get(&cid) {
+                        if let Ok(capsule) = serde_json::from_slice::<GenerationAttemptCapsule>(&bytes) {
+                            if capsule.session_id == session_id {
+                                attempts.push((capsule.logical_t, cid.hex(), capsule.retry_index));
+                            }
+                        }
+                    }
+                }
+            }
         }
-        fs::write(&full, &f.content)
-            .map_err(|e| GenError::Io(format!("write {}: {e}", full.display())))?;
-        written.push(safe_rel);
+        attempts.sort_by_key(|x| x.0);
+        if let Some(last) = attempts.last() {
+            retry_index = last.2 + 1;
+            parent_attempt_cid = Some(last.1.clone());
+        }
     }
 
-    if emit_transcript {
-        let logical_t = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        let transcript = serde_json::json!({
-            "logical_t": logical_t,
-            "model": model_id,
-            "spec_source": source,
-            "usage_total_tokens": result.usage.total_tokens,
-            "files_written": written.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
-            "raw_response": result.content,
-        });
-        let path = workspace.join("generate_transcript.jsonl");
-        let mut out = transcript.to_string();
-        out.push('\n');
-        fs::write(&path, out).map_err(|e| GenError::Io(format!("transcript: {e}")))?;
+    let logical_t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    eprintln!("[generate] calling Blackbox LLM ({model_id})...");
+    let llm_res = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2));
+
+    let (outcome, raw_output_cid, usage_total_tokens, parsed_file_count, files_to_write, run_result): (
+        AttemptOutcome,
+        Option<String>,
+        Option<u32>,
+        usize,
+        Option<(Vec<PathBuf>, String)>,
+        Result<(), GenError>
+    ) = match llm_res {
+        Err(e) => {
+            (AttemptOutcome::LlmApiError, None, None, 0, None, Err(GenError::Llm(e)))
+        }
+        Ok(result) => {
+            let raw_cid = match CasStore::open(&cas_dir) {
+                Ok(mut store) => {
+                    match store.put(
+                        result.content.as_bytes(),
+                        ObjectType::EvidenceCapsule,
+                        "generate_system",
+                        logical_t,
+                        None,
+                    ) {
+                        Ok(cid) => Some(cid.hex()),
+                        Err(_) => None,
+                    }
+                }
+                Err(_) => None,
+            };
+
+            let files = parse_emitted_files(&result.content);
+            if files.is_empty() {
+                let raw_path = workspace.join("generate_raw_response.txt");
+                let _ = fs::write(&raw_path, &result.content);
+                eprintln!("[generate] raw response saved to {}", raw_path.display());
+
+                (AttemptOutcome::NoFilesParsed, raw_cid, Some(result.usage.total_tokens as u32), 0, None, Err(GenError::NoFilesParsed))
+            } else if files.len() > max_files {
+                (AttemptOutcome::ParseFailed, raw_cid, Some(result.usage.total_tokens as u32), files.len(), None, Err(GenError::TooManyFiles {
+                    found: files.len(),
+                    max: max_files,
+                }))
+            } else {
+                let artifacts_dir = workspace.join("artifacts");
+                let mut write_err = None;
+                let mut written = Vec::new();
+                if let Err(e) = fs::create_dir_all(&artifacts_dir) {
+                    write_err = Some(GenError::Io(format!("create artifacts dir: {e}")));
+                } else {
+                    for f in &files {
+                        match sanitize_relative_path(&f.path) {
+                            Ok(safe_rel) => {
+                                let full = artifacts_dir.join(&safe_rel);
+                                if let Some(parent) = full.parent() {
+                                    if let Err(e) = fs::create_dir_all(parent) {
+                                        write_err = Some(GenError::Io(format!("create dir {}: {e}", parent.display())));
+                                        break;
+                                    }
+                                }
+                                if let Err(e) = fs::write(&full, &f.content) {
+                                    write_err = Some(GenError::Io(format!("write {}: {e}", full.display())));
+                                    break;
+                                }
+                                written.push(safe_rel);
+                            }
+                            Err(e) => {
+                                write_err = Some(GenError::Io(e));
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(err) = write_err {
+                    (AttemptOutcome::InternalIo, raw_cid, Some(result.usage.total_tokens as u32), files.len(), None, Err(err))
+                } else {
+                    (AttemptOutcome::Success, raw_cid, Some(result.usage.total_tokens as u32), files.len(), Some((written, result.content)), Ok(()))
+                }
+            }
+        }
+    };
+
+    let capsule = GenerationAttemptCapsule {
+        schema_id: GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string(),
+        session_id,
+        spec_capsule_cid: spec_capsule_cid.clone(),
+        spec_source,
+        model_id,
+        model_seed: None,
+        prompt_hash,
+        raw_output_cid: raw_output_cid.clone(),
+        usage_total_tokens,
+        retry_index,
+        parent_attempt_cid,
+        outcome,
+        parsed_file_count,
+        logical_t,
+    };
+
+    let attempt_cid_res = write_generation_attempt_capsule(&workspace, &capsule);
+
+    let attempt_cid = match attempt_cid_res {
+        Ok(cid) => cid,
+        Err(e) => {
+            let public_summary = "CAS write error during generation attempt capsule recording".to_string();
+            let reason = "generation_attempt_capsule_write_failed".to_string();
+            let rej = GenerateRejectionCapsule {
+                schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+                session_id: capsule.session_id.clone(),
+                spec_capsule_cid: capsule.spec_capsule_cid.clone(),
+                generation_attempt_cid: None,
+                triage_attempted: true,
+                reject_class: RejectClass::InternalIo,
+                public_error_summary: public_summary,
+                reason,
+                private_diagnostic_cid: raw_output_cid,
+                retryable: true,
+                world_head_unchanged: true,
+                logical_t,
+            };
+            if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
+                eprintln!("rejection_cid={}", rej_cid);
+            }
+            return Err(GenError::Capsule(e));
+        }
+    };
+
+    eprintln!("generation_attempt_cid={}", attempt_cid);
+
+    if outcome != AttemptOutcome::Success {
+        let reject_class = match outcome {
+            AttemptOutcome::ParseFailed => RejectClass::TooManyFiles,
+            AttemptOutcome::LlmApiError => RejectClass::LlmApiError,
+            AttemptOutcome::NoFilesParsed => RejectClass::NoFilesParsed,
+            AttemptOutcome::InternalIo => RejectClass::InternalIo,
+            AttemptOutcome::Success => unreachable!(),
+        };
+        let public_summary = match &run_result {
+            Err(e) => e.to_string(),
+            Ok(_) => "Unknown generate failure".to_string(),
+        };
+        let reason = match outcome {
+            AttemptOutcome::ParseFailed => "parse_failed",
+            AttemptOutcome::LlmApiError => "llm_api_error",
+            AttemptOutcome::NoFilesParsed => "no_files_parsed",
+            AttemptOutcome::InternalIo => "internal_io",
+            AttemptOutcome::Success => unreachable!(),
+        }.to_string();
+
+        let rej = GenerateRejectionCapsule {
+            schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+            session_id: capsule.session_id.clone(),
+            spec_capsule_cid: capsule.spec_capsule_cid.clone(),
+            generation_attempt_cid: Some(attempt_cid),
+            triage_attempted: true,
+            reject_class,
+            public_error_summary: public_summary,
+            reason,
+            private_diagnostic_cid: raw_output_cid,
+            retryable: outcome != AttemptOutcome::InternalIo,
+            world_head_unchanged: true,
+            logical_t,
+        };
+        if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
+            eprintln!("rejection_cid={}", rej_cid);
+        }
     }
 
-    println!();
-    println!(
-        "Generated {} file(s) under {}/",
-        written.len(),
-        artifacts_dir.display()
-    );
-    for p in &written {
-        println!("  {}", p.display());
+    if run_result.is_ok() {
+        if let Some((written, content)) = files_to_write {
+            if emit_transcript {
+                let transcript = serde_json::json!({
+                    "logical_t": logical_t,
+                    "model": capsule.model_id,
+                    "spec_source": capsule.spec_source,
+                    "usage_total_tokens": capsule.usage_total_tokens,
+                    "files_written": written.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+                    "raw_response": content,
+                });
+                let path = workspace.join("generate_transcript.jsonl");
+                let mut out = transcript.to_string();
+                out.push('\n');
+                let _ = fs::write(&path, out);
+            }
+
+            println!();
+            println!(
+                "Generated {} file(s) under {}/",
+                written.len(),
+                workspace.join("artifacts").display()
+            );
+            for p in &written {
+                println!("  {}", p.display());
+            }
+            println!();
+            println!("Open the entry file in your browser or run the entry script:");
+            if let Some(html) = written
+                .iter()
+                .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
+            {
+                println!("  xdg-open {}/{}", workspace.join("artifacts").display(), html.display());
+            } else if let Some(py) = written
+                .iter()
+                .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
+            {
+                println!("  python3 {}/{}", workspace.join("artifacts").display(), py.display());
+            } else if let Some(first) = written.first() {
+                println!("  {}/{}", workspace.join("artifacts").display(), first.display());
+            }
+        }
     }
-    println!();
-    println!("Open the entry file in your browser or run the entry script:");
-    if let Some(html) = written
-        .iter()
-        .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
-    {
-        println!("  xdg-open {}/{}", artifacts_dir.display(), html.display());
-    } else if let Some(py) = written
-        .iter()
-        .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
-    {
-        println!("  python3 {}/{}", artifacts_dir.display(), py.display());
-    } else if let Some(first) = written.first() {
-        println!("  {}/{}", artifacts_dir.display(), first.display());
-    }
-    Ok(())
+
+    run_result
 }
 
 fn blackbox_system_prompt() -> &'static str {
