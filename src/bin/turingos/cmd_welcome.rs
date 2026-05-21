@@ -7,6 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use crate::cmd_llm;
 use crate::common::shell_quote_path;
 use turingosv4::runtime::spec_capsule;
 
@@ -158,6 +159,13 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
         None
     };
 
+    // When init + llm config are done but spec is not yet done, warn if any
+    // configured env var is missing from the current shell environment.
+    if s.init_done && s.llm_configured && !s.spec_done {
+        check_env_var_set(ws, "meta");
+        check_env_var_set(ws, "blackbox");
+    }
+
     match next {
         Some(cmd) => {
             println!("Next step:");
@@ -166,6 +174,37 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
         None => {
             println!("All onboarding steps complete. View deliverables at:");
             println!("  {}/artifacts/", ws_q);
+        }
+    }
+}
+
+/// Check whether the configured api_key_env for `role` ("meta" or "blackbox")
+/// is present in the shell. Prints an actionable warning if the slot is not
+/// configured in turingos.toml OR the env var itself is unset/empty.
+/// Never prints the actual key value.
+fn check_env_var_set(ws: &Path, role: &str) {
+    let read_result = if role == "meta" {
+        cmd_llm::read_meta_api_key_env(ws)
+    } else {
+        cmd_llm::read_blackbox_api_key_env(ws)
+    };
+
+    match read_result {
+        Err(_) => {
+            println!(
+                "  \u{26a0} Role={role}: api_key_env slot is not configured in turingos.toml."
+            );
+            println!("    Run: turingos llm config --workspace <PATH> --{role}-api-key-env <ENV_VAR_NAME>");
+        }
+        Ok(name) => {
+            let val = std::env::var(&name).unwrap_or_default();
+            if val.is_empty() {
+                println!(
+                    "  \u{26a0} Environment variable ${name} (configured for role={role}) is not set."
+                );
+                println!("    Set it in your shell before running `turingos spec`:");
+                println!("        export {name}=\"sk-...\"");
+            }
         }
     }
 }

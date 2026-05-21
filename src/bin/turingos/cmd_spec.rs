@@ -306,7 +306,22 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
         let synth = synthesise_spec_md_no_llm(lang, &questions, &answers);
         (synth, 0u64)
     } else {
-        let api_key = require_api_key(&api_key_env)?;
+        let api_key = match require_api_key(&api_key_env) {
+            Ok(k) => k,
+            Err(_) => {
+                eprintln!(
+                    "error: Meta role API key env var \"${api_key_env}\" is not set in your shell."
+                );
+                eprintln!("       Run: export {api_key_env}=\"sk-...\"");
+                eprintln!(
+                    "       Then retry: turingos spec --workspace {}",
+                    workspace.display()
+                );
+                return Err(SpecError::Llm(LlmError::MissingApiKey {
+                    env_var: api_key_env.clone(),
+                }));
+            }
+        };
         let synth_user_msg = build_synthesis_user_message(lang, &questions, &answers);
         let messages = vec![
             ChatMessage::system(system_prompt(lang)),

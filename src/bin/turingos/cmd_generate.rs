@@ -199,7 +199,22 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let model_id = cmd_llm::read_blackbox_model(&workspace);
     let api_key_env = cmd_llm::read_blackbox_api_key_env(&workspace)
         .map_err(|e| GenError::Io(e.to_string()))?;
-    let api_key = require_api_key(&api_key_env)?;
+    let api_key = match require_api_key(&api_key_env) {
+        Ok(k) => k,
+        Err(_) => {
+            eprintln!(
+                "error: Blackbox role API key env var \"${api_key_env}\" is not set in your shell."
+            );
+            eprintln!("       Run: export {api_key_env}=\"sk-...\"");
+            eprintln!(
+                "       Then retry: turingos generate --workspace {}",
+                workspace.display()
+            );
+            return Err(GenError::Llm(LlmError::MissingApiKey {
+                env_var: api_key_env.clone(),
+            }));
+        }
+    };
 
     let messages = vec![
         ChatMessage::system(blackbox_system_prompt()),
