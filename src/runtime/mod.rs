@@ -344,6 +344,9 @@ pub mod generation_attempt;
 /// TRACE_MATRIX FC1 + FC3-N4: Phase C8 L4.E rejection capsule schema and writer.
 pub mod rejection_capsule;
 
+/// TRACE_MATRIX FC1 + FC3-N4: Phase C3 ArtifactBundleManifest CAS wire.
+pub mod artifact_bundle;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

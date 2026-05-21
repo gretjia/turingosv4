@@ -33,21 +33,16 @@ use turingosv4::runtime::spec_capsule;
 use sha2::{Digest, Sha256};
 use turingosv4::runtime::generation_attempt::{
     GenerationAttemptCapsule, AttemptOutcome, write_generation_attempt_capsule,
-<<<<<<< HEAD
     GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::rejection_capsule::{
     GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
     GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
-=======
-    GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
-    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID, GENERATE_REJECTION_CAPSULE_SCHEMA_ID
 };
 use turingosv4::runtime::artifact_bundle::{
     ArtifactFileRole, ArtifactFileEntry, ArtifactBundleManifest,
     write_artifact_bundle, latest_artifact_bundle_cid_for_session,
     ARTIFACT_BUNDLE_SCHEMA_ID
->>>>>>> origin/charter-cak-c3
 };
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
@@ -345,11 +340,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
     let capsule = GenerationAttemptCapsule {
         schema_id: GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string(),
-<<<<<<< HEAD
-        session_id,
-=======
         session_id: session_id.clone(),
->>>>>>> origin/charter-cak-c3
         spec_capsule_cid: spec_capsule_cid.clone(),
         spec_source,
         model_id,
@@ -418,11 +409,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
             session_id: capsule.session_id.clone(),
             spec_capsule_cid: capsule.spec_capsule_cid.clone(),
-<<<<<<< HEAD
-            generation_attempt_cid: Some(attempt_cid),
-=======
             generation_attempt_cid: Some(attempt_cid.clone()),
->>>>>>> origin/charter-cak-c3
             triage_attempted: true,
             reject_class,
             public_error_summary: public_summary,
@@ -439,8 +426,6 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
     if run_result.is_ok() {
         if let Some((written, content)) = files_to_write {
-<<<<<<< HEAD
-=======
             let files = parse_emitted_files(&content);
 
             // Put each generated file into CAS and construct ArtifactFileEntry list
@@ -510,7 +495,6 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             let bundle_cid = write_artifact_bundle(&workspace, &manifest)?;
             println!("artifact_bundle_cid={}", bundle_cid);
 
->>>>>>> origin/charter-cak-c3
             if emit_transcript {
                 let transcript = serde_json::json!({
                     "logical_t": logical_t,
