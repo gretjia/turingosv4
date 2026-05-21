@@ -125,6 +125,39 @@ No tape, no test. Stdout, human-readable dashboards, private counters, LLM
 self-reports, final proof text, unanchored JSON, memory-only preseed, or global
 latest pointers are not sufficient evidence.
 
+### 4.1 Pre-charter parallel-write check (lightweight, universal)
+
+Before drafting any charter that will touch `src/` or `scripts/`, check for
+in-flight PRs that claim overlapping paths. This is a 2-second lookup, not a
+new mechanism — there is no central lock, no state file, no scheduler. Intent:
+prevent the orchestrator and a parallel implementer (Codex/Gemini/another
+Claude session) from doing duplicate or colliding work on mainline.
+
+Canonical command (works wherever the GitHub CLI runs — Linux/macOS/Windows):
+
+```bash
+gh pr list --state open --json number,headRefName,title,files \
+  --jq '.[] | {n:.number, br:.headRefName, t:.title, f:[.files[].path]}'
+```
+
+Equivalent fallbacks (use whichever your runtime exposes):
+
+- Claude Code (web/remote env without `gh`): GitHub MCP `list_pull_requests` +
+  `pull_request_read` for the `files` view.
+- Codex CLI / Gemini CLI / Aider / Cursor / human shell: `gh pr list ...` above.
+- No network: `git fetch origin && git for-each-ref --format='%(refname)' refs/remotes/origin/ | grep -v main` to enumerate active feature branches.
+
+Decision rule (no new tooling, no charter field):
+
+- No overlap with planned paths → proceed.
+- Overlap → either wait for the in-flight PR to merge, narrow the charter to
+  non-overlapping paths, or coordinate explicitly with the other writer (note
+  it in the charter §3 "Predecessor / dependency" block).
+
+Do not build a path-lock file, a charter overlap database, or a dispatcher.
+Collisions are rare and recoverable (`git rebase`, re-run the atom). The check
+exists so we don't dispatch a parallel branch we already know will conflict.
+
 ## 5. Risk Classes
 
 Use the project risk model before editing:

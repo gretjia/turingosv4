@@ -68,6 +68,9 @@ If this equality fails: HALT; do not continue benchmark; do not audit as pass.
 
 Before drafting TB charter / dispatching G1 audit: `/constitution-landing-check`
 
+Before drafting a charter that will touch `src/` or `scripts/`: check in-flight
+PRs for path overlap (see `AGENTS.md §4.1`). One-liner, no new mechanism.
+
 Before runner script that mutates handover/evidence/: `/runner-preflight`
 
 Before writing new feedback_*.md: ask "what mechanism enforces this?"
