@@ -229,17 +229,47 @@ fixes don't get rewritten.
 
 ### III.10 K-HARDEN atom catalog
 
-The 7 K-HARDEN atoms (all merged to main) are the codified mechanical defenses:
+The 8 K-HARDEN atoms (all merged to main) are the codified mechanical defenses:
 
 | Atom | PR | Touches | Fixes |
 |------|----|---------|-------|
 | **K-HARDEN-1** | #34 | `.claude/hooks/create_worktree.sh` + `.gitignore` + `.claude/settings.json` | L5 (worktree isolation) |
 | **K-HARDEN-2** | #35 | `.claude/hooks/validate_git_add.sh` + extended `scripts/hooks/pre-commit.r022` | L8 (wildcard staging) |
 | **K-HARDEN-3** | #36 | `skills/SUBAGENT_HARNESS.md` + `scripts/dispatch_subagent.sh` | L7 (report verification) |
-| **K-HARDEN-4** | #37 | `tests/constitution_subagent_pr_hygiene.rs` (now 16 tests) | meta-safety |
+| **K-HARDEN-4** | #37 | `tests/constitution_subagent_pr_hygiene.rs` (now 20 tests) | meta-safety |
 | **K-HARDEN-5** | #38 | `.github/workflows/validate-agent-pr.yml` | server-side PR diff scan |
 | **K-HARDEN-6** | #39 | `.claude/hooks/validate_git_push.sh` | L9 Claude layer |
 | **K-HARDEN-7** | #40 | `scripts/hooks/pre-push.harden` + `scripts/setup_branch_protection.sh` + GitHub API config + AGENTS.md §14a | **L9 universal cross-agent** |
+| **K-HARDEN-8** | tbd | 8 CLI cold-start entry files (`GEMINI.md`, `CONVENTIONS.md`, `.aider.conf.yml`, `.cursorrules`, `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`, `.github/copilot-instructions.md`, `WARP.md`) + AGENTS.md §2 rewrite | **cross-CLI cold-start alignment** |
+
+### III.10a Cross-CLI cold-start matrix (K-HARDEN-8)
+
+Each CLI has its own discovery convention. K-HARDEN-8 lifts every CLI to read
+the same canonical `AGENTS.md` regardless of entry point. **`AGENTS.md` is
+the only canonical source; all other entry files are thin pointers that
+defer to it.**
+
+| CLI | Cold-start file | Format | K-HARDEN-8 file |
+|-----|----------------|--------|-----------------|
+| Claude Code | `CLAUDE.md` | Markdown w/ `@AGENTS.md` import | already exists |
+| Codex CLI (OpenAI) | `AGENTS.md` | Markdown (canonical) | already exists ✓ |
+| Gemini CLI (Google) | `GEMINI.md` | Markdown, hierarchical | `GEMINI.md` |
+| Aider | `CONVENTIONS.md` + `.aider.conf.yml` | Markdown + YAML auto-load | `CONVENTIONS.md` + `.aider.conf.yml` |
+| Cursor (modern) | `.cursor/rules/*.mdc` | MDC w/ frontmatter | `.cursor/rules/000-agents-alignment.mdc` |
+| Cursor (legacy) | `.cursorrules` | plain text | `.cursorrules` (fallback) |
+| Windsurf | `.windsurfrules` | plain text | `.windsurfrules` |
+| GitHub Copilot | `.github/copilot-instructions.md` | Markdown | same |
+| Warp | `WARP.md` | Markdown | `WARP.md` |
+
+**Conflict resolution rule** (in every entry file): if anything contradicts
+`AGENTS.md`, `AGENTS.md` wins. This makes Claude (which reads CLAUDE.md →
+@AGENTS.md) the de-facto alignment anchor — every other CLI ends up reading
+the same AGENTS.md content.
+
+**Test gate**: `tests/constitution_subagent_pr_hygiene.rs` has 4 K-HARDEN-8
+tests verifying (a) all 8 entry files exist, (b) all reference `AGENTS.md`,
+(c) all (except YAML config) document PR-only workflow, (d) `AGENTS.md` §2
+explicitly declares its canonical universal-entry role.
 
 ### III.11 PR-only workflow (cross-agent)
 

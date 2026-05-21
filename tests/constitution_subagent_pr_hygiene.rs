@@ -330,3 +330,97 @@ fn subagent_skill_documents_pr_only_workflow() {
         "SUBAGENT_HARNESS skill must mention cross-agent (Codex/Gemini) scope"
     );
 }
+
+// ─── K-HARDEN-8 cross-CLI cold-start alignment tests ─────────────────────
+
+const CROSS_CLI_ENTRY_FILES: &[(&str, &str)] = &[
+    ("GEMINI.md", "Gemini CLI"),
+    ("CONVENTIONS.md", "Aider"),
+    (".aider.conf.yml", "Aider config"),
+    (".cursorrules", "Cursor legacy"),
+    (".cursor/rules/000-agents-alignment.mdc", "Cursor modern"),
+    (".windsurfrules", "Windsurf"),
+    (".github/copilot-instructions.md", "GitHub Copilot"),
+    ("WARP.md", "Warp"),
+];
+
+#[test]
+fn k_harden_8_all_cli_entry_files_exist() {
+    for (path, cli) in CROSS_CLI_ENTRY_FILES {
+        assert!(
+            Path::new(path).exists(),
+            "K-HARDEN-8: cold-start entry file missing for {}: {}",
+            cli,
+            path
+        );
+    }
+}
+
+#[test]
+fn k_harden_8_all_cli_entries_point_to_agents_md() {
+    // Each CLI entry file must explicitly reference AGENTS.md as canonical.
+    for (path, cli) in CROSS_CLI_ENTRY_FILES {
+        if path.ends_with(".yml") {
+            // .aider.conf.yml: must include AGENTS.md in the read list
+            let content = fs::read_to_string(path)
+                .unwrap_or_else(|_| panic!("readable: {}", path));
+            assert!(
+                content.contains("AGENTS.md"),
+                "K-HARDEN-8: {} ({}) must auto-load AGENTS.md",
+                path,
+                cli
+            );
+            continue;
+        }
+        let content = fs::read_to_string(path)
+            .unwrap_or_else(|_| panic!("readable: {}", path));
+        assert!(
+            content.contains("AGENTS.md"),
+            "K-HARDEN-8: {} ({}) must reference AGENTS.md as canonical source",
+            path,
+            cli
+        );
+    }
+}
+
+#[test]
+fn k_harden_8_all_cli_entries_mention_pr_only_rule() {
+    // Each CLI entry file must document the PR-only workflow rule.
+    for (path, cli) in CROSS_CLI_ENTRY_FILES {
+        if path.ends_with(".yml") {
+            // .aider.conf.yml is just config — skip prose check
+            continue;
+        }
+        let content = fs::read_to_string(path)
+            .unwrap_or_else(|_| panic!("readable: {}", path));
+        let mentions_pr = content.contains("PR-only")
+            || content.contains("PR only")
+            || content.contains("never `git push origin main`")
+            || content.contains("never git push origin main");
+        assert!(
+            mentions_pr,
+            "K-HARDEN-8: {} ({}) must document PR-only workflow rule",
+            path,
+            cli
+        );
+    }
+}
+
+#[test]
+fn k_harden_8_agents_md_documents_universal_entry() {
+    let content = fs::read_to_string("AGENTS.md").expect("AGENTS.md readable");
+    assert!(
+        content.contains("canonical universal entry") || content.contains("canonical entry"),
+        "AGENTS.md §2 must explicitly state it is the canonical universal entry for all CLIs"
+    );
+    // Must list at least 5 CLI families to show cross-agent intent
+    let cli_mentions: usize = ["Claude", "Codex", "Gemini", "Aider", "Cursor", "Windsurf", "Copilot", "Warp"]
+        .iter()
+        .filter(|c| content.contains(*c))
+        .count();
+    assert!(
+        cli_mentions >= 5,
+        "AGENTS.md §2 must mention ≥5 CLI families (found {}); cross-CLI intent unclear",
+        cli_mentions
+    );
+}
