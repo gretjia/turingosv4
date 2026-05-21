@@ -141,13 +141,16 @@ DESCRIPTION:
     Class 1: filesystem write only. No network. No backend call.
 "#;
 
+/// TRACE_MATRIX FC2-N16: error type for LLM config/key readers in cmd_llm.
 #[derive(Debug)]
-enum LlmError {
+pub(crate) enum LlmError {
     MissingAction,
     UnknownAction(String),
     MissingFlag(&'static str),
     WorkspaceNotFound(String),
     Io(String),
+    MetaKeyEnvNotConfigured,
+    BlackboxKeyEnvNotConfigured,
 }
 
 impl LlmError {
@@ -167,6 +170,16 @@ impl std::fmt::Display for LlmError {
             Self::MissingFlag(flag) => write!(f, "missing required flag: {flag}"),
             Self::WorkspaceNotFound(p) => write!(f, "workspace not found: {p}"),
             Self::Io(e) => write!(f, "i/o error: {e}"),
+            Self::MetaKeyEnvNotConfigured => write!(
+                f,
+                "llm.meta.api_key_env is not set in turingos.toml. \
+                 Run: turingos llm config --meta-api-key-env <ENV_VAR_NAME>"
+            ),
+            Self::BlackboxKeyEnvNotConfigured => write!(
+                f,
+                "llm.blackbox.api_key_env is not set in turingos.toml. \
+                 Run: turingos llm config --blackbox-api-key-env <ENV_VAR_NAME>"
+            ),
         }
     }
 }
@@ -381,14 +394,24 @@ pub(crate) fn read_blackbox_model(workspace: &Path) -> String {
         .unwrap_or_else(|| DEFAULT_BLACKBOX_MODEL.to_string())
 }
 
-/// TRACE_MATRIX FC2-N16: env-var NAME lookup (never the key value).
+/// TRACE_MATRIX FC2-N16: Meta env-var NAME lookup (never the key value).
 ///
-/// Read the configured api-key env-var NAME (e.g. "SILICONFLOW_API_KEY") —
-/// NOT the key value. Defaults to SILICONFLOW_API_KEY if unset.
-pub(crate) fn read_api_key_env_var(workspace: &Path) -> String {
+/// Reads ONLY `llm.meta.api_key_env` from turingos.toml. Returns an error if
+/// the key is absent — does NOT fall back to the blackbox slot, preventing
+/// silent role-key sharing when users configure separate Meta and Worker keys.
+pub(crate) fn read_meta_api_key_env(workspace: &Path) -> Result<String, LlmError> {
     read_config_value(workspace, "llm.meta.api_key_env")
-        .or_else(|| read_config_value(workspace, "llm.blackbox.api_key_env"))
-        .unwrap_or_else(|| "SILICONFLOW_API_KEY".to_string())
+        .ok_or(LlmError::MetaKeyEnvNotConfigured)
+}
+
+/// TRACE_MATRIX FC2-N16: Blackbox env-var NAME lookup (never the key value).
+///
+/// Reads ONLY `llm.blackbox.api_key_env` from turingos.toml. Returns an error
+/// if the key is absent — does NOT fall back to the meta slot, preventing
+/// silent role-key sharing when users configure separate Meta and Worker keys.
+pub(crate) fn read_blackbox_api_key_env(workspace: &Path) -> Result<String, LlmError> {
+    read_config_value(workspace, "llm.blackbox.api_key_env")
+        .ok_or(LlmError::BlackboxKeyEnvNotConfigured)
 }
 
 fn read_config_value(workspace: &Path, key: &str) -> Option<String> {
@@ -715,7 +738,20 @@ fn run_complete(args: &[String]) -> ExitCode {
         .unwrap_or(default_temperature);
 
     // ── 5. Read API key ─────────────────────────────────────────────────────
-    let api_key_env = read_api_key_env_var(&ca.workspace);
+    let api_key_env = match ca.role {
+        ModelRole::Meta => match read_meta_api_key_env(&ca.workspace) {
+            Ok(v) => v,
+            Err(e) => {
+                return complete_err_exit("config", ca.lang.http_err_msg(&e.to_string()), 1);
+            }
+        },
+        ModelRole::Blackbox => match read_blackbox_api_key_env(&ca.workspace) {
+            Ok(v) => v,
+            Err(e) => {
+                return complete_err_exit("config", ca.lang.http_err_msg(&e.to_string()), 1);
+            }
+        },
+    };
     let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {
@@ -1176,7 +1212,12 @@ fn run_triage(args: &[String]) -> ExitCode {
 
     // ── 6. Determine Blackbox model + API key ───────────────────────────────
     let model_id = read_blackbox_model(&ta.workspace);
-    let api_key_env = read_api_key_env_var(&ta.workspace);
+    let api_key_env = match read_blackbox_api_key_env(&ta.workspace) {
+        Ok(v) => v,
+        Err(e) => {
+            return complete_err_exit("config", ta.lang.http_err_msg(&e.to_string()), 1);
+        }
+    };
     let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {
@@ -1726,7 +1767,26 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
     }
 
     // ── 4. Read API key + build tokio runtime once ──────────────────────────
-    let api_key_env = read_api_key_env_var(&pe.workspace);
+    let api_key_env = match pe.role {
+        PromptEvalRole::Meta | PromptEvalRole::Playback => {
+            match read_meta_api_key_env(&pe.workspace) {
+                Ok(v) => v,
+                Err(e) => {
+                    return prompt_eval_err_exit(
+                        "config",
+                        pe.lang.http_err_msg(&e.to_string()),
+                        1,
+                    );
+                }
+            }
+        }
+        PromptEvalRole::Blackbox => match read_blackbox_api_key_env(&pe.workspace) {
+            Ok(v) => v,
+            Err(e) => {
+                return prompt_eval_err_exit("config", pe.lang.http_err_msg(&e.to_string()), 1);
+            }
+        },
+    };
     let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {

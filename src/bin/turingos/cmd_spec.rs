@@ -297,7 +297,8 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
     }
 
     let model_id = cmd_llm::read_meta_model(&workspace);
-    let api_key_env = cmd_llm::read_api_key_env_var(&workspace);
+    let api_key_env = cmd_llm::read_meta_api_key_env(&workspace)
+        .map_err(|e| SpecError::Io(e.to_string()))?;
 
     let (synthesis, total_tokens) = if skip_llm {
         // CAS-wire-only path: synthesise spec.md without LLM (uses canonical
@@ -1326,21 +1327,33 @@ fn run_driven_mode(
         answers.truncate(8);
 
         let model_id = cmd_llm::read_meta_model(workspace);
-        let api_key_env = cmd_llm::read_api_key_env_var(workspace);
-        let synthesis_body = if let Ok(api_key) = require_api_key(&api_key_env) {
-            let synth_user_msg = build_synthesis_user_message(lang, &questions, &answers);
-            let messages = vec![
-                ChatMessage::system(system_prompt(lang)),
-                ChatMessage::user(synth_user_msg),
-            ];
-            eprintln!("[spec driven] calling Meta LLM ({model_id}) to synthesise spec.md...");
-            match chat_complete_blocking(&api_key, &model_id, &messages, Some(3000), Some(0.3)) {
-                Ok(result) => result.content,
-                Err(_) => synthesise_spec_md_no_llm(lang, &questions, &answers),
-            }
-        } else {
-            synthesise_spec_md_no_llm(lang, &questions, &answers)
-        };
+        let synthesis_body =
+            if let Ok(api_key_env) = cmd_llm::read_meta_api_key_env(workspace) {
+                if let Ok(api_key) = require_api_key(&api_key_env) {
+                    let synth_user_msg = build_synthesis_user_message(lang, &questions, &answers);
+                    let messages = vec![
+                        ChatMessage::system(system_prompt(lang)),
+                        ChatMessage::user(synth_user_msg),
+                    ];
+                    eprintln!(
+                        "[spec driven] calling Meta LLM ({model_id}) to synthesise spec.md..."
+                    );
+                    match chat_complete_blocking(
+                        &api_key,
+                        &model_id,
+                        &messages,
+                        Some(3000),
+                        Some(0.3),
+                    ) {
+                        Ok(result) => result.content,
+                        Err(_) => synthesise_spec_md_no_llm(lang, &questions, &answers),
+                    }
+                } else {
+                    synthesise_spec_md_no_llm(lang, &questions, &answers)
+                }
+            } else {
+                synthesise_spec_md_no_llm(lang, &questions, &answers)
+            };
 
         let model_id_for_wrap = cmd_llm::read_meta_model(workspace);
         let spec_md = wrap_spec_md(
