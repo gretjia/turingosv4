@@ -25,23 +25,68 @@ dashboards, and handover notes are materialized views.
 
 ## Handover state
 
-Active: `handover/ai-direct/LATEST.md` (session #56 close 2026-05-21 — V4 Product-CAK Hardening P7.z COMPLETE).
+Active: `handover/ai-direct/LATEST.md` (session #57 close 2026-05-21 —
+Boundary-Ratification-Hygiene PR #78 shipped after P7.z COMPLETE).
 
 Session #56 audit + remediation evidence:
 - `handover/audits/CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md` (clean-context audit of overnight Gemini delivery)
 - `handover/audits/CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md` (Claude orchestrator session report)
 - `handover/audits/CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` (§8 sign-off records for C2-split, C10, C11, Cz Class 4)
 
+Session #57 boundary / process-hygiene evidence:
+- `docs/architecture/FC_REAL_WORLD_BOUNDARY.md` (Class 0 FC boundary fact record)
+- `handover/directives/2026-05-21_FC_BOUNDARY_RATIFICATION_DIRECTIVE.md` (§8 ratification directive)
+- `handover/evidence/sandbox_boundary_baseline_2026-05-21.md` (before-state grep/evidence baseline)
+
 Sessions #1–#54 archived at:
 `handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`
 
 ## Current Main Status
 
-`main` currently includes PR #3, #4, #5, #6, #7, #8, #10, #11, the
+`main` currently includes PR #3, #4, #5, #6, #7, #8, #10, #11, #78, the
 complete **V4 Product-CAK Hardening P7.z charter** (atoms C0 through C11 +
-Cz Trust Root rehash), and session #56 audit docs. PR #1, #2, #9, #45–#55
-were merged or closed; no charter PRs remain open. Latest main tip:
-`9bdaddee` (Cz cumulative Trust Root).
+Cz Trust Root rehash), session #56 audit docs, and the
+**Boundary-Ratification-Hygiene** process-runner increment. PR #1, #2, #9,
+#45–#55 were merged or closed; no charter PRs remain open. Latest main tip:
+`38adc108` (PR #78, `feat(sandbox): add boundary hygiene runner`).
+
+### Boundary-Ratification-Hygiene — PR #78, 2026-05-21
+
+PR #78 is the post-P7.z transition from "predicate-layer ambition" back to
+physical boundary discipline. It shipped:
+
+- Class 0 FC boundary fact record and §8 ratification directive for Art. 0.4,
+  hermetic mechanism naming, predicate locality, and LLM topology.
+- `src/sdk/sanitized_runner.rs`: production shell-out process hygiene with
+  `env_clear`, env allowlist, explicit cwd, stdout/stderr capture, timeout
+  kill, argv/cwd/allowed-env/exit/timed-out evidence, and
+  `NetworkPolicyClaim::NotEnforced`.
+- Product shell-out wiring for web/CLI paths through the sanitized runner.
+- P7.z truthfulness hygiene: prompt hash binds canonical provider request
+  bytes; raw-output CID uses provider response bytes; `world_head_unchanged`
+  is observed rather than a production literal; offline/sandbox/browser claims
+  are downgraded to what the code can prove.
+- Real-world meaning fixtures for compile failure, regression, preview DOM
+  contract, secret-env privacy, and ambiguous requirement hold/non-accept.
+- CI constitution-gate runner optimization: all 133 constitution gates still
+  discover/cross-check against the manifest and run, but in one Cargo
+  invocation with report artifacts.
+
+Important non-claim: this is **not** OS-level hermetic/no-network sandboxing.
+There is no `DenyAll` network claim in phase 0. The shipped claim is process
+hygiene for production shell-outs, not bwrap/unshare/seccomp/VM isolation.
+
+Verification for PR #78:
+
+```bash
+git diff --check
+cargo test --test constitution_matrix_drift
+RUST_TEST_THREADS=1 bash scripts/run_constitution_gates.sh
+```
+
+GitHub checks passed for PR #78: `Constitution gate suite`, `Feature freeze
+check`, `r022_check`, and sidecar contamination validation. Independent
+clean-context audits returned `NO-VIOLATION`.
 
 ### V4 Product-CAK Hardening (P7.z) — 2026-05-20/21
 
@@ -186,6 +231,7 @@ evidence instead.
 
 | PR | State | Main commit | Key information |
 |---|---|---|---|
+| [#78](https://github.com/gretjia/turingosv4/pull/78) | SQUASH-MERGED to `main` on 2026-05-21 | `38adc108` | Boundary-Ratification-Hygiene increment. Adds `FC_REAL_WORLD_BOUNDARY.md`, §8 ratification directive, sandbox boundary baseline, `SanitizedCommand` process-hygiene runner, product shell-out wiring, P7.z truthfulness hygiene, real-world meaning fixtures, and faster constitution-gate CI runner. Explicit non-claim: no OS-level hermetic/no-network sandbox; network policy claim remains `NotEnforced`. GitHub checks green; clean-context audits `NO-VIOLATION`. |
 | Cz | MERGED via orchestrator local-merge on 2026-05-21 (no PR number; supersedes closed PR #55) | `9bdaddee` | Class 4 cumulative Trust Root realignment after all charter PRs landed. Updated 4 SHA pins (`src/runtime/mod.rs`, `Cargo.toml`, `src/bottom_white/cas/store.rs`, `tests/tb_7_legacy_append_regression.rs`); removed 14 deleted `experiments/minif2f_v4/*` pins; added 6 `pub mod` declarations missing from `src/runtime/mod.rs` (`preview_run`, `build_session_view`, `replay`, `prompt_promotion`, `test_scenario`, `test_run`); fixed `src/runtime/replay.rs` imports to source rejection types from `rejection_capsule` module. User §8 + Codex independent witness PROCEED. `cargo test --lib boot::tests::` 8/8 PASS post-Cz. |
 | [#56](https://github.com/gretjia/turingosv4/pull/56) | MERGED to `main` on 2026-05-21 | `298a1a7b` | Docs-only audit records from session #56 (Class 0). Adds `CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md`, `CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md`, and `CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` to `handover/audits/`. §8 sign-offs for the 4 Class 3+ atoms remediated this session (C2-split, C10, C11, Cz). |
 | [#55](https://github.com/gretjia/turingosv4/pull/55) | CLOSED, superseded | n/a | Initial Cz 1-line trust-root fix. Codex independent witness PROCEED on initial diff, but scope insufficient after charter PRs merged — the cumulative Cz commit (above) replaces it. |
@@ -281,10 +327,6 @@ bash scripts/run_constitution_gates.sh
 cargo test --workspace --no-fail-fast -- --test-threads=1
 ```
 
-For MiniF2F development work, use the experiment manifest explicitly:
-
-```bash
-cargo test --manifest-path experiments/minif2f_v4/Cargo.toml -- --test-threads=1
-```
-
-Do not treat MiniF2F as a default root workspace or core constitution gate.
+MiniF2F is no longer part of this repository's root workspace or core
+constitution gate. Use the historical v3 repository or archived evidence for
+old MiniF2F research.
