@@ -76,6 +76,19 @@ DESCRIPTION:
     one or more complete files, each preceded by `### File: <relative path>`
     plus a fenced code block. For UI apps it defaults to a single
     self-contained index.html so the end-user can just open it in a browser.
+
+ENVIRONMENT:
+    TURINGOS_SILICONFLOW_ENDPOINT
+        Base URL for the LLM provider. Default:
+        https://api.siliconflow.cn/v1/chat/completions
+        Override to point at DeepSeek / OpenAI / OpenRouter / etc.
+
+    $<meta-api-key-env from turingos.toml>
+        The shell env var holding your Meta-role LLM API key.
+        Configured via `turingos llm config --meta-api-key-env <NAME>`.
+
+    $<blackbox-api-key-env from turingos.toml>
+        Same for Worker-role.
 "#;
 
 #[derive(Debug)]

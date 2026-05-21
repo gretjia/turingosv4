@@ -197,6 +197,8 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
     if s.init_done && s.llm_configured && !s.spec_done {
         check_env_var_set(ws, "meta");
         check_env_var_set(ws, "blackbox");
+        // NB3 fix: surface non-default endpoint so users see where LLM traffic goes.
+        check_endpoint_not_default();
     }
 
     match next {
@@ -239,6 +241,18 @@ fn check_env_var_set(ws: &Path, role: &str) {
                 println!("        export {name}=\"sk-...\"");
             }
         }
+    }
+}
+
+/// NB3 fix: print a warning when TURINGOS_SILICONFLOW_ENDPOINT is overridden
+/// so users can see when their LLM traffic is going somewhere other than the
+/// default. Silent misconfiguration was flagged HIGH in user-sim Round 2.
+fn check_endpoint_not_default() {
+    let configured = crate::siliconflow_client::endpoint();
+    let default = crate::siliconflow_client::SILICONFLOW_ENDPOINT;
+    if configured != default {
+        println!("  \u{26a0} TURINGOS_SILICONFLOW_ENDPOINT overridden to: {configured}");
+        println!("    (default: {default})");
     }
 }
 
