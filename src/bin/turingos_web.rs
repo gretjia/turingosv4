@@ -26,6 +26,10 @@ use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
+    // OBS: initialize log backend so `log::info!` events from src/web/* reach stderr.
+    // Default filter: env_logger respects RUST_LOG env var; falls back to "info".
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     // Resolve and log workspace directory.
     let workspace = if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
         if !v.is_empty() {
