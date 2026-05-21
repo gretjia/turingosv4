@@ -69,10 +69,13 @@ fn turingos_init_creates_workspace_scaffold() {
 }
 
 #[test]
-fn turingos_init_rejects_existing_dir_without_force() {
+fn turingos_init_rejects_existing_non_empty_dir_without_force() {
+    // B2: only a NON-EMPTY existing directory should require --force.
     let tmp = tempfile::TempDir::new().expect("create tempdir");
     let project_dir = tmp.path().join("preexisting");
     std::fs::create_dir_all(&project_dir).expect("preexisting dir");
+    // Plant a file so the directory is non-empty.
+    std::fs::write(project_dir.join("existing_file.txt"), "data").expect("write file");
 
     let output = Command::new(turingos_bin())
         .arg("init")
@@ -83,12 +86,12 @@ fn turingos_init_rejects_existing_dir_without_force() {
 
     assert!(
         !output.status.success(),
-        "init should fail when directory already exists without --force"
+        "init should fail when non-empty directory already exists without --force"
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("already exists"),
-        "expected 'already exists' error, got stderr: {stderr}"
+        stderr.contains("not empty") || stderr.contains("--force"),
+        "expected 'not empty' or '--force' in error, got stderr: {stderr}"
     );
 }
 

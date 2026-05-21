@@ -44,7 +44,7 @@ use turingosv4::runtime::artifact_bundle::{
     write_artifact_bundle, latest_artifact_bundle_cid_for_session,
     ARTIFACT_BUNDLE_SCHEMA_ID
 };
-use turingosv4::runtime::test_run::run_and_write_test_pipeline;
+use turingosv4::runtime::test_run::{run_and_write_test_pipeline, format_test_run_summary};
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
 
@@ -395,13 +395,23 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 logical_t,
             };
             if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
-                eprintln!("rejection_cid={}", rej_cid);
+                eprintln!("[failed run] generate did not deliver — see error below");
+                eprintln!("[failed run] rejection_cid={}", rej_cid);
             }
             return Err(GenError::Capsule(e));
         }
     };
 
-    eprintln!("generation_attempt_cid={}", attempt_cid);
+    // B3: on success, CIDs go to stderr without prefix (informational only).
+    // On failure, CIDs go to stderr with [failed run] prefix, before the error
+    // message that run() will print after run_inner() returns.
+    if outcome == AttemptOutcome::Success {
+        eprintln!("generation_attempt_cid={}", attempt_cid);
+    } else {
+        // [failed run] header + CIDs first; error message follows from run().
+        eprintln!("[failed run] generate did not deliver — see error below");
+        eprintln!("[failed run] generation_attempt_cid={}", attempt_cid);
+    }
 
     if outcome != AttemptOutcome::Success {
         let reject_class = match outcome {
@@ -438,7 +448,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             logical_t,
         };
         if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
-            eprintln!("rejection_cid={}", rej_cid);
+            eprintln!("[failed run] rejection_cid={}", rej_cid);
         }
     }
 
@@ -524,8 +534,10 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 &bundle_cid,
                 logical_t,
             ) {
-                Ok((test_run_cid, overall_pass)) => {
+                Ok((test_run_cid, overall_pass, test_results)) => {
                     eprintln!("test_run_cid={}", test_run_cid);
+                    // B4: print human-readable test summary so non-experts know what C11 fired.
+                    eprintln!("{}", format_test_run_summary(&test_results));
                     if !overall_pass {
                         // Artifacts failed spec-derived test gate — reject as HeuristicFailed.
                         let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
@@ -543,7 +555,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             logical_t,
                         };
                         if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
-                            eprintln!("rejection_cid={}", rej_cid);
+                            // B3: test-fail rejection is also a failed run.
+                            eprintln!("[failed run] generate did not deliver — see error below");
+                            eprintln!("[failed run] rejection_cid={}", rej_cid);
                         }
                         return Err(GenError::Io(
                             "generated artifacts failed spec-derived tests".to_string()
@@ -568,7 +582,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         logical_t,
                     };
                     if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
-                        eprintln!("rejection_cid={}", rej_cid);
+                        // B3: pipeline error is also a failed run.
+                        eprintln!("[failed run] generate did not deliver — see error below");
+                        eprintln!("[failed run] rejection_cid={}", rej_cid);
                     }
                     return Err(GenError::Io(format!("test pipeline error: {}", e)));
                 }

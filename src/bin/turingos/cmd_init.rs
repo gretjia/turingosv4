@@ -226,7 +226,7 @@ fn parse_init_args(args: &[String]) -> Result<ParsedInit, String> {
 enum InitError {
     /// Project path already exists as a regular file (not a directory).
     ProjectIsFile(String),
-    /// Project directory already exists; `--force` not provided.
+    /// Project directory already exists and is non-empty; `--force` not provided.
     ProjectDirExists(String),
     /// Filesystem I/O error.
     Io(String),
@@ -252,7 +252,7 @@ impl std::fmt::Display for InitError {
             ),
             Self::ProjectDirExists(p) => write!(
                 f,
-                "project directory already exists: {p} (use --force to overwrite the four scaffold files; other content is preserved)"
+                "project directory {p} already exists and is not empty — use --force to overwrite, or pick an empty dir"
             ),
             Self::Io(msg) => write!(f, "io error: {msg}"),
         }
@@ -271,7 +271,13 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
             return Err(InitError::ProjectIsFile(args.project.clone()));
         }
         if !args.force {
-            return Err(InitError::ProjectDirExists(args.project.clone()));
+            // Allow init into an empty existing directory without --force.
+            let is_empty = std::fs::read_dir(&project_dir)
+                .map(|mut entries| entries.next().is_none())
+                .unwrap_or(false);
+            if !is_empty {
+                return Err(InitError::ProjectDirExists(args.project.clone()));
+            }
         }
     }
 
