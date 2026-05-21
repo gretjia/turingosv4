@@ -55,6 +55,7 @@ use axum::{
 use tokio::sync::broadcast;
 
 use super::artifact::artifact_get_handler;
+use super::artifact_bundle::artifact_bundle_get_handler;
 use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
@@ -133,6 +134,8 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
         .route("/api/artifact/:session_id/:name", get(artifact_get_handler))
+        // CAS-backed bundle file serve route (C5): GET one artifact file from CAS
+        .route("/api/bundle/:artifact_bundle_cid/file", get(artifact_bundle_get_handler))
         // W7: welcome onboarding API surface (5 endpoints; in-memory API key)
         .route("/api/welcome/status", get(welcome_status_handler))
         .route("/api/welcome/api-key", post(welcome_set_api_key_handler))
