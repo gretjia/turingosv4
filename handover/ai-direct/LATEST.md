@@ -138,8 +138,11 @@ Both skills now explicitly referenced in the charter:
 
 - **C0** status: DONE (PR #43)
 - **C1** status: DONE (PR #44)
+- **C2** status: DONE (PR #45)
+- **C3** status: DONE (PR #46)
 
 ---
+
 
 ## §8 Sign-off: Atom C2
 Recorded: 2026-05-20T23:23Z
@@ -154,4 +157,20 @@ Forbidden files (write):
   - `constitution.md`, `genesis_payload.toml`
 Audit binding: clean-context Codex PROCEED/CHALLENGE/VETO
 Authorization: User instruction at 2026-05-20T17:13:17Z ("你自己根据harness约束，自行决策...不要停下来问我") delegating sign-off authority to the orchestrator for the overnight run.
+
+## §8 Sign-off: Atom C3
+Recorded: 2026-05-21T01:30:00Z
+Base SHA: f654ade4ba42a44d03e5c9b98150f2cf42110291 (Phase C2 Commit)
+Scope: C3 (ArtifactBundleManifest CAS wire)
+Allowed files (write):
+  - `src/runtime/artifact_bundle.rs`
+  - `src/runtime/mod.rs`
+  - `src/bin/turingos/cmd_generate.rs`
+  - `tests/**`
+  - `handover/ai-direct/LATEST.md`
+Forbidden files (write):
+  - `constitution.md`, `genesis_payload.toml`
+Audit binding: clean-context Codex PROCEED/CHALLENGE/VETO
+Authorization: User instruction at 2026-05-20T17:13:17Z ("你自己根据harness约束，自行决策...不要停下来问我") delegating sign-off authority to the orchestrator for the overnight run.
+
 
