@@ -87,28 +87,18 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 fn run_wizard() -> Result<(), String> {
     print_banner();
 
-    // Step 1: Game idea
-    let game_idea = prompt("你想做什么游戏？请用一句话描述 (one sentence — your game idea):")?;
-    if game_idea.trim().is_empty() {
-        return Err("no game idea provided".to_string());
-    }
+    // ── Software 3.0 ordering ────────────────────────────────────────────────
+    // Meta AI is set up FIRST so all subsequent ambiguous user input can be
+    // routed through it for intent interpretation. The user's previous CLI run
+    // (2026-05-21) typed "你来制定" for the workspace prompt, expecting the
+    // wizard to understand "you decide" — but Meta AI wasn't online yet, so the
+    // string was taken literally. New design: provider + keys come first;
+    // workspace is auto-generated (no prompt); a single free-form intent line
+    // is expanded into the 8-question spec by Meta AI itself.
 
-    // Step 2: Workspace location
-    let default_ws = suggest_workspace(&game_idea);
-    let workspace = prompt_with_default(
-        &format!(
-            "保存到哪里？(workspace path, or Enter for {})",
-            default_ws.display()
-        ),
-        &default_ws.to_string_lossy(),
-    )?;
-    let workspace_path = PathBuf::from(&workspace);
-    std::fs::create_dir_all(&workspace_path)
-        .map_err(|e| format!("create workspace: {e}"))?;
-
-    // Step 3: Provider choice (numbered menu)
+    // Step 1/3 — Provider choice (numbered menu — deterministic, not ambiguous)
     let provider_idx = numbered_choice(
-        "选择 LLM 提供商 (Which LLM provider?):",
+        "Step 1/3 — 选择 LLM 提供商 (Which LLM provider?):",
         &[
             "SiliconFlow (api.siliconflow.cn) — 国内推荐",
             "DeepSeek (api.deepseek.com)      — 快速、便宜",
@@ -116,22 +106,23 @@ fn run_wizard() -> Result<(), String> {
     )?;
     let provider = if provider_idx == 0 { "siliconflow" } else { "deepseek" };
 
-    // Step 4: API key (stty -echo masking on POSIX)
+    // Step 2/3 — Meta API key (stty -echo masking on POSIX)
     let key_label = if provider == "deepseek" {
         "DEEPSEEK_API_KEY"
     } else {
         "SILICONFLOW_API_KEY"
     };
     let meta_key = prompt_password(&format!(
-        "粘贴你的 {key_label} (paste key — input hidden):"
+        "Step 2/3 — 粘贴你的 {key_label} (paste API key, input hidden):"
     ))?;
     if meta_key.trim().is_empty() {
-        return Err(format!("no {key_label} provided"));
+        return Err(format!("{key_label} cannot be empty"));
     }
 
+    // Step 3/3 — Worker key (DeepSeek dual-key mode only)
     let worker_key = if provider == "deepseek" {
         let resp = prompt_password(
-            "粘贴第二个 DeepSeek key 作为 Worker 角色 (或直接 Enter 复用第一个 / press Enter to reuse):",
+            "Step 3/3 — 粘贴第二个 DeepSeek key 作 Worker 角色 (或直接 Enter 复用第一个):",
         )?;
         if resp.trim().is_empty() {
             meta_key.clone()
@@ -142,10 +133,37 @@ fn run_wizard() -> Result<(), String> {
         meta_key.clone()
     };
 
-    // Step 5: Init workspace in-process
-    println!("\n{C_DIM}Initializing workspace...{C_RESET}");
+    // Set env vars in-process — Meta AI is now usable for the rest of the flow.
+    // SAFETY: single-threaded at this point; no concurrent threads touching env.
+    #[allow(clippy::disallowed_methods)]
+    if provider == "deepseek" {
+        std::env::set_var("DEEPSEEK_API_KEY", &meta_key);
+        std::env::set_var("DEEPSEEK_API_KEY_WORKER", &worker_key);
+        std::env::set_var(
+            "TURINGOS_SILICONFLOW_ENDPOINT",
+            "https://api.deepseek.com/v1/chat/completions",
+        );
+    } else {
+        std::env::set_var("SILICONFLOW_API_KEY", &meta_key);
+    }
+
+    // Auto-create workspace — no user prompt. Timestamp-based path avoids the
+    // "你来制定" free-text trap entirely. Wizard chooses; user does not need to.
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let workspace = format!("/tmp/turingos-{timestamp}");
+    let workspace_path = PathBuf::from(&workspace);
+    std::fs::create_dir_all(&workspace_path)
+        .map_err(|e| format!("create workspace: {e}"))?;
+    println!(
+        "\n{C_DIM}工作区 / Workspace: {workspace}{C_RESET}"
+    );
+
+    // Initialize workspace (in-process; cmd_init::run expects only flags).
+    println!("{C_DIM}Initializing...{C_RESET}");
     let init_args = vec![
-        String::from("init"),
         String::from("--project"),
         workspace.clone(),
         String::from("--provider"),
@@ -157,71 +175,54 @@ fn run_wizard() -> Result<(), String> {
         return Err(format!("init failed (exit {init_rc:?})"));
     }
 
-    // Step 6: Set env vars in-process so subsequent cmd_spec / cmd_generate pick
-    // them up without requiring the user to touch their shell profile.
-    // SAFETY: single-threaded at this point; no concurrent threads touching env.
-    #[allow(clippy::disallowed_methods)]
-    if provider == "deepseek" {
-        // DeepSeek: use the DeepSeek endpoint via the SILICONFLOW_ENDPOINT override
-        // pattern that cmd_generate / cmd_spec already honours.
-        std::env::set_var("DEEPSEEK_API_KEY", &meta_key);
-        std::env::set_var("DEEPSEEK_API_KEY_WORKER", &worker_key);
-        // Point the SiliconFlow client at the DeepSeek endpoint so the existing
-        // require_api_key() and chat_complete_blocking() machinery works unchanged.
-        std::env::set_var(
-            "TURINGOS_SILICONFLOW_ENDPOINT",
-            "https://api.deepseek.com/v1/chat/completions",
-        );
-    } else {
-        std::env::set_var("SILICONFLOW_API_KEY", &meta_key);
+    // ── The single intent prompt — Meta AI does the rest ────────────────────
+    println!("\n{C_BOLD}用一两句话告诉我你想做什么。{C_RESET}");
+    println!(
+        "{C_DIM}Tell me what you want to build, in 1-2 sentences.{C_RESET}"
+    );
+    println!(
+        "{C_DIM}任何想法都行 — 游戏、工具页、调研页、教学 demo……{C_RESET}"
+    );
+    println!(
+        "{C_DIM}Meta AI 会理解你的意图并扩展成完整 spec。{C_RESET}"
+    );
+    let intent = prompt(">")?;
+    if intent.trim().is_empty() {
+        return Err("no intent provided".to_string());
     }
 
-    // Step 7: 8 spec questions (same as cmd_spec FULL_HELP interview flow)
-    println!("\n{C_BOLD}现在我来问你 8 个关于游戏的问题。{C_RESET}");
-    println!("{C_DIM}每题 1-2 句就好；回答后按 Enter。{C_RESET}\n");
+    // Meta AI expansion: 1 sentence → 8 structured spec answers.
+    println!(
+        "\n{C_DIM}Meta AI 正在理解你的意图（约 15-30 秒）...{C_RESET}"
+    );
+    let answers = expand_intent_to_answers(provider, &meta_key, &intent)
+        .unwrap_or_else(|err| {
+            eprintln!(
+                "{C_YELLOW}Meta AI 扩展失败：{err}{C_RESET}"
+            );
+            eprintln!(
+                "{C_DIM}回退：把意图填入所有 8 个槽位（cmd_spec 仍可处理）。{C_RESET}"
+            );
+            vec![intent.clone(); 8]
+        });
 
-    // Question texts pulled verbatim from cmd_spec.rs FULL_HELP INTERVIEW FLOW.
-    let questions: &[(&str, &str)] = &[
-        (
-            "Q1 The Job (JTBD)",
-            "你最近什么时候想过「要是有个工具帮我做这件事就好了」？(When did you last wish you had a tool for something?)",
-        ),
-        (
-            "Q2 The Anchor",
-            "有没有哪个网站或 App 和你想做的有一点像？(Any website / app even a little like what you want?)",
-        ),
-        (
-            "Q3 What it Remembers",
-            "这个程序明天早上还应该记得什么？(What should the program still know tomorrow morning? e.g. high score)",
-        ),
-        (
-            "Q4 First-Click Walk-Through",
-            "用户打开页面后，第一步做什么？请一步步描述。(Step-by-step: what does the user see / click first?)",
-        ),
-        (
-            "Q5 Weird-User Test",
-            "如果用户做了什么奇怪的事，它还应该正常工作吗？(What should NOT break it?)",
-        ),
-        (
-            "Q6 Disappointment Boundary",
-            "哪些功能会让你觉得「这超出范围了」？(Which features would feel like scope creep?)",
-        ),
-        (
-            "Q7 Success Test",
-            "一个月后，你怎么判断它是否有用？多少人用了？(How will you KNOW it's doing its job after a month?)",
-        ),
-        (
-            "Q8 Playback (mirror)",
-            "用一句话告诉我：你希望我帮你做什么？(Describe back what you want me to build in 1 sentence.)",
-        ),
-    ];
-
-    let mut answers: Vec<String> = Vec::with_capacity(8);
-    for (i, (title, hint)) in questions.iter().enumerate() {
-        println!("{C_CYAN}问题 {}/{} — {title}{C_RESET}", i + 1, questions.len());
-        let ans = prompt(hint)?;
-        answers.push(ans);
-        println!();
+    // Show user what Meta AI inferred (Software 3.0 transparency).
+    println!("\n{C_CYAN}Meta AI 理解的 spec：{C_RESET}");
+    for (i, a) in answers.iter().enumerate() {
+        let short = if a.chars().count() > 80 {
+            let truncated: String = a.chars().take(80).collect();
+            format!("{}…", truncated)
+        } else {
+            a.clone()
+        };
+        println!("  {C_DIM}{}. {}{C_RESET}", i + 1, short);
+    }
+    println!();
+    let ok = prompt_yes_no("看着对吗？继续生成？(Looks right? Continue?)", true)?;
+    if !ok {
+        return Err(String::from(
+            "user aborted at spec preview; rerun `turingos` to try again",
+        ));
     }
 
     // Write answers.json for cmd_spec --answers-file
@@ -235,8 +236,8 @@ fn run_wizard() -> Result<(), String> {
     println!(
         "{C_DIM}正在生成 spec.md（调用 Meta LLM，约 10-30 秒）...{C_RESET}"
     );
+    // NOTE: cmd_spec::run expects only flags (no leading subcommand name).
     let spec_args = vec![
-        String::from("spec"),
         String::from("--workspace"),
         workspace.clone(),
         String::from("--answers-file"),
@@ -255,8 +256,8 @@ fn run_wizard() -> Result<(), String> {
     println!(
         "\n{C_DIM}正在生成游戏代码（约 30-60 秒）...{C_RESET}"
     );
+    // NOTE: cmd_generate::run expects only flags (no leading subcommand name).
     let gen_args = vec![
-        String::from("generate"),
         String::from("--workspace"),
         workspace.clone(),
     ];
@@ -302,13 +303,89 @@ fn run_wizard() -> Result<(), String> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Meta AI expansion — Software 3.0 core
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC2-N16: 1-sentence intent → 8-answer spec via Meta LLM.
+///
+/// Calls the same SiliconFlow-compatible client cmd_spec uses, with a
+/// system prompt that elicits a strict JSON array of 8 strings keyed to
+/// the canonical TuringOS spec interview questions. Falls back caller-side
+/// if the LLM call or JSON parse fails.
+fn expand_intent_to_answers(
+    provider: &str,
+    api_key: &str,
+    intent: &str,
+) -> Result<Vec<String>, String> {
+    use crate::siliconflow_client::{chat_complete_blocking, ChatMessage};
+
+    let model = if provider == "deepseek" {
+        "deepseek-v4-pro"
+    } else {
+        crate::siliconflow_client::DEFAULT_META_MODEL
+    };
+
+    let system = "你是 TuringOS 的意图扩展器。用户给你一两句自然语言，描述他们想要什么。\
+你输出一个严格的 JSON 数组，恰好 8 个字符串，每个对应一个 spec 面试问题：\n\
+1. The Job — 这个东西做的一件事是什么？\n\
+2. The Anchor — 它和什么已有工具/网站/App 类似？\n\
+3. What it Remembers — 哪些数据要持久化？\n\
+4. First-Click Walk-Through — 用户打开后第一步做什么？分步描述。\n\
+5. Weird-User Test — 用户做什么奇怪操作时应该正常工作？\n\
+6. Disappointment Boundary — 它明确不做什么？\n\
+7. Success Test — 30 天后怎么判断它成功了？\n\
+8. Playback — 用一句话复述要构建的目标。\n\n\
+约束：\n\
+- 每个回答 1-2 句，具体可执行；\n\
+- 严格忠实于用户意图，不要发明无关功能；\n\
+- 如果用户意图不是游戏，也要产出一个 HTML 可交付物的 spec（例如交互式调研页、教学 demo、工具 UI）；\n\
+- 只输出 JSON 数组，不要 markdown 代码围栏，不要前后解释。";
+
+    let user_msg = format!(
+        "用户意图：{intent}\n\n现在输出 8 个回答的 JSON 数组。"
+    );
+
+    let result = chat_complete_blocking(
+        api_key,
+        model,
+        &[ChatMessage::system(system), ChatMessage::user(&user_msg)],
+        Some(2000),
+        Some(0.5),
+        None,
+    )
+    .map_err(|e| format!("LLM call: {e}"))?;
+
+    // Strip optional ```json / ``` fences if Meta AI added any.
+    let mut content = result.content.trim().to_string();
+    if let Some(rest) = content.strip_prefix("```json") {
+        content = rest.trim().to_string();
+    } else if let Some(rest) = content.strip_prefix("```") {
+        content = rest.trim().to_string();
+    }
+    if let Some(rest) = content.strip_suffix("```") {
+        content = rest.trim().to_string();
+    }
+
+    let answers: Vec<String> = serde_json::from_str(&content).map_err(|e| {
+        let preview: String = content.chars().take(200).collect();
+        format!("parse JSON: {e}; content preview: {preview}")
+    })?;
+
+    if answers.len() != 8 {
+        return Err(format!("expected 8 answers, got {}", answers.len()));
+    }
+
+    Ok(answers)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // UI helpers — pure stdlib + ANSI, zero new deps
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn print_banner() {
     println!("{C_CYAN}{C_BOLD}");
-    println!("  ████████  TuringOS  — 描述一个游戏，获得可玩的 HTML 文件");
-    println!("  ████████  TuringOS  — Describe a game, get a playable HTML file");
+    println!("  ████████  TuringOS  — 描述一个想法，获得可玩的 HTML");
+    println!("  ████████  TuringOS  — Describe an idea, get a playable HTML");
     println!("{C_RESET}");
 }
 
