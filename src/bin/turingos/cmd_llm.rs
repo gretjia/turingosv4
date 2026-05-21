@@ -139,6 +139,26 @@ DESCRIPTION:
     Chat Completions URL — the wire format is the same.
 
     Class 1: filesystem write only. No network. No backend call.
+
+DEEPSEEK DUAL-KEY EXAMPLE:
+    # 1. Configure key env-var NAMES (not values) + models + thinking mode
+    turingos llm config --workspace <PATH> \
+        --meta-api-key-env DEEPSEEK_API_KEY \
+        --blackbox-api-key-env DEEPSEEK_API_KEY_WORKER \
+        --meta-model deepseek-v4-pro \
+        --blackbox-model deepseek-v4-flash \
+        --meta-thinking on \
+        --blackbox-thinking off
+
+    # 2. Point endpoint at DeepSeek (shell env var, not in turingos.toml)
+    export TURINGOS_SILICONFLOW_ENDPOINT=https://api.deepseek.com/v1/chat/completions
+
+    # 3. Provide the actual key values via the named env vars
+    export DEEPSEEK_API_KEY="sk-..."          # Meta role key
+    export DEEPSEEK_API_KEY_WORKER="sk-..."   # Worker role key
+
+    # 4. Verify
+    turingos welcome --workspace <PATH>
 "#;
 
 /// TRACE_MATRIX FC2-N16: error type for LLM config/key readers in cmd_llm.
