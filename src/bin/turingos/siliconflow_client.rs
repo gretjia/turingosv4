@@ -36,6 +36,19 @@ pub(crate) fn endpoint() -> String {
         .unwrap_or_else(|_| SILICONFLOW_ENDPOINT.to_string())
 }
 
+/// TRACE_MATRIX FC2-N16: Optional thinking (reasoning) mode config.
+///
+/// When `kind` == "enabled", the request body includes `{"thinking":{"type":"enabled"}}`,
+/// which activates DeepSeek reasoning mode. Omitting this field entirely (i.e.,
+/// `thinking: None` in `ChatRequest`) disables reasoning mode — the two models
+/// support both modes; the toggle is in the request body, not the model name.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ThinkingConfig {
+    /// Serializes as JSON key "type". Set to "enabled" to activate reasoning.
+    #[serde(rename = "type")]
+    pub kind: String,
+}
+
 /// TRACE_MATRIX FC2-N16: Chat message envelope (OpenAI-compatible role+content).
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ChatMessage {
@@ -67,14 +80,24 @@ impl ChatMessage {
     }
 }
 
+/// TRACE_MATRIX FC2-N16: OpenAI-compatible chat-completion request body.
+///
+/// Made `pub(crate)` so integration test helpers in the binary can construct
+/// it directly (P3 thinking-param unit test, deepseek_thinking_param_serialized.rs).
 #[derive(Debug, Serialize)]
-struct ChatRequest<'a> {
-    model: &'a str,
-    messages: &'a [ChatMessage],
+pub(crate) struct ChatRequest<'a> {
+    pub model: &'a str,
+    pub messages: &'a [ChatMessage],
     #[serde(skip_serializing_if = "Option::is_none")]
-    max_tokens: Option<u32>,
+    pub max_tokens: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    temperature: Option<f32>,
+    pub temperature: Option<f32>,
+    /// When `Some(ThinkingConfig { kind: "enabled" })`, the request body includes
+    /// `{"thinking":{"type":"enabled"}}` and the response carries `reasoning_content`.
+    /// When `None`, the field is omitted entirely (skip_serializing_if), which is
+    /// the API signal for non-reasoning (fast) mode.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingConfig>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -96,6 +119,10 @@ struct ChatMessageOwned {
     #[allow(dead_code)]
     role: String,
     content: String,
+    /// Present when the model is in reasoning mode (thinking.type = "enabled").
+    /// Contains the model's internal reasoning trace, separate from `content`.
+    #[serde(default)]
+    reasoning_content: Option<String>,
 }
 
 /// TRACE_MATRIX FC2-N16: OpenAI-compatible token-usage record returned by chat-complete.
@@ -113,6 +140,9 @@ pub(crate) struct Usage {
 #[derive(Debug)]
 pub(crate) struct ChatResult {
     pub content: String,
+    /// Reasoning trace from the model when thinking mode is enabled.
+    /// `None` when thinking is off or when the provider does not emit this field.
+    pub reasoning_content: Option<String>,
     pub usage: Usage,
     pub finish_reason: Option<String>,
 }
@@ -157,6 +187,7 @@ pub(crate) async fn chat_complete(
     messages: &[ChatMessage],
     max_tokens: Option<u32>,
     temperature: Option<f32>,
+    thinking: Option<ThinkingConfig>,
 ) -> Result<ChatResult, LlmError> {
     let url = endpoint();
     let body = ChatRequest {
@@ -164,6 +195,7 @@ pub(crate) async fn chat_complete(
         messages,
         max_tokens,
         temperature,
+        thinking,
     };
 
     let client = reqwest::Client::builder()
@@ -202,6 +234,7 @@ pub(crate) async fn chat_complete(
         .ok_or(LlmError::NoChoices)?;
     Ok(ChatResult {
         content: first.message.content,
+        reasoning_content: first.message.reasoning_content,
         usage: parsed.usage.unwrap_or_default(),
         finish_reason: first.finish_reason,
     })
@@ -218,6 +251,7 @@ pub(crate) fn chat_complete_blocking(
     messages: &[ChatMessage],
     max_tokens: Option<u32>,
     temperature: Option<f32>,
+    thinking: Option<ThinkingConfig>,
 ) -> Result<ChatResult, LlmError> {
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -229,6 +263,7 @@ pub(crate) fn chat_complete_blocking(
         messages,
         max_tokens,
         temperature,
+        thinking,
     ))
 }
 

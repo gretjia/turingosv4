@@ -256,8 +256,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
+    let blackbox_thinking = cmd_llm::read_blackbox_thinking(&workspace);
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let llm_res = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2));
+    let llm_res = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2), blackbox_thinking);
 
     let (outcome, raw_output_cid, usage_total_tokens, parsed_file_count, files_to_write, run_result): (
         AttemptOutcome,
