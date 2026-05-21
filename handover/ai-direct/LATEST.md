@@ -1,5 +1,21 @@
 # TuringOS v4 — Handover State
 
+> 🚨 **AGENT COLD-START — READ FIRST** 🚨
+>
+> Before reading this file, every coding-agent CLI MUST first read:
+>
+> 1. **`AGENTS.md`** (canonical universal agent contract)
+> 2. **`HARNESS_PLAYBOOK.md`** (full operating manual — L1-L9, K-HARDEN 1-8)
+> 3. **`skills/SUBAGENT_HARNESS.md`** (subagent dispatch template)
+>
+> Hard rules enforced mechanically: **PR-only workflow** · no `git push origin main`
+> · no `git add .` · no sidecar staging. See `AGENTS.md` §14a.
+>
+> This file (LATEST.md) is a **derived view** of current session state — it is
+> NOT a source of truth. If LATEST.md contradicts ChainTape/CAS, ChainTape wins.
+
+---
+
 > 📍 **PROJECT DECISION MAP**: `handover/architect-insights/PROJECT_DECISION_MAP_2026-04-27.md`
 >
 > **ARCHIVE**: Sessions #1–#54 (2026-04-14 → 2026-05-17) archived at
