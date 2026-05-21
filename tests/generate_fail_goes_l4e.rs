@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::generation_attempt::{
+use turingosv4::runtime::rejection_capsule::{
     GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
     GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };

@@ -15,7 +15,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use turingosv4::runtime::generation_attempt::{
+use turingosv4::runtime::rejection_capsule::{
     GenerateRejectionCapsule, RejectClass, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
 

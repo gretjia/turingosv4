@@ -20,7 +20,7 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::generation_attempt::{
+use turingosv4::runtime::rejection_capsule::{
     GenerateRejectionCapsule, RejectClass, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::spec_capsule::cas_path;
