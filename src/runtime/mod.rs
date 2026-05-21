@@ -244,6 +244,9 @@ pub mod grill_predicates;
 /// `predicate_done_no_spec_pending_synthesis` deferred atom).
 pub mod spec_capsule;
 
+/// TRACE_MATRIX FC2-N16 + FC3-N4: artifact bundle CAS wire + schema.
+pub mod artifact_bundle;
+
 /// TRACE_MATRIX FC2-N16: pure helpers for spec.md synthesis
 /// (canonical 8-Q list, LLM-less body builder, header+appendix wrapper).
 /// Phase 6.3.x A6 lifted these from `cmd_spec.rs` so the web layer can render

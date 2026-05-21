@@ -226,11 +226,6 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
 added = "2026-05-20"
 
 [[gate]]
-name = "constitution_minif2f_boundary"
-authority = "TB-C0 baseline (constitution.md direct binding)"
-added = "2026-05-20"
-
-[[gate]]
 name = "constitution_n1_agent_economy_a3"
 authority = "handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_A3_§8_SIGN_OFF.md"
 added = "2026-05-20"

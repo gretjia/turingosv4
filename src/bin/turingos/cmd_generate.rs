@@ -36,6 +36,11 @@ use turingosv4::runtime::generation_attempt::{
     GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
     GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID, GENERATE_REJECTION_CAPSULE_SCHEMA_ID
 };
+use turingosv4::runtime::artifact_bundle::{
+    ArtifactFileRole, ArtifactFileEntry, ArtifactBundleManifest,
+    write_artifact_bundle, latest_artifact_bundle_cid_for_session,
+    ARTIFACT_BUNDLE_SCHEMA_ID
+};
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
 
@@ -332,7 +337,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
     let capsule = GenerationAttemptCapsule {
         schema_id: GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string(),
-        session_id,
+        session_id: session_id.clone(),
         spec_capsule_cid: spec_capsule_cid.clone(),
         spec_source,
         model_id,
@@ -401,7 +406,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
             session_id: capsule.session_id.clone(),
             spec_capsule_cid: capsule.spec_capsule_cid.clone(),
-            generation_attempt_cid: Some(attempt_cid),
+            generation_attempt_cid: Some(attempt_cid.clone()),
             triage_attempted: true,
             reject_class,
             public_error_summary: public_summary,
@@ -418,6 +423,75 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
     if run_result.is_ok() {
         if let Some((written, content)) = files_to_write {
+            let files = parse_emitted_files(&content);
+
+            // Put each generated file into CAS and construct ArtifactFileEntry list
+            let mut file_entries = Vec::new();
+            let mut bundle_size_bytes_total = 0u64;
+
+            let mut store = CasStore::open(&cas_dir)
+                .map_err(|e| GenError::Io(format!("open cas store: {e}")))?;
+
+            let entrypoint_path = find_entrypoint(&files).unwrap_or_default();
+
+            for f in &files {
+                let content_bytes = f.content.as_bytes();
+                let size_bytes = content_bytes.len() as u64;
+                bundle_size_bytes_total += size_bytes;
+
+                let mut hasher = Sha256::new();
+                hasher.update(content_bytes);
+                let sha256_hex = format!("{:x}", hasher.finalize());
+
+                let mime = guess_mime(&f.path);
+
+                let role = if f.path == entrypoint_path {
+                    ArtifactFileRole::Entrypoint
+                } else if f.path.ends_with(".html") || f.path.ends_with(".js") || f.path.ends_with(".css") || f.path.ends_with(".ts") {
+                    ArtifactFileRole::Source
+                } else {
+                    ArtifactFileRole::Asset
+                };
+
+                let file_cid = store
+                    .put(
+                        content_bytes,
+                        ObjectType::EvidenceCapsule,
+                        "generate_system",
+                        logical_t,
+                        None,
+                    )
+                    .map_err(|e| GenError::Io(format!("CAS put file failed: {e}")))?;
+
+                file_entries.push(ArtifactFileEntry {
+                    path: f.path.clone(),
+                    cid: file_cid.hex(),
+                    mime,
+                    sha256: sha256_hex,
+                    size_bytes,
+                    role,
+                });
+            }
+
+            let previous_bundle_cid = latest_artifact_bundle_cid_for_session(&workspace, &session_id)
+                .ok()
+                .flatten();
+
+            let manifest = ArtifactBundleManifest {
+                schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
+                session_id: session_id.clone(),
+                spec_capsule_cid: spec_capsule_cid.clone(),
+                generation_attempt_cid: attempt_cid.clone(),
+                previous_bundle_cid,
+                files: file_entries,
+                entrypoint: entrypoint_path,
+                bundle_size_bytes_total,
+                created_at_logical_t: logical_t,
+            };
+
+            let bundle_cid = write_artifact_bundle(&workspace, &manifest)?;
+            println!("artifact_bundle_cid={}", bundle_cid);
+
             if emit_transcript {
                 let transcript = serde_json::json!({
                     "logical_t": logical_t,
@@ -576,4 +650,49 @@ fn sanitize_relative_path(rel: &str) -> Result<PathBuf, String> {
         }
     }
     Ok(p.to_path_buf())
+}
+
+fn guess_mime(path_str: &str) -> String {
+    let lower = path_str.to_lowercase();
+    if lower.ends_with(".html") || lower.ends_with(".htm") {
+        "text/html".to_string()
+    } else if lower.ends_with(".js") {
+        "text/javascript".to_string()
+    } else if lower.ends_with(".css") {
+        "text/css".to_string()
+    } else if lower.ends_with(".ts") {
+        "text/typescript".to_string()
+    } else if lower.ends_with(".png") {
+        "image/png".to_string()
+    } else if lower.ends_with(".jpg") || lower.ends_with(".jpeg") {
+        "image/jpeg".to_string()
+    } else if lower.ends_with(".gif") {
+        "image/gif".to_string()
+    } else if lower.ends_with(".svg") {
+        "image/svg+xml".to_string()
+    } else if lower.ends_with(".json") {
+        "application/json".to_string()
+    } else {
+        "application/octet-stream".to_string()
+    }
+}
+
+fn find_entrypoint(files: &[EmittedFile]) -> Option<String> {
+    if files.is_empty() {
+        return None;
+    }
+    // 1. Check for index.html
+    for f in files {
+        if f.path == "index.html" {
+            return Some(f.path.clone());
+        }
+    }
+    // 2. Check for first .html file
+    for f in files {
+        if f.path.ends_with(".html") {
+            return Some(f.path.clone());
+        }
+    }
+    // 3. Fallback to first file
+    Some(files[0].path.clone())
 }

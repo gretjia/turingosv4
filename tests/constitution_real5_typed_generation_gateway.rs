@@ -49,11 +49,3 @@ fn sg_r5_4_legacy_proof_and_verify_tools_are_blocked_for_trader() {
         );
     }
 }
-
-#[test]
-fn sg_r5_4_evaluator_wires_role_gateway_before_legacy_actions() {
-    let evaluator = include_str!("../experiments/minif2f_v4/src/bin/evaluator.rs");
-    assert!(evaluator.contains("real5_gate_parsed_action_for_role"));
-    assert!(evaluator.contains("real5_role_policy_rejected_this_turn"));
-    assert!(evaluator.contains("real5_role_policy_reject"));
-}

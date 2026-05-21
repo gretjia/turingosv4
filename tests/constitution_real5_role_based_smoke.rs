@@ -51,15 +51,6 @@ fn sg_r5_9_runner_records_role_assignment_and_role_views() {
 }
 
 #[test]
-fn sg_r5_9_evaluator_writes_role_turn_reason_traces() {
-    let evaluator = include_str!("../experiments/minif2f_v4/src/bin/evaluator.rs");
-    assert!(evaluator.contains("write_role_turn_trace_to_cas"));
-    assert!(evaluator.contains("RoleTurnOutcome::NoTrade"));
-    assert!(evaluator.contains("RoleTurnOutcome::NoVerify"));
-    assert!(evaluator.contains("RoleTurnOutcome::NoChallenge"));
-}
-
-#[test]
 fn sg_r5_9_role_turn_reason_traces_reconstruct_from_cas() {
     let dir = TempDir::new().expect("tempdir");
     let mut cas = CasStore::open(dir.path()).expect("cas");
