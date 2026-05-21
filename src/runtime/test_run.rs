@@ -249,18 +249,20 @@ pub fn write_test_run_capsule(
 ///
 /// Derives a TestScenarioSet from `spec_bytes`, writes it to CAS (hidden — CID
 /// not returned to caller), runs scenarios against the artifact bundle in CAS,
-/// writes the TestRunCapsule to CAS, and returns `(test_run_cid, overall_pass)`.
+/// writes the TestRunCapsule to CAS, and returns
+/// `(test_run_cid, overall_pass, results)`.
 ///
 /// **Hidden-oracle contract**: the scenario set CID is intentionally NOT returned
 /// to the caller and must NOT appear in any generation prompt or public response.
-/// Only `test_run_cid` and `overall_pass` are surfaced.
+/// Only `test_run_cid`, `overall_pass`, and the per-scenario `results` are surfaced.
+/// The scenario *set* bytes (which reveal the oracle) stay inside CAS only.
 pub fn run_and_write_test_pipeline(
     workspace: &Path,
     spec_bytes: &[u8],
     spec_capsule_cid: &str,
     artifact_bundle_cid_hex: &str,
     logical_t: u64,
-) -> Result<(String, bool), String> {
+) -> Result<(String, bool, Vec<TestScenarioResult>), String> {
     use crate::runtime::test_scenario::derive_scenario_set_from_spec;
 
     // Derive scenario set — bytes stay in this call, never reach LLM prompt.
@@ -276,9 +278,12 @@ pub fn run_and_write_test_pipeline(
     // Attach the scenario set CID (stays inside TestRunCapsule only).
     capsule.test_scenario_set_cid = scenario_set_cid;
 
-    // Write capsule and return its CID + overall result.
+    let overall_pass = capsule.overall_pass;
+    let results = capsule.results.clone();
+
+    // Write capsule and return its CID + overall result + per-scenario results.
     let run_cid = write_test_run_capsule(workspace, &capsule)?;
-    Ok((run_cid, capsule.overall_pass))
+    Ok((run_cid, overall_pass, results))
 }
 
 /// TRACE_MATRIX FC1: Find the latest TestRunCapsule for the given artifact_bundle_cid.
@@ -311,6 +316,44 @@ pub fn latest_test_run_for_bundle(
     }
 
     best.map(|(_, c)| c)
+}
+
+/// TRACE_MATRIX FC1: Format a human-readable test run summary for CLI output (B4).
+///
+/// Returns a line like:
+///   `Internal tests: PASS (3/3 scenarios) — EntrypointExists, HtmlParses, SandboxPolicyPreserved`
+/// or on failure:
+///   `Internal tests: FAIL (2/3 scenarios passed; failed: HtmlParses)`
+pub fn format_test_run_summary(results: &[TestScenarioResult]) -> String {
+    let total = results.len();
+    let passed = results.iter().filter(|r| r.pass).count();
+    let all_pass = passed == total;
+
+    let scenario_display = |r: &TestScenarioResult| -> String {
+        match &r.scenario {
+            TestScenario::EntrypointExists => "EntrypointExists".to_string(),
+            TestScenario::HtmlParses => "HtmlParses".to_string(),
+            TestScenario::SandboxPolicyPreserved { .. } => "SandboxPolicyPreserved".to_string(),
+        }
+    };
+
+    if all_pass {
+        let names: Vec<String> = results.iter().map(scenario_display).collect();
+        format!(
+            "Internal tests: PASS ({passed}/{total} scenarios) — {}",
+            names.join(", ")
+        )
+    } else {
+        let failed_names: Vec<String> = results
+            .iter()
+            .filter(|r| !r.pass)
+            .map(scenario_display)
+            .collect();
+        format!(
+            "Internal tests: FAIL ({passed}/{total} scenarios passed; failed: {})",
+            failed_names.join(", ")
+        )
+    }
 }
 
 /// Parse a 64-char hex CID into a CAS Cid. Returns None on bad format.

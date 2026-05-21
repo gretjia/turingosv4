@@ -165,13 +165,95 @@ impl std::fmt::Display for LlmError {
                 "missing API key: set env var {env_var} to your SiliconFlow API key"
             ),
             Self::HttpStatus { status, body } => {
-                write!(f, "HTTP {status} from SiliconFlow: {body}")
+                let rewritten = maybe_rewrite_deepseek_model_error(body);
+                if let Some(msg) = rewritten {
+                    write!(f, "{msg}")
+                } else {
+                    write!(f, "HTTP {status} from SiliconFlow: {body}")
+                }
             }
             Self::Transport(e) => write!(f, "HTTP transport error: {e}"),
             Self::DecodeError(e) => write!(f, "response decode error: {e}"),
             Self::NoChoices => write!(f, "SiliconFlow returned 0 choices"),
         }
     }
+}
+
+/// TRACE_MATRIX FC2-N16: B1 UX helper — rewrite a DeepSeek model-name 4xx into an actionable message.
+///
+/// Returns `Some(message)` when the response body contains BOTH:
+///   - `"supported API model names"` (DeepSeek direct API error marker)
+///   - `"deepseek-v4-"` (direct-API model name prefix)
+///
+/// Otherwise returns `None` so the caller falls through to the generic path.
+/// Detection is pure substring matching — no JSON parse.
+pub(crate) fn maybe_rewrite_deepseek_model_error(body: &str) -> Option<String> {
+    if body.contains("supported API model names") && body.contains("deepseek-v4-") {
+        // Try to extract the rejected model name from "you passed <X>".
+        let rejected_model = extract_rejected_model(body)
+            .unwrap_or_else(|| "<model>".to_string());
+        Some(format!(
+            "LLM provider rejected model \"{rejected_model}\".\n\
+             \n\
+             This usually means the endpoint (TURINGOS_SILICONFLOW_ENDPOINT) expects\n\
+             different model strings than the SiliconFlow-style defaults.\n\
+             \n\
+             If you're targeting DeepSeek direct API, run:\n\
+             \
+               turingos llm config --workspace <ws> \\\n\
+               \
+                   --meta-model deepseek-v4-pro \\\n\
+               \
+                   --blackbox-model deepseek-v4-flash"
+        ))
+    } else {
+        None
+    }
+}
+
+/// Extract the model name from DeepSeek error messages like
+/// "...but you passed deepseek-ai/DeepSeek-V3.2."
+///
+/// Handles two formats:
+///   - Quoted: `you passed "deepseek-ai/DeepSeek-V3.2"` — stop at closing `"`
+///   - Unquoted: `you passed deepseek-ai/DeepSeek-V3.2.` — stop at `"`, ` `, `\n`,
+///     or a trailing period that ends a sentence (i.e., followed by `"`, space, or end).
+fn extract_rejected_model(body: &str) -> Option<String> {
+    let marker = "you passed ";
+    let start = body.find(marker)? + marker.len();
+    let rest = &body[start..];
+
+    // Quoted form: `"model-name"`
+    if rest.starts_with('"') {
+        let inner = &rest[1..];
+        let end = inner.find('"').unwrap_or(inner.len());
+        let name = inner[..end].trim();
+        return if name.is_empty() { None } else { Some(name.to_string()) };
+    }
+
+    // Unquoted form: stop at whitespace, `"`, `}`, or a sentence-ending `.`
+    // (a period that is immediately followed by `"`, `}`, space, newline, or end-of-string).
+    let bytes = rest.as_bytes();
+    let mut end = bytes.len();
+    for (i, &b) in bytes.iter().enumerate() {
+        match b {
+            b'"' | b'}' | b' ' | b'\n' | b'\r' => { end = i; break; }
+            b'.' => {
+                // Only treat as sentence-end if next char is a delimiter or end.
+                let next = bytes.get(i + 1).copied();
+                match next {
+                    None | Some(b'"') | Some(b'}') | Some(b' ') | Some(b'\n') | Some(b'\r') => {
+                        end = i;
+                        break;
+                    }
+                    _ => {} // e.g. V3.2 — period inside version string, keep going
+                }
+            }
+            _ => {}
+        }
+    }
+    let name = rest[..end].trim();
+    if name.is_empty() { None } else { Some(name.to_string()) }
 }
 
 impl std::error::Error for LlmError {}
