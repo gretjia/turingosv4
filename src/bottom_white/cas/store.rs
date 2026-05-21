@@ -569,6 +569,11 @@ impl CasStore {
         self.index.get(cid)
     }
 
+    /// TRACE_MATRIX FC3-N4: list all objects currently present in the CAS index.
+    pub fn list(&self) -> Result<Vec<CasObjectMetadata>, CasError> {
+        Ok(self.index.values().cloned().collect())
+    }
+
     pub fn len(&self) -> usize {
         self.index.len()
     }

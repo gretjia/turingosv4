@@ -57,6 +57,7 @@ use tokio::sync::broadcast;
 use super::artifact::artifact_get_handler;
 use super::artifact_bundle::artifact_bundle_get_handler;
 use super::preview::preview_get_handler;
+use super::build_session::build_session_handler;
 use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
@@ -139,6 +140,8 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/api/bundle/:artifact_bundle_cid/file", get(artifact_bundle_get_handler))
         // CAS-backed preview run file serve route (C6): GET one preview file
         .route("/api/preview/:artifact_bundle_cid/file", get(preview_get_handler))
+        // C7: GET build session view
+        .route("/api/build/session/:session_id", get(build_session_handler))
         // W7: welcome onboarding API surface (5 endpoints; in-memory API key)
         .route("/api/welcome/status", get(welcome_status_handler))
         .route("/api/welcome/api-key", post(welcome_set_api_key_handler))
