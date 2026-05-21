@@ -178,10 +178,6 @@ pub mod persistence_evidence;
 /// 2026-05-12 病灶3 "0 verify" quantification gap.
 pub mod peer_verify_coverage;
 
-/// TRACE_MATRIX FC1/FC3 (REAL-WORLD Polymarket Phase A 2026-05-21): external
-/// market snapshot sidecar. Additive Generic CAS evidence only; public price
-/// is an agent signal, never resolution truth, wallet authority, or order flow.
-pub mod external_market_snapshot;
 /// TRACE_MATRIX FC1/FC3 (REAL-17 2026-05-17): direct prompt-provenance
 /// sidecar for submitted MarketDecisionTrace rows. Additive CAS evidence only;
 /// does not change TypedTx, sequencer admission, or CAS ObjectType schema.
