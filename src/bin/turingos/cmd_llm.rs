@@ -241,9 +241,9 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
         println!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
-    if args.iter().any(|a| a == "-h" || a == "--help")
-        && (args.len() == 1 || args[0] == "-h" || args[0] == "--help")
-    {
+    // X2: any occurrence of --help or -h prints FULL_HELP and exits 0 —
+    // including `turingos llm config --help` which previously ran the command.
+    if args.iter().any(|a| a == "-h" || a == "--help") {
         println!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
