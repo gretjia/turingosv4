@@ -26,12 +26,16 @@ DESCRIPTION:
     the current directory if --workspace is omitted). Reports which
     onboarding steps are complete and prints the next-step command.
 
-    The 5-step onboarding flow:
+    Onboarding flow (steps shown depend on your template):
       1. `turingos init`             — scaffold a workspace
       2. `turingos llm config`       — set LLM API credentials (Meta + Blackbox)
-      3. `turingos agent deploy`     — register at least one agent
-      4. `turingos spec`             — interactively decompose your task
-      5. `turingos generate`         — generate + deliver
+      3. `turingos spec`             — interactively decompose your task
+      4. `turingos generate`         — generate + deliver
+
+    For multi-agent workspaces an extra step is shown between llm config and
+    spec: `turingos agent deploy` — register at least one agent.
+    For proof / polymarket / default templates that step is not needed and
+    is omitted from the checklist.
 
 OPTIONS:
     --workspace <PATH>   Workspace directory (default: current directory).
@@ -48,6 +52,12 @@ struct WorkspaceStatus {
     /// the CAS wire so spec completion is provable, not just a file presence.
     spec_capsule_cid: Option<String>,
     artifacts_done: bool,
+    /// True when the workspace is a multi-agent template that actually requires
+    /// agent deploy. For proof/polymarket/unknown templates, agent deploy is
+    /// optional and is omitted from the onboarding checklist entirely (avoids
+    /// the "[ ] agent deploy" contradiction against the "All steps complete"
+    /// footer). B5 fix: handover/observations/USERSIM_DEEPSEEK_DUAL_KEY_2026-05-21.md
+    requires_agent_deploy: bool,
 }
 
 /// TRACE_MATRIX FC2-N16: `welcome` dispatch entry
@@ -108,6 +118,19 @@ fn inspect_workspace(ws: &Path) -> WorkspaceStatus {
         .map(|mut it| it.next().is_some())
         .unwrap_or(false);
 
+    // Determine whether this workspace uses the multi-agent template.
+    // Only multi-agent workspaces need `turingos agent deploy` — for proof,
+    // polymarket, or unknown templates the step is irrelevant and omitted.
+    let requires_agent_deploy = std::fs::read_to_string(ws.join("genesis_payload.toml"))
+        .ok()
+        .map(|content| {
+            content.lines().any(|l| {
+                let trimmed = l.trim();
+                trimmed == "template = \"multi-agent\"" || trimmed == "template = 'multi-agent'"
+            })
+        })
+        .unwrap_or(false);
+
     WorkspaceStatus {
         init_done,
         llm_configured,
@@ -115,6 +138,7 @@ fn inspect_workspace(ws: &Path) -> WorkspaceStatus {
         spec_done,
         spec_capsule_cid,
         artifacts_done,
+        requires_agent_deploy,
     }
 }
 
@@ -127,11 +151,20 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
     println!("Onboarding status:");
     mark(1, "turingos init", s.init_done);
     mark(2, "turingos llm config", s.llm_configured);
-    mark(
-        3,
-        &format!("turingos agent deploy ({} registered)", s.agents_count),
-        s.agents_count > 0,
-    );
+    // Step 3 (agent deploy) is only shown for multi-agent workspaces. For
+    // proof/polymarket/unknown templates it is irrelevant — omitting it
+    // prevents the "[ ] agent deploy" contradiction against the "All steps
+    // complete" footer. (B5: USERSIM_DEEPSEEK_DUAL_KEY_2026-05-21)
+    let (spec_step_n, gen_step_n): (u8, u8) = if s.requires_agent_deploy {
+        mark(
+            3,
+            &format!("turingos agent deploy ({} registered)", s.agents_count),
+            s.agents_count > 0,
+        );
+        (4, 5)
+    } else {
+        (3, 4)
+    };
     let spec_label = match &s.spec_capsule_cid {
         Some(cid) => format!(
             "turingos spec (CAS capsule: {}…{})",
@@ -140,8 +173,8 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
         ),
         None => "turingos spec (task decomposition)".to_string(),
     };
-    mark(4, &spec_label, s.spec_done);
-    mark(5, "turingos generate (deliverable)", s.artifacts_done);
+    mark(spec_step_n, &spec_label, s.spec_done);
+    mark(gen_step_n, "turingos generate (deliverable)", s.artifacts_done);
     println!();
 
     // Phase 6.3 flow (non-developer end-user demo): init → llm → spec →
