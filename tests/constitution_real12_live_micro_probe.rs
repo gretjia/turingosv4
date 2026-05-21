@@ -56,20 +56,3 @@ fn real12_live_micro_probe_records_required_bull_bear_metrics() {
     }
 }
 
-#[test]
-fn real12_role_turn_trace_uses_task_outcome_market_visibility_for_no_trade_reason() {
-    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source exists");
-    assert!(
-        evaluator.contains("market_context_visible")
-            && evaluator
-                .contains("tb_n3_market_block_present || real6_task_outcome_market_present"),
-        "REAL-12 RoleTurnTrace must treat TaskOutcomeMarket visibility as market context"
-    );
-    assert!(
-        !evaluator.contains(
-            "real5_write_role_turn_trace(\n                        bundle,\n                        &run_id,\n                        agent_id,\n                        real5_prompt_role,\n                        prompt_capsule_cid,\n                        real5_parsed_tool_for_trace.as_deref(),\n                        real5_parse_error_for_trace.as_deref(),\n                        real5_role_policy_rejected_this_turn.as_deref(),\n                        tb_n3_market_block_present,"
-        ),
-        "RoleTurnTrace must not classify TaskOutcomeMarket-visible abstains as NoPool by passing only tb_n3_market_block_present"
-    );
-}

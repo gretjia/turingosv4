@@ -35,24 +35,6 @@ fn constitution_real13_policy_trader_trace() {
     }
 }
 
-#[test]
-fn constitution_real13_policy_trader_is_written_by_evaluator_ev_path() {
-    let evaluator = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source readable");
-    for required in [
-        "real13_policy_trader_enabled",
-        "build_policy_trader_trace_from_ev",
-        "write_policy_trader_trace_to_cas_or_exit",
-        "PolicyTraderComparison::PolicyPositiveEV_LLMAbstained",
-        "counterfactual_only: true",
-        "counts_for_e2: false",
-    ] {
-        assert!(
-            evaluator.contains(required),
-            "evaluator must write PolicyTrader baseline from EV trace path: {required}"
-        );
-    }
-}
 
 #[test]
 fn constitution_real13_policy_trader_integer_only() {

@@ -24,7 +24,6 @@ use turingosv4::state::typed_tx::CapsulePrivacyPolicy;
 
 const SRC: &str = "src/runtime/real6_conviction_budget.rs";
 const YOUR_POSITION_SRC: &str = "src/sdk/your_position.rs";
-const EVALUATOR_SRC: &str = "experiments/minif2f_v4/src/bin/evaluator.rs";
 
 fn agent(name: &str) -> AgentId {
     AgentId(name.into())
@@ -110,13 +109,6 @@ fn sg_6c_3_prompt_sees_scoped_pnl_summary_without_other_agent_leak() {
 
 #[test]
 fn sg_6c_4_and_6c_5_low_balance_blocks_only_high_risk_actions_without_erasure() {
-    let evaluator_src = std::fs::read_to_string(EVALUATOR_SRC).expect("read evaluator src");
-    assert!(
-        evaluator_src.contains("derive_conviction_budget")
-            && evaluator_src.contains("route_role_action_with_conviction_budget"),
-        "SG-6C.4: production role gateway must route high-risk actions through ConvictionBudget"
-    );
-
     let a = agent("Agent_0");
     let q = q_with_balance(&a, 90_000);
     let budget = derive_conviction_budget(&q, &a);

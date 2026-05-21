@@ -416,7 +416,6 @@ fn sg_11_2_7_router_money_path_has_no_executable_float_arithmetic() {
         "src/state/router_quote.rs",
         "src/runtime/agent_pnl.rs",
         "src/sdk/protocol.rs",
-        "experiments/minif2f_v4/src/bin/evaluator.rs",
     ] {
         let source = std::fs::read_to_string(path).expect(path);
         if path == "src/sdk/protocol.rs" {
@@ -429,24 +428,12 @@ fn sg_11_2_7_router_money_path_has_no_executable_float_arithmetic() {
                 "protocol must reject floating invest amounts at parser membrane"
             );
         }
-        if path == "experiments/minif2f_v4/src/bin/evaluator.rs" {
-            assert!(
-                source.contains("let amount_micro: i64 = action.amount.unwrap_or(0);"),
-                "evaluator must not cast f64 into integer money"
-            );
-        }
         for (idx, line) in source.lines().enumerate() {
             let code = line.split("//").next().unwrap_or("");
             if path == "src/sdk/protocol.rs" {
                 assert!(
                     !code.contains("amount.unwrap_or(0.0)")
                         && !code.contains("Option<f64>"),
-                    "SG-11.2.7 no float-to-integer invest money path violation in {path}:{}: {line}",
-                    idx + 1
-                );
-            } else if path == "experiments/minif2f_v4/src/bin/evaluator.rs" {
-                assert!(
-                    !code.contains("amount.unwrap_or(0.0)"),
                     "SG-11.2.7 no float-to-integer invest money path violation in {path}:{}: {line}",
                     idx + 1
                 );

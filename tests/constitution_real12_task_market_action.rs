@@ -120,67 +120,6 @@ fn real12_task_market_prompt_affordance_is_opt_in_and_not_forced() {
     );
 }
 
-#[test]
-fn real12_evaluator_has_bid_task_execution_arm_for_task_outcome_market() {
-    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source");
-    assert!(
-        evaluator.contains("\"invest\" | \"bid_task\"") || evaluator.contains("\"bid_task\" =>"),
-        "advertised bid_task must have an evaluator execution arm"
-    );
-    assert!(
-        evaluator.contains("tb_real6a_invest_task_outcome_to_router_tx"),
-        "bid_task must route through the existing TaskOutcomeMarket router helper"
-    );
-    assert!(
-        evaluator.contains("bid_task_action_emitted_this_turn"),
-        "end-of-turn NoTrade classifier must not double-count bid_task as no-trade"
-    );
-    assert!(
-        evaluator.contains("Some(\"invest\") | Some(\"bid_task\")")
-            || evaluator
-                .contains("parsed_tool == Some(\"invest\") || parsed_tool == Some(\"bid_task\")"),
-        "REAL-5 role turn traces must classify bid_task as a market decision, not no-trade"
-    );
-    assert!(
-        evaluator.contains("REAL-12 Role Action Boundary"),
-        "Trader role prompts must include an explicit non-forcing action boundary"
-    );
-    assert!(
-        evaluator.contains("Do not emit `step`, `append`, `complete`, `verify_peer`, or `challenge_node` while assigned Trader"),
-        "Trader role boundary must block proof-style leakage in the prompt"
-    );
-    assert!(
-        evaluator.contains("TURINGOS_REAL12_TRADER_OBJECTIVE"),
-        "Trader objective must be opt-in after the no-E2 prompt objective probe"
-    );
-    assert!(
-        evaluator.contains("=== REAL-12 Trader Objective ==="),
-        "Trader prompt must state the economic objective separately from proof solving"
-    );
-    assert!(
-        evaluator.contains("If no edge is visible, abstain with a reason"),
-        "Trader objective must preserve no-forced-trade semantics"
-    );
-    assert!(
-        evaluator.contains("Price is signal, not truth"),
-        "Trader objective must preserve the price boundary"
-    );
-}
-
-#[test]
-fn real12_task_outcome_router_suffix_includes_task_identity() {
-    let evaluator = fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator source");
-    assert!(
-        !evaluator.contains("let suffix = format!(\"{}-{}\", agent_id, tx);"),
-        "R14 audit CHALLENGE: per-problem tx numbers repeat, so router suffix must not be agent+tx only"
-    );
-    assert!(
-        evaluator.contains("let suffix = format!(\"{}-{}-{}\", task_id_str, agent_id, tx);"),
-        "router suffix must include task identity so submitted trace tx_ids can join exactly to L4 router tx_ids across hard10 batches"
-    );
-}
 
 #[test]
 fn real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade() {

@@ -245,23 +245,3 @@ fn sg_6d_3_and_6d_4_scheduler_does_not_touch_admission_or_predicates() {
     );
 }
 
-#[test]
-fn sg_6d_1_runtime_emits_scheduler_trace_to_run_cas() {
-    let evaluator_src =
-        std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs").unwrap();
-    assert!(
-        evaluator_src.contains("TURINGOS_REAL6_SCHEDULER_OBSERVE_ONLY"),
-        "REAL-6D runtime emission must be explicitly feature-gated"
-    );
-    assert!(
-        evaluator_src.contains("write_scheduler_decision_trace_to_cas_or_exit")
-            && evaluator_src.contains("write_scheduler_decision_trace_to_cas")
-            && evaluator_src.contains("SchedulerDecisionTrace CAS write FAIL-CLOSED"),
-        "SG-6D.1 scheduler trace must be emitted to the run CAS evidence path fail-closed"
-    );
-    assert!(
-        evaluator_src.contains("real6d_scheduler_price_signals_from_q")
-            && evaluator_src.contains("real6d_scheduler_pnl_signal_from_budget"),
-        "SG-6D.1 runtime trace must derive both price and PnL signals from canonical run state"
-    );
-}

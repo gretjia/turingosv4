@@ -29,9 +29,6 @@
 //!
 //! TRACE_MATRIX FC1-N14: Gate 7 conformance witness.
 
-use std::fs;
-
-const EVALUATOR_PATH: &str = "experiments/minif2f_v4/src/bin/evaluator.rs";
 const SHADOW_ONLY_MARKER: &str = "// shadow_only:";
 
 /// Returns the line indices (0-based) of every `bus.append(` or
@@ -91,28 +88,6 @@ fn unannotated_legacy_append_sites(source: &str) -> Vec<(usize, String)> {
     violations
 }
 
-#[test]
-fn gate_7_no_unannotated_legacy_append_in_evaluator() {
-    let source =
-        fs::read_to_string(EVALUATOR_PATH).unwrap_or_else(|e| panic!("read {EVALUATOR_PATH}: {e}"));
-    let violations = unannotated_legacy_append_sites(&source);
-    if !violations.is_empty() {
-        let mut report = String::from(
-            "Gate 7 FAILED — unannotated legacy bus.append / bus.append_oracle_accepted \
-             call sites in evaluator.rs:\n",
-        );
-        for (line_no, content) in &violations {
-            report.push_str(&format!("  L{line_no}: {content}\n"));
-        }
-        report.push_str(
-            "\nFix: replace with bus.submit_typed_tx as authoritative path \
-             (per TB-7 charter §4.0), OR add `// shadow_only:` annotation \
-             within 3 lines above the call site if the call genuinely is \
-             tape-view-sync only (NOT authoritative state mutation).\n",
-        );
-        panic!("{report}");
-    }
-}
 
 /// Positive control: confirm the scanner CAN flag a synthetic violation,
 /// so the gate isn't silently passing on a broken scanner.

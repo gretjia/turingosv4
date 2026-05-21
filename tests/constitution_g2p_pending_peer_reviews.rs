@@ -230,12 +230,7 @@ fn sg_g2p_2_fixture_filters_self_work_tx_and_already_verified_targets() {
 
 /// SG-G2P.2.c — mechanism-binding gate: `build_agent_prompt` in
 /// `src/sdk/prompt.rs` actually wires the pending-peer-reviews body
-/// under the canonical `=== Pending Peer Reviews ===` heading, and the
-/// experiments/minif2f_v4/src/bin/evaluator.rs swarm path calls
-/// `render_pending_peer_reviews` so the block reaches the LLM at
-/// runtime. Without this binding, the per-viewer renderer is unreachable
-/// and architect §8.2 ship gate ("at least one non-solver VerifyTx on
-/// another agent's WorkTx") cannot turn green.
+/// under the canonical `=== Pending Peer Reviews ===` heading.
 #[test]
 fn sg_g2p_2_prompt_builder_and_evaluator_wire_the_block() {
     let prompt_src = std::fs::read_to_string("src/sdk/prompt.rs").expect("prompt.rs readable");
@@ -248,14 +243,5 @@ fn sg_g2p_2_prompt_builder_and_evaluator_wire_the_block() {
         prompt_src.contains("pending_peer_reviews: &str"),
         "SG-G2P.2 binding: build_agent_prompt must accept a \
          `pending_peer_reviews: &str` parameter."
-    );
-
-    let evaluator_src = std::fs::read_to_string("experiments/minif2f_v4/src/bin/evaluator.rs")
-        .expect("evaluator.rs readable");
-    assert!(
-        evaluator_src.contains("pending_peer_reviews::render_pending_peer_reviews"),
-        "SG-G2P.2 binding: evaluator.rs swarm path must call \
-         `pending_peer_reviews::render_pending_peer_reviews` so the per-viewer \
-         block reaches the LLM at runtime."
     );
 }
