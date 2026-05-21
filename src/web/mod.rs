@@ -4,6 +4,8 @@
 /// DO-NOT-TOUCH surface (Phase 7 §7). All items are `pub(crate)` or lower;
 /// no public API leaks from this module tree.
 pub(crate) mod artifact;
+/// TRACE_MATRIX FC2-N16: Phase 7 web — artifact bundle file serving handler.
+pub(crate) mod artifact_bundle;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — UI IR fixtures submodule.
 pub(crate) mod fixtures;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — POST /api/generate handler submodule (Phase 6.3 codegen wire).
