@@ -81,6 +81,8 @@ mod cmd_verify_e2_candidate;
 mod cmd_welcome;
 #[path = "turingos/cmd_spec_audit.rs"]
 mod cmd_spec_audit;
+#[path = "turingos/cmd_wizard.rs"]
+mod cmd_wizard;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -224,6 +226,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         short_help: cmd_spec_audit::SHORT_HELP,
         run: cmd_spec_audit::run,
     },
+    Subcommand {
+        name: "wizard",
+        short_help: cmd_wizard::SHORT_HELP,
+        run: cmd_wizard::run,
+    },
     // SUBCOMMANDS-REGISTRY-END
 ];
 
@@ -285,6 +292,19 @@ fn print_subgroup_help(prefix: &str) -> bool {
 
 fn main() -> ExitCode {
     let argv: Vec<String> = env::args().collect();
+
+    // Bare `turingos` with no arguments: launch TUI wizard when TTY, else help.
+    // This is the non-programmer onboarding entry (Atom-W, FC2-N16).
+    if argv.len() == 1 {
+        use std::io::IsTerminal;
+        if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+            return cmd_wizard::run(&[]);
+        } else {
+            print_top_help();
+            return ExitCode::SUCCESS;
+        }
+    }
+
     let sub = argv.get(1).map(String::as_str).unwrap_or("--help");
     match sub {
         "-V" | "--version" => {
