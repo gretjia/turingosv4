@@ -183,7 +183,7 @@ fn phase63_full_cas_wire_init_llm_spec_welcome() {
     );
     let welcome_out = String::from_utf8_lossy(&out.stdout);
     assert!(
-        welcome_out.contains("[x] 4. turingos spec"),
+        welcome_out.contains("[x] 3. turingos spec"),
         "welcome should flip spec to [x]; got: {welcome_out}"
     );
     // Welcome should embed the truncated CID for operator audit

@@ -140,6 +140,8 @@ pub(crate) struct Usage {
 #[derive(Debug)]
 pub(crate) struct ChatResult {
     pub content: String,
+    /// Raw successful provider response body bytes as received before JSON parse.
+    pub raw_response_body: Vec<u8>,
     /// Reasoning trace from the model when thinking mode is enabled.
     /// `None` when thinking is off or when the provider does not emit this field.
     pub reasoning_content: Option<String>,
@@ -190,8 +192,7 @@ impl std::fmt::Display for LlmError {
 pub(crate) fn maybe_rewrite_deepseek_model_error(body: &str) -> Option<String> {
     if body.contains("supported API model names") && body.contains("deepseek-v4-") {
         // Try to extract the rejected model name from "you passed <X>".
-        let rejected_model = extract_rejected_model(body)
-            .unwrap_or_else(|| "<model>".to_string());
+        let rejected_model = extract_rejected_model(body).unwrap_or_else(|| "<model>".to_string());
         Some(format!(
             "LLM provider rejected model \"{rejected_model}\".\n\
              \n\
@@ -228,7 +229,11 @@ fn extract_rejected_model(body: &str) -> Option<String> {
         let inner = &rest[1..];
         let end = inner.find('"').unwrap_or(inner.len());
         let name = inner[..end].trim();
-        return if name.is_empty() { None } else { Some(name.to_string()) };
+        return if name.is_empty() {
+            None
+        } else {
+            Some(name.to_string())
+        };
     }
 
     // Unquoted form: stop at whitespace, `"`, `}`, or a sentence-ending `.`
@@ -237,7 +242,10 @@ fn extract_rejected_model(body: &str) -> Option<String> {
     let mut end = bytes.len();
     for (i, &b) in bytes.iter().enumerate() {
         match b {
-            b'"' | b'}' | b' ' | b'\n' | b'\r' => { end = i; break; }
+            b'"' | b'}' | b' ' | b'\n' | b'\r' => {
+                end = i;
+                break;
+            }
             b'.' => {
                 // Only treat as sentence-end if next char is a delimiter or end.
                 let next = bytes.get(i + 1).copied();
@@ -253,10 +261,32 @@ fn extract_rejected_model(body: &str) -> Option<String> {
         }
     }
     let name = rest[..end].trim();
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 impl std::error::Error for LlmError {}
+
+/// TRACE_MATRIX FC2-N16: canonical provider request bytes for evidence hashing.
+pub(crate) fn canonical_chat_request_bytes(
+    model: &str,
+    messages: &[ChatMessage],
+    max_tokens: Option<u32>,
+    temperature: Option<f32>,
+    thinking: Option<ThinkingConfig>,
+) -> Result<Vec<u8>, LlmError> {
+    let body = ChatRequest {
+        model,
+        messages,
+        max_tokens,
+        temperature,
+        thinking,
+    };
+    serde_json::to_vec(&body).map_err(|e| LlmError::DecodeError(e.to_string()))
+}
 
 /// TRACE_MATRIX FC2-N16: async chat-completion against SiliconFlow.
 ///
@@ -272,13 +302,8 @@ pub(crate) async fn chat_complete(
     thinking: Option<ThinkingConfig>,
 ) -> Result<ChatResult, LlmError> {
     let url = endpoint();
-    let body = ChatRequest {
-        model,
-        messages,
-        max_tokens,
-        temperature,
-        thinking,
-    };
+    let request_bytes =
+        canonical_chat_request_bytes(model, messages, max_tokens, temperature, thinking.clone())?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(180))
@@ -288,7 +313,8 @@ pub(crate) async fn chat_complete(
     let resp = client
         .post(&url)
         .bearer_auth(api_key)
-        .json(&body)
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .body(request_bytes)
         .send()
         .await
         .map_err(|e| LlmError::Transport(e.to_string()))?;
@@ -316,6 +342,7 @@ pub(crate) async fn chat_complete(
         .ok_or(LlmError::NoChoices)?;
     Ok(ChatResult {
         content: first.message.content,
+        raw_response_body: text.into_bytes(),
         reasoning_content: first.message.reasoning_content,
         usage: parsed.usage.unwrap_or_default(),
         finish_reason: first.finish_reason,

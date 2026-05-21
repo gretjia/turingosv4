@@ -43,11 +43,19 @@
 use axum::{extract::State, http::StatusCode, Json};
 #[cfg(feature = "web")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "web")]
+use std::path::PathBuf;
+#[cfg(feature = "web")]
+use std::time::Duration;
 
 #[cfg(feature = "web")]
 use super::store::TaskEntry;
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
+#[cfg(feature = "web")]
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 // ---------------------------------------------------------------------------
 // Request / Response / Error types
@@ -270,19 +278,42 @@ pub(crate) async fn task_open_handler(
     // passes them to `lean_market`. Flags `--problem`, `--bounty`, `--chaintape`
     // are documented in cmd_task_open.rs FULL_HELP. `--agent-id` is passed
     // through to the backend for agent assignment.
-    let output = tokio::process::Command::new(&bin)
-        .arg("task")
-        .arg("open")
-        .arg("--problem")
-        .arg(&req.problem_id)
-        .arg("--bounty")
-        .arg(req.bounty.to_string())
-        .arg("--agent-id")
-        .arg(&req.agent_id)
-        .arg("--chaintape")
-        .arg(&workspace)
-        .output()
+    let workspace_path = PathBuf::from(&workspace);
+    let cwd = if workspace_path.is_dir() {
+        workspace_path.clone()
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    };
+    let command = SanitizedCommand {
+        program: PathBuf::from(&bin),
+        args: vec![
+            "task".into(),
+            "open".into(),
+            "--problem".into(),
+            req.problem_id.clone(),
+            "--bounty".into(),
+            req.bounty.to_string(),
+            "--agent-id".into(),
+            req.agent_id.clone(),
+            "--chaintape".into(),
+            workspace.clone(),
+        ],
+        cwd,
+        env: env_allowlist_from_current(&["PATH"]),
+        stdin: None,
+        timeout: Duration::from_secs(120),
+    };
+    let output = tokio::task::spawn_blocking(move || run_sanitized(command))
         .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(TaskOpenError {
+                    reason: format!("spawn_blocking failed for {:?}: {e}", bin),
+                    kind: "shellout_failed",
+                }),
+            )
+        })?
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -294,7 +325,7 @@ pub(crate) async fn task_open_handler(
         })?;
 
     // Step 4: check exit code.
-    if !output.status.success() {
+    if !output.success() {
         let stdout_str = String::from_utf8_lossy(&output.stdout);
         let stderr_str = String::from_utf8_lossy(&output.stderr);
         // Truncate to first 512 chars to avoid log flooding.

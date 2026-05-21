@@ -35,17 +35,17 @@ pub enum RejectClass {
 /// TRACE_MATRIX FC1 + FC3-N4: Capsule containing metadata for a generate rejection event.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct GenerateRejectionCapsule {
-    pub schema_id: String,                       // = "turingos-generate-rejection-v1"
+    pub schema_id: String, // = "turingos-generate-rejection-v1"
     pub session_id: String,
     pub spec_capsule_cid: Option<String>,
-    pub generation_attempt_cid: Option<String>,  // links to C2 capsule if attempt was made
-    pub triage_attempted: bool,                  // false if rejected pre-LLM
+    pub generation_attempt_cid: Option<String>, // links to C2 capsule if attempt was made
+    pub triage_attempted: bool,                 // false if rejected pre-LLM
     pub reject_class: RejectClass,
-    pub public_error_summary: String,            // user-safe; no diagnostics
-    pub reason: String,                          // short machine-readable reason code
-    pub private_diagnostic_cid: Option<String>,  // raw bytes in CAS, SHIELDED
+    pub public_error_summary: String, // user-safe; no diagnostics
+    pub reason: String,               // short machine-readable reason code
+    pub private_diagnostic_cid: Option<String>, // raw bytes in CAS, SHIELDED
     pub retryable: bool,
-    pub world_head_unchanged: bool,              // MUST be true (asserted)
+    pub world_head_unchanged: bool, // MUST be true (asserted)
     pub logical_t: u64,
 }
 
@@ -74,4 +74,37 @@ pub fn write_generate_rejection_capsule(
         .map_err(|e| CapsuleError::Put(e.to_string()))?;
 
     Ok(cid.hex())
+}
+
+/// TRACE_MATRIX FC3-N4: write a generate rejection with an observed CAS-only
+/// world-head check.
+///
+/// This writer does not claim sequencer/L4 knowledge. It verifies the narrow
+/// P7.z rejection fact available at this layer: a rejection capsule write only
+/// appends CAS evidence and does not mutate the pre-existing CAS object set
+/// except for the rejection evidence object itself.
+pub fn write_generate_rejection_capsule_observed(
+    workspace: &Path,
+    body: &GenerateRejectionCapsule,
+) -> Result<String, CapsuleError> {
+    let cas_dir = cas_path(workspace);
+    let before = cas_len(&cas_dir)?;
+    let mut observed = body.clone();
+    observed.world_head_unchanged = true;
+    let cid = write_generate_rejection_capsule(workspace, &observed)?;
+    let after = cas_len(&cas_dir)?;
+    if !(after == before || after == before.saturating_add(1)) {
+        return Err(CapsuleError::Put(format!(
+            "generate rejection CAS observation advanced from {before} to {after}"
+        )));
+    }
+    Ok(cid)
+}
+
+fn cas_len(cas_dir: &Path) -> Result<usize, CapsuleError> {
+    if !cas_dir.exists() {
+        return Ok(0);
+    }
+    let store = CasStore::open(cas_dir).map_err(|e| CapsuleError::Open(e.to_string()))?;
+    Ok(store.len())
 }

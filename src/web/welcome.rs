@@ -32,9 +32,15 @@ use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "web")]
 use std::path::{Path, PathBuf};
+#[cfg(feature = "web")]
+use std::time::Duration;
 
 #[cfg(feature = "web")]
 use super::ws::AppState;
+#[cfg(feature = "web")]
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand, SanitizedOutput,
+};
 
 // ---------------------------------------------------------------------------
 // Workspace status (mirrors src/bin/turingos/cmd_welcome.rs::inspect_workspace)
@@ -446,25 +452,30 @@ pub(crate) async fn welcome_init_handler(
         workspace_str
     );
 
-    let output = tokio::process::Command::new(&bin)
-        .arg("init")
-        .arg("--project")
-        .arg(&workspace_str)
-        .arg("--template")
-        .arg("multi-agent")
-        .output()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SetupError {
-                    reason: format!("failed to spawn {:?}: {e}", bin),
-                    kind: "init_failed",
-                }),
-            )
-        })?;
+    let output = run_welcome_command(
+        bin.clone(),
+        workspace.clone(),
+        vec![
+            "init".into(),
+            "--project".into(),
+            workspace_str.clone(),
+            "--template".into(),
+            "multi-agent".into(),
+        ],
+        Duration::from_secs(120),
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to spawn/run {:?}: {e}", bin),
+                kind: "init_failed",
+            }),
+        )
+    })?;
 
-    if !output.status.success() {
+    if !output.success() {
         let combined = combine_truncated(&output.stdout, &output.stderr);
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -524,24 +535,29 @@ pub(crate) async fn welcome_llm_config_handler(
         workspace_str
     );
 
-    let output = tokio::process::Command::new(&bin)
-        .arg("llm")
-        .arg("config")
-        .arg("--workspace")
-        .arg(&workspace_str)
-        .output()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SetupError {
-                    reason: format!("failed to spawn {:?}: {e}", bin),
-                    kind: "llm_config_failed",
-                }),
-            )
-        })?;
+    let output = run_welcome_command(
+        bin.clone(),
+        workspace.clone(),
+        vec![
+            "llm".into(),
+            "config".into(),
+            "--workspace".into(),
+            workspace_str.clone(),
+        ],
+        Duration::from_secs(120),
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to spawn/run {:?}: {e}", bin),
+                kind: "llm_config_failed",
+            }),
+        )
+    })?;
 
-    if !output.status.success() {
+    if !output.success() {
         let combined = combine_truncated(&output.stdout, &output.stderr);
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -611,30 +627,35 @@ pub(crate) async fn welcome_agent_deploy_handler(
         workspace_str
     );
 
-    let output = tokio::process::Command::new(&bin)
-        .arg("agent")
-        .arg("deploy")
-        .arg("--workspace")
-        .arg(&workspace_str)
-        .arg("--id")
-        .arg("agent_001")
-        .arg("--pubkey")
-        .arg(&pubkey)
-        .arg("--role")
-        .arg("Solver")
-        .output()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SetupError {
-                    reason: format!("failed to spawn {:?}: {e}", bin),
-                    kind: "agent_deploy_failed",
-                }),
-            )
-        })?;
+    let output = run_welcome_command(
+        bin.clone(),
+        workspace.clone(),
+        vec![
+            "agent".into(),
+            "deploy".into(),
+            "--workspace".into(),
+            workspace_str.clone(),
+            "--id".into(),
+            "agent_001".into(),
+            "--pubkey".into(),
+            pubkey.clone(),
+            "--role".into(),
+            "Solver".into(),
+        ],
+        Duration::from_secs(120),
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to spawn/run {:?}: {e}", bin),
+                kind: "agent_deploy_failed",
+            }),
+        )
+    })?;
 
-    if !output.status.success() {
+    if !output.success() {
         let combined = combine_truncated(&output.stdout, &output.stderr);
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -673,6 +694,37 @@ fn synthetic_pubkey_for(workspace: &str) -> String {
     }
     out.truncate(64);
     out
+}
+
+#[cfg(feature = "web")]
+async fn run_welcome_command(
+    bin: String,
+    workspace: PathBuf,
+    args: Vec<String>,
+    timeout: Duration,
+) -> Result<SanitizedOutput, String> {
+    let cwd = explicit_cwd(&workspace);
+    let command = SanitizedCommand {
+        program: PathBuf::from(bin),
+        args,
+        cwd,
+        env: env_allowlist_from_current(&["PATH"]),
+        stdin: None,
+        timeout,
+    };
+    tokio::task::spawn_blocking(move || run_sanitized(command))
+        .await
+        .map_err(|e| format!("spawn_blocking: {e}"))?
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(feature = "web")]
+fn explicit_cwd(workspace: &Path) -> PathBuf {
+    if workspace.is_dir() {
+        workspace.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    }
 }
 
 /// Combine stdout + stderr into a truncated diagnostic string for an

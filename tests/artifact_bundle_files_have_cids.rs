@@ -1,12 +1,12 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
-use turingosv4::runtime::artifact_bundle::ArtifactBundleManifest;
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::cas::schema::{ObjectType, Cid};
+use turingosv4::runtime::artifact_bundle::ArtifactBundleManifest;
 
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -55,7 +55,7 @@ fn start_mock_llm_server(response_body: String) -> String {
 fn test_artifact_bundle_files_have_cids() {
     let tmp = tempfile::tempdir().expect("create temp workspace");
     let ws = tmp.path().join("my_workspace");
-    
+
     // Init workspace
     let status = Command::new(turingos_bin())
         .arg("init")
@@ -69,7 +69,7 @@ fn test_artifact_bundle_files_have_cids() {
     fs::write(ws.join("spec.md"), "# Test Spec\nGenerate some code.").expect("write spec.md");
 
     // Setup mock LLM response emitting index.html and main.js
-    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<h1>Hello World</h1>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
+    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
 
     let endpoint = start_mock_llm_server(raw_response);
 
@@ -83,19 +83,24 @@ fn test_artifact_bundle_files_have_cids() {
         .output()
         .expect("run generate");
 
-    assert!(output.status.success(), "generate failed: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(
+        output.status.success(),
+        "generate failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Verify ArtifactBundleManifest has correct CIDs for the file contents
     let cas_dir = ws.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas store");
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
-    
+
     let mut manifest_opt: Option<ArtifactBundleManifest> = None;
     for cid in cids {
         if let Some(meta) = store.metadata(&cid) {
             if meta.schema_id.as_deref() == Some("turingos-artifact-bundle-v1") {
                 let bytes = store.get(&cid).expect("read manifest");
-                let m: ArtifactBundleManifest = serde_json::from_slice(&bytes).expect("deserialize");
+                let m: ArtifactBundleManifest =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 manifest_opt = Some(m);
                 break;
             }
@@ -104,13 +109,16 @@ fn test_artifact_bundle_files_have_cids() {
 
     let manifest = manifest_opt.expect("ArtifactBundleManifest not found in CAS");
     assert_eq!(manifest.files.len(), 1);
-    
+
     let file_entry = &manifest.files[0];
     assert_eq!(file_entry.path, "index.html");
-    
+
     let file_cid = parse_cid_hex(&file_entry.cid);
     let file_bytes = store.get(&file_cid).expect("read file from CAS");
     let file_content = String::from_utf8(file_bytes).expect("convert file to string");
-    
-    assert_eq!(file_content, "<h1>Hello World</h1>\n");
+
+    assert_eq!(
+        file_content,
+        "<!DOCTYPE html><html><body><h1>Hello World</h1></body></html>\n"
+    );
 }

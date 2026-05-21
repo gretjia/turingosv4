@@ -37,6 +37,8 @@ use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "web")]
 use std::path::PathBuf;
+#[cfg(feature = "web")]
+use std::time::Duration;
 
 #[cfg(feature = "web")]
 use super::spec::SpecError;
@@ -44,6 +46,10 @@ use super::spec::SpecError;
 use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, VerifyMode};
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
+#[cfg(feature = "web")]
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 // ---------------------------------------------------------------------------
 // W8 — auto-retry constants
@@ -222,7 +228,6 @@ pub(crate) async fn generate_handler(
     let mut last_failure_reason: String = String::new();
     let mut last_failure_kind: &str = "shellout_failed";
     let mut last_artifact_path_for_inspection: Option<String> = None;
-    let mut last_stdout: String = String::new();
 
     for attempt in 1u8..=MAX_GENERATE_ATTEMPTS {
         // Broadcast attempt start (UX progress chip).
@@ -242,30 +247,64 @@ pub(crate) async fn generate_handler(
             let _ = clear_dir_contents(&artifacts_dir);
         }
 
-        // Build the command fresh for each attempt (Command isn't Clone).
-        let mut cmd = tokio::process::Command::new(&bin);
-        cmd.arg("generate").arg("--workspace").arg(&session_dir_str);
+        let mut args = vec![
+            "generate".to_string(),
+            "--workspace".to_string(),
+            session_dir_str.clone(),
+        ];
         if req.from_capsule {
-            cmd.arg("--from-capsule");
+            args.push("--from-capsule".to_string());
         }
         if let Some(max_files) = req.max_files {
-            cmd.arg("--max-files").arg(max_files.to_string());
+            args.push("--max-files".to_string());
+            args.push(max_files.to_string());
         }
+        let mut env = env_allowlist_from_current(&["PATH"]);
         // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives
-        // in memory only; we do not log it. If unset, child inherits parent.
+        // in memory only; we do not log it. If unset, the sanitized runner
+        // does not inherit the parent environment.
         if let Ok(guard) = state.api_key.lock() {
             if let Some(key) = guard.as_ref() {
-                cmd.env("SILICONFLOW_API_KEY", key);
+                env.insert("SILICONFLOW_API_KEY".to_string(), key.clone());
             }
         }
+        let command = SanitizedCommand {
+            program: PathBuf::from(&bin),
+            args,
+            cwd: session_dir.clone(),
+            env,
+            stdin: None,
+            timeout: Duration::from_secs(300),
+        };
 
-        // OBS: measure subprocess spawn cost and total lifetime separately.
-        // spawn_ms = fork+exec cost only; total_ms = fork+exec + LLM work.
-        let spawn_start = std::time::Instant::now();
-        let child = match cmd.spawn() {
-            Ok(c) => c,
+        let started = std::time::Instant::now();
+        let output = match tokio::task::spawn_blocking(move || run_sanitized(command)).await {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => {
+                let reason = format!("failed to spawn/run {:?}: {e}", bin);
+                let _ = state
+                    .broadcast_tx
+                    .send(WsBroadcastMsg::GenerateAttemptFailed {
+                        session_id: req.session_id.clone(),
+                        attempt,
+                        max_attempts: MAX_GENERATE_ATTEMPTS,
+                        reason: reason.clone(),
+                    });
+                last_failure_reason = reason;
+                last_failure_kind = "shellout_failed";
+                if attempt < MAX_GENERATE_ATTEMPTS {
+                    continue;
+                }
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(SpecError {
+                        reason: last_failure_reason,
+                        kind: last_failure_kind,
+                    }),
+                ));
+            }
             Err(e) => {
-                let reason = format!("failed to spawn {:?}: {e}", bin);
+                let reason = format!("spawn_blocking error for {:?}: {e}", bin);
                 let _ = state
                     .broadcast_tx
                     .send(WsBroadcastMsg::GenerateAttemptFailed {
@@ -288,55 +327,28 @@ pub(crate) async fn generate_handler(
                 ));
             }
         };
-        let spawn_ms = spawn_start.elapsed().as_millis() as u64;
-
-        let output = match child.wait_with_output().await {
-            Ok(o) => o,
-            Err(e) => {
-                let reason = format!("wait_with_output failed for {:?}: {e}", bin);
-                let _ = state
-                    .broadcast_tx
-                    .send(WsBroadcastMsg::GenerateAttemptFailed {
-                        session_id: req.session_id.clone(),
-                        attempt,
-                        max_attempts: MAX_GENERATE_ATTEMPTS,
-                        reason: reason.clone(),
-                    });
-                last_failure_reason = reason;
-                last_failure_kind = "shellout_failed";
-                if attempt < MAX_GENERATE_ATTEMPTS {
-                    continue;
-                }
-                return Err((
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(SpecError {
-                        reason: last_failure_reason,
-                        kind: last_failure_kind,
-                    }),
-                ));
-            }
-        };
-        let total_ms = spawn_start.elapsed().as_millis() as u64;
-        let exit_code = output.status.code();
+        let total_ms = started.elapsed().as_millis() as u64;
+        let exit_code = output.exit_code;
         // OBS: structured subprocess timing event — grep on "turingos_web::subprocess_timing"
         log::info!(
             target: "turingos_web::subprocess_timing",
-            "turingos generate subprocess completed subprocess_spawn_ms={} subprocess_total_ms={} subprocess_exit_code={:?} subprocess_retry_index={} subprocess_session_id={}",
-            spawn_ms,
+            "turingos generate subprocess completed subprocess_total_ms={} subprocess_exit_code={:?} subprocess_timed_out={} subprocess_retry_index={} subprocess_session_id={}",
             total_ms,
             exit_code,
+            output.timed_out,
             (attempt - 1) as u32,
             req.session_id,
         );
 
-        // Capture stdout for the eventual response (winning attempt wins).
         let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
-        last_stdout = stdout_str.clone();
 
         // Non-zero exit → failure, broadcast and (maybe) retry.
-        if !output.status.success() {
+        if !output.success() {
             let stderr_str = String::from_utf8_lossy(&output.stderr).into_owned();
-            let exit_code = output.status.code().unwrap_or(-1);
+            let exit_code = output
+                .exit_code
+                .map(|code| code.to_string())
+                .unwrap_or_else(|| "timed_out".to_string());
             let combined = format!("stdout: {} | stderr: {}", stdout_str, stderr_str);
             let truncated = if combined.len() > 512 {
                 format!("{}…", &combined[..512])
@@ -431,13 +443,13 @@ pub(crate) async fn generate_handler(
         }
 
         // Heuristic passed (or not applicable) → success path.
-        let transcript_excerpt = if last_stdout.is_empty() {
+        let transcript_excerpt = if stdout_str.is_empty() {
             None
         } else {
-            let excerpt = if last_stdout.len() > 2048 {
-                format!("{}…", &last_stdout[..2048])
+            let excerpt = if stdout_str.len() > 2048 {
+                format!("{}…", &stdout_str[..2048])
             } else {
-                last_stdout.clone()
+                stdout_str.clone()
             };
             Some(excerpt)
         };
@@ -451,14 +463,23 @@ pub(crate) async fn generate_handler(
 
         // Retrieve latest artifact bundle CID from CAS for this session.
         let mut bundle_cid = None;
-        let mut manifest: Option<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest> = None;
+        let mut manifest: Option<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest> =
+            None;
         let ws_path = std::path::Path::new(&workspace);
-        if let Ok(Some(cid_str)) = turingosv4::runtime::artifact_bundle::latest_artifact_bundle_cid_for_session(ws_path, &req.session_id) {
+        if let Ok(Some(cid_str)) =
+            turingosv4::runtime::artifact_bundle::latest_artifact_bundle_cid_for_session(
+                ws_path,
+                &req.session_id,
+            )
+        {
             if let Some(cid) = cid_from_hex(&cid_str) {
                 let cas_dir = turingosv4::runtime::spec_capsule::cas_path(ws_path);
                 if let Ok(store) = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir) {
                     if let Ok(bytes) = store.get(&cid) {
-                        if let Ok(m) = serde_json::from_slice::<turingosv4::runtime::artifact_bundle::ArtifactBundleManifest>(&bytes) {
+                        if let Ok(m) = serde_json::from_slice::<
+                            turingosv4::runtime::artifact_bundle::ArtifactBundleManifest,
+                        >(&bytes)
+                        {
                             manifest = Some(m);
                             bundle_cid = Some(cid_str);
                         }

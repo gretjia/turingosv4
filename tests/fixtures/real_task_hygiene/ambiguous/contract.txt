@@ -1,0 +1,2 @@
+criterion: primary button has id="primary-cta"
+criterion: contrast token is explicit

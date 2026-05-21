@@ -39,6 +39,9 @@ use sha2::{Digest, Sha256};
 use crate::cmd_llm;
 use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use turingosv4::runtime::spec_capsule;
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 /// TRACE_MATRIX FC2-N16: `spec` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -300,8 +303,8 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
     }
 
     let model_id = cmd_llm::read_meta_model(&workspace);
-    let api_key_env = cmd_llm::read_meta_api_key_env(&workspace)
-        .map_err(|e| SpecError::Io(e.to_string()))?;
+    let api_key_env =
+        cmd_llm::read_meta_api_key_env(&workspace).map_err(|e| SpecError::Io(e.to_string()))?;
 
     let (synthesis, total_tokens) = if skip_llm {
         // CAS-wire-only path: synthesise spec.md without LLM (uses canonical
@@ -332,7 +335,14 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
         ];
         eprintln!("[spec] calling Meta LLM ({model_id}) to synthesise spec.md...");
         let meta_thinking = cmd_llm::read_meta_thinking(&workspace);
-        let result = chat_complete_blocking(&api_key, &model_id, &messages, Some(3000), Some(0.3), meta_thinking)?;
+        let result = chat_complete_blocking(
+            &api_key,
+            &model_id,
+            &messages,
+            Some(3000),
+            Some(0.3),
+            meta_thinking,
+        )?;
         transcript.push(TurnRecord {
             role: "user".into(),
             content: synth_user_msg,
@@ -701,26 +711,48 @@ fn shell_llm_complete(
     lang: Lang,
     meta_prompt_path: &Path,
 ) -> Result<LlmCompleteResult, String> {
-    let output = std::process::Command::new(exe)
-        .arg("llm")
-        .arg("complete")
-        .arg("--workspace")
-        .arg(workspace)
-        .arg("--role")
-        .arg("meta")
-        .arg("--prompt-file")
-        .arg(prompt_file)
-        .arg("--strict-json")
-        .arg("--capsule-dir")
-        .arg(capsule_dir)
-        .arg("--turn-id")
-        .arg(turn_id)
-        .arg("--lang")
-        .arg(lang_str(lang))
-        .arg("--meta-prompt")
-        .arg(meta_prompt_path)
-        .output()
-        .map_err(|e| format!("spawn llm complete: {e}"))?;
+    let output = run_sanitized(SanitizedCommand {
+        program: exe.to_path_buf(),
+        args: vec![
+            "llm".into(),
+            "complete".into(),
+            "--workspace".into(),
+            workspace.to_string_lossy().into_owned(),
+            "--role".into(),
+            "meta".into(),
+            "--prompt-file".into(),
+            prompt_file.to_string_lossy().into_owned(),
+            "--strict-json".into(),
+            "--capsule-dir".into(),
+            capsule_dir.to_string_lossy().into_owned(),
+            "--turn-id".into(),
+            turn_id.to_string(),
+            "--lang".into(),
+            lang_str(lang).to_string(),
+            "--meta-prompt".into(),
+            meta_prompt_path.to_string_lossy().into_owned(),
+        ],
+        cwd: workspace.to_path_buf(),
+        env: llm_child_env(),
+        stdin: None,
+        timeout: std::time::Duration::from_secs(240),
+    })
+    .map_err(|e| format!("spawn llm complete: {e}"))?;
+
+    if !output.success() {
+        return Err(format!(
+            "llm complete exit {:?}: stdout={} stderr={}",
+            output.exit_code,
+            String::from_utf8_lossy(&output.stdout)
+                .chars()
+                .take(200)
+                .collect::<String>(),
+            String::from_utf8_lossy(&output.stderr)
+                .chars()
+                .take(200)
+                .collect::<String>()
+        ));
+    }
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let v: serde_json::Value = serde_json::from_str(stdout_str.trim()).map_err(|e| {
@@ -790,23 +822,45 @@ fn shell_llm_triage(
     capsule_dir: &Path,
     turn_id: &str,
 ) -> Result<TriageResult, String> {
-    let output = std::process::Command::new(exe)
-        .arg("llm")
-        .arg("triage")
-        .arg("--workspace")
-        .arg(workspace)
-        .arg("--user-answer")
-        .arg(user_answer)
-        .arg("--question")
-        .arg(question)
-        .arg("--lang")
-        .arg(lang_str(lang))
-        .arg("--capsule-dir")
-        .arg(capsule_dir)
-        .arg("--turn-id")
-        .arg(turn_id)
-        .output()
-        .map_err(|e| format!("spawn llm triage: {e}"))?;
+    let output = run_sanitized(SanitizedCommand {
+        program: exe.to_path_buf(),
+        args: vec![
+            "llm".into(),
+            "triage".into(),
+            "--workspace".into(),
+            workspace.to_string_lossy().into_owned(),
+            "--user-answer".into(),
+            user_answer.to_string(),
+            "--question".into(),
+            question.to_string(),
+            "--lang".into(),
+            lang_str(lang).to_string(),
+            "--capsule-dir".into(),
+            capsule_dir.to_string_lossy().into_owned(),
+            "--turn-id".into(),
+            turn_id.to_string(),
+        ],
+        cwd: workspace.to_path_buf(),
+        env: llm_child_env(),
+        stdin: None,
+        timeout: std::time::Duration::from_secs(240),
+    })
+    .map_err(|e| format!("spawn llm triage: {e}"))?;
+
+    if !output.success() {
+        return Err(format!(
+            "llm triage exit {:?}: stdout={} stderr={}",
+            output.exit_code,
+            String::from_utf8_lossy(&output.stdout)
+                .chars()
+                .take(200)
+                .collect::<String>(),
+            String::from_utf8_lossy(&output.stderr)
+                .chars()
+                .take(200)
+                .collect::<String>()
+        ));
+    }
 
     let stdout_str = String::from_utf8_lossy(&output.stdout);
     let v: serde_json::Value = serde_json::from_str(stdout_str.trim()).map_err(|e| {
@@ -824,6 +878,18 @@ fn shell_llm_triage(
         .to_string();
 
     Ok(TriageResult { ok, class })
+}
+
+fn llm_child_env() -> std::collections::BTreeMap<String, String> {
+    env_allowlist_from_current(&[
+        "PATH",
+        "SILICONFLOW_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_API_KEY_WORKER",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "TURINGOS_SILICONFLOW_ENDPOINT",
+    ])
 }
 
 // ── Main driven-mode orchestration ───────────────────────────────────────────
@@ -1346,35 +1412,32 @@ fn run_driven_mode(
         answers.truncate(8);
 
         let model_id = cmd_llm::read_meta_model(workspace);
-        let synthesis_body =
-            if let Ok(api_key_env) = cmd_llm::read_meta_api_key_env(workspace) {
-                if let Ok(api_key) = require_api_key(&api_key_env) {
-                    let synth_user_msg = build_synthesis_user_message(lang, &questions, &answers);
-                    let messages = vec![
-                        ChatMessage::system(system_prompt(lang)),
-                        ChatMessage::user(synth_user_msg),
-                    ];
-                    eprintln!(
-                        "[spec driven] calling Meta LLM ({model_id}) to synthesise spec.md..."
-                    );
-                    let meta_thinking_driven = cmd_llm::read_meta_thinking(workspace);
-                    match chat_complete_blocking(
-                        &api_key,
-                        &model_id,
-                        &messages,
-                        Some(3000),
-                        Some(0.3),
-                        meta_thinking_driven,
-                    ) {
-                        Ok(result) => result.content,
-                        Err(_) => synthesise_spec_md_no_llm(lang, &questions, &answers),
-                    }
-                } else {
-                    synthesise_spec_md_no_llm(lang, &questions, &answers)
+        let synthesis_body = if let Ok(api_key_env) = cmd_llm::read_meta_api_key_env(workspace) {
+            if let Ok(api_key) = require_api_key(&api_key_env) {
+                let synth_user_msg = build_synthesis_user_message(lang, &questions, &answers);
+                let messages = vec![
+                    ChatMessage::system(system_prompt(lang)),
+                    ChatMessage::user(synth_user_msg),
+                ];
+                eprintln!("[spec driven] calling Meta LLM ({model_id}) to synthesise spec.md...");
+                let meta_thinking_driven = cmd_llm::read_meta_thinking(workspace);
+                match chat_complete_blocking(
+                    &api_key,
+                    &model_id,
+                    &messages,
+                    Some(3000),
+                    Some(0.3),
+                    meta_thinking_driven,
+                ) {
+                    Ok(result) => result.content,
+                    Err(_) => synthesise_spec_md_no_llm(lang, &questions, &answers),
                 }
             } else {
                 synthesise_spec_md_no_llm(lang, &questions, &answers)
-            };
+            }
+        } else {
+            synthesise_spec_md_no_llm(lang, &questions, &answers)
+        };
 
         let model_id_for_wrap = cmd_llm::read_meta_model(workspace);
         let spec_md = wrap_spec_md(

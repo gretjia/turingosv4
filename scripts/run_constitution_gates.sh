@@ -7,6 +7,9 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO"
 mkdir -p target
+OUT_TXT="target/constitution_gates_output.txt"
+REPORT_JSON="target/constitution_gate_report.json"
+REPORT_MD="target/constitution_gate_report.md"
 
 # Discover gates from test files
 DISCOVERED=$(ls tests/constitution_*.rs 2>/dev/null | xargs -n1 basename | sed 's/\.rs$//' | sort)
@@ -30,14 +33,35 @@ if [ -n "$ONLY_MANI" ]; then
   exit 1
 fi
 
-# Run all discovered gates
-FAIL=0
+# Run all discovered gates in one Cargo invocation. This preserves the full
+# gate set while avoiding 100+ cold-runner cargo startups in CI.
+CARGO_ARGS=()
 for g in $DISCOVERED; do
-  if ! cargo test --test "$g" --no-fail-fast 2>&1 | tail -5 | grep -q "0 failed"; then
-    echo "[k-1-5] FAIL: $g" >&2
-    FAIL=$((FAIL+1))
-  fi
+  CARGO_ARGS+=(--test "$g")
 done
 
-echo "[k-1-5] total=$(echo "$DISCOVERED" | wc -w) failed=$FAIL"
-[ $FAIL -eq 0 ]
+FAIL=0
+if ! cargo test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee "$OUT_TXT"; then
+  FAIL=$(grep -c "test result: FAILED" "$OUT_TXT" || true)
+  if [ "$FAIL" -eq 0 ]; then
+    FAIL=1
+  fi
+fi
+
+TOTAL=$(echo "$DISCOVERED" | wc -w)
+SUMMARY="[k-1-5] total=$TOTAL failed=$FAIL"
+echo "$SUMMARY"
+
+cat > "$REPORT_JSON" <<EOF
+{"total":$TOTAL,"failed":$FAIL,"summary":"$SUMMARY"}
+EOF
+
+{
+  echo "# Constitution Gate Report"
+  echo
+  echo "- total: $TOTAL"
+  echo "- failed: $FAIL"
+  echo "- output: $OUT_TXT"
+} > "$REPORT_MD"
+
+[ "$FAIL" -eq 0 ]

@@ -8,8 +8,14 @@
 //!
 //! §8 compliance: Phase 6.2 §4 allowed paths; FC2-N16 + FC3-N31.
 
+use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, ExitCode, Stdio};
+use std::process::ExitCode;
+use std::time::Duration;
+
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // Short/full help strings
@@ -132,16 +138,25 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     };
 
     // Shell out: python3 <render.py> <args...>
-    let status = Command::new("python3")
-        .arg(&render_py)
-        .args(args)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status();
+    let mut cmd_args = Vec::with_capacity(1 + args.len());
+    cmd_args.push(render_py.to_string_lossy().into_owned());
+    cmd_args.extend(args.iter().cloned());
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let output = run_sanitized(SanitizedCommand {
+        program: PathBuf::from("python3"),
+        args: cmd_args,
+        cwd,
+        env: env_allowlist_from_current(&["PATH"]),
+        stdin: None,
+        timeout: Duration::from_secs(120),
+    });
 
-    match status {
-        Ok(s) => ExitCode::from(s.code().unwrap_or(1) as u8),
+    match output {
+        Ok(out) => {
+            let _ = std::io::stdout().write_all(&out.stdout);
+            let _ = std::io::stderr().write_all(&out.stderr);
+            ExitCode::from(out.exit_code.unwrap_or(1) as u8)
+        }
         Err(e) => {
             eprintln!("turingos render: failed to invoke python3: {e}");
             eprintln!("  render.py: {}", render_py.display());

@@ -52,11 +52,17 @@ use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "web")]
 use std::path::PathBuf;
+#[cfg(feature = "web")]
+use std::time::Duration;
 
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
 #[cfg(feature = "web")]
 use turingosv4::runtime::grill_envelope::CANONICAL_SLOTS;
+#[cfg(feature = "web")]
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand, SanitizedOutput,
+};
 
 // ---------------------------------------------------------------------------
 // Canonical 8 questions (Zh; sourced from cmd_spec.rs canonical_questions(Lang::Zh))
@@ -281,34 +287,43 @@ pub(crate) async fn spec_submit_handler(
         session_dir_str,
     );
 
-    let mut cmd = tokio::process::Command::new(&bin);
-    cmd.arg("spec")
-        .arg("--workspace")
-        .arg(&session_dir_str)
-        .arg("--answers-file")
-        .arg(&answers_path_str)
-        .arg("--lang")
-        .arg("zh");
+    let mut env = web_llm_child_env();
     // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives in
-    // memory only; we do not log it. If unset, the child inherits the parent
-    // env unchanged (which may or may not carry the key from the shell).
+    // memory only; we do not log it. If unset, the sanitized runner does not
+    // inherit the parent environment.
     if let Ok(guard) = state.api_key.lock() {
         if let Some(key) = guard.as_ref() {
-            cmd.env("SILICONFLOW_API_KEY", key);
+            env.insert("SILICONFLOW_API_KEY".to_string(), key.clone());
         }
     }
-    let output = cmd.output().await.map_err(|e| {
+    let output = run_web_command(
+        bin.clone(),
+        session_dir.clone(),
+        vec![
+            "spec".into(),
+            "--workspace".into(),
+            session_dir_str.clone(),
+            "--answers-file".into(),
+            answers_path_str.clone(),
+            "--lang".into(),
+            "zh".into(),
+        ],
+        env,
+        Duration::from_secs(300),
+    )
+    .await
+    .map_err(|e| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(SpecError {
-                reason: format!("failed to spawn {:?}: {e}", bin),
+                reason: format!("failed to spawn/run {:?}: {e}", bin),
                 kind: "shellout_failed",
             }),
         )
     })?;
 
     // Step 7: check exit code.
-    if !output.status.success() {
+    if !output.success() {
         let stdout_str = String::from_utf8_lossy(&output.stdout);
         let stderr_str = String::from_utf8_lossy(&output.stderr);
         let combined = format!("stdout: {} | stderr: {}", stdout_str, stderr_str);
@@ -531,6 +546,63 @@ fn resolve_workspace() -> String {
         }
     }
     "tmp/phase7_active".to_string()
+}
+
+#[cfg(feature = "web")]
+async fn run_web_command(
+    bin: String,
+    cwd: PathBuf,
+    args: Vec<String>,
+    env: std::collections::BTreeMap<String, String>,
+    timeout: Duration,
+) -> Result<SanitizedOutput, String> {
+    let cwd = explicit_cwd(cwd);
+    let command = SanitizedCommand {
+        program: PathBuf::from(bin),
+        args,
+        cwd,
+        env,
+        stdin: None,
+        timeout,
+    };
+    tokio::task::spawn_blocking(move || run_sanitized(command))
+        .await
+        .map_err(|e| format!("spawn_blocking: {e}"))?
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(feature = "web")]
+fn explicit_cwd(path: PathBuf) -> PathBuf {
+    if path.is_dir() {
+        path
+    } else {
+        std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    }
+}
+
+#[cfg(feature = "web")]
+fn web_llm_child_env() -> std::collections::BTreeMap<String, String> {
+    env_allowlist_from_current(&[
+        "PATH",
+        "SILICONFLOW_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_API_KEY_WORKER",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "TURINGOS_SILICONFLOW_ENDPOINT",
+    ])
+}
+
+#[cfg(feature = "web")]
+fn combine_truncated(stdout: &[u8], stderr: &[u8]) -> String {
+    let stdout_s = String::from_utf8_lossy(stdout);
+    let stderr_s = String::from_utf8_lossy(stderr);
+    let combined = format!("stdout: {stdout_s} | stderr: {stderr_s}");
+    if combined.len() > 512 {
+        format!("{}…", &combined[..512])
+    } else {
+        combined
+    }
 }
 
 // ===========================================================================
@@ -948,8 +1020,8 @@ pub(crate) async fn spec_turn_handler(
         turn_count,
         lang,
         last_3_turns_snap,
-        parent_turn_cid_snap,
-        non_relevant_count,
+        _parent_turn_cid_snap,
+        _non_relevant_count,
         last_prev_covered_snap,
         last_question_emitted_snap,
     ) = {
@@ -1047,36 +1119,52 @@ pub(crate) async fn spec_turn_handler(
         }
 
         let triage_turn_id = format!("turn-{}-triage", turn_count + 1);
-        let bin2 = bin.clone();
-        let ws2 = workspace.clone();
-        let user_answer_owned = user_answer.to_string();
-        let prev_q_owned = prev_question.clone();
-        let lang2 = lang.clone();
-        let sid2 = req.session_id.clone();
-        let caps_dir2 = capsules_dir.clone();
-
-        let triage_stdout = tokio::task::spawn_blocking(move || {
-            std::process::Command::new(&bin2)
-                .arg("llm")
-                .arg("triage")
-                .arg("--workspace")
-                .arg(&ws2)
-                .arg("--user-answer")
-                .arg(&user_answer_owned)
-                .arg("--question")
-                .arg(&prev_q_owned)
-                .arg("--lang")
-                .arg(&lang2)
-                .arg("--capsule-dir")
-                .arg(&caps_dir2)
-                .arg("--turn-id")
-                .arg(&triage_turn_id)
-                .output()
-                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-                .unwrap_or_default()
-        })
+        let triage_output = run_web_command(
+            bin.clone(),
+            session_dir.clone(),
+            vec![
+                "llm".into(),
+                "triage".into(),
+                "--workspace".into(),
+                workspace.clone(),
+                "--user-answer".into(),
+                user_answer.to_string(),
+                "--question".into(),
+                prev_question.clone(),
+                "--lang".into(),
+                lang.clone(),
+                "--capsule-dir".into(),
+                capsules_dir.to_string_lossy().into_owned(),
+                "--turn-id".into(),
+                triage_turn_id.clone(),
+            ],
+            web_llm_child_env(),
+            Duration::from_secs(240),
+        )
         .await
-        .unwrap_or_default();
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::with_kind(
+                    format!("triage shellout failed: {e}"),
+                    "triage_shellout_failed",
+                )),
+            )
+        })?;
+        if !triage_output.success() {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorBody::with_kind(
+                    format!(
+                        "triage exit {:?}: {}",
+                        triage_output.exit_code,
+                        combine_truncated(&triage_output.stdout, &triage_output.stderr)
+                    ),
+                    "triage_shellout_failed",
+                )),
+            ));
+        }
+        let triage_stdout = String::from_utf8_lossy(&triage_output.stdout).into_owned();
 
         // FIX F6 (2026-05-18): treat triage subprocess failure (ok=false,
         // empty stdout, malformed JSON) as a 500, NOT as a "gibberish"
@@ -1345,12 +1433,6 @@ pub(crate) async fn spec_turn_handler(
     }
 
     let turn_id = format!("turn-{new_turn_index}");
-    let bin2 = bin.clone();
-    let ws2 = workspace.clone();
-    let pf2 = prompt_file_path.clone();
-    let cd2 = capsules_dir.clone();
-    let tid2 = turn_id.clone();
-    let lang2 = lang.clone();
     // FIX F5 (2026-05-18): pass the WORKSPACE-RELATIVE meta-prompt path to the
     // subprocess. `cmd_llm::complete_action` resolves any non-absolute
     // `--meta-prompt` value via `workspace.join(mp_path)` (informational sha256
@@ -1363,31 +1445,55 @@ pub(crate) async fn spec_turn_handler(
     // path used above by F4).
     const META_PROMPT_REL: &str = "assets/prompts/grill_meta_v1.md";
 
-    let complete_stdout = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(&bin2)
-            .arg("llm")
-            .arg("complete")
-            .arg("--workspace")
-            .arg(&ws2)
-            .arg("--role")
-            .arg("meta")
-            .arg("--prompt-file")
-            .arg(&pf2)
-            .arg("--strict-json")
-            .arg("--capsule-dir")
-            .arg(&cd2)
-            .arg("--turn-id")
-            .arg(&tid2)
-            .arg("--lang")
-            .arg(&lang2)
-            .arg("--meta-prompt")
-            .arg(META_PROMPT_REL)
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-            .unwrap_or_default()
-    })
+    let complete_output = run_web_command(
+        bin.clone(),
+        session_dir.clone(),
+        vec![
+            "llm".into(),
+            "complete".into(),
+            "--workspace".into(),
+            workspace.clone(),
+            "--role".into(),
+            "meta".into(),
+            "--prompt-file".into(),
+            prompt_file_path.to_string_lossy().into_owned(),
+            "--strict-json".into(),
+            "--capsule-dir".into(),
+            capsules_dir.to_string_lossy().into_owned(),
+            "--turn-id".into(),
+            turn_id.clone(),
+            "--lang".into(),
+            lang.clone(),
+            "--meta-prompt".into(),
+            META_PROMPT_REL.into(),
+        ],
+        web_llm_child_env(),
+        Duration::from_secs(240),
+    )
     .await
-    .unwrap_or_default();
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorBody::with_kind(
+                format!("llm complete shellout failed: {e}"),
+                "shellout_failed",
+            )),
+        )
+    })?;
+    if !complete_output.success() {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorBody::with_kind(
+                format!(
+                    "llm complete exit {:?}: {}",
+                    complete_output.exit_code,
+                    combine_truncated(&complete_output.stdout, &complete_output.stderr)
+                ),
+                "shellout_failed",
+            )),
+        ));
+    }
+    let complete_stdout = String::from_utf8_lossy(&complete_output.stdout).into_owned();
 
     // Parse the envelope
     let envelope = match parse_turn_payload_from_llm_output(&complete_stdout) {
@@ -1487,10 +1593,8 @@ pub(crate) async fn spec_turn_handler(
                 // — it asked a follow-up under the SAME slot), nothing is
                 // recorded for this turn; the next turn's user answer
                 // will overwrite when it lands the slot.
-                let prev_set: std::collections::HashSet<&str> = last_prev_covered_snap
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect();
+                let prev_set: std::collections::HashSet<&str> =
+                    last_prev_covered_snap.iter().map(|s| s.as_str()).collect();
                 for slot in &covered_slots {
                     if !prev_set.contains(slot.as_str()) {
                         sess.slot_evidence
@@ -2571,11 +2675,20 @@ mod tests {
             }
         }
 
-        assert_eq!(slot_evidence.get("memory").map(String::as_str), Some("Redis 存任务状态"));
+        assert_eq!(
+            slot_evidence.get("memory").map(String::as_str),
+            Some("Redis 存任务状态")
+        );
         // Pre-existing slots must NOT be overwritten by the delta logic
         // (only newly-covered slots are written).
-        assert_eq!(slot_evidence.get("job").map(String::as_str), Some("做影片转档"));
-        assert_eq!(slot_evidence.get("anchor").map(String::as_str), Some("SHA256"));
+        assert_eq!(
+            slot_evidence.get("job").map(String::as_str),
+            Some("做影片转档")
+        );
+        assert_eq!(
+            slot_evidence.get("anchor").map(String::as_str),
+            Some("SHA256")
+        );
 
         // Now simulate a turn where the LLM rejected the answer as too vague
         // and asked a follow-up under the SAME slot: covered_slots unchanged.

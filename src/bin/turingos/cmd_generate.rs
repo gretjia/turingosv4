@@ -28,25 +28,28 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cmd_llm;
-use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
-use turingosv4::runtime::spec_capsule;
+use crate::siliconflow_client::{
+    canonical_chat_request_bytes, chat_complete_blocking, require_api_key, ChatMessage, LlmError,
+};
 use sha2::{Digest, Sha256};
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::artifact_bundle::{
+    latest_artifact_bundle_cid_for_session, write_artifact_bundle, ArtifactBundleManifest,
+    ArtifactFileEntry, ArtifactFileRole, ARTIFACT_BUNDLE_SCHEMA_ID,
+};
 use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome, write_generation_attempt_capsule,
+    write_generation_attempt_capsule, AttemptOutcome, GenerationAttemptCapsule,
     GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::rejection_capsule::{
-    GenerateRejectionCapsule, RejectClass, write_generate_rejection_capsule,
+    write_generate_rejection_capsule_observed, GenerateRejectionCapsule, RejectClass,
     GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
-use turingosv4::runtime::artifact_bundle::{
-    ArtifactFileRole, ArtifactFileEntry, ArtifactBundleManifest,
-    write_artifact_bundle, latest_artifact_bundle_cid_for_session,
-    ARTIFACT_BUNDLE_SCHEMA_ID
+use turingosv4::runtime::spec_capsule;
+use turingosv4::runtime::test_run::{
+    format_test_run_summary, run_and_write_test_pipeline, TestRunCapsule,
 };
-use turingosv4::runtime::test_run::{run_and_write_test_pipeline, format_test_run_summary, TestRunCapsule};
-use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
-use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::test_scenario::TestScenario;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
@@ -101,9 +104,15 @@ enum GenError {
     Llm(LlmError),
     Capsule(spec_capsule::CapsuleError),
     NoFilesParsed,
-    TooManyFiles { found: usize, max: usize },
+    TooManyFiles {
+        found: usize,
+        max: usize,
+    },
     /// X1: carries CID footer lines to be printed AFTER the error message.
-    WithFooter { inner: Box<GenError>, footer: String },
+    WithFooter {
+        inner: Box<GenError>,
+        footer: String,
+    },
 }
 
 impl std::fmt::Display for GenError {
@@ -206,7 +215,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         if !p.exists() {
             return Err(GenError::NoSpec(p.display().to_string()));
         }
-        let latest_cid = spec_capsule::latest_spec_capsule_cid(&workspace).ok().flatten();
+        let latest_cid = spec_capsule::latest_spec_capsule_cid(&workspace)
+            .ok()
+            .flatten();
         (
             fs::read_to_string(&p).map_err(|e| GenError::Io(e.to_string()))?,
             p.display().to_string(),
@@ -221,8 +232,8 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     };
 
     let model_id = cmd_llm::read_blackbox_model(&workspace);
-    let api_key_env = cmd_llm::read_blackbox_api_key_env(&workspace)
-        .map_err(|e| GenError::Io(e.to_string()))?;
+    let api_key_env =
+        cmd_llm::read_blackbox_api_key_env(&workspace).map_err(|e| GenError::Io(e.to_string()))?;
     let api_key = match require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(_) => {
@@ -241,8 +252,16 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     };
 
     // Resolve session_id and retry_index FIRST — needed for tape-relay read below.
-    let session_id = if workspace.parent().map(|p| p.file_name().map(|n| n == "sessions").unwrap_or(false)).unwrap_or(false) {
-        workspace.file_name().and_then(|n| n.to_str()).unwrap_or("default").to_string()
+    let session_id = if workspace
+        .parent()
+        .map(|p| p.file_name().map(|n| n == "sessions").unwrap_or(false))
+        .unwrap_or(false)
+    {
+        workspace
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("default")
+            .to_string()
     } else {
         "default".to_string()
     };
@@ -258,7 +277,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             if let Some(meta) = store.metadata(&cid) {
                 if meta.schema_id.as_deref() == Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID) {
                     if let Ok(bytes) = store.get(&cid) {
-                        if let Ok(capsule) = serde_json::from_slice::<GenerationAttemptCapsule>(&bytes) {
+                        if let Ok(capsule) =
+                            serde_json::from_slice::<GenerationAttemptCapsule>(&bytes)
+                        {
                             if capsule.session_id == session_id {
                                 attempts.push((capsule.logical_t, cid.hex(), capsule.retry_index));
                             }
@@ -291,16 +312,20 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     };
     let messages = vec![
         ChatMessage::system(blackbox_system_prompt()),
-        ChatMessage::user(user_msg.clone()),
+        ChatMessage::user(user_msg),
     ];
 
-    let canonical_prompt = format!(
-        "system: {}\nuser: {}",
-        blackbox_system_prompt(),
-        user_msg,
-    );
+    let blackbox_thinking = cmd_llm::read_blackbox_thinking(&workspace);
+    let canonical_request_bytes = canonical_chat_request_bytes(
+        &model_id,
+        &messages,
+        Some(6000),
+        Some(0.2),
+        blackbox_thinking.clone(),
+    )
+    .map_err(GenError::Llm)?;
     let mut hasher = Sha256::new();
-    hasher.update(canonical_prompt.as_bytes());
+    hasher.update(&canonical_request_bytes);
     let prompt_hash = format!("{:x}", hasher.finalize());
 
     let logical_t = SystemTime::now()
@@ -308,26 +333,44 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         .map(|d| d.as_secs())
         .unwrap_or(0);
 
-    let blackbox_thinking = cmd_llm::read_blackbox_thinking(&workspace);
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let llm_res = chat_complete_blocking(&api_key, &model_id, &messages, Some(6000), Some(0.2), blackbox_thinking);
+    let llm_res = chat_complete_blocking(
+        &api_key,
+        &model_id,
+        &messages,
+        Some(6000),
+        Some(0.2),
+        blackbox_thinking,
+    );
 
-    let (outcome, raw_output_cid, usage_total_tokens, parsed_file_count, files_to_write, run_result): (
+    let (
+        outcome,
+        raw_output_cid,
+        usage_total_tokens,
+        parsed_file_count,
+        files_to_write,
+        run_result,
+    ): (
         AttemptOutcome,
         Option<String>,
         Option<u32>,
         usize,
         Option<(Vec<PathBuf>, String)>,
-        Result<(), GenError>
+        Result<(), GenError>,
     ) = match llm_res {
-        Err(e) => {
-            (AttemptOutcome::LlmApiError, None, None, 0, None, Err(GenError::Llm(e)))
-        }
+        Err(e) => (
+            AttemptOutcome::LlmApiError,
+            None,
+            None,
+            0,
+            None,
+            Err(GenError::Llm(e)),
+        ),
         Ok(result) => {
             let raw_cid = match CasStore::open(&cas_dir) {
                 Ok(mut store) => {
                     match store.put(
-                        result.content.as_bytes(),
+                        result.raw_response_body.as_slice(),
                         ObjectType::EvidenceCapsule,
                         "generate_system",
                         logical_t,
@@ -346,12 +389,26 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 let _ = fs::write(&raw_path, &result.content);
                 eprintln!("[generate] raw response saved to {}", raw_path.display());
 
-                (AttemptOutcome::NoFilesParsed, raw_cid, Some(result.usage.total_tokens as u32), 0, None, Err(GenError::NoFilesParsed))
+                (
+                    AttemptOutcome::NoFilesParsed,
+                    raw_cid,
+                    Some(result.usage.total_tokens as u32),
+                    0,
+                    None,
+                    Err(GenError::NoFilesParsed),
+                )
             } else if files.len() > max_files {
-                (AttemptOutcome::ParseFailed, raw_cid, Some(result.usage.total_tokens as u32), files.len(), None, Err(GenError::TooManyFiles {
-                    found: files.len(),
-                    max: max_files,
-                }))
+                (
+                    AttemptOutcome::ParseFailed,
+                    raw_cid,
+                    Some(result.usage.total_tokens as u32),
+                    files.len(),
+                    None,
+                    Err(GenError::TooManyFiles {
+                        found: files.len(),
+                        max: max_files,
+                    }),
+                )
             } else {
                 let artifacts_dir = workspace.join("artifacts");
                 let mut write_err = None;
@@ -365,12 +422,18 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                 let full = artifacts_dir.join(&safe_rel);
                                 if let Some(parent) = full.parent() {
                                     if let Err(e) = fs::create_dir_all(parent) {
-                                        write_err = Some(GenError::Io(format!("create dir {}: {e}", parent.display())));
+                                        write_err = Some(GenError::Io(format!(
+                                            "create dir {}: {e}",
+                                            parent.display()
+                                        )));
                                         break;
                                     }
                                 }
                                 if let Err(e) = fs::write(&full, &f.content) {
-                                    write_err = Some(GenError::Io(format!("write {}: {e}", full.display())));
+                                    write_err = Some(GenError::Io(format!(
+                                        "write {}: {e}",
+                                        full.display()
+                                    )));
                                     break;
                                 }
                                 written.push(safe_rel);
@@ -384,9 +447,23 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 }
 
                 if let Some(err) = write_err {
-                    (AttemptOutcome::InternalIo, raw_cid, Some(result.usage.total_tokens as u32), files.len(), None, Err(err))
+                    (
+                        AttemptOutcome::InternalIo,
+                        raw_cid,
+                        Some(result.usage.total_tokens as u32),
+                        files.len(),
+                        None,
+                        Err(err),
+                    )
                 } else {
-                    (AttemptOutcome::Success, raw_cid, Some(result.usage.total_tokens as u32), files.len(), Some((written, result.content)), Ok(()))
+                    (
+                        AttemptOutcome::Success,
+                        raw_cid,
+                        Some(result.usage.total_tokens as u32),
+                        files.len(),
+                        Some((written, result.content)),
+                        Ok(()),
+                    )
                 }
             }
         }
@@ -414,7 +491,8 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let attempt_cid = match attempt_cid_res {
         Ok(cid) => cid,
         Err(e) => {
-            let public_summary = "CAS write error during generation attempt capsule recording".to_string();
+            let public_summary =
+                "CAS write error during generation attempt capsule recording".to_string();
             let reason = "generation_attempt_capsule_write_failed".to_string();
             let rej = GenerateRejectionCapsule {
                 schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
@@ -427,14 +505,15 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 reason,
                 private_diagnostic_cid: raw_output_cid,
                 retryable: true,
-                world_head_unchanged: true,
+                world_head_unchanged: false,
                 logical_t,
             };
-            let footer = if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
-                format!("[failed run] rejection_cid={rej_cid}")
-            } else {
-                String::new()
-            };
+            let footer =
+                if let Ok(rej_cid) = write_generate_rejection_capsule_observed(&workspace, &rej) {
+                    format!("[failed run] rejection_cid={rej_cid}")
+                } else {
+                    String::new()
+                };
             return Err(GenError::WithFooter {
                 inner: Box::new(GenError::Capsule(e)),
                 footer,
@@ -467,7 +546,8 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             AttemptOutcome::NoFilesParsed => "no_files_parsed",
             AttemptOutcome::InternalIo => "internal_io",
             AttemptOutcome::Success => unreachable!(),
-        }.to_string();
+        }
+        .to_string();
 
         let rej = GenerateRejectionCapsule {
             schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
@@ -480,14 +560,15 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             reason,
             private_diagnostic_cid: raw_output_cid,
             retryable: outcome != AttemptOutcome::InternalIo,
-            world_head_unchanged: true,
+            world_head_unchanged: false,
             logical_t,
         };
         // X1: Collect CID footer; run() will emit it AFTER the error message.
-        let mut footer_parts = vec![
-            format!("[failed run] generation_attempt_cid={}", attempt_cid),
-        ];
-        if let Ok(rej_cid) = write_generate_rejection_capsule(&workspace, &rej) {
+        let mut footer_parts = vec![format!(
+            "[failed run] generation_attempt_cid={}",
+            attempt_cid
+        )];
+        if let Ok(rej_cid) = write_generate_rejection_capsule_observed(&workspace, &rej) {
             footer_parts.push(format!("[failed run] rejection_cid={rej_cid}"));
         }
         let footer = footer_parts.join("\n");
@@ -525,7 +606,11 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 
                 let role = if f.path == entrypoint_path {
                     ArtifactFileRole::Entrypoint
-                } else if f.path.ends_with(".html") || f.path.ends_with(".js") || f.path.ends_with(".css") || f.path.ends_with(".ts") {
+                } else if f.path.ends_with(".html")
+                    || f.path.ends_with(".js")
+                    || f.path.ends_with(".css")
+                    || f.path.ends_with(".ts")
+                {
                     ArtifactFileRole::Source
                 } else {
                     ArtifactFileRole::Asset
@@ -551,9 +636,10 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 });
             }
 
-            let previous_bundle_cid = latest_artifact_bundle_cid_for_session(&workspace, &session_id)
-                .ok()
-                .flatten();
+            let previous_bundle_cid =
+                latest_artifact_bundle_cid_for_session(&workspace, &session_id)
+                    .ok()
+                    .flatten();
 
             let manifest = ArtifactBundleManifest {
                 schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
@@ -598,18 +684,18 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             reason: format!("heuristic_failed:test_run_cid={}", test_run_cid),
                             private_diagnostic_cid: None,
                             retryable: true,
-                            world_head_unchanged: true,
+                            world_head_unchanged: false,
                             logical_t,
                         };
                         // X1: collect footer; run() emits it after the error message.
-                        let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                        let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
                             format!("[failed run] rejection_cid={rej_cid}")
                         } else {
                             String::new()
                         };
                         return Err(GenError::WithFooter {
                             inner: Box::new(GenError::Io(
-                                "generated artifacts failed spec-derived tests".to_string()
+                                "generated artifacts failed spec-derived tests".to_string(),
                             )),
                             footer,
                         });
@@ -629,11 +715,11 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         reason: format!("test_pipeline_error:{}", e),
                         private_diagnostic_cid: None,
                         retryable: false,
-                        world_head_unchanged: true,
+                        world_head_unchanged: false,
                         logical_t,
                     };
                     // X1: collect footer; run() emits it after the error message.
-                    let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule(&workspace, &rej) {
+                    let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
                         format!("[failed run] rejection_cid={rej_cid}")
                     } else {
                         String::new()
@@ -675,14 +761,26 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 .iter()
                 .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
             {
-                println!("  xdg-open {}/{}", workspace.join("artifacts").display(), html.display());
+                println!(
+                    "  xdg-open {}/{}",
+                    workspace.join("artifacts").display(),
+                    html.display()
+                );
             } else if let Some(py) = written
                 .iter()
                 .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
             {
-                println!("  python3 {}/{}", workspace.join("artifacts").display(), py.display());
+                println!(
+                    "  python3 {}/{}",
+                    workspace.join("artifacts").display(),
+                    py.display()
+                );
             } else if let Some(first) = written.first() {
-                println!("  {}/{}", workspace.join("artifacts").display(), first.display());
+                println!(
+                    "  {}/{}",
+                    workspace.join("artifacts").display(),
+                    first.display()
+                );
             }
         }
     }
@@ -697,10 +795,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 /// This is the TAPE-RELAY READ: the canonical "agent reads what previous
 /// agent wrote on the tape" pattern. Without this, parent_attempt_cid chains
 /// are write-only.
-fn read_prior_rejection_feedback(
-    workspace: &Path,
-    session_id: &str,
-) -> Option<String> {
+fn read_prior_rejection_feedback(workspace: &Path, session_id: &str) -> Option<String> {
     let cas_dir = workspace.join("cas");
     let store = CasStore::open(&cas_dir).ok()?;
 
@@ -724,9 +819,7 @@ fn read_prior_rejection_feedback(
 
     // Construct feedback text. Format it as concrete actionable guidance,
     // not a raw debug dump.
-    let mut feedback = String::from(
-        "=== PRIOR ATTEMPT FEEDBACK (relayed from CAS tape) ===\n\n",
-    );
+    let mut feedback = String::from("=== PRIOR ATTEMPT FEEDBACK (relayed from CAS tape) ===\n\n");
     feedback.push_str(&format!(
         "Your previous attempt for this same session FAILED.\n\
          Failure class: {:?}\n\
@@ -767,10 +860,7 @@ fn read_prior_rejection_feedback(
 
 /// Helper: parse a hex CID string and read the linked TestRunCapsule,
 /// returning the list of (scenario_name, detail) for failed scenarios.
-fn read_failed_scenarios_by_cid(
-    store: &CasStore,
-    cid_hex: &str,
-) -> Option<Vec<(String, String)>> {
+fn read_failed_scenarios_by_cid(store: &CasStore, cid_hex: &str) -> Option<Vec<(String, String)>> {
     if cid_hex.len() != 64 {
         return None;
     }
@@ -788,9 +878,7 @@ fn read_failed_scenarios_by_cid(
             let name = match &r.scenario {
                 TestScenario::EntrypointExists => "EntrypointExists".to_string(),
                 TestScenario::HtmlParses => "HtmlParses".to_string(),
-                TestScenario::SandboxPolicyPreserved { .. } => {
-                    "SandboxPolicyPreserved".to_string()
-                }
+                TestScenario::SandboxPolicyPreserved { .. } => "SandboxPolicyPreserved".to_string(),
             };
             failed.push((name, r.detail));
         }

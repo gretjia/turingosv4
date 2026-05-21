@@ -1,12 +1,12 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
-use turingosv4::runtime::generation_attempt::{GenerationAttemptCapsule, AttemptOutcome};
-use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::generation_attempt::GenerationAttemptCapsule;
 
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -48,7 +48,7 @@ fn start_mock_llm_server(response_body: String, max_requests: usize) -> String {
 fn test_generate_retry_attempts_are_distinct() {
     let tmp = tempfile::tempdir().expect("create temp workspace");
     let ws = tmp.path().join("my_workspace");
-    
+
     // Init workspace
     let status = Command::new(turingos_bin())
         .arg("init")
@@ -62,7 +62,7 @@ fn test_generate_retry_attempts_are_distinct() {
     fs::write(ws.join("spec.md"), "# Test Spec\nGenerate some code.").expect("write spec.md");
 
     // Setup mock LLM response
-    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: src/main.rs\\n```rust\\nfn main() {}\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
+    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<!DOCTYPE html><html><body><h1>Hello</h1></body></html>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
 
     let endpoint = start_mock_llm_server(raw_response, 2);
 
@@ -92,13 +92,14 @@ fn test_generate_retry_attempts_are_distinct() {
     let cas_dir = ws.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas store");
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
-    
+
     let mut attempts = Vec::new();
     for cid in cids {
         if let Some(meta) = store.metadata(&cid) {
             if meta.schema_id.as_deref() == Some("turingos-generation-attempt-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerationAttemptCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerationAttemptCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 attempts.push((cap, cid.hex()));
             }
         }
@@ -106,10 +107,15 @@ fn test_generate_retry_attempts_are_distinct() {
 
     // Sort by retry_index
     attempts.sort_by_key(|x| x.0.retry_index);
-    assert_eq!(attempts.len(), 2, "Expected 2 generation attempts, found {}", attempts.len());
+    assert_eq!(
+        attempts.len(),
+        2,
+        "Expected 2 generation attempts, found {}",
+        attempts.len()
+    );
 
     let (cap0, cid0) = &attempts[0];
-    let (cap1, cid1) = &attempts[1];
+    let (cap1, _) = &attempts[1];
 
     assert_eq!(cap0.retry_index, 0);
     assert_eq!(cap0.parent_attempt_cid, None);
