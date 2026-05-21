@@ -259,8 +259,11 @@ pub(crate) async fn generate_handler(
             }
         }
 
-        let output = match cmd.output().await {
-            Ok(o) => o,
+        // OBS: measure subprocess spawn cost and total lifetime separately.
+        // spawn_ms = fork+exec cost only; total_ms = fork+exec + LLM work.
+        let spawn_start = std::time::Instant::now();
+        let child = match cmd.spawn() {
+            Ok(c) => c,
             Err(e) => {
                 let reason = format!("failed to spawn {:?}: {e}", bin);
                 let _ = state
@@ -285,6 +288,46 @@ pub(crate) async fn generate_handler(
                 ));
             }
         };
+        let spawn_ms = spawn_start.elapsed().as_millis() as u64;
+
+        let output = match child.wait_with_output().await {
+            Ok(o) => o,
+            Err(e) => {
+                let reason = format!("wait_with_output failed for {:?}: {e}", bin);
+                let _ = state
+                    .broadcast_tx
+                    .send(WsBroadcastMsg::GenerateAttemptFailed {
+                        session_id: req.session_id.clone(),
+                        attempt,
+                        max_attempts: MAX_GENERATE_ATTEMPTS,
+                        reason: reason.clone(),
+                    });
+                last_failure_reason = reason;
+                last_failure_kind = "shellout_failed";
+                if attempt < MAX_GENERATE_ATTEMPTS {
+                    continue;
+                }
+                return Err((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(SpecError {
+                        reason: last_failure_reason,
+                        kind: last_failure_kind,
+                    }),
+                ));
+            }
+        };
+        let total_ms = spawn_start.elapsed().as_millis() as u64;
+        let exit_code = output.status.code();
+        // OBS: structured subprocess timing event — grep on "turingos_web::subprocess_timing"
+        log::info!(
+            target: "turingos_web::subprocess_timing",
+            "turingos generate subprocess completed subprocess_spawn_ms={} subprocess_total_ms={} subprocess_exit_code={:?} subprocess_retry_index={} subprocess_session_id={}",
+            spawn_ms,
+            total_ms,
+            exit_code,
+            (attempt - 1) as u32,
+            req.session_id,
+        );
 
         // Capture stdout for the eventual response (winning attempt wins).
         let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
