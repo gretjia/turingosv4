@@ -145,6 +145,17 @@ pub mod chain_tape_lease;
 /// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.3.
 pub mod batch_continuation_manifest;
 
+/// TRACE_MATRIX FC1-N4 + FC2-Boot (TB-G G1.2-3 2026-05-11; Option B+
+/// orchestration ruling §1 + §3.1-§3.5): batch orchestration library.
+/// Verbatim promotion from experiments/minif2f_v4/src/batch_orchestrator.rs
+/// (deleted 309e026a Phase C3 cleanup). Implements prior_outcome
+/// carry-forward + verify_chain_continuity for multi-task batch resumption.
+/// Binds G1.2-1 ResumePreflight + G1.2-2 ChainTapeLease +
+/// G1.2-4 BatchContinuationManifest. Six inline unit tests (SG-G1.2-3.*).
+/// Constitutional Justification:
+/// `handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md` §3.
+pub mod batch_orchestrator;
+
 /// TRACE_MATRIX FC2-Boot + FC3-Markov (TB-G G1.2-5 2026-05-11; Option B+
 /// orchestration ruling §3.4 + charter §1 G1.2-5): persistence-evidence
 /// binding library. Classifies each of the six architect-required
@@ -167,6 +178,10 @@ pub mod persistence_evidence;
 /// 2026-05-12 病灶3 "0 verify" quantification gap.
 pub mod peer_verify_coverage;
 
+/// TRACE_MATRIX FC1/FC3 (REAL-WORLD Polymarket Phase A 2026-05-21): external
+/// market snapshot sidecar. Additive Generic CAS evidence only; public price
+/// is an agent signal, never resolution truth, wallet authority, or order flow.
+pub mod external_market_snapshot;
 /// TRACE_MATRIX FC1/FC3 (REAL-17 2026-05-17): direct prompt-provenance
 /// sidecar for submitted MarketDecisionTrace rows. Additive CAS evidence only;
 /// does not change TypedTx, sequencer admission, or CAS ObjectType schema.
