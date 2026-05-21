@@ -56,7 +56,6 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_market_autonomy_research_envelope",
     "constitution_market_quarantine",
     "constitution_market_seed_hardening",
-    "constitution_minif2f_boundary",
     "constitution_n1_agent_economy_a3",
     "constitution_n2_event_resolve",
     "constitution_no_evidence_drift_in_tests",
