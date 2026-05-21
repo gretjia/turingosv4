@@ -132,7 +132,10 @@ fn run_offline(args: &[String]) -> ExitCode {
     }
 
     if !result.dangling_cid_errors.is_empty() {
-        eprintln!("FAIL: {} dangling CID reference(s)", result.dangling_cid_errors.len());
+        eprintln!(
+            "FAIL: {} dangling CID reference(s)",
+            result.dangling_cid_errors.len()
+        );
         for err in &result.dangling_cid_errors {
             eprintln!("  - {}", err);
         }

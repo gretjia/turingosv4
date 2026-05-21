@@ -4,8 +4,14 @@
 //! `src/bin/turingos/cmd_*.rs` submodules. All public surface scoped
 //! `pub(crate)` — never escapes the `turingos` binary crate.
 
+use std::io::Write;
 use std::path::Path;
-use std::process::{Command, ExitCode, Stdio};
+use std::process::ExitCode;
+use std::time::Duration;
+
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 /// TRACE_MATRIX FC2-N16: shell-escape paths for stdout `cd` hints
 ///
@@ -103,14 +109,21 @@ pub(crate) fn run_external(bin_name: &str, args: &[String]) -> ExitCode {
     } else {
         resolve_default(bin_name)
     };
-    let status = Command::new(&bin_path)
-        .args(args)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status();
-    match status {
-        Ok(s) => ExitCode::from(s.code().unwrap_or(1) as u8),
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let output = run_sanitized(SanitizedCommand {
+        program: bin_path.clone(),
+        args: args.to_vec(),
+        cwd,
+        env: env_allowlist_from_current(&["PATH"]),
+        stdin: None,
+        timeout: Duration::from_secs(300),
+    });
+    match output {
+        Ok(out) => {
+            let _ = std::io::stdout().write_all(&out.stdout);
+            let _ = std::io::stderr().write_all(&out.stderr);
+            ExitCode::from(out.exit_code.unwrap_or(1) as u8)
+        }
         Err(e) => {
             use std::io::ErrorKind;
             if matches!(e.kind(), ErrorKind::NotFound) {

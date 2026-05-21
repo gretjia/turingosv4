@@ -1,13 +1,14 @@
+use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
-use sha2::{Digest, Sha256};
-use turingosv4::runtime::generation_attempt::{GenerationAttemptCapsule, AttemptOutcome};
-use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::generation_attempt::GenerationAttemptCapsule;
 
 const BLACKBOX_SYSTEM_PROMPT: &str = r#"You are TuringOS Blackbox AI, a fast code-generation assistant.
 
@@ -47,6 +48,20 @@ Example shape (DO NOT COPY VERBATIM — write your own per the spec):
 ```
 "#;
 
+#[derive(Serialize)]
+struct Request<'a> {
+    model: &'a str,
+    messages: &'a [Message],
+    max_tokens: Option<u32>,
+    temperature: Option<f32>,
+}
+
+#[derive(Serialize)]
+struct Message {
+    role: String,
+    content: String,
+}
+
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let candidates = [
@@ -85,7 +100,7 @@ fn start_mock_llm_server(response_body: String) -> String {
 fn test_generate_attempt_prompt_hash_is_canonical() {
     let tmp = tempfile::tempdir().expect("create temp workspace");
     let ws = tmp.path().join("my_workspace");
-    
+
     // Init workspace
     let status = Command::new(turingos_bin())
         .arg("init")
@@ -100,7 +115,7 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
     let spec_path = ws.join("spec.md");
     fs::write(&spec_path, spec_content).expect("write spec.md");
 
-    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: src/main.rs\\n```rust\\nfn main() {}\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
+    let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<!doctype html>\\n<html><body><main>ok</main></body></html>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
 
     let endpoint = start_mock_llm_server(raw_response);
 
@@ -120,13 +135,14 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
     let cas_dir = ws.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas store");
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
-    
+
     let mut attempt_capsule: Option<GenerationAttemptCapsule> = None;
     for cid in cids {
         if let Some(meta) = store.metadata(&cid) {
             if meta.schema_id.as_deref() == Some("turingos-generation-attempt-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerationAttemptCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerationAttemptCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 attempt_capsule = Some(cap);
                 break;
             }
@@ -134,16 +150,32 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
     }
 
     let cap = attempt_capsule.expect("GenerationAttemptCapsule not found in CAS");
-    
-    // Compute prompt hash locally
-    let canonical_prompt = format!(
-        "system: {}\nuser: Below is the spec. Generate the working code per the rules.\n\nspec source: {}\n\n{}",
-        BLACKBOX_SYSTEM_PROMPT,
-        spec_path.display(),
-        spec_content
-    );
+
+    // Compute provider request hash locally. This must match the exact
+    // canonical request bytes sent to the OpenAI-compatible endpoint.
+    let messages = vec![
+        Message {
+            role: "system".to_string(),
+            content: BLACKBOX_SYSTEM_PROMPT.to_string(),
+        },
+        Message {
+            role: "user".to_string(),
+            content: format!(
+                "Below is the spec. Generate the working code per the rules.\n\nspec source: {}\n\n{}",
+                spec_path.display(),
+                spec_content
+            ),
+        },
+    ];
+    let request = Request {
+        model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+        messages: &messages,
+        max_tokens: Some(6000),
+        temperature: Some(0.2),
+    };
+    let canonical_request_bytes = serde_json::to_vec(&request).expect("serialize request");
     let mut hasher = Sha256::new();
-    hasher.update(canonical_prompt.as_bytes());
+    hasher.update(&canonical_request_bytes);
     let expected_hash = format!("{:x}", hasher.finalize());
 
     assert_eq!(cap.prompt_hash, expected_hash);
