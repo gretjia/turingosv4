@@ -347,6 +347,24 @@ pub mod rejection_capsule;
 /// TRACE_MATRIX FC1 + FC3-N4: Phase C3 ArtifactBundleManifest CAS wire.
 pub mod artifact_bundle;
 
+/// TRACE_MATRIX FC3-N4: Phase C6 PreviewRunCapsule (read-only observation evidence).
+pub mod preview_run;
+
+/// TRACE_MATRIX FC2 + FC3: Phase C7 BuildSessionView (derived view, not capsule).
+pub mod build_session_view;
+
+/// TRACE_MATRIX FC1 + FC2: Phase C9 offline replay reconstructor.
+pub mod replay;
+
+/// TRACE_MATRIX FC2 + FC3: Phase C10 PromptPromotionReceipt + runtime guard.
+pub mod prompt_promotion;
+
+/// TRACE_MATRIX FC1: Phase C11 TestScenarioSet (hidden-oracle CAS capsule).
+pub mod test_scenario;
+
+/// TRACE_MATRIX FC1 + FC3: Phase C11 TestRunCapsule (test execution evidence).
+pub mod test_run;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

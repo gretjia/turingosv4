@@ -15,8 +15,10 @@ use crate::runtime::spec_capsule::{
     SPEC_CAPSULE_SCHEMA_ID, GrillTurnCapsuleBody, GrillSessionCapsuleBody,
 };
 use crate::runtime::generation_attempt::{
-    GenerationAttemptCapsule, GenerateRejectionCapsule,
-    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
+    GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
+use crate::runtime::rejection_capsule::{
+    GenerateRejectionCapsule, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
 use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
