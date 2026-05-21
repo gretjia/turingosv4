@@ -159,6 +159,36 @@ DEEPSEEK DUAL-KEY EXAMPLE:
 
     # 4. Verify
     turingos welcome --workspace <PATH>
+
+ANTHROPIC EXAMPLE (Meta=Claude reasoning + Worker=Claude fast):
+    # NOTE: Anthropic native API requires a different wire protocol than
+    # SiliconFlow/DeepSeek/OpenAI. As of this version, TuringOS only speaks
+    # OpenAI-compatible Chat Completions. To use Claude with TuringOS today,
+    # point TURINGOS_SILICONFLOW_ENDPOINT at an OpenAI-compatible Anthropic
+    # gateway (e.g. OpenRouter, or self-hosted LiteLLM proxy).
+
+    turingos llm config --workspace <PATH> \
+        --meta-api-key-env OPENROUTER_API_KEY \
+        --blackbox-api-key-env OPENROUTER_API_KEY \
+        --meta-model anthropic/claude-opus-4-1 \
+        --blackbox-model anthropic/claude-haiku-4-5 \
+        --meta-thinking on \
+        --blackbox-thinking off
+
+    export OPENROUTER_API_KEY="sk-or-..."
+    export TURINGOS_SILICONFLOW_ENDPOINT=https://openrouter.ai/api/v1/chat/completions
+
+OPENAI EXAMPLE (single key, dual model):
+    turingos llm config --workspace <PATH> \
+        --meta-api-key-env OPENAI_API_KEY \
+        --blackbox-api-key-env OPENAI_API_KEY \
+        --meta-model gpt-5 \
+        --blackbox-model gpt-5-mini \
+        --meta-thinking off \
+        --blackbox-thinking off
+
+    export OPENAI_API_KEY="sk-..."
+    export TURINGOS_SILICONFLOW_ENDPOINT=https://api.openai.com/v1/chat/completions
 "#;
 
 /// TRACE_MATRIX FC2-N16: error type for LLM config/key readers in cmd_llm.
