@@ -28,7 +28,7 @@ use std::time::Instant;
 use sha2::{Digest, Sha256};
 
 use crate::common::shell_quote_path;
-use crate::siliconflow_client::{DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
+use crate::siliconflow_client::{ThinkingConfig, DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
 use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
 
 /// TRACE_MATRIX FC2-N16: `llm` short-help
@@ -237,6 +237,8 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
     let mut meta_model = DEFAULT_META_MODEL.to_string();
     let mut blackbox_model = DEFAULT_BLACKBOX_MODEL.to_string();
     let mut api_key_env = "SILICONFLOW_API_KEY".to_string();
+    let mut meta_thinking: Option<String> = None;
+    let mut blackbox_thinking: Option<String> = None;
     let mut positional: Vec<String> = Vec::new();
 
     let mut iter = args.iter();
@@ -269,6 +271,30 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
                     .ok_or(LlmError::MissingFlag("--api-key-env"))?
                     .clone();
             }
+            "--meta-thinking" => {
+                let v = iter
+                    .next()
+                    .ok_or(LlmError::MissingFlag("--meta-thinking"))?
+                    .to_lowercase();
+                if v != "on" && v != "off" {
+                    return Err(LlmError::UnknownAction(format!(
+                        "--meta-thinking value must be 'on' or 'off', got: {v}"
+                    )));
+                }
+                meta_thinking = Some(v);
+            }
+            "--blackbox-thinking" => {
+                let v = iter
+                    .next()
+                    .ok_or(LlmError::MissingFlag("--blackbox-thinking"))?
+                    .to_lowercase();
+                if v != "on" && v != "off" {
+                    return Err(LlmError::UnknownAction(format!(
+                        "--blackbox-thinking value must be 'on' or 'off', got: {v}"
+                    )));
+                }
+                blackbox_thinking = Some(v);
+            }
             "-h" | "--help" => {}
             _ => positional.push(arg.clone()),
         }
@@ -287,6 +313,8 @@ fn run_inner(args: &[String]) -> Result<(), LlmError> {
                 &meta_model,
                 &blackbox_model,
                 &api_key_env,
+                meta_thinking.as_deref(),
+                blackbox_thinking.as_deref(),
             )?;
             let ws_q = shell_quote_path(&workspace);
             println!("LLM config written to {}/turingos.toml", ws_q);
@@ -331,6 +359,8 @@ fn write_config(
     meta_model: &str,
     blackbox_model: &str,
     api_key_env: &str,
+    meta_thinking: Option<&str>,
+    blackbox_thinking: Option<&str>,
 ) -> Result<(), LlmError> {
     let path = workspace.join("turingos.toml");
     let mut existing = read_config(workspace)?;
@@ -346,6 +376,12 @@ fn write_config(
     set("llm.meta.api_key_env", api_key_env);
     set("llm.blackbox.model", blackbox_model);
     set("llm.blackbox.api_key_env", api_key_env);
+    if let Some(t) = meta_thinking {
+        set("llm.meta.thinking", t);
+    }
+    if let Some(t) = blackbox_thinking {
+        set("llm.blackbox.thinking", t);
+    }
 
     let mut out =
         String::from("# turingos.toml — managed by `turingos config` / `turingos llm config`\n");
@@ -412,6 +448,32 @@ pub(crate) fn read_meta_api_key_env(workspace: &Path) -> Result<String, LlmError
 pub(crate) fn read_blackbox_api_key_env(workspace: &Path) -> Result<String, LlmError> {
     read_config_value(workspace, "llm.blackbox.api_key_env")
         .ok_or(LlmError::BlackboxKeyEnvNotConfigured)
+}
+
+/// TRACE_MATRIX FC2-N16: Meta thinking-mode config reader.
+///
+/// Returns `Some(ThinkingConfig { kind: "enabled" })` when `llm.meta.thinking = "on"` in
+/// turingos.toml, and `None` otherwise (including when the key is absent, which defaults to off).
+pub(crate) fn read_meta_thinking(workspace: &Path) -> Option<ThinkingConfig> {
+    match read_config_value(workspace, "llm.meta.thinking").as_deref() {
+        Some("on") => Some(ThinkingConfig {
+            kind: "enabled".to_string(),
+        }),
+        _ => None,
+    }
+}
+
+/// TRACE_MATRIX FC2-N16: Blackbox thinking-mode config reader.
+///
+/// Returns `Some(ThinkingConfig { kind: "enabled" })` when `llm.blackbox.thinking = "on"` in
+/// turingos.toml, and `None` otherwise (including when the key is absent, which defaults to off).
+pub(crate) fn read_blackbox_thinking(workspace: &Path) -> Option<ThinkingConfig> {
+    match read_config_value(workspace, "llm.blackbox.thinking").as_deref() {
+        Some("on") => Some(ThinkingConfig {
+            kind: "enabled".to_string(),
+        }),
+        _ => None,
+    }
 }
 
 fn read_config_value(workspace: &Path, key: &str) -> Option<String> {
@@ -784,6 +846,11 @@ fn run_complete(args: &[String]) -> ExitCode {
         }
     };
 
+    let thinking = match ca.role {
+        ModelRole::Meta => read_meta_thinking(&ca.workspace),
+        ModelRole::Blackbox => read_blackbox_thinking(&ca.workspace),
+    };
+
     let t_start = Instant::now();
     let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
         &api_key,
@@ -791,6 +858,7 @@ fn run_complete(args: &[String]) -> ExitCode {
         &chat_messages,
         Some(max_tokens),
         Some(temperature),
+        thinking,
     ));
     let elapsed_ms = t_start.elapsed().as_millis();
 
@@ -1258,6 +1326,8 @@ fn run_triage(args: &[String]) -> ExitCode {
         }
     };
 
+    let blackbox_thinking = read_blackbox_thinking(&ta.workspace);
+
     let t_start = Instant::now();
     let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
         &api_key,
@@ -1265,6 +1335,7 @@ fn run_triage(args: &[String]) -> ExitCode {
         &chat_messages,
         Some(50),
         Some(0.0),
+        blackbox_thinking,
     ));
     let elapsed_ms = t_start.elapsed().as_millis();
 
@@ -1833,6 +1904,12 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
         PromptEvalRole::Playback => (read_meta_model(&pe.workspace), 1200u32, 0.3f32),
     };
 
+    // Read per-role thinking config once for the whole eval run.
+    let thinking = match pe.role {
+        PromptEvalRole::Meta | PromptEvalRole::Playback => read_meta_thinking(&pe.workspace),
+        PromptEvalRole::Blackbox => read_blackbox_thinking(&pe.workspace),
+    };
+
     // ── 5. Per-row eval loop ────────────────────────────────────────────────
     let mut per_row: Vec<RowVerdict> = Vec::with_capacity(fixture_rows.len());
     let mut pass_count = 0usize;
@@ -1855,6 +1932,7 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
             pe.role,
             &candidate_system_text,
             row,
+            thinking.clone(),
         );
         match verdict.verdict.as_str() {
             "PASS" => pass_count += 1,
@@ -1880,6 +1958,7 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
                 pe.role,
                 baseline_text,
                 row,
+                thinking.clone(),
             );
             if bverdict.verdict == "PASS" {
                 baseline_pass_ids.push(row.id.clone());
@@ -1963,6 +2042,7 @@ fn eval_one_row(
     role: PromptEvalRole,
     system_text: &str,
     row: &FixtureRow,
+    thinking: Option<ThinkingConfig>,
 ) -> RowVerdict {
     // ── (a) Build messages per role ─────────────────────────────────────────
     let messages: Vec<crate::siliconflow_client::ChatMessage> = match role {
@@ -2025,6 +2105,7 @@ fn eval_one_row(
         &messages,
         Some(max_tokens),
         Some(temperature),
+        thinking,
     ));
     let chat_result = match llm_result {
         Ok(r) => r,

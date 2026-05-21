@@ -313,7 +313,8 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
             ChatMessage::user(synth_user_msg.clone()),
         ];
         eprintln!("[spec] calling Meta LLM ({model_id}) to synthesise spec.md...");
-        let result = chat_complete_blocking(&api_key, &model_id, &messages, Some(3000), Some(0.3))?;
+        let meta_thinking = cmd_llm::read_meta_thinking(&workspace);
+        let result = chat_complete_blocking(&api_key, &model_id, &messages, Some(3000), Some(0.3), meta_thinking)?;
         transcript.push(TurnRecord {
             role: "user".into(),
             content: synth_user_msg,
@@ -1338,12 +1339,14 @@ fn run_driven_mode(
                     eprintln!(
                         "[spec driven] calling Meta LLM ({model_id}) to synthesise spec.md..."
                     );
+                    let meta_thinking_driven = cmd_llm::read_meta_thinking(workspace);
                     match chat_complete_blocking(
                         &api_key,
                         &model_id,
                         &messages,
                         Some(3000),
                         Some(0.3),
+                        meta_thinking_driven,
                     ) {
                         Ok(result) => result.content,
                         Err(_) => synthesise_spec_md_no_llm(lang, &questions, &answers),
