@@ -75,17 +75,26 @@ TDMA-scoped modules: `src/memory_kernel.rs`, `src/distiller.rs`, `src/token_budg
 `src/judges/`.
 
 ```bash
-# Module-scoped (TDMA only) — the intent of KILL-tdma-1..7
+# Module-scoped (TDMA only) — the intent of KILL-tdma-1..7.
+# Each grep strips doc-comment lines (//!, ///) so the guards apply to runtime
+# code, not to documentation that intentionally NAMES the banned patterns to
+# warn against them.
 TDMA_MODULES='src/memory_kernel.rs src/distiller.rs src/token_budget.rs src/tokenizer.rs src/state_update.rs src/rtool.rs src/charter_core.rs src/judges/'
+STRIP_DOC='grep -vE "^[[:space:]]*//[!/]"'
 
-! grep -R "raw_stderr" src/memory_kernel.rs 2>/dev/null | grep -E "format!|push_str|assemble|prompt"   # KILL-tdma-1
-! grep -R "update_belief_state" src/                                                                   # KILL-tdma-2 (repo-wide; new sidecar pattern is always forbidden)
-! grep -RE "HashMap<.*Belief" src/                                                                     # KILL-tdma-2
-! grep -R "payload.len()" $TDMA_MODULES 2>/dev/null                                                    # KILL-tdma-3 (TDMA-scoped — legacy bus.rs V3L-21 exempt)
-! grep -RE ".len\(\) as.*token" $TDMA_MODULES 2>/dev/null                                              # KILL-tdma-3
-! grep -R "</STATE_UPDATE>" src/                                                                       # KILL-tdma-4 (repo-wide)
-! grep -R "<STATE_UPDATE>" src/                                                                        # KILL-tdma-4
-! grep -R "constitution.md" src/memory_kernel.rs                                                       # KILL-tdma-6
+# KILL-tdma-1: raw_stderr never enters prompt assembly (TDMA-scoped, doc-stripped)
+! ( grep -RHn "raw_stderr" src/memory_kernel.rs 2>/dev/null | $STRIP_DOC | grep -E "format!|push_str|assemble|prompt" )
+# KILL-tdma-2: no mutable belief-state sidecar (repo-wide; this is a new anti-pattern)
+! ( grep -RHn "update_belief_state" src/ | $STRIP_DOC )
+! ( grep -RHnE "HashMap<.*Belief" src/ | $STRIP_DOC )
+# KILL-tdma-3: no bytes-as-token-count (TDMA-scoped; legacy bus.rs V3L-21 exempt)
+! ( grep -RHn "payload.len()" $TDMA_MODULES 2>/dev/null | $STRIP_DOC )
+! ( grep -RHnE "\.len\(\) as.*token" $TDMA_MODULES 2>/dev/null | $STRIP_DOC )
+# KILL-tdma-4: no closing-tag StateUpdate parser (repo-wide; new anti-pattern)
+! ( grep -RHn "</STATE_UPDATE>" src/ | $STRIP_DOC )
+! ( grep -RHn "<STATE_UPDATE>" src/ | $STRIP_DOC )
+# KILL-tdma-6: constitution.md bytes never injected into the kernel prompt
+! ( grep -RHn "constitution.md" src/memory_kernel.rs 2>/dev/null | $STRIP_DOC )
 ```
 
 Repo-wide guards (KILL-tdma-2, KILL-tdma-4): sidecar-BBS and closing-tag-parser are
