@@ -1,0 +1,11 @@
+//! TRACE_MATRIX FC1a-predicate_pi: TDMA-Bounded JudgeAI predicate module.
+//!
+//! Constitution explicitly permits JudgeAI as a verdict authority for FC1
+//! predicates. This module holds the math-step judge used in the Atom 7.5
+//! real-evidence run on the user-supplied problem
+//! "证明所有自然数之和 = -1/12 via m·exp(-m/N)·cos(m/N)".
+//!
+//! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
+
+/// TRACE_MATRIX FC1a-predicate_pi: math-step JudgeAI submodule.
+pub mod math_step_judge;

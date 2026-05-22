@@ -1,0 +1,5 @@
+{"step":1,"text":"Define S(N) = sum over m >= 1 of m·exp(-m/N)·cos(m/N).","verdict":Pass}
+{"step":2,"text":"Expand S(N) using the Euler-Maclaurin asymptotic expansion.","verdict":Pass}
+{"step":3,"text":"Differentiate the smoothed sum to isolate the Abel-summed limit.","verdict":Pass}
+{"step":4,"text":"Apply analytic continuation of the zeta function near s = -1.","verdict":Pass}
+{"step":5,"text":"[COMPLETE] Therefore lim_{N→∞} S(N) = -1/12 + O(1/N).","verdict":Pass}
