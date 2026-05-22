@@ -20,5 +20,7 @@ pub mod state_update;
 pub mod tokenizer;
 /// TRACE_MATRIX FC1a-budget_gate: TDMA-Bounded-RC1 token budget subsystem (Atom 3).
 pub mod token_budget;
+/// TRACE_MATRIX FC1a-rtool_input + FC3-replay: TDMA-Bounded-RC1 distiller (Atom 4).
+pub mod distiller;
 pub mod top_white;
 pub mod wal;
