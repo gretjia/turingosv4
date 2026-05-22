@@ -435,20 +435,55 @@ export class TosSpecGrill extends HTMLElement {
     const wrap = document.createElement('section');
     wrap.className = 'spec-grill-complete';
 
-    const msg = document.createElement('p');
-    msg.className = 'spec-grill-complete-msg';
-    msg.textContent = 'Spec generated. Capsule CID: ';
+    // R2 visual spec view: iframe pointing to server-rendered HTML.
+    // Backend reads <workspace>/sessions/<session_id>/spec.md and renders it
+    // with TuringOS aesthetic (Fraunces + JetBrains Mono + IBM Plex Sans +
+    // oxidized-teal #4e8b7a, two-panel Build Now / Deeper Insight, cards).
+    const viewFrame = document.createElement('iframe');
+    viewFrame.className = 'spec-grill-view-iframe';
+    viewFrame.src = `/api/spec/view/${encodeURIComponent(this._drivenSessionId)}`;
+    viewFrame.style.cssText = [
+      'width:100%',
+      'min-height:1100px',
+      'border:1px solid var(--tos-border,#d8d4c8)',
+      'border-radius:12px',
+      'background:#f8f6f1',
+      'margin:1rem 0',
+      'box-shadow:0 1px 2px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)',
+    ].join(';');
+    viewFrame.setAttribute('title', 'TuringOS Spec Preview');
+    viewFrame.setAttribute('sandbox', 'allow-same-origin allow-popups');
+    // Auto-resize iframe to fit its content (same-origin so we can read it).
+    viewFrame.addEventListener('load', () => {
+      try {
+        const doc = viewFrame.contentDocument;
+        if (doc?.body != null) {
+          const h = doc.documentElement.scrollHeight || doc.body.scrollHeight;
+          if (h > 0) viewFrame.style.minHeight = `${h + 24}px`;
+        }
+      } catch { /* same-origin should succeed; ignore otherwise */ }
+    });
+    wrap.appendChild(viewFrame);
 
-    const cid = document.createElement('code');
-    cid.className = 'spec-grill-cid';
-    cid.textContent = capsuleCid;
-    msg.appendChild(cid);
+    // CID footer (compact, below the visual view)
+    const cidLine = document.createElement('p');
+    cidLine.className = 'spec-grill-cid-footer';
+    cidLine.style.cssText = 'font-size:0.8rem;color:var(--tos-muted,#6b6b6b);font-family:ui-monospace,monospace;margin:0.5rem 0';
+    const cidLabel = document.createElement('span');
+    cidLabel.textContent = 'CAS capsule: ';
+    cidLine.appendChild(cidLabel);
+    const cidCode = document.createElement('code');
+    cidCode.className = 'spec-grill-cid';
+    cidCode.textContent = capsuleCid.slice(0, 8) + '…' + capsuleCid.slice(-8);
+    cidCode.title = capsuleCid;
+    cidLine.appendChild(cidCode);
+    wrap.appendChild(cidLine);
 
-    wrap.appendChild(msg);
     this.appendChild(wrap);
 
-    // Mount spec-result to expose the generate CTA and artifact viewer.
-    // tos-spec-result reads session_id → POST /api/generate → tos-artifact-viewer.
+    // Mount spec-result for the "生成代码" CTA + artifact viewer below the
+    // visual spec view. spec_md is left empty here — tos-spec-result will only
+    // render the CTA button + later the tos-artifact-viewer on success.
     const specResult = document.createElement('tos-spec-result') as HTMLElement & { spec: unknown };
     (specResult as any).spec = {
       session_id: this._drivenSessionId,
