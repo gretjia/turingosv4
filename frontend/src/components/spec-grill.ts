@@ -432,6 +432,27 @@ export class TosSpecGrill extends HTMLElement {
   }
 
   private _renderDrivenComplete(capsuleCid: string): void {
+    // Idempotency guard: completion can be reached via TWO paths in the same
+    // session — the POST /api/spec/turn response (`_postTurn`) AND the WS
+    // SpecGrillComplete broadcast (`_onWsMessage`). Both flip _drivenState to
+    // `{ kind: 'complete', ... }` and re-invoke `_renderDriven`. The iframe +
+    // CID footer below are inside `this` so `_renderDriven`'s
+    // `while (this.firstChild)` clears them, BUT `<tos-spec-result>` is mounted
+    // OUTSIDE `<tos-spec-grill>` (in this.parentElement) and outlives the
+    // component's internal clear. Without this guard, a successful session
+    // renders 2× iframes, 2× CTAs, and a duplicate generate POST is at risk.
+    //
+    // Strategy: tag the externally-mounted <tos-spec-result> with a session-
+    // scoped data attribute, and remove any prior mount for the same session
+    // before appending a fresh one. This handles both the POST/WS double-fire
+    // AND the case where the user lands on completion twice for the same CID.
+    const mountHost =
+      this.parentElement ?? document.querySelector('main') ?? document.body;
+    const existingMounts = mountHost.querySelectorAll<HTMLElement>(
+      `tos-spec-result[data-spec-grill-mount="${this._drivenSessionId}"]`
+    );
+    existingMounts.forEach((el) => el.remove());
+
     const wrap = document.createElement('section');
     wrap.className = 'spec-grill-complete';
 
@@ -484,14 +505,16 @@ export class TosSpecGrill extends HTMLElement {
     // Mount spec-result for the "生成代码" CTA + artifact viewer below the
     // visual spec view. spec_md is left empty here — tos-spec-result will only
     // render the CTA button + later the tos-artifact-viewer on success.
+    // data-spec-grill-mount carries the session id so the idempotency guard
+    // above can find and remove any prior mount on re-completion.
     const specResult = document.createElement('tos-spec-result') as HTMLElement & { spec: unknown };
+    specResult.setAttribute('data-spec-grill-mount', this._drivenSessionId);
     (specResult as any).spec = {
       session_id: this._drivenSessionId,
       spec_md: '',
       capsule_cid: capsuleCid,
     };
-    (this.parentElement ?? document.querySelector('main') ?? document.body)
-      .appendChild(specResult);
+    mountHost.appendChild(specResult);
   }
 
   private _renderLoading(label: string): void {
