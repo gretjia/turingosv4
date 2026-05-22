@@ -22,5 +22,7 @@ pub mod tokenizer;
 pub mod token_budget;
 /// TRACE_MATRIX FC1a-rtool_input + FC3-replay: TDMA-Bounded-RC1 distiller (Atom 4).
 pub mod distiller;
+/// TRACE_MATRIX FC2-Q_0 + FC3-constitution_binding: TDMA-Bounded-RC1 CharterCore (Atom 5).
+pub mod charter_core;
 pub mod top_white;
 pub mod wal;
