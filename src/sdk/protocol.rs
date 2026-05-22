@@ -104,6 +104,12 @@ impl std::error::Error for ParseError {}
 /// Strip `<think>...</think>` blocks from LLM output.
 /// V3L-15: raw think blocks leak into next agent's context = self-poisoning.
 /// V3L-16: dual-chamber — free thinking in user space, extract determinism at membrane.
+///
+/// Also strips a single enclosing markdown code fence (```json ... ``` or
+/// ``` ... ```). DeepSeek and other providers frequently wrap strict-JSON
+/// output in fences; the downstream JSON validator chokes on the leading
+/// backtick. Fence stripping runs after think-block removal so reasoning
+/// emitted *outside* the fence is still removed first.
 pub fn strip_think_blocks(raw: &str) -> String {
     let mut result = String::new();
     let mut remaining = raw;
@@ -123,7 +129,25 @@ pub fn strip_think_blocks(raw: &str) -> String {
         }
     }
 
-    result
+    strip_code_fences(&result)
+}
+
+/// Strip a single enclosing ```json ... ``` (or plain ``` ... ```) fence.
+/// Returns the input unchanged if no balanced fence is present.
+fn strip_code_fences(s: &str) -> String {
+    let trimmed = s.trim();
+    let after_open = if let Some(rest) = trimmed.strip_prefix("```json") {
+        rest.trim_start_matches(|c: char| c == '\n' || c == '\r')
+    } else if let Some(rest) = trimmed.strip_prefix("```") {
+        rest.trim_start_matches(|c: char| c == '\n' || c == '\r')
+    } else {
+        return s.to_string();
+    };
+
+    match after_open.trim_end().strip_suffix("```") {
+        Some(body) => body.trim().to_string(),
+        None => s.to_string(),
+    }
 }
 
 /// Parse agent output into an AgentAction.
@@ -285,6 +309,55 @@ mod tests {
         // Unclosed think = strip everything after
         let input = "before<think>leaked";
         assert_eq!(strip_think_blocks(input), "before");
+    }
+
+    #[test]
+    fn test_strip_code_fence_json() {
+        // DeepSeek-style: ```json\n{...}\n```
+        let input = "```json\n{\"tool\":\"append\",\"payload\":\"x\"}\n```";
+        assert_eq!(
+            strip_think_blocks(input),
+            "{\"tool\":\"append\",\"payload\":\"x\"}"
+        );
+    }
+
+    #[test]
+    fn test_strip_code_fence_plain() {
+        // Bare ``` fence with no language tag
+        let input = "```\n{\"a\":1}\n```";
+        assert_eq!(strip_think_blocks(input), "{\"a\":1}");
+    }
+
+    #[test]
+    fn test_strip_code_fence_crlf() {
+        // Windows-style line endings between fence and body
+        let input = "```json\r\n{\"a\":1}\r\n```";
+        assert_eq!(strip_think_blocks(input), "{\"a\":1}");
+    }
+
+    #[test]
+    fn test_strip_think_and_code_fence_combined() {
+        // Think block outside the fence, fence wraps JSON
+        let input = "<think>reasoning</think>\n```json\n{\"tool\":\"search\",\"query\":\"q\"}\n```";
+        assert_eq!(
+            strip_think_blocks(input),
+            "{\"tool\":\"search\",\"query\":\"q\"}"
+        );
+    }
+
+    #[test]
+    fn test_no_code_fence_passthrough() {
+        // Bare JSON without fence must be untouched
+        let input = "{\"a\":1}";
+        assert_eq!(strip_think_blocks(input), "{\"a\":1}");
+    }
+
+    #[test]
+    fn test_unclosed_code_fence_passthrough() {
+        // Opening fence but no closing fence — leave content as-is rather than
+        // chop arbitrary bytes (reject-only philosophy, Rule 22 v2 clause 4)
+        let input = "```json\n{\"a\":1}";
+        assert_eq!(strip_think_blocks(input), input);
     }
 
     #[test]

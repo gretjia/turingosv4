@@ -207,7 +207,18 @@ export class TosSpecGrill extends HTMLElement {
         turn_index: data.turn_index,
         question: data.question_text,
       };
-      this._drivenNudge = '';
+      // Bounce-back: triage rejected the last answer. Set nudge from HTTP
+      // response so the user knows why Q is repeated — without relying on
+      // the WS SpecTurnTriageReject event (which may be absent or delayed).
+      if (data.triage_class) {
+        this._drivenNudge =
+          data.triage_class === 'off_topic'
+            ? '能换一种说法吗？刚才听不太懂'
+            : '您似乎在测试我，可以继续吗？';
+      } else {
+        // Normal advance: clear any stale nudge.
+        this._drivenNudge = '';
+      }
       this._renderDriven();
       return;
     }

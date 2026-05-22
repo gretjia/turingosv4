@@ -315,6 +315,16 @@ pub(crate) struct SpecTurnResponse {
     /// the truth via this field.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) termination_reason: Option<String>,
+    /// When non-None, this HTTP response is a triage bounce-back (the user's
+    /// answer was classified as off_topic / gibberish / abusive). `question_text`
+    /// carries the previous question again; this field carries the triage class
+    /// so the client can render the appropriate nudge text WITHOUT depending on
+    /// the WebSocket `SpecTurnTriageReject` event (which may not arrive if the
+    /// WS connection is absent or delayed).
+    ///
+    /// Values: "off_topic" | "gibberish" | "abusive". None on all normal paths.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) triage_class: Option<String>,
 }
 
 /// Error body for /api/spec/turn.
@@ -724,6 +734,7 @@ pub(crate) async fn spec_turn_handler(
             spec_capsule_cid: None,
             turn_capsule_cid: None,
             termination_reason: Some("turn_ceiling_15_no_spec".to_string()),
+            triage_class: None,
         }));
     }
 
@@ -918,6 +929,7 @@ pub(crate) async fn spec_turn_handler(
                     spec_capsule_cid: None,
                     turn_capsule_cid: None,
                     termination_reason: Some("user_input_unparseable_no_spec".to_string()),
+                    triage_class: None,
                 }));
             }
 
@@ -946,6 +958,10 @@ pub(crate) async fn spec_turn_handler(
                 spec_capsule_cid: None,
                 turn_capsule_cid: None,
                 termination_reason: None,
+                // Carry the triage class so the client can render the bounce-back
+                // nudge from the HTTP response alone, without depending on the WS
+                // SpecTurnTriageReject event (which may be absent if WS is down).
+                triage_class: Some(triage_class.clone()),
             }));
         }
 
@@ -1391,6 +1407,31 @@ pub(crate) async fn spec_turn_handler(
             }
         };
 
+        // Mirror the SpecCapsule into the session-scoped CAS so that
+        // `turingos generate --workspace <workspace>/sessions/<session_id>
+        // --from-capsule` can resolve it via `spec_capsule::latest_spec_capsule_cid`,
+        // which probes `<workspace_arg>/cas/`. The generate web handler
+        // (src/web/generate.rs) shells out with the per-session workspace, so
+        // without this mirror the lookup returns `NoSpec("no spec capsule in
+        // <session_dir>/cas")` even though the capsule was just written to the
+        // global CAS above. CID is content-addressed → both copies share the
+        // same CID; the duplicated bytes are the cost of keeping the two CLI
+        // entry points (per-session generate vs global welcome/audit) reading
+        // from disjoint CAS roots.
+        if !final_spec_capsule_cid_hex.is_empty() {
+            if let Err(e) = turingosv4::runtime::spec_capsule::write_spec_capsule(
+                &session_dir,
+                &spec_md,
+                "grill_driven_web",
+                logical_t,
+            ) {
+                eprintln!(
+                    "[a6 synth] WARN: failed to mirror SpecCapsule into session CAS {}: {e}",
+                    session_dir.display()
+                );
+            }
+        }
+
         // Build + write GrillSessionCapsule (manifest of turn CIDs + tally).
         // Mirrors `cmd_spec.rs:1366-1378`.
         let (tally_snap, partial_session) = {
@@ -1500,6 +1541,7 @@ pub(crate) async fn spec_turn_handler(
         spec_capsule_cid,
         turn_capsule_cid,
         termination_reason,
+        triage_class: None,
     }))
 }
 
