@@ -11,3 +11,5 @@
 pub mod math_step_judge;
 /// TRACE_MATRIX FC1a-predicate_pi: deterministic scripted-verdict judge (Atom 9 stress fixture).
 pub mod injected_judge;
+/// TRACE_MATRIX FC1a-predicate_pi: Nesbitt's-inequality multi-category step judge (Atom 10).
+pub mod nesbitt_step_judge;

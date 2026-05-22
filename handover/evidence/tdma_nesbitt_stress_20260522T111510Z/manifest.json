@@ -1,0 +1,77 @@
+{
+  "atom": "10",
+  "b_d": 400,
+  "b_prompt_max": 5800,
+  "branch": "feature/tdma-rc1-nesbitt-stress",
+  "chaintape_sha256": "2be1d1e409dfb887874c29755aff6bbc848c8e4fd2fb0620933191743eaee832",
+  "compression_ratio_stderr_over_bbs": 12.533468104222822,
+  "distinct_reject_classes_observed": [
+    "algebra-error",
+    "bad-substitution",
+    "direction-reversal",
+    "logical-gap",
+    "missing-equality-case",
+    "off-stage"
+  ],
+  "ineqmath_paper": "arxiv.org/abs/2506.07927",
+  "judge_backend": "NesbittStepJudge (IneqMath-style 5-category)",
+  "leak_in_any_prompt": false,
+  "max_constraints_in_any_bbs": 3,
+  "max_retries": 5,
+  "max_zero_gain_streak_observed": 1,
+  "per_stage": [
+    {
+      "attempts_used": 4,
+      "final_constraints": 3,
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 3,
+      "final_constraints": 1,
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "f55eee581bc69c66ec24a9db63a9e3cb372569683f042768dbdb992f830cab9d",
+  "problem": "Nesbitt's inequality (a/(b+c)+b/(a+c)+c/(a+b) >= 3/2)",
+  "prompt_tokens_max": 649,
+  "prompt_tokens_min": 399,
+  "prompt_tokens_variance": 250,
+  "prompts_within_budget": true,
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "total_attempts": 17,
+  "total_bbs_bytes_estimated": 8904,
+  "total_failed_attempts": 9,
+  "total_raw_stderr_bytes": 111598
+}
