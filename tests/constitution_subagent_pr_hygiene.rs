@@ -134,10 +134,55 @@ fn l8_pre_commit_hook_chains_k_harden_2_block() {
         content.contains("handover/evidence/dev_self_hosting/dev_"),
         "pre-commit must check for dev_self_hosting/dev_*/ pattern"
     );
+    // R022_HOOK_FIX_2026-05-22: R-022 trace-matrix check moved from pre-commit
+    // to commit-msg (see l8_commit_msg_hook_runs_r022_check below). pre-commit
+    // must NOT call check_trace_matrix.py anymore — the migration is binding.
+    assert!(
+        !content.contains("check_trace_matrix.py"),
+        "pre-commit.r022 must NOT invoke check_trace_matrix.py after R022_HOOK_FIX_2026-05-22 (moved to commit-msg.r022)"
+    );
+}
+
+#[test]
+fn l8_commit_msg_hook_runs_r022_check() {
+    // R022_HOOK_FIX_2026-05-22: the in-flight commit message is only accessible
+    // to commit-msg hooks (git passes the message file path as $1). Pre-commit
+    // sees a stale .git/COMMIT_EDITMSG for `git commit -m` / `-F`, which made
+    // valid [R-022-skip: ...] tokens invisible during the 2026-05-22 Plan v7 R1
+    // hotfix. This test binds the new architecture.
+    let path = "scripts/hooks/commit-msg.r022";
+    assert!(
+        Path::new(path).exists(),
+        "R-022 commit-msg hook missing: {}",
+        path
+    );
+    let content = fs::read_to_string(path).expect("commit-msg.r022 readable");
     assert!(
         content.contains("check_trace_matrix.py"),
-        "pre-commit must preserve existing R-022 trace-matrix check"
+        "commit-msg.r022 must invoke scripts/check_trace_matrix.py (R-022 trace-matrix check)"
     );
+    assert!(
+        content.contains("--mode commit"),
+        "commit-msg.r022 must pass --mode commit to the checker"
+    );
+    assert!(
+        content.contains("--message-file"),
+        "commit-msg.r022 must pass the in-flight message file via --message-file $1 (the architectural fix for the COMMIT_EDITMSG footgun)"
+    );
+    // Verify executable bit on Unix (Windows file mode is meaningless).
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(path)
+            .expect("commit-msg.r022 metadata")
+            .permissions()
+            .mode();
+        assert!(
+            mode & 0o111 != 0,
+            "commit-msg.r022 must be executable (mode={:o})",
+            mode
+        );
+    }
 }
 
 #[test]
@@ -282,6 +327,23 @@ fn install_hooks_script_installs_pre_push() {
     assert!(
         content.contains("pre-push.harden"),
         "scripts/install_hooks.sh must link to scripts/hooks/pre-push.harden"
+    );
+}
+
+#[test]
+fn install_hooks_script_installs_commit_msg() {
+    // R022_HOOK_FIX_2026-05-22: existing clones must re-run install_hooks.sh
+    // after the R-022 migration to pick up the new commit-msg symlink. Bind
+    // the requirement in a gate so future install_hooks.sh edits don't drop it.
+    let content = fs::read_to_string("scripts/install_hooks.sh")
+        .expect("install_hooks.sh readable");
+    assert!(
+        content.contains("commit-msg"),
+        "scripts/install_hooks.sh must install commit-msg hook (R022_HOOK_FIX_2026-05-22)"
+    );
+    assert!(
+        content.contains("commit-msg.r022"),
+        "scripts/install_hooks.sh must link to scripts/hooks/commit-msg.r022"
     );
 }
 

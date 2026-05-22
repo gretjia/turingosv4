@@ -188,11 +188,54 @@ pub(crate) async fn generate_handler(
 
     // Step 4b: copy turingos.toml from global workspace into session dir so
     // that `turingos generate --workspace session_dir` can read llm config.
+    //
+    // Codex P2 (2026-05-22): propagate spawn_blocking copy failures instead of
+    // silently discarding them. Pre-fix the `let _ = ...` swallowed both the
+    // JoinError and any std::fs::copy I/O error; a workspace with a permission
+    // or read-only-FS issue would silently skip the copy and then fail in
+    // `turingos generate` with a misleading "llm config missing" error rather
+    // than the real infrastructure cause.
     {
         let src = PathBuf::from(&workspace).join("turingos.toml");
         let dst = session_dir.join("turingos.toml");
         if src.exists() && !dst.exists() {
-            let _ = tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
+            let src_for_log = src.clone();
+            let dst_for_log = dst.clone();
+            let join_result =
+                tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
+            match join_result {
+                Ok(Ok(_bytes)) => {}
+                Ok(Err(io_err)) => {
+                    log::error!(
+                        "generate_handler: failed to copy turingos.toml from {:?} to {:?}: {io_err}",
+                        src_for_log,
+                        dst_for_log
+                    );
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!(
+                                "failed to copy turingos.toml into session dir: {io_err}"
+                            ),
+                            kind: "turingos_toml_copy_failed",
+                        }),
+                    ));
+                }
+                Err(join_err) => {
+                    log::error!(
+                        "generate_handler: spawn_blocking for turingos.toml copy panicked: {join_err}"
+                    );
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!(
+                                "spawn_blocking for turingos.toml copy panicked: {join_err}"
+                            ),
+                            kind: "turingos_toml_copy_panic",
+                        }),
+                    ));
+                }
+            }
         }
     }
 

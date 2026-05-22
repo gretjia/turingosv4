@@ -11,18 +11,33 @@
 
 ## Current Snapshot
 
-**Session**: #58 open (probe + audit), 2026-05-22. Previous: #57 close 2026-05-21.
+**Session**: #58 close, 2026-05-22.
 
-**Main tip**: `97c8169b` (post pull `300fb563..97c8169b`, 90+ PRs since session #57's `38adc108`).
+**Main tip**: `865b4c14` — `fix(harness): update constitution gate test
+after R-022 hook migration` (PR #89 squash).
 
-**State**: P7.z complete + Boundary-Ratification-Hygiene shipped. **Session #58 ran a
-generative HTML kernel-integrity probe + Software 3.0 audit on branch
-`claude/generative-html-kernel-probe-20260522`**, surfacing 5 real kernel bugs in
-`src/web/spec.rs` + `src/web/generate.rs` (2 LANDED via parallel sessions with tests; 2
-in tree pending formal validation; 1 forward-bound). Software 3.0 conformance: 3 PASS /
-6 WARN / 2 FAIL (rubric C1-C11). FAIL = C8 no cross-session agent memory + C10 no
-generative HTML IR. Probe research + bug fixes pending PR open. See
-[handover/research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md](../research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md).
+**State**: P7.z + Boundary-Ratification-Hygiene remain complete; session
+#58 shipped three increments:
+1. **Plan v7 — MiniF2F partial recovery** (PR #82/#83/#84 + hotfix as `cff03a28`):
+   restored `lean_market` binary (`experiments/minif2f_v4/`, separate
+   Cargo workspace) and promoted `batch_orchestrator.rs` to `src/runtime/`.
+   Tier 3 deleted files remain unrestored per architect's strict
+   no-innovation directive.
+2. **R-022 hook architectural fix** (PR #88 `1cfad1a4` + PR #89 `865b4c14`):
+   moved the TRACE_MATRIX backlink check from `pre-commit.r022` to a new
+   `commit-msg.r022` hook (gives the in-flight commit message regardless
+   of `-m`/`-F`/interactive), fixing the COMMIT_EDITMSG read footgun
+   discovered during the Plan v7 hotfix. Constitution gate test parity
+   updated alongside.
+3. **Generative HTML kernel-integrity probe + Software 3.0 audit** (PR #91,
+   branch `claude/generative-html-kernel-probe-20260522`): surfaced 5 real
+   kernel bugs in `src/web/spec.rs` + `src/web/generate.rs` (2 LANDED via
+   parallel sessions with tests; 2 in tree; 1 forward-bound). Software 3.0
+   conformance: 3 PASS / 6 WARN / 2 FAIL (rubric C1-C11). FAIL = C8 no
+   cross-session agent memory + C10 no generative HTML IR. See
+   [handover/research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md](../research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md).
+
+There is no active charter PR in flight at this handover.
 
 **Archive**: sessions #1-#54 remain at
 `handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`.
@@ -113,6 +128,25 @@ Clean-context audits:
 - Cz cumulative Trust Root realignment at `9bdaddee`.
 - PR #56 session #56 audit/remediation records.
 - PR #78 Boundary-Ratification-Hygiene increment at `38adc108`.
+- **Plan v7 (MiniF2F partial recovery, 2026-05-21):**
+  - PR #82 R0 — `lean_market` binary restored at `2bf282ca` (Tier 1).
+  - PR #83 R1 — `batch_orchestrator` promoted to `src/runtime/` at `6148a0cd` (Tier 2).
+  - PR #84 R2+Cz — root `Cargo.toml` `exclude = ["experiments/minif2f_v4"]`
+    + Trust Root rehash (Cz cycle 3) at `7f61605d`.
+  - Hotfix at `cff03a28` — removed Codex Polymarket WIP leak from `src/runtime/mod.rs`
+    (R-022 OBS `OBS_R022_R1_EXTERNAL_MARKET_SNAPSHOT_LEAK_2026-05-22.md`).
+  - PR #87 archive at `97c8169b` — research bundle at
+    `handover/research/PLAN_V7_MINIF2F_RECOVERY_2026-05-22/`.
+- **R-022 hook architectural fix (2026-05-21):**
+  - PR #88 at `1cfad1a4` — R-022 trace-matrix check moved from
+    `pre-commit.r022` to new `commit-msg.r022` (fixes COMMIT_EDITMSG
+    read footgun). Postmortem: `handover/architect-insights/R022_HOOK_FIX_2026-05-22.md`.
+  - PR #89 at `865b4c14` — constitution gate parity update
+    (`l8_pre_commit_hook_chains_k_harden_2_block` flipped + 2 new
+    gate tests bind the new architecture).
+
+Migration: existing clones must re-run `bash scripts/install_hooks.sh`
+to pick up the new `commit-msg` symlink. Idempotent.
 
 P7.z produced the CAS-backed product evidence chain:
 
@@ -140,8 +174,12 @@ dashboard/screenshot/LLM-reviewer truth claim.
 - Do not claim runtime network denial.
 - Do not treat screenshots, dashboards, cache, web sessions, or LLM reviews as
   acceptance truth.
-- Do not treat MiniF2F as a live root-workspace package; it was removed from
-  this repository during P7.z.
+- Do not treat MiniF2F as a live root-workspace package; the root workspace
+  excludes it. Plan v7 (2026-05-21) restored a partial subset:
+  `experiments/minif2f_v4/` is again a separate Cargo workspace housing the
+  `lean_market` binary only (Tier 1), and `batch_orchestrator.rs` was
+  promoted to `src/runtime/` (Tier 2). All other deleted MiniF2F files
+  (Tier 3) remain unrestored.
 
 Allowed wording:
 
