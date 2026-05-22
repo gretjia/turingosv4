@@ -9,3 +9,5 @@
 
 /// TRACE_MATRIX FC1a-predicate_pi: math-step JudgeAI submodule.
 pub mod math_step_judge;
+/// TRACE_MATRIX FC1a-predicate_pi: deterministic scripted-verdict judge (Atom 9 stress fixture).
+pub mod injected_judge;
