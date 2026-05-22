@@ -20,5 +20,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Checkout PR head SHA rather than the GitHub-synthesized merge
+          # commit. Without this, HEAD on the runner is the merge commit and
+          # `git log -1 --pretty=%B` (in check_trace_matrix.py CI mode) returns
+          # the auto-generated merge message instead of the PR author's latest
+          # commit message — which breaks the legitimate [R-022-skip:] token
+          # pathway for PRs that rework existing doc-comments.
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Run R-022 CI check
         run: python3 scripts/check_trace_matrix.py --mode ci --base-ref origin/${{ github.base_ref }}
