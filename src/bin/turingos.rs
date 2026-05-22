@@ -85,6 +85,8 @@ mod cmd_spec_audit;
 mod cmd_wizard;
 #[path = "turingos/cmd_tdma.rs"]
 mod cmd_tdma;
+#[path = "turingos/cmd_tape_migrate.rs"]
+mod cmd_tape_migrate;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -237,6 +239,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "tdma",
         short_help: cmd_tdma::SHORT_HELP,
         run: cmd_tdma::run,
+    },
+    Subcommand {
+        name: "tape-migrate",
+        short_help: cmd_tape_migrate::SHORT_HELP,
+        run: cmd_tape_migrate::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];

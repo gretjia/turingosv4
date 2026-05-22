@@ -430,18 +430,21 @@ impl ImmutableTapeLedger for GitTapeLedger {
         )
         .expect("Atom 21: signature construction failed");
 
-        // Git commit graph parent = prior tip on the appropriate ref so a
-        // revwalk from the ref visits ALL committed nodes in reverse-chrono.
-        // The TapeNode.parent field (req.parent, possibly None) is stored
-        // independently in the canonical-JSON commit message.
-        let graph_parent_ref = req
-            .scope
-            .as_ref()
-            .map(scope_ref_name)
-            .unwrap_or_else(|| GIT_LEDGER_LEDGER_TAIL_REF.to_string());
+        // Git commit graph parent = prior ledger_tail tip (single chain).
+        // ALL commits flow through this chain so walking from any ref
+        // (ledger_tail OR per-scope) finds the full history. Per-scope refs
+        // still update to point at the latest scope commit for fast
+        // "newest in scope" lookup; the actual walk traverses the unified
+        // ledger_tail chain with an in-walk scope filter (count_nodes /
+        // latest_node).
+        //
+        // Earlier Atom 21 design used per-scope chaining, but Atom 23
+        // tape-migrate exposed the divergence (commits across mixed scopes
+        // become unreachable from ledger_tail). Single chain is correct +
+        // simpler.
         let graph_parent_oid = self
             .repo
-            .find_reference(&graph_parent_ref)
+            .find_reference(GIT_LEDGER_LEDGER_TAIL_REF)
             .ok()
             .and_then(|r| r.target());
 
