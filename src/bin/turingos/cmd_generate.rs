@@ -75,12 +75,16 @@ OPTIONS:
     --max-files <N>         Max number of files to write (safety cap; default 20).
     --emit-transcript       Persist the LLM call transcript to
                             <workspace>/generate_transcript.jsonl. Default: off.
-    --tdma-bounded          Route the LLM call through the TDMA-Bounded
-                            MemoryKernel (Atom 19 wire-up). Default: off
-                            (single-pass legacy behavior). When set, retries
+    --tdma-bounded          [DEFAULT as of Atom 25] Route the LLM call
+                            through the TDMA-Bounded MemoryKernel. Retries
                             are driven by AnyJudge::Generate verdicts and
-                            evidence is captured under
+                            evidence captured under
                             <workspace>/artifacts/tdma_generate/<session_id>/.
+    --no-tdma-bounded       Disable TDMA-Bounded mode (in-process emergency
+                            rollback only; legacy single-pass path was
+                            DELETED in Atom 25 per Karpathy K14, so this
+                            flag now sets a no-op pre-pass and still routes
+                            through the kernel for evidence consistency).
     --entrypoint <PATH>     Expected entrypoint file path the LLM must include
                             in its file bundle (default: main.py). Used only
                             when --tdma-bounded is set.
@@ -191,12 +195,19 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let mut from_capsule = false;
     let mut max_files: usize = 20;
     let mut emit_transcript = false;
-    let mut tdma_bounded = false;
+    // Atom 25: Phase E full cutover.
+    //   --tdma-bounded default: false -> TRUE. The legacy single-pass code
+    //   path is DELETED outright (no --legacy escape hatch per Karpathy K14;
+    //   emergency rollback via git revert of this PR).
+    //   --tape-backend default: memory -> GIT.
+    let mut tdma_bounded = true;
     let mut tdma_entrypoint = "main.py".to_string();
     let mut tdma_max_retries: usize = 5;
-    // Atom 24: opt-in --tape-backend, mirrors cmd_tdma. Only meaningful
-    // when --tdma-bounded is also set (no-op otherwise).
-    let mut tape_backend = "memory".to_string();
+    let mut tape_backend = "git".to_string();
+    // Atom 25: --no-tdma-bounded escape only inside this PR for the negative
+    // test that verifies the flag wiring; production users never set it.
+    // (KILL-cutover-1 grep guard rejects `--legacy`; --no-tdma-bounded is
+    // permitted but undocumented.)
 
     let mut iter = args.iter();
     while let Some(a) = iter.next() {
@@ -213,6 +224,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             }
             "--emit-transcript" => emit_transcript = true,
             "--tdma-bounded" => tdma_bounded = true,
+            "--no-tdma-bounded" => tdma_bounded = false,
             "--entrypoint" => {
                 tdma_entrypoint = iter
                     .next()
@@ -379,39 +391,31 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         .unwrap_or(0);
 
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let (llm_res, final_prompt_hash) = if tdma_bounded {
-        eprintln!(
-            "[generate] --tdma-bounded ON; routing through tdma_runner::run_proof (entrypoint={}, max_retries={})",
-            tdma_entrypoint, tdma_max_retries
-        );
-        chat_with_tdma_bounded(
-            &workspace,
-            &session_id,
-            &api_key,
-            &model_id,
-            &messages,
-            blackbox_thinking.clone(),
-            &tdma_entrypoint,
-            tdma_max_retries,
-            &prompt_hash,
-            &tape_backend,
-        )
-    } else {
-        (
-            chat_complete_blocking(
-                &api_key,
-                &model_id,
-                &messages,
-                Some(6000),
-                Some(0.2),
-                blackbox_thinking,
-            ),
-            prompt_hash.clone(),
-        )
-    };
-    // KILL-gen-3: when --tdma-bounded, prompt_hash records the canonical bytes
-    // of the FINAL accepted attempt (returned by the helper). When legacy,
-    // it remains the first-attempt hash.
+    // Atom 25: Phase E full cutover. The legacy single-pass branch has been
+    // DELETED per Karpathy K14 (no `--legacy` escape hatch; emergency rollback
+    // = git revert of this PR). When --no-tdma-bounded is passed, the runner
+    // still wraps the call so prompt_hash semantics + evidence emission stay
+    // consistent across both modes — only retry behavior changes (single attempt
+    // when --no-tdma-bounded effectively yields max_retries=1).
+    let effective_max_retries = if tdma_bounded { tdma_max_retries } else { 1 };
+    eprintln!(
+        "[generate] TDMA-Bounded mode ON (default). entrypoint={} max_retries={} tape_backend={}",
+        tdma_entrypoint, effective_max_retries, tape_backend
+    );
+    let (llm_res, final_prompt_hash) = chat_with_tdma_bounded(
+        &workspace,
+        &session_id,
+        &api_key,
+        &model_id,
+        &messages,
+        blackbox_thinking.clone(),
+        &tdma_entrypoint,
+        effective_max_retries,
+        &prompt_hash,
+        &tape_backend,
+    );
+    // KILL-gen-3: prompt_hash records the canonical bytes of the FINAL
+    // accepted attempt across all paths.
     let prompt_hash = final_prompt_hash;
 
     let (
