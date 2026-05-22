@@ -194,6 +194,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let mut tdma_bounded = false;
     let mut tdma_entrypoint = "main.py".to_string();
     let mut tdma_max_retries: usize = 5;
+    // Atom 24: opt-in --tape-backend, mirrors cmd_tdma. Only meaningful
+    // when --tdma-bounded is also set (no-op otherwise).
+    let mut tape_backend = "memory".to_string();
 
     let mut iter = args.iter();
     while let Some(a) = iter.next() {
@@ -222,8 +225,20 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     .parse()
                     .map_err(|_| GenError::Io(format!("--max-retries: not a number: {v}")))?;
             }
+            "--tape-backend" => {
+                tape_backend = iter
+                    .next()
+                    .ok_or(GenError::MissingFlag("--tape-backend"))?
+                    .clone();
+            }
             _ => {}
         }
+    }
+    if tape_backend != "memory" && tape_backend != "git" {
+        return Err(GenError::Io(format!(
+            "--tape-backend must be 'memory' or 'git'; got '{}'",
+            tape_backend
+        )));
     }
     if !workspace.exists() {
         return Err(GenError::WorkspaceNotFound(workspace.display().to_string()));
@@ -379,6 +394,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
             &tdma_entrypoint,
             tdma_max_retries,
             &prompt_hash,
+            &tape_backend,
         )
     } else {
         (
@@ -869,6 +885,7 @@ fn chat_with_tdma_bounded(
     entrypoint: &str,
     max_retries: usize,
     initial_prompt_hash: &str,
+    tape_backend: &str,
 ) -> (Result<ChatResult, LlmError>, String) {
     use std::cell::RefCell;
 
@@ -949,7 +966,25 @@ fn chat_with_tdma_bounded(
         Ok(runner_resp)
     };
 
-    let summary = match run_proof(cfg, &mut judge, llm_call) {
+    // Atom 24: select tape backend per --tape-backend.
+    let run_outcome = if tape_backend == "git" {
+        let repo_path = workspace.join("tdma_tape.git");
+        match turingosv4::git_tape_ledger::GitTapeLedger::open(&repo_path)
+            .or_else(|_| turingosv4::git_tape_ledger::GitTapeLedger::init_bare(&repo_path))
+        {
+            Ok(l) => {
+                eprintln!(
+                    "[generate-tdma] --tape-backend=git rooted at {}",
+                    repo_path.display()
+                );
+                turingosv4::tdma_runner::run_proof_with_ledger(cfg, &mut judge, l, llm_call)
+            }
+            Err(e) => Err(format!("git tape backend: {}", e)),
+        }
+    } else {
+        run_proof(cfg, &mut judge, llm_call)
+    };
+    let summary = match run_outcome {
         Ok(s) => s,
         Err(e) => {
             eprintln!("[generate-tdma] run_proof failed: {}", e);
