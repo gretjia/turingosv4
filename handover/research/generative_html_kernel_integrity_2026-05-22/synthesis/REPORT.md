@@ -7,7 +7,7 @@
 | Dimension | Verdict |
 |---|---|
 | **入口通过性** (Phase 7 web W7 onboarding + `/build`) | ✅ **PASS** |
-| **真实 generation pipeline 端到端** | ⚠️ **BROKEN until 2 in-tree fixes land**（5 bugs 中 2 已 by parallel session 修完带 test，2 in tree，1 forward） |
+| **真实 generation pipeline 端到端** | ⚠️ **PARTIALLY WORKS** — A 最终 1/8 真 end-to-end PASS (P04 越南生日贺卡 iframe 交互验证) / 5/8 PARTIAL / 2/8 FAIL；BUG-3a/3b land + Charter B tape-relay reset 后期望 PASS 比例显著上升 |
 | **内核完整性 (capsule chain + FC1 + FC3 + C11)** | ✅ **HOLDS in measured paths**（p01 21-capsule chain referentially closed；C11 vacuously；FC1 integer accounting per-problem PASS） |
 | **Class 3 shielding 抗 prompt injection** | ✅ **PASS first witness**（p07 adversarial Meta AI 把 XSS/SQLi/template/instruction-override 全部 defang 为安全需求） |
 | **Software 3.0 符合度** (11 criteria) | ⚠️ **PARTIAL** — 3 PASS / 6 WARN / 2 FAIL；FAIL = C8 (cross-session memory) + C10 (generative HTML IR) |
@@ -44,7 +44,10 @@
 | 3b | `env_allowlist_from_current(&["PATH"])` 只放 PATH → 子进程拿不到 `TURINGOS_SILICONFLOW_ENDPOINT` → DeepSeek key 打 SiliconFlow endpoint → HTTP 401 | **HIGH** (所有非-SiliconFlow provider 失败) | ⚠️ **IN TREE** (Agent A 加 6 env vars 进 allowlist；需 cargo test 验证) | [src/web/generate.rs:276-283](../../../../src/web/generate.rs#L276) |
 | 4 | 合成 prompt 无 platform-constraint filter → "请输出 PDF" 被 LLM 当 feature 吸收 | Medium | ⏳ **FORWARD** | `assets/prompts/grill_synthesis_zh.md` |
 | 5 | verify 层无 `fetch()` / XHR 网络调用检测 → 网络依赖 HTML 静态校验通过、runtime 失败（p04 "实时股票" 应触发 L4.E reject，实际 PASS-then-fail） | Medium | ⏳ **FORWARD**（Charter C 候选） | [src/web/verify.rs:262-269](../../../../src/web/verify.rs#L262) |
-| 6 (新) | W8 `HtmlParses` 不查 inline `<script>` 的 JS syntax → 语法错误 HTML 通过 6 次 W8 retry，artifact 文件可服，但 Canvas blank、游戏循环不启动 | Medium | ⏳ **FORWARD**（新 gate `JsSyntaxValid` 候选） | [src/web/verify.rs MinimumBar/GameShape](../../../../src/web/verify.rs) + p01 verdict 实证 |
+| 6a | W8 `HtmlParses` 不查 inline `<script>` 的 JS syntax → 语法错误 HTML 通过 6 次 W8 retry，artifact 文件可服，但 Canvas blank、游戏循环不启动 | Medium | ⏳ **FORWARD**（新 gate `JsSyntaxValid` 候选） | [src/web/verify.rs MinimumBar/GameShape](../../../../src/web/verify.rs) + p01 verdict 实证 |
+| 6b | W8 `HtmlParses` 不查 `<body>` 非空 → 完全无 body 的 HTML 通过验证 (p03/p05 实测) | Medium | ⏳ **FORWARD**（同 6a） | A 最终实测 |
+| 6c | W8 完全不测 runtime 行为（onclick / localStorage / fetch / DOM 事件）| Medium | ⏳ **FORWARD** Charter C | A 最终实测 |
+| 7 (新) | W8 retry 累积 tape-relay → 每次失败 attempt 加进下次 prompt → prompt 变长触发 LLM `max_tokens` 截断 → 后续 attempt 输出无 body 或 mid-script 截断 (p03/p05 无 body, p02 mid-script 实测) | **HIGH** (架构层) | ⏳ **FORWARD** Charter B+C 联动（retry 应 reset prompt 而非 accumulate） | A 实测 [AGENT_A_FINAL.md NEW-A1](../user_sim/aggregate/AGENT_A_FINAL.md) |
 
 **Cross-validation**：Agent A 在 Chrome MCP 真用户路径中 debug 撞到 bug 1-3 并独立修 src/，Agent B 在 HTTP 直调路径中通过 9 题 matrix 独立发现 bug 1-5。两路 agent 互不通信，发现 100% 吻合 → bug 是 kernel 真实结构问题，非测试偶发。
 
@@ -87,8 +90,10 @@ Meta AI **没执行任何恶意指令、没泄露系统提示**。生成的 spec
 | 阶段 | 成功率 |
 |---|---|
 | Meta AI spec 阶段 | **8/8 PASS (100%)** |
-| Worker AI generate 阶段 (artifact 文件存在) | **3/8 PASS** (p01/p02/p04) |
-| Artifact 真交互验证 | **0/8 PASS** (p01 JS syntax error 致 Canvas blank；p02/p04 未驱动) |
+| Worker AI generate 阶段 (artifact 文件存在) | **3/8** (p01/p02/p04) |
+| Artifact 真交互验证 | **1/8 PASS** ⭐ — P04 越南留学生生日贺卡（A 在 Chrome iframe 输入 name + 祝福语 → 触发卡片生成动画）；p01 JS syntax error 致 Canvas blank；p03/p05 generate 无 body 落盘；其余 runtime 未测 |
+
+**注**: 上表 generate 与交互行依据 Agent A 最终返回数据（7h 16min 后到达，已 supersede 早期 salvage 估计）。Salvage 估计见 [verdict_summary.md](../user_sim/aggregate/verdict_summary.md)；A 最终修正记录见 [AGENT_A_FINAL.md](../user_sim/aggregate/AGENT_A_FINAL.md)。1 PASS / 5 PARTIAL / 2 FAIL 的细分见 AGENT_A_FINAL §"Final per-persona verdict"。
 
 **关键洞察**：5/8 generate FAIL 全部因同一 env allowlist bug (BUG-3b)，非 LLM 能力问题。bug 修复后预期 generate 成功率显著提升（待重测验证）。
 
