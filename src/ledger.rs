@@ -367,6 +367,387 @@ impl fmt::Display for TapeError {
 
 impl std::error::Error for TapeError {}
 
+// ── TDMA-Bounded-RC1 substrate ──────────────────────────────────
+//
+// TRACE_MATRIX TDMA-RC1-Atom1: Art. 0.4 Path A semantic version-control substrate.
+// FC1a (tape_t), FC1b (Q_{t+1}), FC2 (Q_0 substrate), FC3 (replay determinism).
+// On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
+//
+// The trait `ImmutableTapeLedger` is the seam between Path A (`MemoryTapeLedger`,
+// this RC1) and Path B (`GitTapeLedger`, future Phase E libgit2 substrate per
+// constitution.md Art. 0.4 Path B obligation; see PHASE_E_TODO_TDMA.md).
+// Without the trait, Phase E migration would touch every call site instead of
+// one boundary — this addresses Karpathy-audit K10 (single-impl trait justification).
+
+use std::hash::{Hash, Hasher};
+
+/// Tape node kind discriminator (directive §3.1).
+/// TRACE_MATRIX FC1a-tape_t: Discriminates the kind of every TapeNode on the
+/// TDMA tape (StateAccepted advances verified_head; AgentProposal/RetryBeliefState/
+/// Escalation enter tape with verified=false).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum NodeKind {
+    StateAccepted,
+    AgentProposal,
+    RetryBeliefState,
+    CharterCore,
+    PromptAssembly,
+    Escalation,
+}
+
+/// Identifier for one retry-cycle scope — same `run_id` + `task_id` + `verified_parent`
+/// share an AttemptScope. RC1 key fix: scope is a first-class field on TapeNode,
+/// NEVER hidden inside payload (directive §2.1 / KILL-tdma-3).
+/// TRACE_MATRIX FC1a-tape_t: First-class scope metadata; enables per-scope
+/// retry-count via count_nodes() and BBS lineage via nodes_by_scope index.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AttemptScope {
+    pub run_id: String,
+    pub task_id: String,
+    pub verified_parent: String,
+}
+
+// Hash impl mirrors PartialEq so AttemptScope can key TapeIndexes.nodes_by_scope.
+impl Hash for AttemptScope {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.run_id.hash(state);
+        self.task_id.hash(state);
+        self.verified_parent.hash(state);
+    }
+}
+
+/// RC1 tape node (directive §3.1). Distinct from legacy `Node` — TDMA-Bounded kernel
+/// operates exclusively on TapeNode; legacy paths continue to use Node.
+/// TRACE_MATRIX FC1a-tape_t: Q_t.tape_t element. Every externalized LLM attempt
+/// produces exactly one TapeNode (verified=false on failure; verified=true on
+/// StateAccepted advance).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TapeNode {
+    pub id: String,
+    pub hash: String,
+    pub kind: NodeKind,
+    pub verified: bool,
+    pub parent: Option<String>,
+    pub scope: Option<AttemptScope>,
+    pub attempt_ordinal: Option<u32>,
+    pub reject_class: Option<String>,
+    pub token_count: Option<usize>,
+    pub payload: serde_json::Value,
+    pub created_at_unix_ms: u64,
+}
+
+impl TapeNode {
+    /// Compute canonical content hash. Covers all fields except `hash` itself.
+    /// TRACE_MATRIX FC1a-tape_t: Content-addressed hash anchors each TapeNode;
+    /// the trait `ImmutableTapeLedger::commit` calls this so callers cannot forge.
+    pub fn compute_hash(
+        id: &str,
+        kind: &NodeKind,
+        verified: bool,
+        parent: &Option<String>,
+        scope: &Option<AttemptScope>,
+        attempt_ordinal: &Option<u32>,
+        reject_class: &Option<String>,
+        token_count: &Option<usize>,
+        payload: &serde_json::Value,
+        created_at_unix_ms: u64,
+    ) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(id.as_bytes());
+        hasher.update(format!("{:?}", kind).as_bytes());
+        hasher.update([verified as u8]);
+        if let Some(p) = parent {
+            hasher.update(p.as_bytes());
+        }
+        if let Some(s) = scope {
+            hasher.update(s.run_id.as_bytes());
+            hasher.update(s.task_id.as_bytes());
+            hasher.update(s.verified_parent.as_bytes());
+        }
+        if let Some(o) = attempt_ordinal {
+            hasher.update(o.to_le_bytes());
+        }
+        if let Some(rc) = reject_class {
+            hasher.update(rc.as_bytes());
+        }
+        if let Some(tc) = token_count {
+            hasher.update(tc.to_le_bytes());
+        }
+        // payload is canonical-serialized JSON
+        hasher.update(serde_json::to_string(payload).unwrap_or_default().as_bytes());
+        hasher.update(created_at_unix_ms.to_le_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+}
+
+/// Request to commit a new TapeNode (directive §3.2). `id` and `hash` are computed
+/// by the ledger so the caller cannot forge them.
+/// TRACE_MATRIX FC1b-Q_{t+1}: The structured input that the wtool path takes when
+/// appending to tape_t. Hash is forgery-resistant — caller cannot precompute.
+#[derive(Debug, Clone)]
+pub struct CommitRequest {
+    pub kind: NodeKind,
+    pub verified: bool,
+    pub parent: Option<String>,
+    pub scope: Option<AttemptScope>,
+    pub attempt_ordinal: Option<u32>,
+    pub reject_class: Option<String>,
+    pub token_count: Option<usize>,
+    pub payload: serde_json::Value,
+}
+
+/// Index structures over a TDMA tape (directive §3.1).
+/// TRACE_MATRIX FC1a-tape_t: Derived O(1) views over the canonical tape — by_hash
+/// for lookup, nodes_by_scope for retry-count, verified_head separated from
+/// ledger_tail so failures cannot advance the canonical world line.
+#[derive(Debug, Clone, Default)]
+pub struct TapeIndexes {
+    pub by_hash: HashMap<String, TapeNode>,
+    pub children_by_parent: HashMap<String, Vec<String>>,
+    pub nodes_by_scope: HashMap<AttemptScope, Vec<String>>,
+    pub verified_head: String,
+    pub ledger_tail: String,
+}
+
+// ── RetryBeliefState schema (directive §4.2; serialized into TapeNode.payload
+//    when kind=RetryBeliefState). Lives here in ledger.rs because it is a
+//    tape-canonical object, not a transient kernel value. ────────────────
+
+/// Stable identifier for one failure shape (directive §4.2).
+/// TRACE_MATRIX FC1a-tape_t: Stable equality key for "is this the same failure
+/// shape as last attempt?" — drives zero_gain_streak update logic.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FailureSignature {
+    pub reject_class: String,
+    pub failed_predicate: String,
+    pub root_cause: String,
+}
+
+/// One retained retry rule (directive §4.2). Higher priority survives eviction longer.
+/// TRACE_MATRIX FC1a-tape_t: A single causal constraint accumulated from a prior
+/// failed attempt; priority drives eviction order when BBS exceeds B_D budget.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RetryConstraint {
+    pub id: String,
+    pub rule: String,
+    pub priority: u8,
+    pub source_attempt: u32,
+    pub evidence_hash: String,
+}
+
+/// Pointer triplet to evidence on tape + CAS (directive §4.2). Never holds raw stderr
+/// — only its sha256 — so the BBS cannot leak high-entropy payload into prompt.
+/// TRACE_MATRIX FC1a-tape_t + KILL-tdma-1: Pointer-only design enforces "raw stderr
+/// never enters prompt" at the type system level; BBS carries hashes, never bytes.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EvidencePointer {
+    pub evidence_node_hash: String,
+    pub raw_stderr_sha256: String,
+    pub trace_view_sha256: String,
+}
+
+/// Audit record of constraints dropped by priority eviction (directive §4.2).
+/// TRACE_MATRIX FC3-replay: Preserves audit trail of WHY a constraint was dropped
+/// during BBS compression; lets replay reconstruct the full eviction history.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EvictedConstraint {
+    pub id: String,
+    pub priority: u8,
+    pub reason: String,
+}
+
+/// RetryBeliefState (directive §4.2). schema_version pinned to "tdma-bbs/v1".
+/// Note: f64 `information_gain` prevents `Eq`; PartialEq is sufficient (tape canonicity
+/// reads the serialized form, not in-memory equality).
+/// TRACE_MATRIX FC1a-tape_t + KILL-tdma-2: The complete tape-canonical belief state.
+/// Lives ONLY in TapeNode.payload (kind=RetryBeliefState); never in a mutable sidecar.
+/// Replay reconstructs BBS by reading the latest such node for a given AttemptScope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RetryBeliefState {
+    pub schema_version: String,
+    pub scope: AttemptScope,
+    pub failure_signature: FailureSignature,
+    pub constraints: Vec<RetryConstraint>,
+    pub evidence: EvidencePointer,
+    pub zero_gain_streak: u32,
+    pub information_gain: f64,
+    pub evicted: Vec<EvictedConstraint>,
+}
+
+/// Read/write contract for the TDMA tape (directive §3.2).
+///
+/// `derive_latest_belief_state_from_tape` MUST be a pure function reading the tape
+/// only — never a memory cache — so replay can reconstruct BBS from tape alone
+/// (Gate 5 invariant; constitution Art. 0.2 tape canonicity).
+/// TRACE_MATRIX FC1a-rtool / FC1b-wtool: The contract the kernel calls into. The
+/// trait IS the seam between Path A (MemoryTapeLedger now) and Path B (Phase E
+/// GitTapeLedger / libgit2) per constitution Art. 0.4 — addresses Karpathy K10
+/// single-impl trait concern via planned second concrete impl.
+pub trait ImmutableTapeLedger {
+    fn get_verified_head(&self) -> String;
+    fn set_verified_head(&mut self, new_head: String);
+
+    fn commit(&mut self, req: CommitRequest) -> TapeNode;
+
+    fn count_nodes(
+        &self,
+        kind: Option<NodeKind>,
+        verified: Option<bool>,
+        parent: Option<&str>,
+        scope: Option<&AttemptScope>,
+    ) -> usize;
+
+    fn latest_node(&self, kind: NodeKind, scope: &AttemptScope) -> Option<TapeNode>;
+
+    /// PURE FUNCTION — reads tape only. No sidecar, no memory cache.
+    fn derive_latest_belief_state_from_tape(
+        &self,
+        scope: &AttemptScope,
+    ) -> Option<RetryBeliefState>;
+}
+
+/// Default in-memory concrete tape ledger (Path A per Art. 0.4).
+/// Phase E will introduce `GitTapeLedger` as a second impl behind the same trait.
+/// TRACE_MATRIX FC1a-tape_t (Path-A impl): Concrete tape backed by Vec/HashMap;
+/// satisfies the Art. 0.4 semantic version-control substrate requirement for RC1.
+#[derive(Debug, Clone, Default)]
+pub struct MemoryTapeLedger {
+    pub indexes: TapeIndexes,
+    /// Monotonic counter for node ids.
+    next_seq: u64,
+    /// Monotonic clock counter used when `created_at_unix_ms` is not supplied
+    /// (test/CI default). Wall clock is used in production callers.
+    clock: u64,
+}
+
+impl MemoryTapeLedger {
+    /// TRACE_MATRIX FC1a-tape_t: Empty Path-A tape constructor.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Test-only: control the clock for determinism.
+    /// TRACE_MATRIX FC1a-tape_t: Deterministic-clock variant for replay reproducibility.
+    pub fn with_clock(mut self, start: u64) -> Self {
+        self.clock = start;
+        self
+    }
+}
+
+impl ImmutableTapeLedger for MemoryTapeLedger {
+    fn get_verified_head(&self) -> String {
+        self.indexes.verified_head.clone()
+    }
+
+    fn set_verified_head(&mut self, new_head: String) {
+        self.indexes.verified_head = new_head;
+    }
+
+    fn commit(&mut self, req: CommitRequest) -> TapeNode {
+        self.next_seq += 1;
+        self.clock += 1;
+        let id = format!("tn-{}", self.next_seq);
+        let created_at_unix_ms = self.clock;
+        let hash = TapeNode::compute_hash(
+            &id,
+            &req.kind,
+            req.verified,
+            &req.parent,
+            &req.scope,
+            &req.attempt_ordinal,
+            &req.reject_class,
+            &req.token_count,
+            &req.payload,
+            created_at_unix_ms,
+        );
+
+        let node = TapeNode {
+            id: id.clone(),
+            hash: hash.clone(),
+            kind: req.kind,
+            verified: req.verified,
+            parent: req.parent.clone(),
+            scope: req.scope.clone(),
+            attempt_ordinal: req.attempt_ordinal,
+            reject_class: req.reject_class,
+            token_count: req.token_count,
+            payload: req.payload,
+            created_at_unix_ms,
+        };
+
+        // Update indexes (append-only; no mutation of existing entries).
+        if let Some(parent) = &req.parent {
+            self.indexes
+                .children_by_parent
+                .entry(parent.clone())
+                .or_default()
+                .push(hash.clone());
+        }
+        if let Some(scope) = &req.scope {
+            self.indexes
+                .nodes_by_scope
+                .entry(scope.clone())
+                .or_default()
+                .push(hash.clone());
+        }
+        self.indexes.by_hash.insert(hash.clone(), node.clone());
+        self.indexes.ledger_tail = hash;
+
+        node
+    }
+
+    fn count_nodes(
+        &self,
+        kind: Option<NodeKind>,
+        verified: Option<bool>,
+        parent: Option<&str>,
+        scope: Option<&AttemptScope>,
+    ) -> usize {
+        self.indexes
+            .by_hash
+            .values()
+            .filter(|n| kind.as_ref().map(|k| &n.kind == k).unwrap_or(true))
+            .filter(|n| verified.map(|v| n.verified == v).unwrap_or(true))
+            .filter(|n| parent.map(|p| n.parent.as_deref() == Some(p)).unwrap_or(true))
+            .filter(|n| scope.map(|s| n.scope.as_ref() == Some(s)).unwrap_or(true))
+            .count()
+    }
+
+    fn latest_node(&self, kind: NodeKind, scope: &AttemptScope) -> Option<TapeNode> {
+        self.indexes
+            .nodes_by_scope
+            .get(scope)
+            .and_then(|hashes| {
+                hashes
+                    .iter()
+                    .rev()
+                    .find_map(|h| self.indexes.by_hash.get(h))
+                    .filter(|n| n.kind == kind)
+                    .cloned()
+            })
+            .or_else(|| {
+                // Fallback: scan all (rare path; used when scope not indexed)
+                self.indexes
+                    .by_hash
+                    .values()
+                    .filter(|n| n.kind == kind && n.scope.as_ref() == Some(scope))
+                    .max_by_key(|n| n.created_at_unix_ms)
+                    .cloned()
+            })
+    }
+
+    fn derive_latest_belief_state_from_tape(
+        &self,
+        scope: &AttemptScope,
+    ) -> Option<RetryBeliefState> {
+        // PURE: walk only the tape. No sidecar read. Find the highest-ordinal
+        // RetryBeliefState committed under this scope and deserialize from
+        // its payload field.
+        let latest = self.latest_node(NodeKind::RetryBeliefState, scope)?;
+        serde_json::from_value(latest.payload).ok()
+    }
+}
+
 // ── Tests ───────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -550,5 +931,198 @@ mod tests {
             .unwrap();
         assert!(ledger.verify().is_ok());
         assert_eq!(ledger.events()[1].event_type, EventType::OmegaAccepted);
+    }
+
+    // ── TDMA-Bounded-RC1 Atom 1 tests ───────────────────────────
+
+    fn mk_scope(run: &str, task: &str, parent: &str) -> AttemptScope {
+        AttemptScope {
+            run_id: run.into(),
+            task_id: task.into(),
+            verified_parent: parent.into(),
+        }
+    }
+
+    fn mk_bbs_payload(scope: &AttemptScope, gain: f64, streak: u32) -> serde_json::Value {
+        let bbs = RetryBeliefState {
+            schema_version: "tdma-bbs/v1".into(),
+            scope: scope.clone(),
+            failure_signature: FailureSignature {
+                reject_class: "schema-fail".into(),
+                failed_predicate: "header.schema".into(),
+                root_cause: "missing-field".into(),
+            },
+            constraints: vec![RetryConstraint {
+                id: "c1".into(),
+                rule: "must include schema_version".into(),
+                priority: 200,
+                source_attempt: 1,
+                evidence_hash: "ev-hash-1".into(),
+            }],
+            evidence: EvidencePointer {
+                evidence_node_hash: "ev-node-1".into(),
+                raw_stderr_sha256: "0".repeat(64),
+                trace_view_sha256: "1".repeat(64),
+            },
+            zero_gain_streak: streak,
+            information_gain: gain,
+            evicted: vec![],
+        };
+        serde_json::to_value(bbs).unwrap()
+    }
+
+    /// Gate-precursor: ledger_scope_persistence — Atom 1 acceptance.
+    /// Verifies scope is first-class metadata and countable.
+    #[test]
+    fn ledger_scope_persistence() {
+        let mut tape = MemoryTapeLedger::new();
+        let verified_head = "H0".to_string();
+        tape.set_verified_head(verified_head.clone());
+
+        let scope = mk_scope("run-A", "task-1", &verified_head);
+
+        // Commit 5 AgentProposal verified=false nodes under same scope
+        for i in 1..=5u32 {
+            tape.commit(CommitRequest {
+                kind: NodeKind::AgentProposal,
+                verified: false,
+                parent: Some(verified_head.clone()),
+                scope: Some(scope.clone()),
+                attempt_ordinal: Some(i),
+                reject_class: Some("header-malformed".into()),
+                token_count: None,
+                payload: serde_json::json!({"attempt": i}),
+            });
+        }
+
+        // count_nodes filtered by (kind, verified, parent, scope) returns 5
+        let n = tape.count_nodes(
+            Some(NodeKind::AgentProposal),
+            Some(false),
+            Some(&verified_head),
+            Some(&scope),
+        );
+        assert_eq!(n, 5, "5 AgentProposal nodes expected under same scope");
+
+        // Each retrieved node has scope==Some(scope) and attempt_ordinal set
+        let scope_nodes = &tape.indexes.nodes_by_scope[&scope];
+        assert_eq!(scope_nodes.len(), 5);
+        for h in scope_nodes {
+            let node = &tape.indexes.by_hash[h];
+            assert_eq!(node.scope.as_ref(), Some(&scope));
+            assert!(node.attempt_ordinal.is_some());
+        }
+    }
+
+    /// Gate-precursor: bbs_tape_canonical — Atom 1 acceptance + Gate 5 prep.
+    /// Verifies BBS is reconstructable from tape via pure function,
+    /// after dropping and rebuilding the ledger from frozen state.
+    #[test]
+    fn bbs_tape_canonical() {
+        let mut tape = MemoryTapeLedger::new();
+        tape.set_verified_head("H0".into());
+        let scope = mk_scope("run-B", "task-1", "H0");
+
+        // Commit 3 RetryBeliefState nodes, last one with gain=0.5/streak=2
+        for (i, (gain, streak)) in
+            [(0.9_f64, 0_u32), (0.3, 1), (0.5, 2)].into_iter().enumerate()
+        {
+            tape.commit(CommitRequest {
+                kind: NodeKind::RetryBeliefState,
+                verified: false,
+                parent: Some("H0".into()),
+                scope: Some(scope.clone()),
+                attempt_ordinal: Some((i + 1) as u32),
+                reject_class: None,
+                token_count: None,
+                payload: mk_bbs_payload(&scope, gain, streak),
+            });
+        }
+
+        // Snapshot tape state, drop the ledger handle, rebuild from snapshot
+        let frozen_indexes = tape.indexes.clone();
+        drop(tape);
+        let rebuilt = MemoryTapeLedger {
+            indexes: frozen_indexes,
+            next_seq: 0,
+            clock: 0,
+        };
+
+        let derived = rebuilt
+            .derive_latest_belief_state_from_tape(&scope)
+            .expect("BBS must be derivable from frozen tape");
+        assert_eq!(derived.information_gain, 0.5);
+        assert_eq!(derived.zero_gain_streak, 2);
+        assert_eq!(derived.scope, scope);
+    }
+
+    /// Gate-precursor: head_isolation — Atom 1 acceptance + Gate 9 prep.
+    /// Verifies verified_head stays static under hard failures (verified=false commits)
+    /// while ledger_tail advances.
+    #[test]
+    fn head_isolation() {
+        let mut tape = MemoryTapeLedger::new();
+        let h0 = "H0".to_string();
+        tape.set_verified_head(h0.clone());
+
+        let scope = mk_scope("run-C", "task-1", &h0);
+        for i in 1..=10u32 {
+            tape.commit(CommitRequest {
+                kind: NodeKind::AgentProposal,
+                verified: false,
+                parent: Some(h0.clone()),
+                scope: Some(scope.clone()),
+                attempt_ordinal: Some(i),
+                reject_class: Some("hard-fail".into()),
+                token_count: None,
+                payload: serde_json::json!({"attempt": i}),
+            });
+        }
+
+        // verified_head MUST remain at H0
+        assert_eq!(tape.get_verified_head(), h0);
+
+        // ledger_tail MUST have moved (latest commit hash)
+        assert_ne!(tape.indexes.ledger_tail, h0);
+        assert!(!tape.indexes.ledger_tail.is_empty());
+
+        // No StateAccepted under H0
+        let accepted = tape.count_nodes(
+            Some(NodeKind::StateAccepted),
+            None,
+            Some(&h0),
+            None,
+        );
+        assert_eq!(accepted, 0);
+
+        // 10 AgentProposal verified=false under scope
+        let proposals = tape.count_nodes(
+            Some(NodeKind::AgentProposal),
+            Some(false),
+            Some(&h0),
+            Some(&scope),
+        );
+        assert_eq!(proposals, 10);
+    }
+
+    /// Verify the trait abstraction holds — dyn dispatch path works.
+    /// This exercises the seam Karpathy-audit K10 was concerned about.
+    #[test]
+    fn immutable_tape_ledger_trait_dyn_dispatch() {
+        let mut tape: Box<dyn ImmutableTapeLedger> = Box::new(MemoryTapeLedger::new());
+        tape.set_verified_head("H0".into());
+        let scope = mk_scope("run-D", "task-1", "H0");
+        tape.commit(CommitRequest {
+            kind: NodeKind::StateAccepted,
+            verified: true,
+            parent: Some("H0".into()),
+            scope: None,
+            attempt_ordinal: None,
+            reject_class: None,
+            token_count: None,
+            payload: serde_json::json!({"accepted": true}),
+        });
+        // The bbs derivation correctly returns None when no RetryBeliefState exists.
+        assert!(tape.derive_latest_belief_state_from_tape(&scope).is_none());
     }
 }

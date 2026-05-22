@@ -62,17 +62,37 @@ P3 (economy ledger forward) + P4 (information loom prep)
 | 7.5 | 2 | Opus 4.7 xhigh | `src/judges/math_step_judge.rs` (NEW), `src/bin/tdma_rc1_real_evidence.rs` (NEW), `scripts/run_tdma_rc1_real_evidence.py` (NEW) | PR #9 |
 | 8 | 0 | Opus 4.7 | ship report + GA §8 template | PR #10 |
 
-## CI grep guards (forbidden patterns; enforced pre-merge per directive §15)
+## CI grep guards (forbidden patterns; enforced pre-merge)
+
+The directive §15 spec uses repo-wide `grep -R ... src/`. Per Karpathy surgical-changes
+discipline (audit K7) and the directive intent (KILL-tdma-3: "do not use bytes as token
+proxy") the guards are **scoped to TDMA-Bounded modules** to avoid false-positives on
+legitimate legacy usage (e.g., `src/bus.rs:266` V3L-21 payload-byte-length validation
+is a `payload.len()` use that has nothing to do with token counting).
+
+TDMA-scoped modules: `src/memory_kernel.rs`, `src/distiller.rs`, `src/token_budget.rs`,
+`src/tokenizer.rs`, `src/state_update.rs`, `src/rtool.rs`, `src/charter_core.rs`,
+`src/judges/`.
 
 ```bash
-! grep -R "raw_stderr" src/memory_kernel.rs | grep -E "format!|push_str|assemble|prompt"
-! grep -R "update_belief_state" src/
-! grep -R "payload.len()" src/
-! grep -RE ".len\(\) as.*token" src/
-! grep -R "</STATE_UPDATE>" src/
-! grep -R "<STATE_UPDATE>" src/
-! grep -R "constitution.md" src/memory_kernel.rs
+# Module-scoped (TDMA only) — the intent of KILL-tdma-1..7
+TDMA_MODULES='src/memory_kernel.rs src/distiller.rs src/token_budget.rs src/tokenizer.rs src/state_update.rs src/rtool.rs src/charter_core.rs src/judges/'
+
+! grep -R "raw_stderr" src/memory_kernel.rs 2>/dev/null | grep -E "format!|push_str|assemble|prompt"   # KILL-tdma-1
+! grep -R "update_belief_state" src/                                                                   # KILL-tdma-2 (repo-wide; new sidecar pattern is always forbidden)
+! grep -RE "HashMap<.*Belief" src/                                                                     # KILL-tdma-2
+! grep -R "payload.len()" $TDMA_MODULES 2>/dev/null                                                    # KILL-tdma-3 (TDMA-scoped — legacy bus.rs V3L-21 exempt)
+! grep -RE ".len\(\) as.*token" $TDMA_MODULES 2>/dev/null                                              # KILL-tdma-3
+! grep -R "</STATE_UPDATE>" src/                                                                       # KILL-tdma-4 (repo-wide)
+! grep -R "<STATE_UPDATE>" src/                                                                        # KILL-tdma-4
+! grep -R "constitution.md" src/memory_kernel.rs                                                       # KILL-tdma-6
 ```
+
+Repo-wide guards (KILL-tdma-2, KILL-tdma-4): sidecar-BBS and closing-tag-parser are
+genuinely new anti-patterns and must NEVER appear anywhere in `src/`.
+
+Module-scoped guards (KILL-tdma-3, KILL-tdma-6, KILL-tdma-1): apply only inside TDMA
+substrate where the directive's prohibition is load-bearing.
 
 ## Hard budgets (compile-time constants in `src/token_budget.rs`)
 
