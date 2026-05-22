@@ -45,13 +45,54 @@ pub const GRILL_SYNTHESIS_ZH_BYTES: &[u8] =
 pub const BINARY_BAKED_EVAL_SET_SENTINEL: &str = "turingos-binary-baked-grill-init-v1";
 
 /// SHA-256 hex of the meta-prompt embedded bytes.
+///
+/// `cmd_llm::run_complete` computes `system_prompt_template_hash` by sha256
+/// over the full meta-prompt file bytes (line 1074), so this matches.
+/// **Note**: `run_complete` does NOT call `check_promotion_guard` on the meta
+/// prompt — the C10 guard is enforced only on the triage path (line 1349-50).
+/// The meta receipt this seeds is forward-defense in case meta gains a guard.
 pub fn meta_prompt_cid() -> String {
     sha256_hex_of_prompt(GRILL_META_V1_BYTES)
 }
 
-/// SHA-256 hex of the triage-prompt embedded bytes.
+/// SHA-256 hex of the triage prompt's **extracted system block** (NOT the
+/// full file bytes) — mirrors what `cmd_llm::run_triage` line 1349 computes:
+///
+/// ```ignore
+/// let system_prompt_text = extract_system_prompt_block(&triage_asset);
+/// let triage_prompt_cid  = sha256_hex_of_prompt(system_prompt_text.as_bytes());
+/// check_promotion_guard(&ta.workspace, &triage_prompt_cid)
+/// ```
+///
+/// If we hashed the full file bytes instead, the seeded receipt's
+/// `to_prompt_cid` would never match what the running CLI computes and the
+/// guard would return `NoReceiptFound` on every triage call (the failure
+/// mode observed in Phase 5 cold-start smoke at 2026-05-22 13:58).
 pub fn triage_prompt_cid() -> String {
-    sha256_hex_of_prompt(GRILL_TRIAGE_BLACKBOX_V1_BYTES)
+    let asset = std::str::from_utf8(GRILL_TRIAGE_BLACKBOX_V1_BYTES)
+        .expect("grill_triage_blackbox_v1.md is valid UTF-8");
+    let system_block = extract_system_prompt_block(asset).unwrap_or_else(|| {
+        panic!(
+            "grill_triage_blackbox_v1.md missing '## System prompt (verbatim)' \
+             block — embedded asset shape regression"
+        )
+    });
+    sha256_hex_of_prompt(system_block.as_bytes())
+}
+
+/// Mirrors `cmd_llm.rs::extract_system_prompt_block` (private). Extracts the
+/// text inside the first fenced code block under "## System prompt (verbatim)".
+/// Returns `None` if the markers aren't found.
+fn extract_system_prompt_block(asset: &str) -> Option<String> {
+    let header = "## System prompt (verbatim)";
+    let section_start = asset.find(header)?;
+    let after_header = &asset[section_start + header.len()..];
+    let fence_open = after_header.find("```")?;
+    let after_open_fence = &after_header[fence_open + 3..];
+    let content_start = after_open_fence.find('\n').map(|i| i + 1).unwrap_or(0);
+    let content = &after_open_fence[content_start..];
+    let fence_close = content.find("```")?;
+    Some(content[..fence_close].trim_end_matches('\n').to_string())
 }
 
 /// Materialize the 3 embedded prompts into `<workspace>/assets/prompts/`.
@@ -201,5 +242,28 @@ mod tests {
             .expect("meta prompt receipt should satisfy guard");
         check_promotion_guard(tmp.path(), &triage_prompt_cid())
             .expect("triage prompt receipt should satisfy guard");
+    }
+
+    #[test]
+    fn triage_prompt_cid_matches_cli_extraction() {
+        // Mirror of cmd_llm.rs::extract_system_prompt_block line 1520, used at
+        // line 1304 to load the system prompt and at line 1349 to compute the
+        // CID checked by check_promotion_guard. If extraction or hash inputs
+        // ever drift between this module and cmd_llm.rs, this test fails.
+        let asset = std::str::from_utf8(GRILL_TRIAGE_BLACKBOX_V1_BYTES).unwrap();
+        let extracted = extract_system_prompt_block(asset).expect("extract");
+        let manual_cid = sha256_hex_of_prompt(extracted.as_bytes());
+        assert_eq!(
+            triage_prompt_cid(),
+            manual_cid,
+            "triage_prompt_cid must equal sha256 of extracted system block"
+        );
+        // And it must NOT equal sha256 of the full file bytes (the regression
+        // we are guarding against).
+        assert_ne!(
+            triage_prompt_cid(),
+            sha256_hex_of_prompt(GRILL_TRIAGE_BLACKBOX_V1_BYTES),
+            "triage_prompt_cid must NOT be the full-file hash — that was the bug"
+        );
     }
 }
