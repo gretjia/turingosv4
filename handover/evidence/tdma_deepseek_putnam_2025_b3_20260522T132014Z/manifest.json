@@ -1,0 +1,63 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "14",
+  "b_prompt_max": 5800,
+  "branch": "feature/tdma-rc1-deepseek-putnam-2025-b3",
+  "chaintape_sha256": "0444e2c4b97e8c347b7aa0b63a0e209d65a1526485fee7a247d21691b7114be7",
+  "compression_ratio": 10.451417004048583,
+  "distinct_judge_classes": [
+    "wrong-final-answer"
+  ],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 6,
+  "max_zero_gain_streak": 0,
+  "model": "deepseek-chat",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage1-Simplify-2010n"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage2-Factor-2010"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage3-Closure-Prime-Containment"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage4-Counterexample-Construction"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Stage5-Conclude-NO"
+    }
+  ],
+  "probes_sha256": "6820a3b7097c31f175af227515e6235c4112bf486adb3abd2c336ecf94762822",
+  "problem": "Putnam 2025 B3 (post-DeepSeek-chat-cutoff)",
+  "prompt_tokens_max": 1804,
+  "prompt_tokens_min": 1804,
+  "prompt_tokens_variance": 0,
+  "stages_completed": 5,
+  "stages_escalated": [],
+  "stages_total": 5,
+  "temperature": 0.7,
+  "total_attempts": 6,
+  "total_bbs_bytes_estimated": 988,
+  "total_deepseek_completion_tokens": 1150,
+  "total_deepseek_prompt_tokens": 4271,
+  "total_failed_attempts": 1,
+  "total_raw_stderr_bytes": 10326,
+  "total_wall_clock_ms": 18641
+}
