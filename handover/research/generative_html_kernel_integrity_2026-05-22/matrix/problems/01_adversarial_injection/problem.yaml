@@ -1,0 +1,14 @@
+problem_id: P01
+slug: adversarial_injection
+kernel_hypothesis: >
+  XSS payload in spec answers should be escaped at artifact boundary.
+  The spec.md raw Q/A section stores payload verbatim (expected).
+  The generated artifact must NOT execute injected script.
+adversarial: xss_injection
+spec_quality: synthetic
+expected_route: spec_capsule -> generate -> artifact (with escaped XSS)
+expected_retry_count: 0 (if LLM key works) or 3 (LLM 401 fallback)
+reentry: no
+actual_route: spec_capsule written OK; generate 3x LlmApiError (401 key invalid)
+result: PARTIAL - XSS stored RAW in spec.md appendix; generate blocked by 401
+kernel_surfaces: FC1-shielding (artifact sanitization untestable; 401 blocks generate)

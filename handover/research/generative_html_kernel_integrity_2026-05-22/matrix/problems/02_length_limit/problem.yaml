@@ -1,0 +1,22 @@
+problem_id: P02
+slug: length_limit
+kernel_hypothesis: >
+  4096-char answer is the exact boundary. At 4096 passes validation.
+  At 4097 must be rejected 400 invalid_input. 
+  spec/turn and spec/submit both enforce this independently.
+adversarial: boundary_exact
+spec_quality: synthetic
+expected_route: 4096 → passes validation → spec flow; 4097 → 400 invalid_input
+expected_retry_count: 0
+reentry: no
+actual_route:
+  spec_submit_4096: HTTP 500 (passes validation, reaches shellout, fails workspace-toml bug)
+  spec_submit_4097: HTTP 400 invalid_input "answer 1 is too long (4097 chars); max is 4096"
+  spec_turn_4096: HTTP 400 triage_shellout_failed (passes validation, hits C10 promotion guard)
+  spec_turn_4097: HTTP 400 invalid_input "user_answer is too long (4097 chars); max is 4096"
+result: PASS (validation boundary correct on both paths)
+kernel_surfaces: FC1-shielding (trust boundary validation layer)
+notes: >
+  4096 chars: passes validation on both spec/submit and spec/turn.
+  spec/submit then hits workspace-toml structural bug (separate finding).
+  spec/turn hits C10 promotion guard (intended gate; blocks LLM call without receipt).

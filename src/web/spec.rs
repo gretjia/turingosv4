@@ -239,6 +239,46 @@ pub(crate) async fn spec_submit_handler(
             })?;
     }
 
+    // Step 4b: copy turingos.toml from global workspace into session dir so
+    // `turingos spec --workspace session_dir` can read llm config. session dir
+    // is a sub-path of the global workspace; it does not inherit config files
+    // by default. When the source exists, surface copy failures as
+    // shellout_failed — silently swallowing them leaves session_dir without
+    // llm config and the CLI emits the misleading
+    // `llm.meta.api_key_env is not set in turingos.toml`. If the source does
+    // not exist (smoke tests use a tempdir workspace + stub binary), skip.
+    {
+        let src = PathBuf::from(&workspace).join("turingos.toml");
+        let dst = session_dir.join("turingos.toml");
+        if src.exists() {
+            let src2 = src.clone();
+            let dst2 = dst.clone();
+            tokio::task::spawn_blocking(move || std::fs::copy(&src2, &dst2))
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!("spawn_blocking error copying turingos.toml: {e}"),
+                            kind: "shellout_failed",
+                        }),
+                    )
+                })?
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!(
+                                "failed to copy turingos.toml {:?} → {:?}: {e}",
+                                src, dst
+                            ),
+                            kind: "shellout_failed",
+                        }),
+                    )
+                })?;
+        }
+    }
+
     // Step 5: write answers.json (JSON array of 8 strings).
     let answers_path = session_dir.join("answers.json");
     let answers_json = serde_json::to_string(&req.answers).map_err(|e| {
@@ -407,7 +447,8 @@ pub(crate) async fn spec_submit_handler(
 ///
 /// Rules:
 /// - Exactly 8 answers required.
-/// - Each answer: non-empty, max 4096 chars (generous; users may give long answers).
+/// - Each answer: non-empty after trim (rejects whitespace-only), max 4096 chars
+///   (generous; users may give long answers).
 #[cfg(feature = "web")]
 fn validate_answers(answers: &[String]) -> Result<(), SpecError> {
     if answers.len() != 8 {
@@ -417,9 +458,12 @@ fn validate_answers(answers: &[String]) -> Result<(), SpecError> {
         });
     }
     for (i, answer) in answers.iter().enumerate() {
-        if answer.is_empty() {
+        if answer.trim().is_empty() {
             return Err(SpecError {
-                reason: format!("answer {} is empty; all 8 answers are required", i + 1),
+                reason: format!(
+                    "answer {} is empty or whitespace-only; all 8 answers are required",
+                    i + 1
+                ),
                 kind: "invalid_input",
             });
         }
@@ -1987,6 +2031,20 @@ mod tests {
         let err = validate_answers(&answers).unwrap_err();
         assert_eq!(err.kind, "invalid_input");
         assert!(err.reason.contains("empty"));
+    }
+
+    #[test]
+    fn validate_answers_rejects_whitespace_only_answer() {
+        let mut answers: Vec<String> = (0..8).map(|i| format!("answer {i}")).collect();
+        answers[2] = "   ".to_string();
+        let err = validate_answers(&answers).unwrap_err();
+        assert_eq!(err.kind, "invalid_input");
+        assert!(err.reason.contains("whitespace-only"));
+
+        answers[2] = "\t\n  ".to_string();
+        let err = validate_answers(&answers).unwrap_err();
+        assert_eq!(err.kind, "invalid_input");
+        assert!(err.reason.contains("whitespace-only"));
     }
 
     #[test]

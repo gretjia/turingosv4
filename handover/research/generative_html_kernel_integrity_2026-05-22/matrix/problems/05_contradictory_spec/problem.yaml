@@ -1,0 +1,18 @@
+problem_id: P05
+slug: contradictory_spec
+kernel_hypothesis: >
+  "超简单" + "5难度+多人对战+排行榜" is contradictory. The synthesis LLM should:
+  (a) detect the contradiction and surface it in spec.md
+  (b) prioritize one direction, not blindly merge both
+adversarial: contradictory_requirements
+spec_quality: synthetic
+expected_route: spec_capsule with contradiction handling -> generate clean simple artifact
+expected_retry_count: 0
+reentry: no
+actual_route: spec/submit succeeded. LLM correctly detected contradiction.
+  Spec has "## 我听到的矛盾" section surfacing the trade-off.
+  Kept simple version (one button random number) as primary spec.
+  Listed "多人对战、实时排行榜、成就系统" as explicit Out of Scope.
+result: PASS - contradiction correctly detected and surfaced in "## 我听到的矛盾" section
+kernel_surfaces: FC3 meta-architecture (synthesis prompt contradiction detection)
+spec_capsule_cid: 8e4b7d52 (local session CAS)

@@ -1,0 +1,25 @@
+problem_id: P07
+slug: reentry_respec
+kernel_hypothesis: >
+  Submitting new answers to an existing session_id tests whether the kernel:
+  (a) overwrites the session or appends
+  (b) prevents re-spec of a terminated session
+adversarial: session_state_mutation
+spec_quality: synthetic
+expected_route: second submit overwrites session state (no append protection)
+expected_retry_count: 0
+reentry: yes
+actual_route:
+  spec_submit_reentry: Both submits succeed at HTTP layer (HTTP 500 from workspace-toml bug).
+    answers.json is OVERWRITTEN (second submit replaces first). No append protection.
+    No session_id collision protection at spec/submit layer.
+  spec_turn_null_reinit: Correctly rejected with "session already exists; null user_answer only valid on first turn"
+  spec_turn_cross_mode: session created via spec/turn, then spec/submit on same session_id
+    → submit creates answers.json alongside the spec/turn's turn-1-prompt.json (no conflict)
+result: PARTIAL - spec/submit allows session overwrite (no idempotency guard);
+  spec/turn correctly prevents null-answer reinit on existing session
+kernel_surfaces: FC1-N5 (session state management; idempotency)
+gaps_found:
+  - spec/submit does NOT check if session already has spec.md; will overwrite answers.json
+  - spec/submit and spec/turn share the same session namespace but don't coordinate
+  - Cross-mode (turn→submit) writes answers.json alongside turn capsules without conflict detection

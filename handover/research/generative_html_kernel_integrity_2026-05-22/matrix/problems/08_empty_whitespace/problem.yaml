@@ -1,0 +1,19 @@
+problem_id: P08
+slug: empty_whitespace
+kernel_hypothesis: >
+  Empty string ("") rejected at validation layer (400). 
+  Whitespace-only answer ("   ") must also be rejected OR treated as empty.
+adversarial: empty_answer
+spec_quality: synthetic
+expected_route: all-empty → 400 invalid_input
+expected_retry_count: 0
+reentry: no
+actual_route:
+  spec_submit_empty: HTTP 400 "answer 1 is empty; all 8 answers are required"
+  spec_submit_whitespace: HTTP 500 shellout_failed (passes validation! whitespace is not empty)
+  spec_turn_whitespace: HTTP 400 triage_shellout_failed via C10 guard (whitespace passes length check)
+result: PARTIAL - empty rejects correctly; whitespace passes validation (GAP: whitespace not treated as empty)
+kernel_surfaces: FC1-shielding (trust boundary validation gap: whitespace bypass)
+bugs_found:
+  - validate_answers uses answer.is_empty() not answer.trim().is_empty()
+  - Whitespace-only answers pass to shellout, which then fails due to workspace-toml bug

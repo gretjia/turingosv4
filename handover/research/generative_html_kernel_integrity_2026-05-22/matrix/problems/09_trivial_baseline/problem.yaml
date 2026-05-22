@@ -1,0 +1,18 @@
+problem_id: P09
+slug: trivial_baseline
+kernel_hypothesis: >
+  Clean simple spec (todo list) should produce a spec.md in < 60s via deepseek-v4-pro.
+  Generate should reach LLM (though may fail due to 401).
+  Capsule chain should have correct structure.
+adversarial: none
+spec_quality: clean
+expected_route: spec_capsule -> generate -> accepted artifact (or 3x LlmApiError if key invalid)
+expected_retry_count: 0 (clean) or 3 (401 fallback)
+reentry: no
+actual_route: spec/submit succeeded in ~47s with deepseek-v4-pro.
+  Generate ran 3 attempts with prior rejection diagnostics fed into retry prompts.
+  All 3 failed with LlmApiError (401 deepseek-v4-pro key invalid for generate/blackbox role).
+result: PARTIAL - spec synthesis OK; generate blocked by 401 (deepseek-v4-pro key invalid)
+kernel_surfaces: FC1-N5 (full capsule chain verified for spec side; W8 retry chain for generate)
+cas_capsule_count: 7 (1 spec + 3 generation-attempt + 3 generate-rejection)
+spec_capsule_cid: c3ed2ad9 (local session CAS)

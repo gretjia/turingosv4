@@ -186,6 +186,16 @@ pub(crate) async fn generate_handler(
         ));
     }
 
+    // Step 4b: copy turingos.toml from global workspace into session dir so
+    // that `turingos generate --workspace session_dir` can read llm config.
+    {
+        let src = PathBuf::from(&workspace).join("turingos.toml");
+        let dst = session_dir.join("turingos.toml");
+        if src.exists() && !dst.exists() {
+            let _ = tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
+        }
+    }
+
     // Step 5: resolve binary; we will shell out inside the retry loop.
     let bin = resolve_turingos_bin();
     let session_dir_str = session_dir.to_string_lossy().into_owned();
@@ -259,7 +269,19 @@ pub(crate) async fn generate_handler(
             args.push("--max-files".to_string());
             args.push(max_files.to_string());
         }
-        let mut env = env_allowlist_from_current(&["PATH"]);
+        // W7: include the LLM endpoint env var so generate child can reach the
+        // configured provider (e.g. DeepSeek direct). Without this the child
+        // defaults to the SiliconFlow endpoint, causing 401 when the key is a
+        // DeepSeek key.
+        let mut env = env_allowlist_from_current(&[
+            "PATH",
+            "TURINGOS_SILICONFLOW_ENDPOINT",
+            "SILICONFLOW_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_API_KEY_WORKER",
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+        ]);
         // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives
         // in memory only; we do not log it. If unset, the sanitized runner
         // does not inherit the parent environment.

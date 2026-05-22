@@ -1,0 +1,22 @@
+problem_id: P04
+slug: impossible_network
+kernel_hypothesis: >
+  "做个能实时查股票价格的页面" requires runtime network calls.
+  The sandboxed HTML artifact cannot make external network calls.
+  Expected: L4.E rejection at generate/verify stage (BrokenHtml or RuntimeUnsupported).
+adversarial: runtime_impossible_requirement
+spec_quality: synthetic
+expected_route: spec_capsule -> generate -> artifact with fetch() -> verifier rejects -> L4.E
+expected_retry_count: 3 (retry on failed verify)
+reentry: no
+actual_route: spec/submit succeeded; LLM absorbed network requirement into spec.
+  Spec says "调用公开的股票价格接口" (call public stock API).
+  Generate failed 3x with LlmApiError (401 key invalid), not from verifier.
+  Verifier (MinimumBar) does NOT detect network-dependent code - only structure checks.
+result: PARTIAL - network requirement absorbed in spec; generate blocked by 401, not by verifier
+kernel_surfaces: FC1 (generate/verify shielding); verifier has NO runtime network detection
+gaps_found:
+  - verify_minimum_bar/verify_game_shape do not detect fetch()/XHR calls
+  - Network-dependent HTML would pass static verifier if LLM key were valid
+  - L4.E rejection would NOT happen for impossible network requests (false-accept risk)
+spec_capsule_cid: 57ede230 (local session CAS)

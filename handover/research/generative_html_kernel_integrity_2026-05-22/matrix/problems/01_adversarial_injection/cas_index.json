@@ -1,0 +1,42 @@
+[
+  {
+    "schema": "turingos-spec-capsule-v1",
+    "cid": "9d2d4a0738512731",
+    "size": 5464
+  },
+  {
+    "schema": "turingos-spec-capsule-v1",
+    "cid": "fc8607a5ed409496",
+    "size": 5408
+  },
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "97828a831cc9a4bd",
+    "size": 476
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "09379de4458fce52",
+    "size": 501
+  },
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "6f33ba2508d9ff55",
+    "size": 538
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "de82a8c5d25c0b7d",
+    "size": 501
+  },
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "a08dd029a79a2faf",
+    "size": 538
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "b1bb0ea8d6f05455",
+    "size": 501
+  }
+]
