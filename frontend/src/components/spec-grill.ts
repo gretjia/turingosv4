@@ -432,20 +432,89 @@ export class TosSpecGrill extends HTMLElement {
   }
 
   private _renderDrivenComplete(capsuleCid: string): void {
+    // Idempotency guard: completion can be reached via TWO paths in the same
+    // session — the POST /api/spec/turn response (`_postTurn`) AND the WS
+    // SpecGrillComplete broadcast (`_onWsMessage`). Both flip _drivenState to
+    // `{ kind: 'complete', ... }` and re-invoke `_renderDriven`. The iframe +
+    // CID footer below are inside `this` so `_renderDriven`'s
+    // `while (this.firstChild)` clears them, BUT `<tos-spec-result>` is mounted
+    // OUTSIDE `<tos-spec-grill>` (in this.parentElement) and outlives the
+    // component's internal clear. Without this guard, a successful session
+    // renders 2× iframes, 2× CTAs, and a duplicate generate POST is at risk.
+    //
+    // Strategy: tag the externally-mounted <tos-spec-result> with a session-
+    // scoped data attribute, and remove any prior mount for the same session
+    // before appending a fresh one. This handles both the POST/WS double-fire
+    // AND the case where the user lands on completion twice for the same CID.
+    const mountHost =
+      this.parentElement ?? document.querySelector('main') ?? document.body;
+    const existingMounts = mountHost.querySelectorAll<HTMLElement>(
+      `tos-spec-result[data-spec-grill-mount="${this._drivenSessionId}"]`
+    );
+    existingMounts.forEach((el) => el.remove());
+
     const wrap = document.createElement('section');
     wrap.className = 'spec-grill-complete';
 
-    const msg = document.createElement('p');
-    msg.className = 'spec-grill-complete-msg';
-    msg.textContent = 'Spec generated. Capsule CID: ';
+    // R2 visual spec view: iframe pointing to server-rendered HTML.
+    // Backend reads <workspace>/sessions/<session_id>/spec.md and renders it
+    // with TuringOS aesthetic (Fraunces + JetBrains Mono + IBM Plex Sans +
+    // oxidized-teal #4e8b7a, two-panel Build Now / Deeper Insight, cards).
+    const viewFrame = document.createElement('iframe');
+    viewFrame.className = 'spec-grill-view-iframe';
+    viewFrame.src = `/api/spec/view/${encodeURIComponent(this._drivenSessionId)}`;
+    viewFrame.style.cssText = [
+      'width:100%',
+      'min-height:1100px',
+      'border:1px solid var(--tos-border,#d8d4c8)',
+      'border-radius:12px',
+      'background:#f8f6f1',
+      'margin:1rem 0',
+      'box-shadow:0 1px 2px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)',
+    ].join(';');
+    viewFrame.setAttribute('title', 'TuringOS Spec Preview');
+    viewFrame.setAttribute('sandbox', 'allow-same-origin allow-popups');
+    // Auto-resize iframe to fit its content (same-origin so we can read it).
+    viewFrame.addEventListener('load', () => {
+      try {
+        const doc = viewFrame.contentDocument;
+        if (doc?.body != null) {
+          const h = doc.documentElement.scrollHeight || doc.body.scrollHeight;
+          if (h > 0) viewFrame.style.minHeight = `${h + 24}px`;
+        }
+      } catch { /* same-origin should succeed; ignore otherwise */ }
+    });
+    wrap.appendChild(viewFrame);
 
-    const cid = document.createElement('code');
-    cid.className = 'spec-grill-cid';
-    cid.textContent = capsuleCid;
-    msg.appendChild(cid);
+    // CID footer (compact, below the visual view)
+    const cidLine = document.createElement('p');
+    cidLine.className = 'spec-grill-cid-footer';
+    cidLine.style.cssText = 'font-size:0.8rem;color:var(--tos-muted,#6b6b6b);font-family:ui-monospace,monospace;margin:0.5rem 0';
+    const cidLabel = document.createElement('span');
+    cidLabel.textContent = 'CAS capsule: ';
+    cidLine.appendChild(cidLabel);
+    const cidCode = document.createElement('code');
+    cidCode.className = 'spec-grill-cid';
+    cidCode.textContent = capsuleCid.slice(0, 8) + '…' + capsuleCid.slice(-8);
+    cidCode.title = capsuleCid;
+    cidLine.appendChild(cidCode);
+    wrap.appendChild(cidLine);
 
-    wrap.appendChild(msg);
     this.appendChild(wrap);
+
+    // Mount spec-result for the "生成代码" CTA + artifact viewer below the
+    // visual spec view. spec_md is left empty here — tos-spec-result will only
+    // render the CTA button + later the tos-artifact-viewer on success.
+    // data-spec-grill-mount carries the session id so the idempotency guard
+    // above can find and remove any prior mount on re-completion.
+    const specResult = document.createElement('tos-spec-result') as HTMLElement & { spec: unknown };
+    specResult.setAttribute('data-spec-grill-mount', this._drivenSessionId);
+    (specResult as any).spec = {
+      session_id: this._drivenSessionId,
+      spec_md: '',
+      capsule_cid: capsuleCid,
+    };
+    mountHost.appendChild(specResult);
   }
 
   private _renderLoading(label: string): void {
