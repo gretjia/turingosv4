@@ -11,6 +11,35 @@
 
 ## Current Snapshot
 
+**Session**: #60 close, 2026-05-22 — TDMA-Generate + Phase E libgit2 cutover SHIPPED.
+
+**Main tip after this session**: PR #116 (Atom 25 full cutover) at
+2026-05-22T18:36Z. `turingos generate --tdma-bounded` and `turingos tdma run`
+both default to TDMA-Bounded + GitTapeLedger (Phase E Path B). 8 atoms
+(19–26) merged to main. Constitution Art. 0.4 Path B obligations (all 6)
+materially satisfied. MemoryTapeLedger retired from production paths.
+Ship report:
+`handover/tracer_bullets/TB-TDMA-GENERATE-PHASE-E_ship_report_2026-05-22.md`
+Package §8: `handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md`
+GA §8 template: `handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_GA_§8_TEMPLATE.md`
+
+PRs in this ship: #109 (gen wire-up), #110 (skeleton), #111 (roundtrip),
+#112 (head+BBS), #113 (migrate + single-chain fix), #115 (opt-in flag),
+#116 (full cutover). Atom 26 (THIS) lands ship report + §8 template +
+Path A retirement.
+
+Karpathy + Constitution plan-level audits passed with 3 remediations
+applied in plan revision 2: C12 (KILL-gen-1 wording tightened), K14
+(`--legacy` flag dropped; legacy single-pass path deleted), K15 (E.3
+conservation extracted to parallel `TB-ECON-E3-STRICT-EQ` package).
+
+Per-atom Codex+Gemini cumulative audit dispatch (plan §8.2) deferred
+to next-session orchestration.
+
+---
+
+## Pre-session #60 snapshot (for forensic continuity)
+
 **Session**: #59 close, 2026-05-22 — TDMA-Bounded-RC1 ship candidate.
 
 **Main tip**: `865b4c14` — `fix(harness): update constitution gate test
