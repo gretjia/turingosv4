@@ -408,15 +408,33 @@ pub fn make_judge_stderr(
 pub fn run_proof<F>(
     cfg: RunConfig,
     judge: &mut AnyJudge,
-    mut llm_call: F,
+    llm_call: F,
 ) -> Result<RunSummary, String>
 where
     F: FnMut(&str, &str) -> Result<LlmResponse, String>,
 {
+    // Atom 20: thin wrapper over the generic implementation. Default ledger
+    // remains MemoryTapeLedger; new callers (Atom 25+) use
+    // run_proof_with_ledger directly with a GitTapeLedger.
+    let tape = MemoryTapeLedger::new();
+    run_proof_with_ledger(cfg, judge, tape, llm_call)
+}
+
+/// TRACE_MATRIX FC1a-rtool + FC1a-substrate_seam: Generic-over-ledger variant
+/// of `run_proof`. Atom 20 introduces this seam so Atoms 24+ can wire
+/// `GitTapeLedger` as the substrate without forking the runner body.
+pub fn run_proof_with_ledger<F, L>(
+    cfg: RunConfig,
+    judge: &mut AnyJudge,
+    mut tape: L,
+    mut llm_call: F,
+) -> Result<RunSummary, String>
+where
+    F: FnMut(&str, &str) -> Result<LlmResponse, String>,
+    L: ImmutableTapeLedger,
+{
     fs::create_dir_all(&cfg.evidence_dir)
         .map_err(|e| format!("cannot create evidence-dir: {}", e))?;
-
-    let mut tape = MemoryTapeLedger::new();
     tape.set_verified_head("H0".into());
     let charter = compile_charter_core(
         "# Constitution\nArt. 0.4 — Q_t Path A; FC1a tape_t; FC1b wtool.\n".as_bytes(),
@@ -616,7 +634,7 @@ where
         .unwrap_or_default();
 
     let mut chaintape_lines: Vec<String> = Vec::new();
-    for (h, node) in &kernel.tape.indexes.by_hash {
+    for (h, node) in kernel.tape.dump_all_nodes().iter() {
         chaintape_lines.push(
             serde_json::json!({
                 "hash": h,

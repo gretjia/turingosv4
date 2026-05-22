@@ -124,6 +124,9 @@ impl<L: ImmutableTapeLedger> ImmutableTapeLedger for MemoryKernelTape<L> {
     ) -> Option<RetryBeliefState> {
         None
     }
+    fn dump_all_nodes(&self) -> Vec<(String, crate::ledger::TapeNode)> {
+        Vec::new()
+    }
 }
 
 impl<L: ImmutableTapeLedger> MemoryKernel<L> {

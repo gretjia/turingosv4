@@ -31,5 +31,8 @@ pub mod judges;
 /// TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi + FC3-replay:
 /// TDMA-Bounded shared runner library (Atom 18 — K10+K11 refactor).
 pub mod tdma_runner;
+/// TRACE_MATRIX FC1a-substrate_seam + FC3-replay:
+/// Phase E libgit2 substrate skeleton (Atom 20; bodies in Atoms 21/22).
+pub mod git_tape_ledger;
 pub mod top_white;
 pub mod wal;
