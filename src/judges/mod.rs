@@ -15,3 +15,5 @@ pub mod injected_judge;
 pub mod nesbitt_step_judge;
 /// TRACE_MATRIX FC1a-predicate_pi: Putnam 2024 A1 strict step judge (Atom 13 extreme stress).
 pub mod putnam_2024_a1_judge;
+/// TRACE_MATRIX FC1a-predicate_pi: Putnam 2025 B3 strict step judge (Atom 14 post-cutoff stress).
+pub mod putnam_2025_b3_judge;
