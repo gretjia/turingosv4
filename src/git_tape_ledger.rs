@@ -18,8 +18,6 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use sha2::{Digest, Sha256};
 
 use crate::ledger::{
@@ -372,11 +370,41 @@ where
 
 impl ImmutableTapeLedger for GitTapeLedger {
     fn get_verified_head(&self) -> String {
-        todo!("Atom 22: read refs/tdma/verified_head and return its commit OID hex (or H0 sentinel)")
+        // Atom 22: read refs/tdma/verified_head; return its target OID hex
+        // (or "H0" sentinel matching MemoryTapeLedger's empty-tape behavior).
+        match self.repo.find_reference(GIT_LEDGER_HEAD_REF) {
+            Ok(r) => match r.symbolic_target() {
+                Some(_) => "H0".to_string(), // symbolic refs not used in this layer
+                None => r
+                    .target()
+                    .map(|oid| oid.to_string())
+                    .unwrap_or_else(|| "H0".to_string()),
+            },
+            Err(_) => "H0".to_string(),
+        }
     }
 
-    fn set_verified_head(&mut self, _new_head: String) {
-        todo!("Atom 22: update refs/tdma/verified_head with lock + flush")
+    fn set_verified_head(&mut self, new_head: String) {
+        // Atom 22: idempotent ref update. Treat "H0" sentinel as the
+        // initial-empty-tape marker — do NOT create a ref pointing at it;
+        // simply delete the ref if it exists so get_verified_head returns "H0".
+        if new_head == "H0" || new_head.is_empty() {
+            if let Ok(mut r) = self.repo.find_reference(GIT_LEDGER_HEAD_REF) {
+                let _ = r.delete();
+            }
+            return;
+        }
+        let oid = match git2::Oid::from_str(&new_head) {
+            Ok(o) => o,
+            Err(_) => return, // invalid OID; refuse silently (parallels MemoryTapeLedger)
+        };
+        if let Ok(mut r) = self.repo.find_reference(GIT_LEDGER_HEAD_REF) {
+            let _ = r.set_target(oid, "tdma verified_head update");
+        } else {
+            let _ = self
+                .repo
+                .reference(GIT_LEDGER_HEAD_REF, oid, true, "tdma verified_head init");
+        }
     }
 
     fn commit(&mut self, req: CommitRequest) -> TapeNode {
@@ -533,9 +561,14 @@ impl ImmutableTapeLedger for GitTapeLedger {
 
     fn derive_latest_belief_state_from_tape(
         &self,
-        _scope: &AttemptScope,
+        scope: &AttemptScope,
     ) -> Option<RetryBeliefState> {
-        todo!("Atom 22: PURE FUNCTION — walk per-scope ref filtering for RetryBeliefState kind; return most-recent")
+        // Atom 22: PURE FUNCTION — walks the per-scope ref's git log for the
+        // most-recent RetryBeliefState node and deserializes its payload.
+        // Mirrors MemoryTapeLedger::derive_latest_belief_state_from_tape
+        // contract: no sidecar read, no mutable cache.
+        let latest = self.latest_node(NodeKind::RetryBeliefState, scope)?;
+        serde_json::from_value(latest.payload).ok()
     }
 
     fn dump_all_nodes(&self) -> Vec<(String, TapeNode)> {
