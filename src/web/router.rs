@@ -132,6 +132,8 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         // Spec interview routes (W5): GET questions + POST submit
         // Phase 6.3.x driven-mode grill turn route (W7)
         .route("/api/spec/turn", post(spec_turn_handler))
+        // Phase 5.7: server-rendered R2-aesthetic spec view (text/html)
+        .route("/api/spec/view/:session_id", get(super::spec_view::spec_view_handler))
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
