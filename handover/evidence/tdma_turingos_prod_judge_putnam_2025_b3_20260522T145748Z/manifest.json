@@ -1,0 +1,60 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "356cd087d4aa23d6821d84d251b368dd67fb68aeb25eec27e6c6e7816192f13b",
+  "compression_ratio": 13.890456989247312,
+  "distinct_judge_classes": [
+    "missing-counterexample"
+  ],
+  "judge": "putnam_2025_b3",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 2,
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage1-Simplify-2010n"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage2-Factor-2010"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage3-Closure-Prime-Containment"
+    },
+    {
+      "attempts_used": 4,
+      "final_constraints": 1,
+      "outcome": "escalate-ZERO_GAIN",
+      "stage": "Stage4-Counterexample-Construction"
+    }
+  ],
+  "probes_sha256": "8c977c8927e0dd354bbc7c9fa9c86af4950ffa37a04c77b60e4dd5c9404223c5",
+  "prompt_tokens_max": 1364,
+  "prompt_tokens_min": 1364,
+  "prompt_tokens_variance": 0,
+  "role": "meta",
+  "stages_completed": 3,
+  "stages_escalated": [
+    "Stage4-Counterexample-Construction/ZERO_GAIN"
+  ],
+  "stages_total": 5,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.5,
+  "total_attempts": 7,
+  "total_bbs_bytes_estimated": 2976,
+  "total_failed_attempts": 3,
+  "total_raw_stderr_bytes": 41338,
+  "total_sf_completion_tokens": 1155,
+  "total_sf_prompt_tokens": 4591,
+  "total_wall_clock_ms": 65335,
+  "workspace": "/tmp/atom15_workspace"
+}

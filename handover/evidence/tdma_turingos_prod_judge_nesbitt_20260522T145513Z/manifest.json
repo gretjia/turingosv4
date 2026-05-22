@@ -1,0 +1,82 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "a645de52b2e58a47e260182634e07ccab7696ac629a236baee0f5c715eb7c7af",
+  "compression_ratio": 10.725103734439834,
+  "distinct_judge_classes": [
+    "algebra-error"
+  ],
+  "judge": "nesbitt",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 0,
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "df9fdf46201afeefa5e5ae77984d24c0933a647a3535fc83ee277e60acf1bd12",
+  "prompt_tokens_max": 1716,
+  "prompt_tokens_min": 1716,
+  "prompt_tokens_variance": 0,
+  "role": "meta",
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.5,
+  "total_attempts": 9,
+  "total_bbs_bytes_estimated": 964,
+  "total_failed_attempts": 1,
+  "total_raw_stderr_bytes": 10339,
+  "total_sf_completion_tokens": 1484,
+  "total_sf_prompt_tokens": 6680,
+  "total_wall_clock_ms": 85285,
+  "workspace": "/tmp/atom15_workspace"
+}
