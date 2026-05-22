@@ -1,0 +1,78 @@
+{
+  "all_prompts_within_budget": true,
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "7ed0530c4d3b65e40f1aaf61045a8681932023d97d64a2a35298c1154a018ffd",
+  "compression_ratio": 0.0,
+  "distinct_judge_classes": [],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 4,
+  "max_zero_gain_streak": 0,
+  "model_label": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "7f6f95e0b79e6faca3b873d6beb0058c67fa5a6aeee252daf92c8dc0771a0f31",
+  "problem_label": "turingos tdma --judge nesbitt",
+  "prompt_tokens_max": 0,
+  "prompt_tokens_min": 0,
+  "prompt_tokens_variance": 0,
+  "run_id": "turingos-tdma-nesbitt",
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "temperature": 0.5,
+  "total_attempts": 8,
+  "total_bbs_bytes_estimated": 0,
+  "total_failed_attempts": 0,
+  "total_llm_completion_tokens": 2348,
+  "total_llm_prompt_tokens": 9782,
+  "total_raw_stderr_bytes": 0,
+  "total_wall_clock_ms": 64789
+}
