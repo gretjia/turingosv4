@@ -11,10 +11,26 @@
 
 ## Current Snapshot
 
-**Session**: #58 close, 2026-05-22.
+**Session**: #59 close, 2026-05-22 — TDMA-Bounded-RC1 ship candidate.
 
 **Main tip**: `865b4c14` — `fix(harness): update constitution gate test
-after R-022 hook migration` (PR #89 squash).
+after R-022 hook migration` (PR #89 squash). RC1 awaits architect GA §8
+signature before merging `feature/tdma-bounded-rc1` to main.
+
+**Active feature branch**: `feature/tdma-bounded-rc1` HEAD `f6e35aeb`
+(PR #93). 10 atoms shipped (0..7+7.5+8); 9-gate harness GREEN; bug7
+regression GREEN; real-evidence run captured at
+`handover/evidence/tdma_rc1_real_evidence_20260522T095144Z/`
+(invariants_passed=true). Ship report:
+`handover/tracer_bullets/TB-TDMA-BOUNDED-RC1_ship_report_2026-05-22.md`.
+GA §8 template awaiting architect signature:
+`handover/directives/2026-05-22_TDMA_BOUNDED_RC1_GA_§8_TEMPLATE.md`.
+
+---
+
+## Pre-session #59 snapshot (for forensic continuity)
+
+**Session**: #58 close, 2026-05-21 (late evening).
 
 **State**: P7.z + Boundary-Ratification-Hygiene remain complete; session
 #58 shipped three increments:

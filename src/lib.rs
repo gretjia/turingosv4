@@ -16,5 +16,17 @@ pub mod sdk;
 pub mod state;
 /// TRACE_MATRIX FC1a-output_edge: TDMA-Bounded-RC1 state-first prefix parser (Atom 2).
 pub mod state_update;
+/// TRACE_MATRIX FC1a-budget_gate: TDMA-Bounded-RC1 tokenizer (Atom 3).
+pub mod tokenizer;
+/// TRACE_MATRIX FC1a-budget_gate: TDMA-Bounded-RC1 token budget subsystem (Atom 3).
+pub mod token_budget;
+/// TRACE_MATRIX FC1a-rtool_input + FC3-replay: TDMA-Bounded-RC1 distiller (Atom 4).
+pub mod distiller;
+/// TRACE_MATRIX FC2-Q_0 + FC3-constitution_binding: TDMA-Bounded-RC1 CharterCore (Atom 5).
+pub mod charter_core;
+/// TRACE_MATRIX FC1a-rtool: TDMA-Bounded-RC1 rtool checkout_digest (Atom 6).
+pub mod rtool;
+/// TRACE_MATRIX FC1a-predicate_pi: TDMA-Bounded-RC1 JudgeAI predicates (Atom 7.5).
+pub mod judges;
 pub mod top_white;
 pub mod wal;
