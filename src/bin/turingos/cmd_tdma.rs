@@ -63,11 +63,13 @@ OPTIONS:
     --evidence-dir <PATH>       Override evidence output directory
     --max-attempts-per-stage <N>  Hard cap per stage (default: 6)
     --temperature <FLOAT>       Sampling temperature (default: 0.7)
-    --tape-backend <NAME>       Tape substrate. `memory` = MemoryTapeLedger
-                                (default; in-process; Path A). `git` =
-                                GitTapeLedger at `<workspace>/tdma_tape.git`
-                                (Path B; real-git via git2-rs). Phase E
-                                opt-in; Atom 25 flips the default to `git`.
+    --tape-backend <NAME>       Tape substrate. **`git` is the DEFAULT**
+                                as of Atom 25 (Phase E full cutover):
+                                GitTapeLedger at
+                                `<workspace>/tdma_tape.git` (Path B; real-git
+                                via git2-rs). `memory` = MemoryTapeLedger
+                                (in-process; Path A) — still accepted for
+                                tests + emergency in-process rollback.
     -h, --help                  Print this help
 
 DESCRIPTION:
@@ -214,9 +216,11 @@ fn run_run(args: &[String]) -> ExitCode {
     let mut evidence_dir: Option<PathBuf> = None;
     let mut max_attempts_per_stage: usize = 6;
     let mut temperature: f32 = 0.7;
-    // Atom 24: opt-in --tape-backend flag. Default = "memory" (RC1 behavior).
-    // Atom 25 flips the default to "git" for full Phase E cutover.
-    let mut tape_backend = "memory".to_string();
+    // Atom 25: Phase E full cutover. Default tape backend is now `git`
+    // (GitTapeLedger at <workspace>/tdma_tape.git). `memory` remains
+    // accepted via explicit --tape-backend=memory for tests + emergency
+    // rollback (in-process scope only).
+    let mut tape_backend = "git".to_string();
 
     let mut it = args.iter();
     while let Some(arg) = it.next() {
