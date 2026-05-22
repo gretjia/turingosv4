@@ -194,6 +194,33 @@ pub fn synthesise_spec_md_no_llm_by_slot(
             s.push_str(pick(slot_evidence, "mirror", lang));
             s.push_str("\n\n## 一句话给 AI 编程员\n\n");
             s.push_str("根据上面的 Goal / Memory / First Run 实现一个最小可用版本。");
+            // R1 recursive anchor: two-layer output preserves both the original
+            // stated want AND any deeper insight surfaced during the grill.
+            // The `job` slot is the closest proxy to original_anchor in the
+            // current slot-keyed schema; deeper insight is sourced from
+            // `mirror` (or marked as "not surfaced" when mirror is empty).
+            s.push_str("\n\n## 立刻能做的 (Build Now)\n\n");
+            s.push_str(pick(slot_evidence, "job", lang));
+            s.push_str(
+                "\n\n这是本次构建的全部范围。超出这个范围的内容，全部移到 `## 更深的洞察`。",
+            );
+            s.push_str("\n\n## 更深的洞察 (Deeper Insight)\n\n");
+            let mirror_text = slot_evidence
+                .get("mirror")
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            if mirror_text.is_empty()
+                || mirror_text == "（用户未在本轮访谈中提供该信息）"
+            {
+                s.push_str(
+                    "访谈范围保持在最初目标之内，没有发现明显更深的潜在需求。",
+                );
+            } else {
+                s.push_str(mirror_text);
+                s.push_str(
+                    "\n\n这是更大的可能，留待将来。本次构建不需要解决这个。",
+                );
+            }
         }
         Lang::En => {
             s.push_str("## One-line Goal\n\n");
@@ -216,6 +243,29 @@ pub fn synthesise_spec_md_no_llm_by_slot(
             s.push_str(pick(slot_evidence, "mirror", lang));
             s.push_str("\n\n## One-line Brief to AI Coder\n\n");
             s.push_str("Implement a minimal version using the Goal / Memory / First Run above.");
+            // R1 recursive anchor: see Zh branch comment above.
+            s.push_str("\n\n## Build Now\n\n");
+            s.push_str(pick(slot_evidence, "job", lang));
+            s.push_str(
+                "\n\nThis is the full scope for this build. Anything beyond it belongs in `## Deeper Insight`.",
+            );
+            s.push_str("\n\n## Deeper Insight\n\n");
+            let mirror_text = slot_evidence
+                .get("mirror")
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            if mirror_text.is_empty()
+                || mirror_text == "(user did not provide this information in the interview)"
+            {
+                s.push_str(
+                    "The interview stayed within the original goal — no clearly deeper latent need surfaced.",
+                );
+            } else {
+                s.push_str(mirror_text);
+                s.push_str(
+                    "\n\nThis is a larger possibility, saved for the future. The current build does not need to address it.",
+                );
+            }
         }
     }
     s.push_str("\n\n<!-- TURINGOS_SPEC_END -->\n");

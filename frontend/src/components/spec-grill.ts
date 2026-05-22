@@ -446,6 +446,17 @@ export class TosSpecGrill extends HTMLElement {
 
     wrap.appendChild(msg);
     this.appendChild(wrap);
+
+    // Mount spec-result to expose the generate CTA and artifact viewer.
+    // tos-spec-result reads session_id → POST /api/generate → tos-artifact-viewer.
+    const specResult = document.createElement('tos-spec-result') as HTMLElement & { spec: unknown };
+    (specResult as any).spec = {
+      session_id: this._drivenSessionId,
+      spec_md: '',
+      capsule_cid: capsuleCid,
+    };
+    (this.parentElement ?? document.querySelector('main') ?? document.body)
+      .appendChild(specResult);
   }
 
   private _renderLoading(label: string): void {
