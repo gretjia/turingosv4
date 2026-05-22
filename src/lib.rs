@@ -26,5 +26,7 @@ pub mod distiller;
 pub mod charter_core;
 /// TRACE_MATRIX FC1a-rtool: TDMA-Bounded-RC1 rtool checkout_digest (Atom 6).
 pub mod rtool;
+/// TRACE_MATRIX FC1a-predicate_pi: TDMA-Bounded-RC1 JudgeAI predicates (Atom 7.5).
+pub mod judges;
 pub mod top_white;
 pub mod wal;

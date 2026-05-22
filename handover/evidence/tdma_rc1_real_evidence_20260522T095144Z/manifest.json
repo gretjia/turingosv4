@@ -1,0 +1,15 @@
+{
+  "accepted_steps": 5,
+  "atom": "7.5",
+  "bbs_count": 0,
+  "bbs_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+  "branch": "feature/tdma-bounded-rc1",
+  "chaintape_sha256": "48ea66ed74b092e85db1136ec4b8cad279f246291fdc92bd953c461c71f4f043",
+  "invariants_passed": true,
+  "judge_backend": "OfflineHeuristic",
+  "problem": "sum-of-naturals-equals-minus-1-over-12-via-m-exp-m-N-cos-m-N",
+  "prompts_sha256": "6112ef3526798e5f7801af27d36635c896ba8310b599717380514ccfe6b93674",
+  "proposal_count": 0,
+  "verdicts_sha256": "bc74665c16645abf5c28248b96358fd7da935caced779abd9504a93c57da22ea",
+  "verified_head_final": "d9c1682a62d1e43985809cd3ad8e59ef07349da2fb2c93af428d535b1d78e718"
+}
