@@ -1,0 +1,42 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "431407f832cfb99458779ae4ffcedc0d49ee6381736d7464ba9343a25baa3351",
+  "compression_ratio": 14.699786324786325,
+  "distinct_judge_classes": [
+    "off-stage"
+  ],
+  "judge": "nesbitt",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 2,
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "per_stage": [
+    {
+      "attempts_used": 4,
+      "final_constraints": 1,
+      "outcome": "escalate-ZERO_GAIN",
+      "stage": "Step1-Substitute"
+    }
+  ],
+  "probes_sha256": "ece1df645feca3d155e936a33184b7f88ae7509b115e80bdc31d72a54297cf6a",
+  "prompt_tokens_max": 677,
+  "prompt_tokens_min": 677,
+  "prompt_tokens_variance": 0,
+  "role": "meta",
+  "stages_completed": 0,
+  "stages_escalated": [
+    "Step1-Substitute/ZERO_GAIN"
+  ],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.699999988079071,
+  "total_attempts": 4,
+  "total_bbs_bytes_estimated": 2808,
+  "total_failed_attempts": 3,
+  "total_raw_stderr_bytes": 41277,
+  "total_sf_completion_tokens": 499,
+  "total_sf_prompt_tokens": 1451,
+  "total_wall_clock_ms": 28411,
+  "workspace": "/tmp/atom15_workspace"
+}
