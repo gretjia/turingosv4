@@ -31,6 +31,7 @@ use std::time::Instant;
 use sha2::{Digest, Sha256};
 
 use crate::charter_core::compile_charter_core;
+use crate::judges::generate_judge::{GenerateJudge, GenerateStage};
 use crate::judges::math_step_judge::JudgeVerdict;
 use crate::judges::nesbitt_step_judge::{NesbittStage, NesbittStepJudge};
 use crate::judges::putnam_2024_a1_judge::{PutnamA1Judge, PutnamA1Stage};
@@ -59,6 +60,11 @@ pub enum AnyJudge {
     PutnamB3 {
         judge: PutnamB3Judge,
         stages: Vec<PutnamB3Stage>,
+        cursor: usize,
+    },
+    Generate {
+        judge: GenerateJudge,
+        stages: Vec<GenerateStage>,
         cursor: usize,
     },
 }
@@ -115,12 +121,22 @@ impl AnyJudge {
         }
     }
 
+    /// TRACE_MATRIX FC1a-predicate_pi: Construct a single-stage Generate judge.
+    pub fn generate(expected_entrypoint: String, enable_compile_check: bool) -> Self {
+        Self::Generate {
+            judge: GenerateJudge::new(expected_entrypoint, enable_compile_check),
+            stages: vec![GenerateStage::Compile],
+            cursor: 0,
+        }
+    }
+
     /// TRACE_MATRIX FC1a-predicate_pi: Total canonical stages in the proof.
     pub fn total_stages(&self) -> usize {
         match self {
             Self::Nesbitt { stages, .. } => stages.len(),
             Self::PutnamA1 { stages, .. } => stages.len(),
             Self::PutnamB3 { stages, .. } => stages.len(),
+            Self::Generate { stages, .. } => stages.len(),
         }
     }
 
@@ -130,6 +146,7 @@ impl AnyJudge {
             Self::Nesbitt { stages, cursor, .. } => stages[*cursor].label().to_string(),
             Self::PutnamA1 { stages, cursor, .. } => stages[*cursor].label().to_string(),
             Self::PutnamB3 { stages, cursor, .. } => stages[*cursor].label().to_string(),
+            Self::Generate { stages, cursor, .. } => stages[*cursor].label().to_string(),
         }
     }
 
@@ -174,6 +191,17 @@ impl AnyJudge {
                     ps.unwrap_or_else(|| "pass".to_string()),
                 )
             }
+            Self::Generate { judge, stages, cursor } => {
+                let stage = stages[*cursor];
+                let (v, c) = judge.verdict_for_stage(body, stage, accepted_steps);
+                let cs = c.map(|x| x.reject_class_str().to_string());
+                let ps = c.map(|x| x.failed_predicate_str().to_string());
+                (
+                    v,
+                    cs.unwrap_or_else(|| "pass".to_string()),
+                    ps.unwrap_or_else(|| "pass".to_string()),
+                )
+            }
         };
         let success = v.is_pass();
         let reason = match v {
@@ -200,6 +228,12 @@ impl AnyJudge {
                 }
             }
             Self::PutnamB3 { judge, stages, cursor } => {
+                judge.advance();
+                if *cursor + 1 < stages.len() {
+                    *cursor += 1;
+                }
+            }
+            Self::Generate { judge, stages, cursor } => {
                 judge.advance();
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;

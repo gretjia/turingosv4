@@ -51,6 +51,8 @@ use turingosv4::runtime::test_run::{
     format_test_run_summary, run_and_write_test_pipeline, TestRunCapsule,
 };
 use turingosv4::runtime::test_scenario::TestScenario;
+use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
+use crate::siliconflow_client::{ChatResult, Usage};
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -61,6 +63,7 @@ pub(crate) const FULL_HELP: &str = r#"turingos generate — Emit code from spec.
 
 USAGE:
     turingos generate --workspace <PATH> [--from-capsule] [--max-files <N>]
+                       [--tdma-bounded [--entrypoint <PATH>] [--max-retries <N>]]
 
 OPTIONS:
     --workspace <PATH>      Workspace directory (required; must have spec.md
@@ -72,6 +75,17 @@ OPTIONS:
     --max-files <N>         Max number of files to write (safety cap; default 20).
     --emit-transcript       Persist the LLM call transcript to
                             <workspace>/generate_transcript.jsonl. Default: off.
+    --tdma-bounded          Route the LLM call through the TDMA-Bounded
+                            MemoryKernel (Atom 19 wire-up). Default: off
+                            (single-pass legacy behavior). When set, retries
+                            are driven by AnyJudge::Generate verdicts and
+                            evidence is captured under
+                            <workspace>/artifacts/tdma_generate/<session_id>/.
+    --entrypoint <PATH>     Expected entrypoint file path the LLM must include
+                            in its file bundle (default: main.py). Used only
+                            when --tdma-bounded is set.
+    --max-retries <N>       Hard cap on TDMA-Bounded attempts (default: 5).
+                            Used only when --tdma-bounded is set.
     -h, --help              Print this help.
 
 DESCRIPTION:
@@ -177,6 +191,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let mut from_capsule = false;
     let mut max_files: usize = 20;
     let mut emit_transcript = false;
+    let mut tdma_bounded = false;
+    let mut tdma_entrypoint = "main.py".to_string();
+    let mut tdma_max_retries: usize = 5;
 
     let mut iter = args.iter();
     while let Some(a) = iter.next() {
@@ -192,6 +209,19 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     .map_err(|_| GenError::Io(format!("--max-files: not a number: {v}")))?;
             }
             "--emit-transcript" => emit_transcript = true,
+            "--tdma-bounded" => tdma_bounded = true,
+            "--entrypoint" => {
+                tdma_entrypoint = iter
+                    .next()
+                    .ok_or(GenError::MissingFlag("--entrypoint"))?
+                    .clone();
+            }
+            "--max-retries" => {
+                let v = iter.next().ok_or(GenError::MissingFlag("--max-retries"))?;
+                tdma_max_retries = v
+                    .parse()
+                    .map_err(|_| GenError::Io(format!("--max-retries: not a number: {v}")))?;
+            }
             _ => {}
         }
     }
@@ -334,14 +364,39 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         .unwrap_or(0);
 
     eprintln!("[generate] calling Blackbox LLM ({model_id})...");
-    let llm_res = chat_complete_blocking(
-        &api_key,
-        &model_id,
-        &messages,
-        Some(6000),
-        Some(0.2),
-        blackbox_thinking,
-    );
+    let (llm_res, final_prompt_hash) = if tdma_bounded {
+        eprintln!(
+            "[generate] --tdma-bounded ON; routing through tdma_runner::run_proof (entrypoint={}, max_retries={})",
+            tdma_entrypoint, tdma_max_retries
+        );
+        chat_with_tdma_bounded(
+            &workspace,
+            &session_id,
+            &api_key,
+            &model_id,
+            &messages,
+            blackbox_thinking.clone(),
+            &tdma_entrypoint,
+            tdma_max_retries,
+            &prompt_hash,
+        )
+    } else {
+        (
+            chat_complete_blocking(
+                &api_key,
+                &model_id,
+                &messages,
+                Some(6000),
+                Some(0.2),
+                blackbox_thinking,
+            ),
+            prompt_hash.clone(),
+        )
+    };
+    // KILL-gen-3: when --tdma-bounded, prompt_hash records the canonical bytes
+    // of the FINAL accepted attempt (returned by the helper). When legacy,
+    // it remains the first-attempt hash.
+    let prompt_hash = final_prompt_hash;
 
     let (
         outcome,
@@ -789,12 +844,178 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 }
 
 /// TRACE_MATRIX FC1-N4 / FC2-N18: Read prior rejection diagnostics from CAS
-/// and format them for inclusion in the LLM prompt. Returns Some(feedback_text)
-/// if a usable prior rejection exists for this session; None otherwise.
+/// TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi: Drive `turingos generate` through
+/// the TDMA-Bounded MemoryKernel via `tdma_runner::run_proof` and an
+/// `AnyJudge::Generate` single-stage judge.
 ///
-/// This is the TAPE-RELAY READ: the canonical "agent reads what previous
-/// agent wrote on the tape" pattern. Without this, parent_attempt_cid chains
-/// are write-only.
+/// Returns a `(Result<ChatResult, LlmError>, final_prompt_hash)` tuple. The
+/// downstream code path is unchanged: when this returns `Ok`, the synthesized
+/// ChatResult carries the FINAL accepted body + token totals across all
+/// kernel attempts; when it returns `Err`, the existing rejection-capsule path
+/// handles it like any other LLM error.
+///
+/// KILL-gen-3: the returned `final_prompt_hash` is the sha256 of the canonical
+/// chat-request bytes of the FINAL attempt that produced the accepted body
+/// (not the first attempt). This preserves audit reproducibility — the
+/// GenerationAttemptCapsule's prompt_hash matches the prompt that actually
+/// produced the result.
+fn chat_with_tdma_bounded(
+    workspace: &Path,
+    session_id: &str,
+    api_key: &str,
+    model_id: &str,
+    messages: &[ChatMessage],
+    blackbox_thinking: Option<crate::siliconflow_client::ThinkingConfig>,
+    entrypoint: &str,
+    max_retries: usize,
+    initial_prompt_hash: &str,
+) -> (Result<ChatResult, LlmError>, String) {
+    use std::cell::RefCell;
+
+    let evidence_dir = workspace
+        .join("artifacts")
+        .join("tdma_generate")
+        .join(session_id);
+    if let Err(e) = fs::create_dir_all(&evidence_dir) {
+        eprintln!("[generate-tdma] cannot create evidence-dir {}: {}", evidence_dir.display(), e);
+    }
+
+    let mut judge = AnyJudge::generate(entrypoint.to_string(), false);
+
+    let system_template = messages
+        .iter()
+        .find(|m| m.role == "system")
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
+    let user_template = messages
+        .iter()
+        .find(|m| m.role == "user")
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
+    let system_clone_for_closure = system_template.clone();
+    let user_clone_for_closure = user_template.clone();
+
+    let cfg = RunConfig {
+        run_id: format!("turingos-generate-{}", session_id),
+        model_label: model_id.to_string(),
+        problem_label: "turingos generate (TDMA-Bounded wire-up)".into(),
+        leak_sentinel: "TURINGOS_GENERATE_TDMA_LEAK_R8K9X".into(),
+        system_prompt_for_stage: Box::new(move |_label: &str| system_clone_for_closure.clone()),
+        user_prompt_for_stage: Box::new(move |_label: &str, _accepted: &[String]| {
+            user_clone_for_closure.clone()
+        }),
+        problem_text: String::new(),
+        evidence_dir: evidence_dir.clone(),
+        temperature: 0.2,
+        max_tokens: 6000,
+        max_attempts_per_stage: max_retries,
+    };
+
+    let attempts: RefCell<Vec<(String, ChatResult)>> = RefCell::new(Vec::new());
+    let api_key_owned = api_key.to_string();
+    let model_owned = model_id.to_string();
+    let thinking_clone = blackbox_thinking.clone();
+
+    let llm_call = |sys: &str, user: &str| -> Result<LlmResponse, String> {
+        let messages = vec![ChatMessage::system(sys), ChatMessage::user(user)];
+        let canonical = canonical_chat_request_bytes(
+            &model_owned,
+            &messages,
+            Some(6000),
+            Some(0.2),
+            thinking_clone.clone(),
+        )
+        .map_err(|e| format!("canonical_chat_request_bytes: {:?}", e))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&canonical);
+        let attempt_hash = format!("{:x}", hasher.finalize());
+
+        let resp = chat_complete_blocking(
+            &api_key_owned,
+            &model_owned,
+            &messages,
+            Some(6000),
+            Some(0.2),
+            thinking_clone.clone(),
+        )
+        .map_err(|e| format!("{:?}", e))?;
+
+        let runner_resp = LlmResponse {
+            content: resp.content.clone(),
+            completion_tokens: resp.usage.completion_tokens as u32,
+            prompt_tokens: resp.usage.prompt_tokens as u32,
+        };
+        attempts.borrow_mut().push((attempt_hash, resp));
+        Ok(runner_resp)
+    };
+
+    let summary = match run_proof(cfg, &mut judge, llm_call) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("[generate-tdma] run_proof failed: {}", e);
+            return (
+                Err(LlmError::Transport(format!("tdma_runner: {}", e))),
+                initial_prompt_hash.to_string(),
+            );
+        }
+    };
+
+    let attempts_inner = attempts.into_inner();
+    if attempts_inner.is_empty() {
+        return (
+            Err(LlmError::NoChoices),
+            initial_prompt_hash.to_string(),
+        );
+    }
+
+    // KILL-gen-3: select the prompt_hash that matches the final probe's body.
+    // If at least one stage completed, the last attempt that produced
+    // accepted content is the one we record. If escalated, use the final
+    // attempted prompt (still meaningful for audit).
+    let (final_hash, final_result) = attempts_inner.into_iter().last().unwrap();
+
+    if summary.stages_completed >= 1 {
+        eprintln!(
+            "[generate-tdma] stages_completed={}/{} attempts={} wall={:.1}s leak={}",
+            summary.stages_completed,
+            summary.stages_total,
+            summary.probes.len(),
+            summary.total_wall_clock_ms as f64 / 1000.0,
+            summary.leak_anywhere
+        );
+        // Aggregate token counts across all attempts (cumulative cost reporting).
+        let total_completion: u32 = summary.total_llm_completion_tokens;
+        let total_prompt: u32 = summary.total_llm_prompt_tokens;
+        let synthetic = ChatResult {
+            content: final_result.content,
+            raw_response_body: final_result.raw_response_body,
+            reasoning_content: final_result.reasoning_content,
+            usage: Usage {
+                prompt_tokens: total_prompt as u64,
+                completion_tokens: total_completion as u64,
+                total_tokens: (total_prompt + total_completion) as u64,
+            },
+            finish_reason: final_result.finish_reason,
+        };
+        (Ok(synthetic), final_hash)
+    } else {
+        let escalation = summary
+            .stages_escalated
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "max-retries".to_string());
+        eprintln!(
+            "[generate-tdma] escalated: {} (attempts={} wall={:.1}s)",
+            escalation,
+            summary.probes.len(),
+            summary.total_wall_clock_ms as f64 / 1000.0,
+        );
+        // Return the final attempt's content so the existing
+        // rejection-capsule path can record the failure with diagnostic detail.
+        (Ok(final_result), final_hash)
+    }
+}
+
 fn read_prior_rejection_feedback(workspace: &Path, session_id: &str) -> Option<String> {
     let cas_dir = workspace.join("cas");
     let store = CasStore::open(&cas_dir).ok()?;

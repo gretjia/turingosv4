@@ -17,3 +17,5 @@ pub mod nesbitt_step_judge;
 pub mod putnam_2024_a1_judge;
 /// TRACE_MATRIX FC1a-predicate_pi: Putnam 2025 B3 strict step judge (Atom 14 post-cutoff stress).
 pub mod putnam_2025_b3_judge;
+/// TRACE_MATRIX FC1a-predicate_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
+pub mod generate_judge;
