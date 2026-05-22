@@ -1,0 +1,27 @@
+{
+  "atom": "11",
+  "branch": "feature/tdma-rc1-zero-gain-demo",
+  "chaintape_sha256": "3021e1c3bfbfce3834392fa12b836e2990790b6517cd42919e558ca5188ba3fe",
+  "escalated": true,
+  "escalated_at_attempt": 4,
+  "escalated_reason": "ZERO_GAIN",
+  "escalation_beat_max_retries": true,
+  "expected_attempt": 4,
+  "max_retries": 5,
+  "probes_sha256": "06fe5cbdf3afde7a629f416848b2b32cb2c957a422a6a71c6b620536b351dc8e",
+  "prompt_tokens_per_attempt": [
+    384,
+    384,
+    384
+  ],
+  "purpose": "Demonstrate zero_gain_streak escalation end-to-end on a stuck-LLM scenario",
+  "reason_correct": true,
+  "timing_correct": true,
+  "zero_gain_k": 3,
+  "zero_gain_streak_history": [
+    0,
+    1,
+    2,
+    3
+  ]
+}

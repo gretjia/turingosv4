@@ -1,0 +1,4 @@
+{"attempt":1,"kernel_step":"Retry","zero_gain_streak":0,"bbs_constraints":1,"bbs_tokens":219,"signature":"direction-reversal:amgm.direction","prompt_tokens":384,"leak":false}
+{"attempt":2,"kernel_step":"Retry","zero_gain_streak":1,"bbs_constraints":1,"bbs_tokens":219,"signature":"direction-reversal:amgm.direction","prompt_tokens":384,"leak":false}
+{"attempt":3,"kernel_step":"Retry","zero_gain_streak":2,"bbs_constraints":1,"bbs_tokens":219,"signature":"direction-reversal:amgm.direction","prompt_tokens":384,"leak":false}
+{"attempt":4,"kernel_step":"Escalate(ZERO_GAIN)","zero_gain_streak":3,"bbs_constraints":1,"bbs_tokens":219,"signature":"direction-reversal:amgm.direction","prompt_tokens":0,"leak":false}
