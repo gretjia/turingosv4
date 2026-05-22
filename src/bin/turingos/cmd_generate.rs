@@ -1137,6 +1137,23 @@ the language tag (e.g. ```html, ```python, ```javascript, ```css).
    configs unless the spec asks for them.
 6. Honor the spec's "Out of Scope" / "Deliberately NOT Doing" section —
    do NOT add features it forbids.
+7. VISUAL FORMAT for HTML outputs (TuringOS aesthetic — applies when your
+   output is `index.html`). Apply these design tokens as inline CSS — do
+   NOT pull in Tailwind CDN, Bootstrap CDN, or any other framework:
+   - Headings: font-family 'Fraunces', Georgia, serif (load via Google
+     Fonts <link> in <head> is OK: family=Fraunces:opsz,wght@9..144,400;9..144,600).
+   - Body: font-family 'IBM Plex Sans', system-ui, sans-serif (Google Fonts OK).
+   - Code/mono: font-family 'JetBrains Mono', ui-monospace, monospace (Google Fonts OK).
+   - Accent color: define `--accent: #4e8b7a` (oxidized teal). Use for links,
+     buttons, borders, focus rings, key highlights.
+   - Background: `#f8f6f1` (warm off-white). Text: `#1a1a1a`. Muted: `#6b6b6b`.
+   - Layout: comfortable padding, generous line-height (≥1.55 body),
+     H1 Fraunces 36–48px, H2 Fraunces 24–28px, body 16–17px.
+   - Do NOT use Inter, Roboto, Arial, or any purple-gradient styling.
+   - Prefer prefers-color-scheme: dark for an additional dark variant
+     (background #1a1a1a, text #f0eee8, accent same teal but slightly lighter).
+   - If the spec does NOT target a UI/HTML app (e.g., a Python script), skip
+     this rule entirely.
 
 Example shape (DO NOT COPY VERBATIM — write your own per the spec):
 ### File: index.html

@@ -77,6 +77,12 @@ Before writing new feedback_*.md: ask "what mechanism enforces this?"
 
 After TB SHIPPED FINAL or audit rounds > 3: `/harness-reflect`
 
+Before starting a grill session where answer vagueness or contradiction is
+expected: `/grill-recursive`
+
+Before calling `turingos generate` when the artifact is an HTML UI app:
+`/spec-html-renderer`
+
 ## 6. Audit boundary
 
 See `AGENTS.md §15` for audit class-by-class cadence and verdict domain.
