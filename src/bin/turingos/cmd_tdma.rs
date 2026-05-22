@@ -33,6 +33,250 @@ use turingosv4::judges::math_step_judge::JudgeVerdict;
 use turingosv4::judges::nesbitt_step_judge::{
     NesbittRejectClass, NesbittStage, NesbittStepJudge,
 };
+use turingosv4::judges::putnam_2024_a1_judge::{
+    PutnamA1Judge, PutnamA1RejectClass, PutnamA1Stage,
+};
+use turingosv4::judges::putnam_2025_b3_judge::{
+    PutnamB3Judge, PutnamB3RejectClass, PutnamB3Stage,
+};
+
+// ── JudgeDriver trait — type-erased judge abstraction (Atom 17) ─────
+//
+// Each judge has its own typed Stage + RejectClass enums. To support
+// `--judge {nesbitt | putnam_a1 | putnam_2025_b3}` from a single CLI
+// loop, we wrap each typed judge in a trait that exposes only String
+// surfaces (stage label, judge class, reason). The kernel loop in
+// `run_run` is generic over `Box<dyn JudgeDriver>`.
+
+/// TRACE_MATRIX FC1a-predicate_pi: Trait-object judge surface for cmd_tdma.
+pub(crate) trait JudgeDriver {
+    /// Number of canonical stages in this proof.
+    fn total_stages(&self) -> usize;
+    /// Human-readable label for the CURRENT stage.
+    fn current_stage_label(&self) -> String;
+    /// Run the judge's verdict on `body` given `accepted_steps`. Returns
+    /// (success, reject_class_str, failed_predicate_str, judge_reason).
+    fn verdict(
+        &self,
+        body: &str,
+        accepted_steps: &[String],
+    ) -> (bool, String, String, String);
+    /// Promote the internal stage cursor after a successful step.
+    fn advance(&mut self);
+    /// Human-readable problem name (for evidence metadata).
+    fn problem_label(&self) -> &'static str;
+    /// System prompt to send to the LLM for the current stage.
+    fn system_prompt_for_current(&self) -> String;
+    /// User prompt to send to the LLM for the current stage.
+    fn user_prompt_for_current(&self, accepted_steps: &[String]) -> String;
+}
+
+struct NesbittDriver {
+    judge: NesbittStepJudge,
+    stages: Vec<NesbittStage>,
+    cursor: usize,
+}
+
+impl NesbittDriver {
+    fn new() -> Self {
+        Self {
+            judge: NesbittStepJudge::new(),
+            stages: vec![
+                NesbittStage::Step1Substitute,
+                NesbittStage::Step2Rewrite,
+                NesbittStage::Step3Expand,
+                NesbittStage::Step4Group,
+                NesbittStage::Step5ApplyAmGm,
+                NesbittStage::Step6Sum,
+                NesbittStage::Step7Subtract,
+                NesbittStage::Step8ConcludeAndEq,
+            ],
+            cursor: 0,
+        }
+    }
+}
+
+impl JudgeDriver for NesbittDriver {
+    fn total_stages(&self) -> usize {
+        self.stages.len()
+    }
+    fn current_stage_label(&self) -> String {
+        self.stages[self.cursor].label().to_string()
+    }
+    fn verdict(
+        &self,
+        body: &str,
+        accepted_steps: &[String],
+    ) -> (bool, String, String, String) {
+        let stage = self.stages[self.cursor];
+        let (v, c) = self.judge.verdict_for_stage(body, stage, accepted_steps);
+        let success = v.is_pass();
+        let class_str = c
+            .map(|x| x.reject_class_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let pred_str = c
+            .map(|x| x.failed_predicate_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let reason = match v {
+            JudgeVerdict::Pass => "passed".to_string(),
+            JudgeVerdict::Fail { reason } => reason,
+            JudgeVerdict::NeedsClarification { question } => question,
+        };
+        (success, class_str, pred_str, reason)
+    }
+    fn advance(&mut self) {
+        self.judge.advance();
+        if self.cursor + 1 < self.stages.len() {
+            self.cursor += 1;
+        }
+    }
+    fn problem_label(&self) -> &'static str {
+        "Nesbitt's inequality (a/(b+c)+b/(a+c)+c/(a+b) >= 3/2)"
+    }
+    fn system_prompt_for_current(&self) -> String {
+        nesbitt_system_prompt(&self.current_stage_label())
+    }
+    fn user_prompt_for_current(&self, accepted_steps: &[String]) -> String {
+        nesbitt_user_prompt(&self.current_stage_label(), accepted_steps)
+    }
+}
+
+struct PutnamA1Driver {
+    judge: PutnamA1Judge,
+    stages: Vec<PutnamA1Stage>,
+    cursor: usize,
+}
+
+impl PutnamA1Driver {
+    fn new() -> Self {
+        Self {
+            judge: PutnamA1Judge::new(),
+            stages: vec![
+                PutnamA1Stage::Stage1WitnessN1,
+                PutnamA1Stage::Stage2WlogGcd,
+                PutnamA1Stage::Stage3N2Mod3,
+                PutnamA1Stage::Stage4N2ContradictB,
+                PutnamA1Stage::Stage5N3DescentB,
+                PutnamA1Stage::Stage6N3DescentA,
+                PutnamA1Stage::Stage7N3DescentC,
+                PutnamA1Stage::Stage8Conclude,
+            ],
+            cursor: 0,
+        }
+    }
+}
+
+impl JudgeDriver for PutnamA1Driver {
+    fn total_stages(&self) -> usize {
+        self.stages.len()
+    }
+    fn current_stage_label(&self) -> String {
+        self.stages[self.cursor].label().to_string()
+    }
+    fn verdict(
+        &self,
+        body: &str,
+        accepted_steps: &[String],
+    ) -> (bool, String, String, String) {
+        let stage = self.stages[self.cursor];
+        let (v, c) = self.judge.verdict_for_stage(body, stage, accepted_steps);
+        let success = v.is_pass();
+        let class_str = c
+            .map(|x| x.reject_class_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let pred_str = c
+            .map(|x| x.failed_predicate_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let reason = match v {
+            JudgeVerdict::Pass => "passed".to_string(),
+            JudgeVerdict::Fail { reason } => reason,
+            JudgeVerdict::NeedsClarification { question } => question,
+        };
+        (success, class_str, pred_str, reason)
+    }
+    fn advance(&mut self) {
+        self.judge.advance();
+        if self.cursor + 1 < self.stages.len() {
+            self.cursor += 1;
+        }
+    }
+    fn problem_label(&self) -> &'static str {
+        "Putnam 2024 A1 (number theory; 2-adic infinite descent)"
+    }
+    fn system_prompt_for_current(&self) -> String {
+        putnam_a1_system_prompt(&self.current_stage_label())
+    }
+    fn user_prompt_for_current(&self, accepted_steps: &[String]) -> String {
+        putnam_a1_user_prompt(&self.current_stage_label(), accepted_steps)
+    }
+}
+
+struct PutnamB3Driver {
+    judge: PutnamB3Judge,
+    stages: Vec<PutnamB3Stage>,
+    cursor: usize,
+}
+
+impl PutnamB3Driver {
+    fn new() -> Self {
+        Self {
+            judge: PutnamB3Judge::new(),
+            stages: vec![
+                PutnamB3Stage::Stage1Simplify,
+                PutnamB3Stage::Stage2Factor2010,
+                PutnamB3Stage::Stage3Closure,
+                PutnamB3Stage::Stage4Counterex,
+                PutnamB3Stage::Stage5ConcludeNo,
+            ],
+            cursor: 0,
+        }
+    }
+}
+
+impl JudgeDriver for PutnamB3Driver {
+    fn total_stages(&self) -> usize {
+        self.stages.len()
+    }
+    fn current_stage_label(&self) -> String {
+        self.stages[self.cursor].label().to_string()
+    }
+    fn verdict(
+        &self,
+        body: &str,
+        accepted_steps: &[String],
+    ) -> (bool, String, String, String) {
+        let stage = self.stages[self.cursor];
+        let (v, c) = self.judge.verdict_for_stage(body, stage, accepted_steps);
+        let success = v.is_pass();
+        let class_str = c
+            .map(|x| x.reject_class_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let pred_str = c
+            .map(|x| x.failed_predicate_str().to_string())
+            .unwrap_or_else(|| if success { "pass".to_string() } else { "unknown".to_string() });
+        let reason = match v {
+            JudgeVerdict::Pass => "passed".to_string(),
+            JudgeVerdict::Fail { reason } => reason,
+            JudgeVerdict::NeedsClarification { question } => question,
+        };
+        (success, class_str, pred_str, reason)
+    }
+    fn advance(&mut self) {
+        self.judge.advance();
+        if self.cursor + 1 < self.stages.len() {
+            self.cursor += 1;
+        }
+    }
+    fn problem_label(&self) -> &'static str {
+        "Putnam 2025 B3 (post-cutoff; divisor-closure)"
+    }
+    fn system_prompt_for_current(&self) -> String {
+        putnam_b3_system_prompt(&self.current_stage_label())
+    }
+    fn user_prompt_for_current(&self, accepted_steps: &[String]) -> String {
+        putnam_b3_user_prompt(&self.current_stage_label(), accepted_steps)
+    }
+}
 use turingosv4::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger};
 use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use turingosv4::token_budget::{B_PROMPT_MAX, MAX_RETRIES};
@@ -149,6 +393,45 @@ fn extract_body(raw: &str) -> String {
     }
 }
 
+/// TRACE_MATRIX FC1a-predicate_pi: Generic stderr builder for any JudgeDriver.
+/// Used by Atom 17's trait-based dispatch in cmd_tdma run loop.
+fn make_judge_stderr_generic(
+    stage_label: &str,
+    class_str: &str,
+    pred_str: &str,
+    reason: &str,
+    candidate_body: &str,
+    attempt: usize,
+) -> String {
+    let mut s = String::new();
+    s.push_str(LEAK_SENTINEL);
+    s.push('\n');
+    s.push_str(&format!(
+        "JudgeDriver rejected stage {} (attempt {})\n",
+        stage_label, attempt
+    ));
+    s.push_str(&format!("reject_class: {}\n", class_str));
+    s.push_str(&format!("failed_predicate: {}\n", pred_str));
+    s.push_str(&format!("judge_reason: {}\n", reason));
+    s.push_str("traceback:\n");
+    s.push_str("  at src/judges/ in verdict_for_stage\n");
+    s.push_str("  at src/memory_kernel.rs in handle_rejection\n");
+    s.push_str(&format!(
+        "\nCandidate body:\n{}\n",
+        candidate_body.chars().take(2500).collect::<String>()
+    ));
+    let template = format!(
+        "  > Strict judge rejection at stage {}: class={} predicate={}. ",
+        stage_label, class_str, pred_str
+    );
+    while s.len() < 10 * 1024 {
+        s.push_str(&template);
+    }
+    s.push_str("\n[end stderr]\n");
+    s
+}
+
+#[allow(dead_code)]
 fn make_judge_stderr(
     stage_label: &str,
     judge_verdict: &JudgeVerdict,
@@ -195,7 +478,7 @@ fn make_judge_stderr(
     s
 }
 
-fn system_prompt(stage_label: &str) -> String {
+fn nesbitt_system_prompt(stage_label: &str) -> String {
     format!(
         r#"You are a mathematics worker proving Nesbitt's inequality step-by-step.
 Output EXACTLY ONE next step.
@@ -213,12 +496,109 @@ Current stage: {stage_label}"#,
     )
 }
 
-fn user_prompt(stage_label: &str, accepted_steps: &[String]) -> String {
+fn nesbitt_user_prompt(stage_label: &str, accepted_steps: &[String]) -> String {
     let mut s = String::new();
     s.push_str(&format!("Problem:\n{}\n\n", PROBLEM_TEXT_NESBITT));
     s.push_str(&format!("Current stage: {}\n\n", stage_label));
     if accepted_steps.is_empty() {
         s.push_str("No prior steps yet. Write Stage 1 (substitution).");
+    } else {
+        s.push_str("Prior accepted steps:\n");
+        for (i, st) in accepted_steps.iter().enumerate() {
+            s.push_str(&format!("  Step {}: {}\n", i + 1, st));
+        }
+        s.push_str("\nWrite the next single step (do NOT repeat prior steps).");
+    }
+    s
+}
+
+const PROBLEM_TEXT_PUTNAM_A1: &str = r#"Putnam 2024 A1.
+Determine all positive integers n such that there exist positive integers
+a, b, c with 2*a^n + 3*b^n = 4*c^n.
+
+Canonical proof (8 stages):
+  Stage 1: Verify n = 1 works via witness (a,b,c) = (1, 2, 2): check 2*1 + 3*2 = 8 = 4*2.
+  Stage 2: For n >= 2, WLOG assume gcd(a,b,c) = 1.
+  Stage 3: Case n = 2 - derive a^2 + c^2 ≡ 0 (mod 3); only 0, 1 are squares mod 3.
+  Stage 4: Show b is also multiple of 3, contradicting gcd = 1.
+  Stage 5: Case n >= 3 - from 3*b^n = 4*c^n - 2*a^n, derive b is even.
+  Stage 6: Rewriting forces a to be even.
+  Stage 7: One more rewriting forces c to be even.
+  Stage 8: All three even contradicts gcd = 1; therefore n = 1 is unique."#;
+
+const PROBLEM_TEXT_PUTNAM_B3: &str = r#"Putnam 2025 B3 (post-cutoff, December 2025).
+Suppose S is a nonempty set of positive integers with the property that if
+n is in S, then every positive divisor of 2025n - 15n is in S. Must S
+contain all positive integers?
+
+Answer: NO.
+Canonical proof (5 stages):
+  Stage 1: Simplify 2025n - 15n = (2025-15)n = 2010n.
+  Stage 2: Factor 2010 = 2 * 3 * 5 * 67 into its four prime factors.
+  Stage 3: Argue: divisors of 2010n introduce only primes from {2,3,5,67}.
+  Stage 4: Construct counterexample S (closure of {1} under "n -> divisors of 2010n").
+  Stage 5: Conclude NO: e.g., 7 is never in S, so S need not contain all positive integers."#;
+
+fn putnam_a1_system_prompt(stage_label: &str) -> String {
+    format!(
+        r#"You are a mathematics worker proving Putnam 2024 A1 step-by-step.
+Output EXACTLY ONE next step.
+
+Your output MUST start with this JSON object on the FIRST line:
+{{"schema_version":"tdma-state-update/v1","status":"Proceed","task_id":"<STAGE>","action":"PROPOSE","failed_predicate":null,"reject_class":null,"next_action_hint":null,"evidence_hash":null}}
+
+Replace <STAGE> with the current stage label (e.g. "{stage_label}").
+After the JSON write on a new line:
+---BODY---
+Then write your step in 2-4 sentences. Be RIGOROUS — explicit modular
+arithmetic, explicit "WLOG gcd(a,b,c)=1", explicit "b is even", etc.
+
+Current stage: {stage_label}"#,
+        stage_label = stage_label
+    )
+}
+
+fn putnam_a1_user_prompt(stage_label: &str, accepted_steps: &[String]) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("Problem:\n{}\n\n", PROBLEM_TEXT_PUTNAM_A1));
+    s.push_str(&format!("Current stage: {}\n\n", stage_label));
+    if accepted_steps.is_empty() {
+        s.push_str("No prior steps yet. Write Stage 1 (verify n=1 witness).");
+    } else {
+        s.push_str("Prior accepted steps:\n");
+        for (i, st) in accepted_steps.iter().enumerate() {
+            s.push_str(&format!("  Step {}: {}\n", i + 1, st));
+        }
+        s.push_str("\nWrite the next single step (do NOT repeat prior steps).");
+    }
+    s
+}
+
+fn putnam_b3_system_prompt(stage_label: &str) -> String {
+    format!(
+        r#"You are a mathematics worker proving Putnam 2025 B3 step-by-step.
+Output EXACTLY ONE next step.
+
+Your output MUST start with this JSON object on the FIRST line:
+{{"schema_version":"tdma-state-update/v1","status":"Proceed","task_id":"<STAGE>","action":"PROPOSE","failed_predicate":null,"reject_class":null,"next_action_hint":null,"evidence_hash":null}}
+
+Replace <STAGE> with the current stage label (e.g. "{stage_label}").
+After the JSON write on a new line:
+---BODY---
+Then write your step in 2-4 sentences. Be RIGOROUS — explicit simplification,
+explicit prime factorization, explicit counterexample.
+
+Current stage: {stage_label}"#,
+        stage_label = stage_label
+    )
+}
+
+fn putnam_b3_user_prompt(stage_label: &str, accepted_steps: &[String]) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("Problem:\n{}\n\n", PROBLEM_TEXT_PUTNAM_B3));
+    s.push_str(&format!("Current stage: {}\n\n", stage_label));
+    if accepted_steps.is_empty() {
+        s.push_str("No prior steps yet. Write Stage 1 (simplify 2025n - 15n).");
     } else {
         s.push_str("Prior accepted steps:\n");
         for (i, st) in accepted_steps.iter().enumerate() {
@@ -328,13 +708,18 @@ fn run_run(args: &[String]) -> ExitCode {
         }
     };
 
-    if judge_name != "nesbitt" {
-        eprintln!(
-            "turingos tdma run: only --judge nesbitt is wired in Atom 15; got '{}'",
-            judge_name
-        );
-        return ExitCode::from(2);
-    }
+    let mut driver: Box<dyn JudgeDriver> = match judge_name.as_str() {
+        "nesbitt" => Box::new(NesbittDriver::new()),
+        "putnam_a1" => Box::new(PutnamA1Driver::new()),
+        "putnam_2025_b3" => Box::new(PutnamB3Driver::new()),
+        other => {
+            eprintln!(
+                "turingos tdma run: unknown --judge '{}'. Supported: nesbitt | putnam_a1 | putnam_2025_b3",
+                other
+            );
+            return ExitCode::from(2);
+        }
+    };
 
     // ── Load workspace turingos.toml + resolve model + api key ──
     let (model, env_var_result) = match role.as_str() {
@@ -401,19 +786,8 @@ fn run_run(args: &[String]) -> ExitCode {
         &Tokenizer::new(),
     );
     let mut kernel = MemoryKernel::new(tape, "turingos-tdma-run", charter);
-    let judge = NesbittStepJudge::new();
     let tk = Tokenizer::new();
-
-    let stages = [
-        NesbittStage::Step1Substitute,
-        NesbittStage::Step2Rewrite,
-        NesbittStage::Step3Expand,
-        NesbittStage::Step4Group,
-        NesbittStage::Step5ApplyAmGm,
-        NesbittStage::Step6Sum,
-        NesbittStage::Step7Subtract,
-        NesbittStage::Step8ConcludeAndEq,
-    ];
+    let total_stages = driver.total_stages();
 
     let mut accepted_steps: Vec<String> = Vec::new();
     let mut probes: Vec<Probe> = Vec::new();
@@ -426,11 +800,12 @@ fn run_run(args: &[String]) -> ExitCode {
     let mut per_stage_attempts: Vec<(String, usize, usize, String)> = Vec::new();
     let run_start = Instant::now();
 
-    'outer: for stage in stages {
-        let task_id = format!("turingos-tdma-{}", stage.label());
+    'outer: for stage_idx in 0..total_stages {
+        let stage_label = driver.current_stage_label();
+        let task_id = format!("turingos-tdma-{}", stage_label);
         let task = Task {
             id: task_id.clone(),
-            prompt: user_prompt(stage.label(), &accepted_steps),
+            prompt: driver.user_prompt_for_current(&accepted_steps),
         };
         let scope_at_start = AttemptScope {
             run_id: "turingos-tdma-run".into(),
@@ -440,13 +815,14 @@ fn run_run(args: &[String]) -> ExitCode {
 
         let mut attempts_used = 0usize;
         let mut stage_outcome = "incomplete".to_string();
+        let _ = stage_idx;
 
         loop {
             attempts_used += 1;
             if attempts_used > max_attempts_per_stage {
                 eprintln!(
                     "[turingos tdma run] stage {} exhausted local attempt cap {}",
-                    stage.label(),
+                    stage_label,
                     max_attempts_per_stage
                 );
                 stage_outcome = "cap-reached".into();
@@ -455,10 +831,10 @@ fn run_run(args: &[String]) -> ExitCode {
 
             let attempt_start = Instant::now();
             let messages = vec![
-                ChatMessage::system(system_prompt(stage.label())),
+                ChatMessage::system(driver.system_prompt_for_current()),
                 ChatMessage::user(format!(
                     "{}{}",
-                    user_prompt(stage.label(), &accepted_steps),
+                    driver.user_prompt_for_current(&accepted_steps),
                     if attempts_used > 1 {
                         "\n\n[NOTE: prior attempt was rejected by the verifier — provide more explicit reasoning.]"
                     } else {
@@ -480,9 +856,9 @@ fn run_run(args: &[String]) -> ExitCode {
                 Ok(r) => r,
                 Err(LlmError::Transport(t)) => {
                     eprintln!("[turingos tdma run] transport error: {}", t);
-                    stages_escalated.push(format!("{}/transport-error", stage.label()));
+                    stages_escalated.push(format!("{}/transport-error", stage_label));
                     per_stage_attempts.push((
-                        stage.label().into(),
+                        stage_label.clone(),
                         attempts_used,
                         0,
                         "transport-error".into(),
@@ -491,9 +867,9 @@ fn run_run(args: &[String]) -> ExitCode {
                 }
                 Err(e) => {
                     eprintln!("[turingos tdma run] LLM error: {:?}", e);
-                    stages_escalated.push(format!("{}/llm-error", stage.label()));
+                    stages_escalated.push(format!("{}/llm-error", stage_label));
                     per_stage_attempts.push((
-                        stage.label().into(),
+                        stage_label.clone(),
                         attempts_used,
                         0,
                         "llm-error".into(),
@@ -507,32 +883,25 @@ fn run_run(args: &[String]) -> ExitCode {
             let body = extract_body(&sf.content);
             eprintln!(
                 "[turingos tdma] {} attempt {} | sf-completion={}t | body[0..120]: {}",
-                stage.label(),
+                stage_label,
                 attempts_used,
                 sf.usage.completion_tokens as u32,
                 body.chars().take(120).collect::<String>()
             );
 
-            let (verdict, expected_class) =
-                judge.verdict_for_stage(&body, stage, &accepted_steps);
-            let success = verdict.is_pass();
-            let judge_class_str = expected_class
-                .map(|c| c.reject_class_str())
-                .unwrap_or(if success { "pass" } else { "unknown" });
-            let judge_reason = match &verdict {
-                JudgeVerdict::Pass => "passed".to_string(),
-                JudgeVerdict::Fail { reason } => reason.clone(),
-                JudgeVerdict::NeedsClarification { question } => question.clone(),
-            };
+            let (success, judge_class_str_owned, failed_pred_owned, judge_reason) =
+                driver.verdict(&body, &accepted_steps);
+            let judge_class_str = judge_class_str_owned.as_str();
 
             let raw_stderr = if success {
                 String::new()
             } else {
-                let s = make_judge_stderr(
-                    stage.label(),
-                    &verdict,
+                let s = make_judge_stderr_generic(
+                    &stage_label,
+                    judge_class_str,
+                    &failed_pred_owned,
+                    &judge_reason,
                     &body,
-                    expected_class,
                     attempts_used,
                 );
                 total_stderr_bytes += s.len();
@@ -557,7 +926,7 @@ fn run_run(args: &[String]) -> ExitCode {
             let (kernel_step_str, prompt_tokens, leak) = match step {
                 KernelStep::Proceed { .. } => {
                     accepted_steps.push(body.clone());
-                    judge.advance();
+                    driver.advance();
                     stage_outcome = "passed".into();
                     ("Proceed".to_string(), 0, false)
                 }
@@ -570,20 +939,20 @@ fn run_run(args: &[String]) -> ExitCode {
                     ("Retry".to_string(), n, leak)
                 }
                 KernelStep::Escalate { reason, .. } => {
-                    stages_escalated.push(format!("{}/{}", stage.label(), reason));
+                    stages_escalated.push(format!("{}/{}", stage_label, reason));
                     stage_outcome = format!("escalate-{}", reason);
                     (format!("Escalate({})", reason), 0, false)
                 }
             };
 
             probes.push(Probe {
-                stage: stage.label().to_string(),
+                stage: stage_label.clone(),
                 attempt: attempts_used,
                 kernel_step: kernel_step_str.clone(),
                 judge_class: judge_class_str.to_string(),
                 sf_completion_tokens: sf.usage.completion_tokens as u32,
                 sf_prompt_tokens: sf.usage.prompt_tokens as u32,
-                judge_reason,
+                judge_reason: judge_reason.clone(),
                 candidate_body_preview: body.chars().take(220).collect::<String>(),
                 bbs_constraint_count: cc,
                 bbs_token_count: ct,
@@ -601,7 +970,7 @@ fn run_run(args: &[String]) -> ExitCode {
                     .map(|b| b.constraints.len())
                     .unwrap_or(0);
                 per_stage_attempts.push((
-                    stage.label().into(),
+                    stage_label.clone(),
                     attempts_used,
                     final_cc,
                     stage_outcome.clone(),
@@ -616,7 +985,7 @@ fn run_run(args: &[String]) -> ExitCode {
                     .map(|b| b.constraints.len())
                     .unwrap_or(0);
                 per_stage_attempts.push((
-                    stage.label().into(),
+                    stage_label.clone(),
                     attempts_used,
                     final_cc,
                     stage_outcome.clone(),
@@ -626,7 +995,7 @@ fn run_run(args: &[String]) -> ExitCode {
         }
 
         if stage_outcome == "cap-reached" {
-            per_stage_attempts.push((stage.label().into(), attempts_used, 0, stage_outcome));
+            per_stage_attempts.push((stage_label.clone(), attempts_used, 0, stage_outcome));
             break 'outer;
         }
     }
@@ -681,7 +1050,7 @@ fn run_run(args: &[String]) -> ExitCode {
         "model": model,
         "temperature": temperature,
         "workspace": workspace.display().to_string(),
-        "stages_total": stages.len(),
+        "stages_total": total_stages,
         "stages_completed": stages_completed,
         "stages_escalated": stages_escalated,
         "total_attempts": probes.len(),
@@ -721,7 +1090,7 @@ fn run_run(args: &[String]) -> ExitCode {
     r.push_str(&format!(
         "- Stages completed: **{}/{}**\n- Stages escalated/aborted: {:?}\n- Total attempts: **{}**\n- Total failed attempts: **{}**\n- Wall clock: **{:.1}s**\n\n",
         stages_completed,
-        stages.len(),
+        total_stages,
         stages_escalated,
         probes.len(),
         retry_probes.len(),
@@ -764,7 +1133,7 @@ fn run_run(args: &[String]) -> ExitCode {
     println!(
         "turingos tdma run: completed {}/{} stages in {:.1}s. Evidence at {}",
         stages_completed,
-        stages.len(),
+        total_stages,
         total_wall_ms as f64 / 1000.0,
         evidence_dir.display()
     );

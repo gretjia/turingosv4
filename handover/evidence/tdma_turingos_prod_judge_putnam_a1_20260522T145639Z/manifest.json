@@ -1,0 +1,54 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "830f0181c59b4ad292f8f5507265e652b0a8c51ba38c32a994408054b718fd06",
+  "compression_ratio": 14.066256830601093,
+  "distinct_judge_classes": [
+    "wrong-mod-analysis"
+  ],
+  "judge": "putnam_a1",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 2,
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage1-Witness-n=1"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage2-WLOG-gcd=1"
+    },
+    {
+      "attempts_used": 4,
+      "final_constraints": 1,
+      "outcome": "escalate-ZERO_GAIN",
+      "stage": "Stage3-n=2-mod3"
+    }
+  ],
+  "probes_sha256": "2a094be6f814638afe6e81b06ba01c63592968dc0e23908b3cf7ef36bee283ab",
+  "prompt_tokens_max": 1234,
+  "prompt_tokens_min": 1234,
+  "prompt_tokens_variance": 0,
+  "role": "meta",
+  "stages_completed": 2,
+  "stages_escalated": [
+    "Stage3-n=2-mod3/ZERO_GAIN"
+  ],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.5,
+  "total_attempts": 6,
+  "total_bbs_bytes_estimated": 2928,
+  "total_failed_attempts": 3,
+  "total_raw_stderr_bytes": 41186,
+  "total_sf_completion_tokens": 1291,
+  "total_sf_prompt_tokens": 4251,
+  "total_wall_clock_ms": 67657,
+  "workspace": "/tmp/atom15_workspace"
+}
