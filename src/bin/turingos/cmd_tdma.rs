@@ -42,6 +42,7 @@ USAGE:
                        [--evidence-dir <PATH>]
                        [--max-attempts-per-stage <N>]
                        [--temperature <FLOAT>]
+                       [--tape-backend <memory|git>]
 
 ACTIONS:
     run    Boot a TDMA-Bounded memory kernel, drive it stage-by-stage
@@ -62,6 +63,11 @@ OPTIONS:
     --evidence-dir <PATH>       Override evidence output directory
     --max-attempts-per-stage <N>  Hard cap per stage (default: 6)
     --temperature <FLOAT>       Sampling temperature (default: 0.7)
+    --tape-backend <NAME>       Tape substrate. `memory` = MemoryTapeLedger
+                                (default; in-process; Path A). `git` =
+                                GitTapeLedger at `<workspace>/tdma_tape.git`
+                                (Path B; real-git via git2-rs). Phase E
+                                opt-in; Atom 25 flips the default to `git`.
     -h, --help                  Print this help
 
 DESCRIPTION:
@@ -208,6 +214,9 @@ fn run_run(args: &[String]) -> ExitCode {
     let mut evidence_dir: Option<PathBuf> = None;
     let mut max_attempts_per_stage: usize = 6;
     let mut temperature: f32 = 0.7;
+    // Atom 24: opt-in --tape-backend flag. Default = "memory" (RC1 behavior).
+    // Atom 25 flips the default to "git" for full Phase E cutover.
+    let mut tape_backend = "memory".to_string();
 
     let mut it = args.iter();
     while let Some(arg) = it.next() {
@@ -238,6 +247,11 @@ fn run_run(args: &[String]) -> ExitCode {
                     }
                 }
             }
+            "--tape-backend" => {
+                if let Some(v) = it.next() {
+                    tape_backend = v.clone();
+                }
+            }
             "-h" | "--help" => {
                 println!("{FULL_HELP}");
                 return ExitCode::SUCCESS;
@@ -247,6 +261,14 @@ fn run_run(args: &[String]) -> ExitCode {
                 return ExitCode::from(2);
             }
         }
+    }
+
+    if tape_backend != "memory" && tape_backend != "git" {
+        eprintln!(
+            "turingos tdma run: --tape-backend must be 'memory' or 'git'; got '{}'",
+            tape_backend
+        );
+        return ExitCode::from(2);
     }
 
     let workspace = match workspace {
@@ -355,7 +377,32 @@ fn run_run(args: &[String]) -> ExitCode {
         })
     };
 
-    match run_proof(cfg, &mut judge, llm_call) {
+    // Atom 24: select tape backend at runtime.
+    let run_result = if tape_backend == "git" {
+        let repo_path = workspace.join("tdma_tape.git");
+        let ledger = match turingosv4::git_tape_ledger::GitTapeLedger::open(&repo_path)
+            .or_else(|_| turingosv4::git_tape_ledger::GitTapeLedger::init_bare(&repo_path))
+        {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!(
+                    "turingos tdma run: cannot open/init git tape at {}: {}",
+                    repo_path.display(),
+                    e
+                );
+                return ExitCode::from(3);
+            }
+        };
+        eprintln!(
+            "[turingos tdma run] --tape-backend=git rooted at {}",
+            repo_path.display()
+        );
+        turingosv4::tdma_runner::run_proof_with_ledger(cfg, &mut judge, ledger, llm_call)
+    } else {
+        run_proof(cfg, &mut judge, llm_call)
+    };
+
+    match run_result {
         Ok(summary) => {
             // Write a small human-readable report alongside the runner's manifest.
             let mut r = String::new();
