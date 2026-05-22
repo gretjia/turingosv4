@@ -1,0 +1,4 @@
+[
+  {"test": "empty_string", "answers": ["", "", "", "", "", "", "", ""], "expected": "400 invalid_input"},
+  {"test": "whitespace_only", "answers": ["   ", "   ", "   ", "   ", "   ", "   ", "   ", "   "], "expected": "400 invalid_input BUT actually HTTP 500 (whitespace passes validate_answers)"}
+]

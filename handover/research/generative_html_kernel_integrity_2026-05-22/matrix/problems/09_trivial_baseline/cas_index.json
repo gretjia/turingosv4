@@ -1,0 +1,37 @@
+[
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "ffa6ea60802d67f1",
+    "size": 420
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "1fe1fa9f8896a7c3",
+    "size": 443
+  },
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "7e3d6808b58c0d91",
+    "size": 482
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "7439f3fde515476a",
+    "size": 443
+  },
+  {
+    "schema": "turingos-generation-attempt-v1",
+    "cid": "444dd6d2627f79a5",
+    "size": 482
+  },
+  {
+    "schema": "turingos-generate-rejection-v1",
+    "cid": "54303b9b299c9a0c",
+    "size": 443
+  },
+  {
+    "schema": "turingos-spec-capsule-v1",
+    "cid": "c3ed2ad9860b638b",
+    "size": 4639
+  }
+]

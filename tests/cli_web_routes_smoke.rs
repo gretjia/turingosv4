@@ -1,12 +1,13 @@
-//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5+W6+W7 smoke tests — verifies all
-//! 20 routes are wired:
+//! TRACE_MATRIX FC1-N5 + FC2-N16: Phase 7 W1+W2+W5+W6+W7 smoke tests — verifies
+//! all routes are wired (Phase 5: -2 static spec routes; was 20, now 18):
 //!   W1: 7 HTTP read routes
 //!   W2: 1 WebSocket route
 //!   W4: 1 POST /api/task/open + 1 GET /static/main.js
-//!   W5: 2 spec routes (GET /api/spec/questions + POST /api/spec/submit) +
-//!       1 generate route (POST /api/generate) +
+//!   P5: 1 driven-grill route (POST /api/spec/turn) — replaces former W5 pair
+//!       (GET /api/spec/questions + POST /api/spec/submit) removed in Phase 5
+//!   W5: 1 generate route (POST /api/generate) +
 //!       1 artifact route (GET /api/artifact/:session_id/:name)
-//!   W6: 1 HTML route (GET /build — spec-grill interview centerpiece)
+//!   W6: 1 HTML route (GET /build — driven-grill interview centerpiece)
 //!   W7: 1 HTML route (GET /welcome — onboarding wizard) + 5 API endpoints
 //!       (status + api-key + init + llm-config + agent-deploy)
 //!
@@ -84,18 +85,19 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, String) {
 }
 
 // ---------------------------------------------------------------------------
-// Gate 1: all 14 routes exist (W1/W2/W4/W5/W6).
+// Gate 1: all routes exist (W1/W2/W4/P5/W5/W6). Phase 5: removed the 2 static
+// spec routes (questions + submit); driven-only is enforced.
 //   W1:  7 HTTP GET routes returning 200
 //   W2:  1 WS route returning 101
 //   W4:  /static/main.js returning 200 (POST /api/task/open not tested here)
-//   W5:  GET /api/spec/questions returning 200
-//        POST /api/spec/submit, POST /api/generate wired (existence checked via 422)
+//   P5:  POST /api/spec/turn wired (existence checked via 422 on empty body)
+//   W5:  POST /api/generate wired (existence checked via 422)
 //        GET /api/artifact/:session_id/:name wired (existence checked via 404)
-//   W6:  GET /build returning 200 (spec-grill interview page)
+//   W6:  GET /build returning 200 (driven-grill interview page)
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn router_has_all_fourteen_routes() {
+async fn router_has_all_required_routes() {
     // W7: pre-seed an onboarded workspace so GET / serves the dashboard
     // (200) instead of redirecting (303). The redirect behavior is covered
     // by cli_web_welcome_smoke::root_redirects_to_welcome_when_not_onboarded.
@@ -145,29 +147,11 @@ async fn router_has_all_fourteen_routes() {
         "GET /ws with Upgrade: websocket must return 101, got {status_101}"
     );
 
-    // W5: GET /api/spec/questions must return 200 with 8 questions.
-    let (status_q, _, body_q) = http_get(addr, "/api/spec/questions").await;
-    assert_eq!(
-        status_q, 200u16,
-        "GET /api/spec/questions must return 200, got {status_q}"
-    );
-    let parsed: serde_json::Value =
-        serde_json::from_str(&body_q).expect("/api/spec/questions must return valid JSON");
-    let questions = parsed["questions"]
-        .as_array()
-        .expect("response must have 'questions' array");
-    assert_eq!(
-        questions.len(),
-        8,
-        "must return 8 questions; got {}",
-        questions.len()
-    );
-
-    // W5: POST /api/spec/submit route is wired — wrong content returns 422.
-    let (status_spec, _, _) = http_post_raw(addr, "/api/spec/submit", b"{}").await;
+    // P5: POST /api/spec/turn route is wired — empty body returns 422 or 400.
+    let (status_turn, _, _) = http_post_raw(addr, "/api/spec/turn", b"{}").await;
     assert!(
-        status_spec == 422 || status_spec == 400,
-        "POST /api/spec/submit with empty body must return 400 or 422 (route exists), got {status_spec}"
+        status_turn == 422 || status_turn == 400,
+        "POST /api/spec/turn with empty body must return 400 or 422 (route exists), got {status_turn}"
     );
 
     // W5: POST /api/generate route is wired — wrong content returns 422.

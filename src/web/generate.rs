@@ -186,6 +186,59 @@ pub(crate) async fn generate_handler(
         ));
     }
 
+    // Step 4b: copy turingos.toml from global workspace into session dir so
+    // that `turingos generate --workspace session_dir` can read llm config.
+    //
+    // Codex P2 (2026-05-22): propagate spawn_blocking copy failures instead of
+    // silently discarding them. Pre-fix the `let _ = ...` swallowed both the
+    // JoinError and any std::fs::copy I/O error; a workspace with a permission
+    // or read-only-FS issue would silently skip the copy and then fail in
+    // `turingos generate` with a misleading "llm config missing" error rather
+    // than the real infrastructure cause.
+    {
+        let src = PathBuf::from(&workspace).join("turingos.toml");
+        let dst = session_dir.join("turingos.toml");
+        if src.exists() && !dst.exists() {
+            let src_for_log = src.clone();
+            let dst_for_log = dst.clone();
+            let join_result =
+                tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
+            match join_result {
+                Ok(Ok(_bytes)) => {}
+                Ok(Err(io_err)) => {
+                    log::error!(
+                        "generate_handler: failed to copy turingos.toml from {:?} to {:?}: {io_err}",
+                        src_for_log,
+                        dst_for_log
+                    );
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!(
+                                "failed to copy turingos.toml into session dir: {io_err}"
+                            ),
+                            kind: "turingos_toml_copy_failed",
+                        }),
+                    ));
+                }
+                Err(join_err) => {
+                    log::error!(
+                        "generate_handler: spawn_blocking for turingos.toml copy panicked: {join_err}"
+                    );
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(SpecError {
+                            reason: format!(
+                                "spawn_blocking for turingos.toml copy panicked: {join_err}"
+                            ),
+                            kind: "turingos_toml_copy_panic",
+                        }),
+                    ));
+                }
+            }
+        }
+    }
+
     // Step 5: resolve binary; we will shell out inside the retry loop.
     let bin = resolve_turingos_bin();
     let session_dir_str = session_dir.to_string_lossy().into_owned();
@@ -259,7 +312,19 @@ pub(crate) async fn generate_handler(
             args.push("--max-files".to_string());
             args.push(max_files.to_string());
         }
-        let mut env = env_allowlist_from_current(&["PATH"]);
+        // W7: include the LLM endpoint env var so generate child can reach the
+        // configured provider (e.g. DeepSeek direct). Without this the child
+        // defaults to the SiliconFlow endpoint, causing 401 when the key is a
+        // DeepSeek key.
+        let mut env = env_allowlist_from_current(&[
+            "PATH",
+            "TURINGOS_SILICONFLOW_ENDPOINT",
+            "SILICONFLOW_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_API_KEY_WORKER",
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+        ]);
         // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives
         // in memory only; we do not log it. If unset, the sanitized runner
         // does not inherit the parent environment.

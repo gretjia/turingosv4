@@ -1,0 +1,20 @@
+problem_id: P03
+slug: mode_drift
+kernel_hypothesis: >
+  If user specifies "output PDF not HTML" or "output Markdown", the system should
+  either refuse or coerce back to HTML. PDF/MD output is not supported by generator.
+adversarial: platform_constraint_bypass
+spec_quality: synthetic
+expected_route: spec absorbed (LLM should normalize) OR spec synthesizes PDF-spec then generate coerces
+expected_retry_count: 0
+reentry: no
+actual_route: spec/submit succeeded; LLM absorbed "请输出 PDF" as a feature requirement
+  Spec explicitly says "不输出 HTML，只输出 PDF" and adds "导出 PDF" button feature.
+  Generate would produce HTML artifact contradicting spec's own constraint.
+result: FAIL (mode drift absorbed undetected; spec-artifact format mismatch created)
+kernel_surfaces: FC3 meta-architecture (synthesis prompt doesn't filter platform constraints)
+bugs_found:
+  - Synthesis LLM treats "请输出 PDF 而不是 HTML" as a legitimate feature request
+  - Resulting spec.md claims HTML will not be output, but generate always produces HTML
+  - No platform-constraint filtering in grill_synthesis_zh prompt
+spec_capsule_cid: c826553d (local session CAS)

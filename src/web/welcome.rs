@@ -409,8 +409,20 @@ pub(crate) async fn welcome_init_handler(
     let workspace_str = workspace.to_string_lossy().into_owned();
     let api_key_set = current_api_key_set(&state);
 
-    // Idempotent fast path.
+    // Idempotent fast path — skip the `turingos init` shellout if the
+    // workspace is already initialized.
+    //
+    // Phase 5 driven-grill prerequisites (materialize embedded prompts + seed
+    // PromotionReceipts) run BEFORE the fast-path return so they execute on
+    // every init click. This is necessary because:
+    //   1. Prompt CIDs may change across binary versions (e.g. asset edits +
+    //      rebuild). The seeded receipt's `to_prompt_cid` must match the
+    //      currently-running binary's computed CID, not whatever was sealed
+    //      at first init. Re-seeding is idempotent via CAS dedup.
+    //   2. The materialize step overwrites workspace asset files with the
+    //      current binary's embedded bytes — keeps source-of-truth consistent.
     let initial = inspect_workspace(&workspace);
+    seed_grill_prerequisites(&workspace).await?;
     if initial.init_done {
         return Ok(Json(build_status(&workspace, initial, api_key_set)));
     }
@@ -486,8 +498,90 @@ pub(crate) async fn welcome_init_handler(
         ));
     }
 
+    // Phase 5 driven-grill prerequisites already executed at the top of
+    // this handler (before the fast-path return). No-op here for the
+    // post-fresh-init path; the prerequisites are guaranteed to be present
+    // whether or not the shellout above ran.
+
     let inspect = inspect_workspace(&workspace);
     Ok(Json(build_status(&workspace, inspect, api_key_set)))
+}
+
+/// Phase 5 — driven-grill prerequisites helper. Runs on EVERY welcome init
+/// call (not just first-time init) so binary upgrades that change prompt
+/// content stay consistent with the workspace state:
+///
+///   1. Materialize the 3 embedded grill prompt assets into
+///      `<workspace>/assets/prompts/` so `spec_turn_handler` +
+///      `cmd_llm::run_triage` find them at the path they read.
+///      (Closes Phase 1-4 audit GAP-3.)
+///   2. Seed binary-baked `PromptPromotionReceipt`s in `<workspace>/cas/` so
+///      C10 `check_promotion_guard` accepts the embedded prompts on the
+///      first LLM call without needing a real `prompt-eval` run.
+///      (Closes Phase 1-4 audit GAP-1.)
+///
+/// Both steps are idempotent (file overwrite + CAS content-address dedup) so
+/// repeated calls are cheap and safe.
+#[cfg(feature = "web")]
+async fn seed_grill_prerequisites(
+    workspace: &Path,
+) -> Result<(), (StatusCode, Json<SetupError>)> {
+    let ws_for_materialize = workspace.to_path_buf();
+    let materialize_result = tokio::task::spawn_blocking(move || {
+        turingosv4::runtime::embedded_prompts::materialize_grill_prompts(&ws_for_materialize)
+    })
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("spawn_blocking error materializing grill prompts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+    materialize_result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to materialize embedded grill prompts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+
+    let ws_for_seed = workspace.to_path_buf();
+    let logical_t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let seed_result = tokio::task::spawn_blocking(move || {
+        turingosv4::runtime::embedded_prompts::seed_embedded_promotion_receipts(
+            &ws_for_seed,
+            logical_t,
+        )
+    })
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("spawn_blocking error seeding promotion receipts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+    seed_result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to seed promotion receipts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

@@ -141,27 +141,11 @@ export interface IRRoot {
 }
 
 // ---------------------------------------------------------------------------
-// Spec interview + generate types (W5 wire contract; consumed by W6 frontend)
+// Generate types (W5 wire contract; consumed by W6 frontend). Phase 5 removed
+// the static spec interview types (SpecQuestionsResponse / SpecSubmitRequest /
+// SpecSubmitResponse) — driven mode uses TurnRequest / TurnResponse defined
+// in src/types/spec.ts and posts to /api/spec/turn.
 // ---------------------------------------------------------------------------
-
-/** GET /api/spec/questions response. Always 8 questions in interview order. */
-export interface SpecQuestionsResponse {
-  questions: string[];
-}
-
-/** POST /api/spec/submit request body. `answers` must have length 8. */
-export interface SpecSubmitRequest {
-  answers: string[];
-  session_id?: string;
-}
-
-/** POST /api/spec/submit success response. */
-export interface SpecSubmitResponse {
-  session_id: string;
-  spec_md: string;
-  capsule_cid?: string | null;
-  transcript_jsonl?: string | null;
-}
 
 /** POST /api/generate request body. */
 export interface GenerateRequest {

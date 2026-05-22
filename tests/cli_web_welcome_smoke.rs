@@ -696,54 +696,6 @@ async fn welcome_full_flow_progresses_next_step() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 10: spec/submit child process must see SILICONFLOW_API_KEY in its env
-//          when /api/welcome/api-key has been set on AppState.
-// ---------------------------------------------------------------------------
-
-#[tokio::test]
-async fn spec_submit_injects_api_key_env_to_child() {
-    let dir = tempfile::TempDir::new().expect("tempdir");
-    let workspace = dir.path().join("ws").to_string_lossy().into_owned();
-    let args_path = dir.path().join("args.txt").to_string_lossy().into_owned();
-    let env_path = dir.path().join("env.txt").to_string_lossy().into_owned();
-    let stub = make_combo_stub(&dir, &args_path, &env_path);
-
-    // Pre-clear any inherited SILICONFLOW_API_KEY from the test harness.
-    // Otherwise we can't distinguish "AppState injected it" from "parent env
-    // already had it".
-    let _guard = env_lock().lock().await;
-    std::env::remove_var("SILICONFLOW_API_KEY");
-    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &stub);
-    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace);
-    let addr = start_server().await;
-
-    // Set the API key on AppState.
-    let key = "sk-INJECT-ME-INTO-CHILD-PROCESS-zzzzzzzzz";
-    let (s_setkey, _) = http_post_json(
-        addr,
-        "/api/welcome/api-key",
-        &format!("{{\"api_key\":\"{key}\"}}"),
-    )
-    .await;
-    assert_eq!(s_setkey, 200);
-
-    // Submit spec; combo stub writes spec.md.
-    let (s, b) = http_post_json(addr, "/api/spec/submit", &valid_answers_body()).await;
-    assert_eq!(s, 200, "spec submit must succeed via stub; body={b}");
-
-    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
-    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
-    drop(_guard);
-
-    // The stub recorded its env to env_path; look for our injected key value.
-    let env_recorded = std::fs::read_to_string(&env_path).expect("env recorded");
-    assert!(
-        env_recorded.contains(&format!("SILICONFLOW_API_KEY={key}")),
-        "stub child env must include SILICONFLOW_API_KEY={key}; got: {env_recorded}"
-    );
-}
-
-// ---------------------------------------------------------------------------
 // Bonus: GET / redirects to /welcome on a fresh workspace (W7 cold-open UX).
 // ---------------------------------------------------------------------------
 

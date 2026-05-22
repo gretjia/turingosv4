@@ -1,0 +1,18 @@
+problem_id: P06
+slug: multilingual_mixed
+kernel_hypothesis: >
+  All-Cantonese (粤语) input should be handled without crash.
+  Spec output should be normalized to Simplified Chinese.
+  Raw Q/A appendix should preserve original Cantonese verbatim.
+adversarial: non_standard_chinese_dialect
+spec_quality: synthetic
+expected_route: spec_capsule with zh normalization -> standard spec.md
+expected_retry_count: 0
+reentry: no
+actual_route: spec/submit succeeded. LLM correctly normalized Cantonese to Mandarin.
+  "計嘢" → "计算器", "係囉" → preserved in appendix.
+  Spec output in Simplified Chinese throughout.
+  Raw Q/A section preserves original Cantonese verbatim.
+result: PASS - Cantonese input handled correctly; normalized to Simplified Chinese in spec
+kernel_surfaces: FC1-N5 (spec synthesis LLM language handling)
+spec_capsule_cid: c0a846d9 (local session CAS)

@@ -31,10 +31,14 @@
 /// Static asset (W4.1):
 ///   GET /static/main.js → embedded esbuild frontend bundle
 ///
-/// Spec interview routes (W5):
-///   GET  /api/spec/questions → returns the 8 canonical Zh interview questions
-///   POST /api/spec/submit    → accepts 8 answers, shells out to `turingos spec`,
-///                              returns { session_id, spec_md, capsule_cid }
+/// Spec interview routes (Phase 5 — driven only, Software 3.0):
+///   POST /api/spec/turn → LLM-driven turn-by-turn grill (Meta AI picks next
+///                         question based on prior answer + canonical slot
+///                         coverage). On `done=true`: in-process A6 spec.md
+///                         synthesis + SpecCapsule write to CAS.
+///   The static `/api/spec/questions` + `/api/spec/submit` 8-question batch
+///   path was removed in Phase 5 (2026-05-22) — `/build` is now exclusively
+///   LLM-driven, no "固定 8 题" fallback.
 ///
 /// Generate route (W5):
 ///   POST /api/generate → accepts session_id, shells out to `turingos generate`,
@@ -60,7 +64,7 @@ use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
-use super::spec::{spec_questions_handler, spec_submit_handler, spec_turn_handler};
+use super::spec::spec_turn_handler;
 use super::store::TaskMemoryStore;
 use super::welcome::{
     welcome_agent_deploy_handler, welcome_init_handler, welcome_llm_config_handler,
@@ -82,14 +86,14 @@ const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 /// TRACE_MATRIX FC1-N5 / FC1-N10 / FC2-N16: read view materialization + write path
 ///
 /// Build the axum router with all Phase 7 routes wired and `AppState` attached.
-/// Total: 14 routes
+/// Total: 13 routes (Phase 5: -2 static spec routes)
 ///   4 HTML  (W0/W1): /, /agents, /tasks, /audit
-///   1 HTML  (W6): /build (spec-grill interview centerpiece)
+///   1 HTML  (W6): /build (driven-grill interview centerpiece)
 ///   3 JSON  (W1): /api/dashboard, /api/agents, /api/tasks
 ///   1 WS    (W2): /ws
 ///   1 POST  (W4): /api/task/open
 ///   1 GET   (W4.1): /static/main.js
-///   2 spec  (W5): GET /api/spec/questions, POST /api/spec/submit
+///   1 spec  (P5):  POST /api/spec/turn (LLM-driven grill; static removed)
 ///   1 gen   (W5): POST /api/generate
 ///   1 art   (W5): GET /api/artifact/:session_id/:name
 ///
@@ -126,8 +130,6 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         // Static asset (W4.1): frontend bundle embedded at compile time
         .route("/static/main.js", get(serve_main_js))
         // Spec interview routes (W5): GET questions + POST submit
-        .route("/api/spec/questions", get(spec_questions_handler))
-        .route("/api/spec/submit", post(spec_submit_handler))
         // Phase 6.3.x driven-mode grill turn route (W7)
         .route("/api/spec/turn", post(spec_turn_handler))
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
@@ -245,11 +247,12 @@ async fn handle_audit() -> Html<String> {
 
 /// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W6 — GET /build handler.
 ///
-/// Renders the chrome + `<tos-spec-grill>` placeholder. The Web Component
-/// fetches `/api/spec/questions`, walks the user through 8 questions, posts
-/// `/api/spec/submit`, then `/api/generate`, then previews artifacts via the
-/// sibling `<tos-artifact-viewer>` component. No IR is materialised on the
-/// server for this page; the interview is fully client-orchestrated.
+/// Renders the chrome + `<tos-spec-grill>` placeholder. Phase 5 (2026-05-22):
+/// the Web Component drives the LLM grill turn-by-turn via `/api/spec/turn`
+/// (Meta AI picks each next question from prior answer + slot coverage). On
+/// `done=true` the component shows `<tos-spec-result>`, then `/api/generate`
+/// produces artifacts shown in `<tos-artifact-viewer>`. No IR is materialised
+/// on the server for this page; the interview is fully client-orchestrated.
 async fn handle_build() -> Html<String> {
     Html(render_build_page())
 }

@@ -33,7 +33,7 @@ GA §8 template awaiting architect signature:
 **Session**: #58 close, 2026-05-21 (late evening).
 
 **State**: P7.z + Boundary-Ratification-Hygiene remain complete; session
-#58 shipped two additional increments:
+#58 shipped three increments:
 1. **Plan v7 — MiniF2F partial recovery** (PR #82/#83/#84 + hotfix as `cff03a28`):
    restored `lean_market` binary (`experiments/minif2f_v4/`, separate
    Cargo workspace) and promoted `batch_orchestrator.rs` to `src/runtime/`.
@@ -45,6 +45,13 @@ GA §8 template awaiting architect signature:
    of `-m`/`-F`/interactive), fixing the COMMIT_EDITMSG read footgun
    discovered during the Plan v7 hotfix. Constitution gate test parity
    updated alongside.
+3. **Generative HTML kernel-integrity probe + Software 3.0 audit** (PR #91,
+   branch `claude/generative-html-kernel-probe-20260522`): surfaced 5 real
+   kernel bugs in `src/web/spec.rs` + `src/web/generate.rs` (2 LANDED via
+   parallel sessions with tests; 2 in tree; 1 forward-bound). Software 3.0
+   conformance: 3 PASS / 6 WARN / 2 FAIL (rubric C1-C11). FAIL = C8 no
+   cross-session agent memory + C10 no generative HTML IR. See
+   [handover/research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md](../research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md).
 
 There is no active charter PR in flight at this handover.
 
@@ -202,6 +209,8 @@ is not OS-level hermetic/no-network sandboxing.
 
 ## Recommended Next Work
 
+Original 3 options (session #57):
+
 1. Decide whether the next charter is OS-level sandbox phase 1, P7.z
    truthfulness follow-up, or a tiny replayable-decision smoke test.
 2. If choosing sandbox phase 1, make the mechanism explicit first:
@@ -210,6 +219,22 @@ is not OS-level hermetic/no-network sandboxing.
 3. If choosing replayable decision, do not call it the predicate layer yet.
    Keep it to deterministic boolean decision record/replay with no schema
    catalog, oracle, cooldown, or predicate taxonomy.
+
+Additional charters surfaced by session #58 generative HTML probe + Software 3.0 audit
+(detail in [synthesis/REPORT.md §6](../research/generative_html_kernel_integrity_2026-05-22/synthesis/REPORT.md)):
+
+4. **Charter A — Generative HTML IR** (closes C10 FAIL, highest-impact). Define
+   `GenerativeHtmlIr` JSON schema → generate emits IR first then renders → IR CID into
+   `GenerationAttemptCapsule` tail-additive → new `ir_to_html` renderer + test gate.
+   Class 2-3. Orthogonal to all 3 options above. Gives TuringOS a unique formally
+   auditable + content-addressed IR no commercial comparator has.
+5. **Charter B — Web Driven-Mode default + generate prompt hash** (closes C1/C2/C9 WARN).
+   Class 1-2. Supersedes P7.z truthfulness on the generate-prompt-hash dimension.
+6. **Charter C — Layered eval + sandbox static analysis** (closes C6/C11 WARN + BUG-5
+   verifier no fetch detection + BUG-6 new W8 `JsSyntaxValid` gate). Class 2.
+   Complementary to OS sandbox phase 1.
+7. **Follow-up parallel sessions** for BUG-3a (`generate.rs` step 4b error propagation
+   matching spec.rs) + BUG-3b (env allowlist regression test) — both Class 1-2.
 
 ---
 
