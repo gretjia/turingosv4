@@ -1,0 +1,82 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "f7510226307d7ecdf2a9800dc18e71efafdf844a9a276f575e07b5a527094b47",
+  "compression_ratio": 10.35441767068273,
+  "distinct_judge_classes": [
+    "off-stage"
+  ],
+  "judge": "nesbitt",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 0,
+  "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "b37c875ff2ede4546c69e47e5d3a7dd8382fec19fbb2c3bf304b58d7a83b81f4",
+  "prompt_tokens_max": 1549,
+  "prompt_tokens_min": 1549,
+  "prompt_tokens_variance": 0,
+  "role": "blackbox",
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.699999988079071,
+  "total_attempts": 9,
+  "total_bbs_bytes_estimated": 996,
+  "total_failed_attempts": 1,
+  "total_raw_stderr_bytes": 10313,
+  "total_sf_completion_tokens": 1889,
+  "total_sf_prompt_tokens": 8325,
+  "total_wall_clock_ms": 80394,
+  "workspace": "/tmp/atom15_workspace"
+}

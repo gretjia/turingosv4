@@ -1,0 +1,85 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "88b94469572844faf660a89061ab84a82b620266b30d31ad2491b37fa36dc951",
+  "compression_ratio": 12.30844465648855,
+  "distinct_judge_classes": [
+    "algebra-error",
+    "missing-equality-case"
+  ],
+  "judge": "nesbitt",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 2,
+  "model": "deepseek-ai/DeepSeek-V3.2",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 5,
+      "final_constraints": 2,
+      "outcome": "escalate-MAX_RETRIES",
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "0effbe85f38e033a84211f0078fb4d8f46c76d0c577a06a173b69c3ac63b4a9c",
+  "prompt_tokens_max": 1728,
+  "prompt_tokens_min": 1664,
+  "prompt_tokens_variance": 64,
+  "role": "meta",
+  "stages_completed": 7,
+  "stages_escalated": [
+    "Step8-Conclude+Eq/MAX_RETRIES"
+  ],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.699999988079071,
+  "total_attempts": 12,
+  "total_bbs_bytes_estimated": 4192,
+  "total_failed_attempts": 4,
+  "total_raw_stderr_bytes": 51597,
+  "total_sf_completion_tokens": 2181,
+  "total_sf_prompt_tokens": 9672,
+  "total_wall_clock_ms": 117700,
+  "workspace": "/tmp/atom15_workspace"
+}

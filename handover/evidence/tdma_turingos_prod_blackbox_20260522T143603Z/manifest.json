@@ -1,0 +1,48 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "15",
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "b5de351ce703cef76d0b7610aa967f62851af212ae63fc7b1e8d90ed4dd98d8c",
+  "compression_ratio": 13.918353576248313,
+  "distinct_judge_classes": [
+    "logical-gap"
+  ],
+  "judge": "nesbitt",
+  "leak_in_any_prompt": false,
+  "max_zero_gain_streak": 2,
+  "model": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 4,
+      "final_constraints": 1,
+      "outcome": "escalate-ZERO_GAIN",
+      "stage": "Step2-Rewrite"
+    }
+  ],
+  "probes_sha256": "83a7b1b0c4b29c83bdc8d345f89bab8b14a83dc56f29cb97504c00c2cfc281bf",
+  "prompt_tokens_max": 991,
+  "prompt_tokens_min": 991,
+  "prompt_tokens_variance": 0,
+  "role": "blackbox",
+  "stages_completed": 1,
+  "stages_escalated": [
+    "Step2-Rewrite/ZERO_GAIN"
+  ],
+  "stages_total": 8,
+  "subcommand": "turingos tdma run",
+  "temperature": 0.699999988079071,
+  "total_attempts": 5,
+  "total_bbs_bytes_estimated": 2964,
+  "total_failed_attempts": 3,
+  "total_raw_stderr_bytes": 41254,
+  "total_sf_completion_tokens": 898,
+  "total_sf_prompt_tokens": 2454,
+  "total_wall_clock_ms": 14522,
+  "workspace": "/tmp/atom15_workspace"
+}
