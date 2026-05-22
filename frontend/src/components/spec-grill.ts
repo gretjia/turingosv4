@@ -1,18 +1,17 @@
-// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 7 W6 — spec interview centerpiece.
-// <tos-spec-grill> walks a non-developer user through 8 customer-development
-// questions one at a time, posts to /api/spec/submit, then hands off to
-// <tos-spec-result>. State machine: idle | loading_questions | interviewing
-// | submitting | spec_ready | error. XSS hygiene: textContent/createElement
-// only. Sets data-block-type="spec_grill" on self.
+// TRACE_MATRIX FC1-N5 + FC1-N10: Phase 5 driven-default spec interview centerpiece.
+// <tos-spec-grill> drives the user through an LLM-controlled grill turn-by-turn:
+// the Meta AI picks each next question based on prior answers + canonical slot
+// coverage (asset grill_meta_v1.md). No fixed question count — the LLM decides
+// when the predicates are satisfied. State machine:
+//   idle | awaiting_first_turn | awaiting_user_answer | playback_review | complete
+// XSS hygiene: textContent/createElement only. Sets data-block-type="spec_grill".
 //
-// W8 (Phase 6.3.x): URL ?mode=driven enables driven mode — per-turn POSTs to
-// /api/spec/turn with LLM-driven question flow. Falls back to static-mode on
-// 2× 5xx, 404 (session lost), or absent URL param. State machine documented
-// in handover/directives/2026-05-18_TISR_PHASE6_3_X_GRILL_LLM_DRIVEN_SECTION8_PACKET_R2.md.
+// Phase 5 (2026-05-22) removed the static 8-question batch path entirely
+// (formerly `?mode=driven` opt-in; `/api/spec/questions` + `/api/spec/submit`).
+// True Software 3.0 — prompt-as-program (embedded grill_meta_v1.md is the
+// program), every question is an LLM runtime decision.
 
 import type {
-  SpecQuestionsResponse,
-  SpecSubmitResponse,
   WsMessage,
   SpecTurnAdvancedEvent,
   SpecGrillCompleteEvent,
@@ -22,57 +21,26 @@ import type { TurnRequest, TurnResponse, GrillState as DrivenGrillState } from '
 
 const ELEMENT_NAME = 'tos-spec-grill';
 
-type GrillState =
-  | 'idle'
-  | 'loading_questions'
-  | 'interviewing'
-  | 'submitting'
-  | 'spec_ready'
-  | 'error';
-
-/** Mirror of the backend `validate_answers` rules (src/web/spec.rs). */
+/** Mirror of the backend `spec_turn_handler` validate_user_answer rules. */
 const ANSWER_MAX_CHARS = 4096;
 
-/** Number of canonical interview questions (must stay in sync with backend). */
-const QUESTION_COUNT = 8;
-
 export class TosSpecGrill extends HTMLElement {
-  // ── Static-mode state ───────────────────────────────────────────────────
-  private _state: GrillState = 'idle';
-  private _questions: string[] = [];
-  private _answers: string[] = [];
-  private _currentIndex = 0;
-  private _errorMessage = '';
-  private _specResponse: SpecSubmitResponse | null = null;
-
-  private _wsListener: ((e: Event) => void) | null = null;
-  /** Bound keydown handler — Cmd/Ctrl+Enter advances. */
-  private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
-
-  // ── Driven-mode state (W8 Phase 6.3.x) ──────────────────────────────────
-  /** True when URL contains ?mode=driven. Detected once in connectedCallback. */
-  driven_mode = false;
   private _drivenState: DrivenGrillState = { kind: 'idle' };
   private _drivenSessionId = '';
-  /** Counts of consecutive 5xx responses; 2 triggers static fallback. */
+  /** Counts of consecutive 5xx responses; surfaced in nudge for user retry. */
   private _recent5xxCount = 0;
   /** Nudge text shown when triage rejects an answer (clears on next submit). */
   private _drivenNudge = '';
 
+  private _wsListener: ((e: Event) => void) | null = null;
+  /** Bound keydown handler — Cmd/Ctrl+Enter submits the answer. */
+  private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'spec_grill');
-
-    // W8: detect driven mode from URL params once at mount time.
-    const params = new URLSearchParams(window.location.search);
-    this.driven_mode = params.get('mode') === 'driven';
-
-    if (this.driven_mode) {
-      this._drivenState = { kind: 'idle' };
-      this._renderDriven();
-    } else {
-      this._setState('idle');
-      this._render();
-    }
+    this._drivenState = { kind: 'idle' };
+    this.setAttribute('data-state', 'idle');
+    this._renderDriven();
 
     this._wsListener = (e: Event) => this._onWsMessage(e);
     document.addEventListener('turingos:ir_update', this._wsListener);
@@ -92,209 +60,63 @@ export class TosSpecGrill extends HTMLElement {
     }
   }
 
-  get currentState(): GrillState {
-    return this._state;
-  }
-  get answers(): readonly string[] {
-    return this._answers;
-  }
-  get currentIndex(): number {
-    return this._currentIndex;
+  get currentState(): DrivenGrillState['kind'] {
+    return this._drivenState.kind;
   }
 
-  private _setState(next: GrillState): void {
-    this._state = next;
-    this.setAttribute('data-state', next);
-  }
-
-  /** null on pass, else a Chinese error message. */
-  validateAnswer(answer: string): string | null {
-    if (answer.length === 0) {
-      return '请写一点内容再继续。';
-    }
-    if (answer.length > ANSWER_MAX_CHARS) {
-      return `回答太长了：${answer.length} 字符，最多 ${ANSWER_MAX_CHARS}。`;
-    }
-    return null;
-  }
-
-  advanceWithAnswer(answer: string): boolean {
-    const trimmed = answer.trim();
-    if (this.validateAnswer(trimmed) !== null) return false;
-    this._answers[this._currentIndex] = trimmed;
-    if (this._currentIndex < this._questions.length - 1) {
-      this._currentIndex += 1;
-      return true;
-    }
-    this._currentIndex = this._questions.length;
-    return true;
-  }
-
-
-  private async _loadQuestions(): Promise<void> {
-    this._setState('loading_questions');
-    this._render();
-    try {
-      const resp = await fetch('/api/spec/questions');
-      if (!resp.ok) {
-        throw new Error(`HTTP ${resp.status}`);
-      }
-      const data = (await resp.json()) as SpecQuestionsResponse;
-      if (!Array.isArray(data.questions) || data.questions.length !== QUESTION_COUNT) {
-        throw new Error(`expected ${QUESTION_COUNT} questions, got ${data.questions?.length}`);
-      }
-      this._questions = data.questions.slice();
-      this._answers = new Array<string>(QUESTION_COUNT).fill('');
-      this._currentIndex = 0;
-      this._setState('interviewing');
-      this._render();
-    } catch (err: unknown) {
-      this._errorMessage =
-        err instanceof Error ? err.message : '加载问题失败，请稍后重试。';
-      this._setState('error');
-      this._render();
-    }
-  }
-
-  private async _submit(): Promise<void> {
-    this._setState('submitting');
-    this._render();
-    try {
-      const resp = await fetch('/api/spec/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: this._answers }),
-      });
-      if (!resp.ok) {
-        let reason = `HTTP ${resp.status}`;
-        try {
-          const errBody = (await resp.json()) as { reason?: string };
-          if (typeof errBody.reason === 'string') reason = errBody.reason;
-        } catch {
-          // ignore
-        }
-        throw new Error(reason);
-      }
-      const data = (await resp.json()) as SpecSubmitResponse;
-      this._specResponse = data;
-      this._setState('spec_ready');
-      this._render();
-    } catch (err: unknown) {
-      this._errorMessage =
-        err instanceof Error ? err.message : '合成 spec 失败，请稍后重试。';
-      this._setState('error');
-      this._render();
-    }
-  }
-
-
-  // WS arrival corroborates POST; POST stays the source of truth for spec_md.
+  // WS arrival corroborates the POST response for /api/spec/turn driven turns.
   private _onWsMessage(e: Event): void {
     const detail = (e as CustomEvent<WsMessage | null>).detail;
     if (detail == null) return;
 
-    // W8 driven-mode WS events.
-    if (this.driven_mode) {
-      if (detail.msg_type === 'SpecTurnAdvanced') {
-        const ev = detail as SpecTurnAdvancedEvent;
-        if (ev.session_id !== this._drivenSessionId) return;
-        // Optimistic update: if we are still awaiting_user_answer, update the
-        // question text (usually redundant with POST response).
-        if (
-          this._drivenState.kind === 'awaiting_user_answer' &&
-          ev.turn_index === this._drivenState.turn_index
-        ) {
-          this._drivenState = {
-            kind: 'awaiting_user_answer',
-            turn_index: ev.turn_index,
-            question: ev.question_text,
-          };
-          this._renderDriven();
-        }
-        return;
-      }
-      if (detail.msg_type === 'SpecGrillComplete') {
-        const ev = detail as SpecGrillCompleteEvent;
-        if (ev.session_id !== this._drivenSessionId) return;
-        this._drivenState = { kind: 'complete', spec_capsule_cid: ev.spec_capsule_cid };
+    if (detail.msg_type === 'SpecTurnAdvanced') {
+      const ev = detail as SpecTurnAdvancedEvent;
+      if (ev.session_id !== this._drivenSessionId) return;
+      // Optimistic update: if we are still awaiting_user_answer, update the
+      // question text (usually redundant with POST response).
+      if (
+        this._drivenState.kind === 'awaiting_user_answer' &&
+        ev.turn_index === this._drivenState.turn_index
+      ) {
+        this._drivenState = {
+          kind: 'awaiting_user_answer',
+          turn_index: ev.turn_index,
+          question: ev.question_text,
+        };
         this._renderDriven();
-        return;
       }
-      if (detail.msg_type === 'SpecTurnTriageReject') {
-        const ev = detail as SpecTurnTriageRejectEvent;
-        if (ev.session_id !== this._drivenSessionId) return;
-        if (ev.triage_class === 'off_topic') {
-          this._drivenNudge = '能换一种说法吗？刚才听不太懂';
-        } else {
-          // abusive | gibberish
-          this._drivenNudge = '您似乎在测试我，可以继续吗？';
-        }
-        this._renderDriven();
-        return;
-      }
+      return;
     }
-
-    // Static-mode: WS arrival corroborates POST; POST stays the source of truth.
-    if (detail.msg_type !== 'spec_complete') return;
-    if (this._specResponse != null && this._specResponse.session_id === detail.session_id) return;
+    if (detail.msg_type === 'SpecGrillComplete') {
+      const ev = detail as SpecGrillCompleteEvent;
+      if (ev.session_id !== this._drivenSessionId) return;
+      this._drivenState = { kind: 'complete', spec_capsule_cid: ev.spec_capsule_cid };
+      this._renderDriven();
+      return;
+    }
+    if (detail.msg_type === 'SpecTurnTriageReject') {
+      const ev = detail as SpecTurnTriageRejectEvent;
+      if (ev.session_id !== this._drivenSessionId) return;
+      if (ev.triage_class === 'off_topic') {
+        this._drivenNudge = '能换一种说法吗？刚才听不太懂';
+      } else {
+        // abusive | gibberish
+        this._drivenNudge = '您似乎在测试我，可以继续吗？';
+      }
+      this._renderDriven();
+    }
   }
 
   private _onKeydown(e: KeyboardEvent): void {
-    // Driven mode: Cmd/Ctrl+Enter submits the answer textarea.
-    if (this.driven_mode) {
-      if (this._drivenState.kind === 'awaiting_user_answer') {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-          e.preventDefault();
-          this._drivenSubmitAnswer();
-        }
+    if (this._drivenState.kind === 'awaiting_user_answer') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        this._drivenSubmitAnswer();
       }
-      return;
-    }
-    if (this._state !== 'interviewing') return;
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      this._submitCurrent();
     }
   }
 
-  private _submitCurrent(): void {
-    const ta = this.querySelector('textarea[name="spec-answer"]') as HTMLTextAreaElement | null;
-    if (ta === null) return;
-    const value = ta.value;
-    const errMsg = this.validateAnswer(value.trim());
-    if (errMsg !== null) {
-      this._showInlineError(errMsg);
-      return;
-    }
-    const wasLast = this._currentIndex === this._questions.length - 1;
-    this.advanceWithAnswer(value);
-    if (wasLast) {
-      void this._submit();
-    } else {
-      this._render();
-    }
-  }
-
-  private _showInlineError(message: string): void {
-    const err = this.querySelector('small[data-error]') as HTMLElement | null;
-    if (err === null) return;
-    err.textContent = message;
-    err.style.display = '';
-  }
-
-  // ── Driven-mode helpers (W8 Phase 6.3.x) ──────────────────────────────────
-
-  /** Fall back to static-mode and display one-time toast. */
-  private _fallbackToStatic(): void {
-    this.driven_mode = false;
-    this._recent5xxCount = 0;
-    this._drivenNudge = '';
-    // Show one-time toast.
-    this._showDrivenToast('切换至 8 问经典模式');
-    // Reset and render static idle state.
-    this._setState('idle');
-    this._render();
-  }
+  // ── Toast helper ──────────────────────────────────────────────────────────
 
   private _showDrivenToast(message: string): void {
     const toast = document.createElement('div');
@@ -302,7 +124,6 @@ export class TosSpecGrill extends HTMLElement {
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'polite');
     toast.textContent = message;
-    // Insert toast at top of element briefly, then remove.
     this.insertBefore(toast, this.firstChild);
     setTimeout(() => {
       if (toast.parentNode === this) {
@@ -310,6 +131,8 @@ export class TosSpecGrill extends HTMLElement {
       }
     }, 4000);
   }
+
+  // ── Driven loop ───────────────────────────────────────────────────────────
 
   /** POST /api/spec/turn and handle the response state transition. */
   private async _postTurn(userAnswer: string | null): Promise<void> {
@@ -326,27 +149,26 @@ export class TosSpecGrill extends HTMLElement {
         body: JSON.stringify(body),
       });
     } catch {
-      // Network-level error counts as 5xx for fallback purposes.
+      // Network-level error: surface as nudge; user can retry.
       this._recent5xxCount++;
-      if (this._recent5xxCount >= 2) {
-        this._fallbackToStatic();
-      }
+      this._drivenNudge = '网络错误，请稍后重试。';
+      this._renderDriven();
       return;
     }
 
     if (!resp.ok) {
       if (resp.status === 404) {
-        // Session not found (server restart per R2 §A14) — immediate fallback.
-        this._fallbackToStatic();
+        // Session not found (server restart). Re-enter idle to restart.
+        this._showDrivenToast('会话已失效，请重新开始访谈');
+        this._drivenState = { kind: 'idle' };
+        this._drivenSessionId = '';
+        this._drivenNudge = '';
+        this._recent5xxCount = 0;
+        this._renderDriven();
         return;
       }
       if (resp.status >= 500) {
         this._recent5xxCount++;
-        if (this._recent5xxCount >= 2) {
-          this._fallbackToStatic();
-          return;
-        }
-        // One 5xx: show error in nudge area and let user retry.
         this._drivenNudge = `服务器错误 (${resp.status})，请稍后重试。`;
         this._renderDriven();
         return;
@@ -385,12 +207,23 @@ export class TosSpecGrill extends HTMLElement {
         turn_index: data.turn_index,
         question: data.question_text,
       };
-      this._drivenNudge = '';
+      // Bounce-back: triage rejected the last answer. Set nudge from HTTP
+      // response so the user knows why Q is repeated — without relying on
+      // the WS SpecTurnTriageReject event (which may be absent or delayed).
+      if (data.triage_class) {
+        this._drivenNudge =
+          data.triage_class === 'off_topic'
+            ? '能换一种说法吗？刚才听不太懂'
+            : '您似乎在测试我，可以继续吗？';
+      } else {
+        // Normal advance: clear any stale nudge.
+        this._drivenNudge = '';
+      }
       this._renderDriven();
       return;
     }
 
-    // Unexpected shape — treat as non-fatal; stay in current state.
+    // Unexpected shape — treat as non-fatal; stay in current state with nudge.
     this._drivenNudge = '响应格式异常，请稍后重试。';
     this._renderDriven();
   }
@@ -400,6 +233,7 @@ export class TosSpecGrill extends HTMLElement {
     this._drivenSessionId = crypto.randomUUID();
     this._drivenState = { kind: 'awaiting_first_turn' };
     this._drivenNudge = '';
+    this.setAttribute('data-state', 'awaiting_first_turn');
     this._renderDriven();
     void this._postTurn(null);
   }
@@ -422,7 +256,7 @@ export class TosSpecGrill extends HTMLElement {
       this._renderDriven();
       return;
     }
-    // Optimistically enter loading state.
+    // Optimistically enter loading state (preserve question text for nudge UX).
     const turnIdx = this._drivenState.turn_index;
     this._drivenState = {
       kind: 'awaiting_user_answer',
@@ -458,12 +292,13 @@ export class TosSpecGrill extends HTMLElement {
     this._renderDriven();
   }
 
-  // ── Driven-mode render methods ─────────────────────────────────────────────
+  // ── Driven render ─────────────────────────────────────────────────────────
 
   private _renderDriven(): void {
     while (this.firstChild) {
       this.removeChild(this.firstChild);
     }
+    this.setAttribute('data-state', this._drivenState.kind);
     switch (this._drivenState.kind) {
       case 'idle':
         this._renderDrivenIdle();
@@ -498,7 +333,7 @@ export class TosSpecGrill extends HTMLElement {
     const lede = document.createElement('p');
     lede.className = 'spec-grill-lede';
     lede.textContent =
-      '我会问一系列关于"日常麻烦"的问题，直到我对你的需求有足够的了解。回答后，spec 会自动生成。';
+      '不用想程序怎么做。我会沿着你的回答继续问下去，直到对你想做的工具有足够了解。一两分钟，spec.md 就会自动写出来。';
     wrap.appendChild(lede);
 
     const btn = document.createElement('button');
@@ -613,61 +448,6 @@ export class TosSpecGrill extends HTMLElement {
     this.appendChild(wrap);
   }
 
-  // ── Static-mode render ─────────────────────────────────────────────────────
-
-  private _render(): void {
-    while (this.firstChild) {
-      this.removeChild(this.firstChild);
-    }
-    switch (this._state) {
-      case 'idle':
-        this._renderIdle();
-        break;
-      case 'loading_questions':
-        this._renderLoading('正在加载问题');
-        break;
-      case 'interviewing':
-        this._renderInterviewing();
-        break;
-      case 'submitting':
-        this._renderLoading('正在合成 spec');
-        break;
-      case 'spec_ready':
-        this._renderSpecReady();
-        break;
-      case 'error':
-        this._renderError();
-        break;
-    }
-  }
-
-  private _renderIdle(): void {
-    const wrap = document.createElement('section');
-    wrap.className = 'spec-grill-idle';
-
-    const eyebrow = document.createElement('p');
-    eyebrow.className = 'spec-grill-eyebrow';
-    eyebrow.textContent = 'TISR · 八问访谈';
-    wrap.appendChild(eyebrow);
-
-    const lede = document.createElement('p');
-    lede.className = 'spec-grill-lede';
-    lede.textContent =
-      '不用想程序怎么做。我会问八个关于"日常麻烦"的问题，你像聊天那样回答就好。问完之后，spec.md 会自动写出来——那是你工具的设计草稿。再下一步，网页就会被生成。';
-    wrap.appendChild(lede);
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'spec-grill-cta';
-    btn.textContent = '开始访谈 →';
-    btn.addEventListener('click', () => {
-      void this._loadQuestions();
-    });
-    wrap.appendChild(btn);
-
-    this.appendChild(wrap);
-  }
-
   private _renderLoading(label: string): void {
     const wrap = document.createElement('section');
     wrap.className = 'spec-grill-loading';
@@ -684,106 +464,6 @@ export class TosSpecGrill extends HTMLElement {
     }
     phrase.appendChild(dots);
     wrap.appendChild(phrase);
-    this.appendChild(wrap);
-  }
-
-  private _renderInterviewing(): void {
-    const wrap = document.createElement('section');
-    wrap.className = 'spec-grill-question';
-
-    const progress = document.createElement('div');
-    progress.className = 'spec-grill-progress';
-    progress.textContent = `Q ${this._currentIndex + 1} / ${this._questions.length}`;
-    wrap.appendChild(progress);
-
-    const q = document.createElement('p');
-    q.className = 'spec-grill-question-text';
-    q.textContent = this._questions[this._currentIndex] ?? '';
-    wrap.appendChild(q);
-
-    const ta = document.createElement('textarea');
-    ta.name = 'spec-answer';
-    ta.className = 'spec-grill-input';
-    ta.rows = 6;
-    ta.value = this._answers[this._currentIndex] ?? '';
-    ta.placeholder = '在这里写下你的回答…   (⌘/Ctrl+Enter 进入下一题)';
-    ta.autocapitalize = 'sentences';
-    ta.spellcheck = false;
-    requestAnimationFrame(() => ta.focus());
-    wrap.appendChild(ta);
-
-    const err = document.createElement('small');
-    err.setAttribute('data-error', '');
-    err.className = 'spec-grill-error';
-    err.style.display = 'none';
-    wrap.appendChild(err);
-
-    const footer = document.createElement('footer');
-    footer.className = 'spec-grill-footer';
-
-    if (this._currentIndex > 0) {
-      const back = document.createElement('button');
-      back.type = 'button';
-      back.className = 'spec-grill-back';
-      back.textContent = '← 上一题';
-      back.addEventListener('click', () => {
-        this._answers[this._currentIndex] = ta.value;
-        this._currentIndex -= 1;
-        this._render();
-      });
-      footer.appendChild(back);
-    }
-
-    const advance = document.createElement('button');
-    advance.type = 'button';
-    advance.className = 'spec-grill-advance';
-    const isLast = this._currentIndex === this._questions.length - 1;
-    advance.textContent = isLast ? '完成访谈 →' : '下一题 →';
-    advance.addEventListener('click', () => this._submitCurrent());
-    footer.appendChild(advance);
-
-    wrap.appendChild(footer);
-
-    this.appendChild(wrap);
-  }
-
-  private _renderSpecReady(): void {
-    const result = document.createElement('tos-spec-result') as HTMLElement & {
-      spec?: SpecSubmitResponse;
-    };
-    if (this._specResponse !== null) {
-      result.spec = this._specResponse;
-      try { result.dataset['payload'] = JSON.stringify(this._specResponse); } catch { /* */ }
-    }
-    this.appendChild(result);
-  }
-
-  private _renderError(): void {
-    const wrap = document.createElement('section');
-    wrap.className = 'spec-grill-errstate';
-
-    const phrase = document.createElement('p');
-    phrase.className = 'spec-grill-errmsg';
-    phrase.textContent = this._errorMessage || '出错了。';
-    wrap.appendChild(phrase);
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'spec-grill-cta';
-    btn.textContent = '重试';
-    btn.addEventListener('click', () => {
-      this._errorMessage = '';
-      if (this._questions.length === 0) {
-        void this._loadQuestions();
-      } else {
-        // We had questions and were submitting — go back to the last question.
-        this._currentIndex = Math.max(0, this._questions.length - 1);
-        this._setState('interviewing');
-        this._render();
-      }
-    });
-    wrap.appendChild(btn);
-
     this.appendChild(wrap);
   }
 }

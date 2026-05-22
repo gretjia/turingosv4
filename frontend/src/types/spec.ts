@@ -43,6 +43,13 @@ export interface TurnResponse {
     terminated: boolean;
     spec_capsule_cid: string | null;
     turn_capsule_cid: string;
+    /**
+     * Present only on triage bounce-back responses. Values: "off_topic" |
+     * "gibberish" | "abusive". When set, question_text repeats the previous
+     * question. Use this to render nudge text without depending on the WS
+     * SpecTurnTriageReject event.
+     */
+    triage_class?: string | null;
 }
 
 /**
