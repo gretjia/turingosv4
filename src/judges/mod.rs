@@ -13,3 +13,5 @@ pub mod math_step_judge;
 pub mod injected_judge;
 /// TRACE_MATRIX FC1a-predicate_pi: Nesbitt's-inequality multi-category step judge (Atom 10).
 pub mod nesbitt_step_judge;
+/// TRACE_MATRIX FC1a-predicate_pi: Putnam 2024 A1 strict step judge (Atom 13 extreme stress).
+pub mod putnam_2024_a1_judge;

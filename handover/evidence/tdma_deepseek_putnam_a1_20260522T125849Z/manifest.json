@@ -1,0 +1,81 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "13",
+  "b_prompt_max": 5800,
+  "branch": "feature/tdma-rc1-deepseek-putnam-a1",
+  "chaintape_sha256": "a5196d2b6930fb86f187f35579353d17def6aae71634b02d3e7d50f73c653346",
+  "compression_ratio": 10.363955823293173,
+  "distinct_judge_classes": [
+    "missing-descent-step"
+  ],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 6,
+  "max_zero_gain_streak": 1,
+  "model": "deepseek-chat",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage1-Witness-n=1"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage2-WLOG-gcd=1"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage3-n=2-mod3"
+    },
+    {
+      "attempts_used": 3,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Stage4-n=2-b-mult-of-3"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage5-n>=3-b-even"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage6-n>=3-a-even"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage7-n>=3-c-even"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage8-Conclude-n=1-only"
+    }
+  ],
+  "probes_sha256": "624b6e97ea19a6bbae20851fcf4a84fd3a066962d9673f7d0566807f5a97e9c4",
+  "problem": "Putnam 2024 A1 (real DeepSeek vs strict step verifier)",
+  "prompt_tokens_max": 1532,
+  "prompt_tokens_min": 1532,
+  "prompt_tokens_variance": 0,
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "temperature": 0.7,
+  "total_attempts": 10,
+  "total_bbs_bytes_estimated": 1992,
+  "total_deepseek_completion_tokens": 2528,
+  "total_deepseek_prompt_tokens": 12083,
+  "total_failed_attempts": 2,
+  "total_raw_stderr_bytes": 20645,
+  "total_wall_clock_ms": 30503
+}
