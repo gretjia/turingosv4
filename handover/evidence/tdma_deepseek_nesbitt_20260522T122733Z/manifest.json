@@ -1,0 +1,82 @@
+{
+  "all_prompts_within_budget": true,
+  "atom": "12",
+  "b_prompt_max": 5800,
+  "branch": "feature/tdma-rc1-deepseek-nesbitt",
+  "chaintape_sha256": "6481588d3db87283aa9f8cdf0c6618a412d5d9e0f7c376611dd8230d102ed79c",
+  "compression_ratio": 10.465989847715736,
+  "distinct_judge_classes": [
+    "algebra-error",
+    "logical-gap"
+  ],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 6,
+  "max_zero_gain_streak": 2,
+  "model": "deepseek-chat",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step1-Substitute"
+    },
+    {
+      "attempts_used": 2,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Step2-Rewrite"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step3-Expand"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step4-Group"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step5-ApplyAMGM"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step6-Sum"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Step7-Subtract"
+    },
+    {
+      "attempts_used": 4,
+      "final_constraints": 1,
+      "outcome": "passed",
+      "stage": "Step8-Conclude+Eq"
+    }
+  ],
+  "probes_sha256": "3d751d8519a6a4c0edc11c5c141fbc80411acc0fdc2dd8d242230d6bc122b0e2",
+  "problem": "Nesbitt's inequality (real DeepSeek LLM worker)",
+  "prompt_tokens_max": 1286,
+  "prompt_tokens_min": 713,
+  "prompt_tokens_variance": 573,
+  "stages_completed": 8,
+  "stages_escalated": [],
+  "stages_total": 8,
+  "temperature": 0.7,
+  "total_attempts": 12,
+  "total_bbs_bytes_estimated": 3940,
+  "total_deepseek_completion_tokens": 1594,
+  "total_deepseek_prompt_tokens": 8058,
+  "total_failed_attempts": 4,
+  "total_raw_stderr_bytes": 41236,
+  "total_wall_clock_ms": 23137
+}
