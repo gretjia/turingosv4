@@ -1,0 +1,56 @@
+{
+  "atom": "9",
+  "b_d": 400,
+  "b_prompt_max": 5800,
+  "branch": "feature/tdma-rc1-distiller-stress",
+  "probes_sha256": "b0289a20a82adbd16c0d988a155935c31ed499987d1d4b7e4d215b41d840c3f9",
+  "s1": {
+    "expected_constraint_count": 4,
+    "final_constraint_count": 4,
+    "info_retention_rate": 1.0,
+    "no_raw_stderr_leak": true
+  },
+  "s2": {
+    "escalated": true,
+    "escalated_at_attempt": 4,
+    "max_retries": 5,
+    "zero_gain_k": 3
+  },
+  "s3": {
+    "b_prompt_max": 5800,
+    "compression_ratio_stderr_over_bbs": 12.437901369199079,
+    "no_raw_stderr_leak_anywhere": true,
+    "per_task_final_constraints": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "prompt_size_max": 501,
+    "prompt_size_min": 362,
+    "prompt_size_variance": 139,
+    "prompt_within_budget": true,
+    "tasks_attempted": 10,
+    "tasks_completed": 10,
+    "total_bbs_bytes_estimated": 33012,
+    "total_stderr_bytes": 410600
+  },
+  "s4": {
+    "escalated_via_max_retries": true,
+    "final_constraint_count": 3,
+    "max_zero_gain_streak_observed": 1,
+    "zero_gain_resets": 2
+  },
+  "scenarios_run": [
+    "S1-info-retention",
+    "S2-zero-gain",
+    "S3-long-chain",
+    "S4-mixed"
+  ]
+}

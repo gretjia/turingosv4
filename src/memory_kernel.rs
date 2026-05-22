@@ -267,11 +267,37 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         let prev_bbs = self.tape.derive_latest_belief_state_from_tape(&attempt_scope);
 
         // Step 5: compress_belief_state — produce a new BBS that fits B_D.
-        let no_new_rules: Vec<RetryConstraint> = Vec::new();
+        //
+        // Atom 9 fix: extract a candidate RetryConstraint from this attempt's
+        // failure shape and feed it into the BBS compressor. Previously the
+        // kernel always passed an empty new_rules slice, which meant the
+        // distiller's accumulation/eviction machinery (constraints + priority)
+        // never received anything to accumulate — only `failure_signature`
+        // carried forward across retries, no constraint rules did.
+        // The Atom 9 stress test exposed this gap; this wire-up closes it.
+        //
+        // Candidate: one constraint per failure; id keyed by the failure shape
+        // (identical signatures dedup via compress_belief_state's
+        // `!constraints.iter().any(|c| c.id == rule.id)` check), priority 200,
+        // evidence_hash points back to the AgentProposal node on tape.
+        let candidate_id = format!(
+            "c-{}-{}",
+            trace_view.reject_class, trace_view.failed_predicate
+        );
+        let candidate_rules = vec![RetryConstraint {
+            id: candidate_id,
+            rule: format!(
+                "avoid {}:{} (observed at attempt {})",
+                trace_view.reject_class, trace_view.failed_predicate, next_ordinal
+            ),
+            priority: 200,
+            source_attempt: next_ordinal,
+            evidence_hash: evidence_hash.clone(),
+        }];
         let new_bbs = compress_belief_state(
             prev_bbs.as_ref(),
             &trace_view,
-            &no_new_rules,
+            &candidate_rules,
             &evidence_hash,
             &attempt_scope,
             B_D,
