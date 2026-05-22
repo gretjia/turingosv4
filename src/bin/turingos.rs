@@ -83,6 +83,8 @@ mod cmd_welcome;
 mod cmd_spec_audit;
 #[path = "turingos/cmd_wizard.rs"]
 mod cmd_wizard;
+#[path = "turingos/cmd_tdma.rs"]
+mod cmd_tdma;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));
@@ -230,6 +232,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "wizard",
         short_help: cmd_wizard::SHORT_HELP,
         run: cmd_wizard::run,
+    },
+    Subcommand {
+        name: "tdma",
+        short_help: cmd_tdma::SHORT_HELP,
+        run: cmd_tdma::run,
     },
     // SUBCOMMANDS-REGISTRY-END
 ];
