@@ -18,9 +18,10 @@ pub(crate) mod render;
 pub(crate) mod router;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — POST /api/spec/submit handler (8-question grill wrapper).
 pub(crate) mod spec;
-/// Phase 5.7: GET /api/spec/view/:session_id — server-renders the per-session spec.md
-/// into an R2-aesthetic HTML view (Fraunces + JetBrains Mono + IBM Plex Sans +
-/// oxidized teal). Frontend `_renderDrivenComplete` embeds this in an iframe.
+/// TRACE_MATRIX FC2-N16: Phase 7 web — GET /api/spec/view/:session_id server-renders
+/// the per-session spec.md into an R2-aesthetic HTML view (Fraunces + JetBrains Mono +
+/// IBM Plex Sans + oxidized teal). Frontend `_renderDrivenComplete` embeds this in
+/// an iframe immediately after grill completion. Read-only, Class 1.
 pub(crate) mod spec_view;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — in-memory task store (AppState).
 pub(crate) mod store;

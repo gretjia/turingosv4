@@ -31,9 +31,11 @@ use axum::response::{Html, IntoResponse, Response};
 
 use super::ws::AppState;
 
-/// GET /api/spec/view/:session_id — returns text/html.
-///
-/// Reads `<workspace>/sessions/<session_id>/spec.md`. 404 if missing.
+/// TRACE_MATRIX FC2-N16: Phase 7 web — GET /api/spec/view/:session_id handler.
+/// Returns `text/html`. Reads `<workspace>/sessions/<session_id>/spec.md` and
+/// server-renders R2-aesthetic HTML (Fraunces + JetBrains Mono + IBM Plex Sans +
+/// oxidized teal `#4e8b7a`, dark-mode aware, print-friendly). 404 if spec.md
+/// missing for the session. Read-only, no kernel/CAS/sequencer touch.
 pub async fn spec_view_handler(
     Path(session_id): Path<String>,
     State(_state): State<AppState>,
