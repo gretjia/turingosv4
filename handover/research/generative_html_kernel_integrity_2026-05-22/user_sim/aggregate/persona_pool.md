@@ -2,6 +2,8 @@
 
 来源：`sessions/p0N_*/answers.json` Q1（想做什么工具）+ 整体答题语气观察。
 
+**最终判定（含 iframe 交互验证）**: P04 PASS · P01/P02/P06/P07/P08 PARTIAL · P03/P05 FAIL
+
 ---
 
 ## P01 · 小学五年级学生
