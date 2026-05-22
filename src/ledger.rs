@@ -599,6 +599,12 @@ pub trait ImmutableTapeLedger {
 
     fn latest_node(&self, kind: NodeKind, scope: &AttemptScope) -> Option<TapeNode>;
 
+    /// TRACE_MATRIX FC3-replay: Dump every node in the ledger as `(hash, node)`
+    /// pairs for evidence-writeout (chaintape.jsonl). Added Atom 20 to support
+    /// the run_proof_with_ledger generic that needs to serialize tape contents
+    /// without depending on a concrete impl's internal indexes structure.
+    fn dump_all_nodes(&self) -> Vec<(String, TapeNode)>;
+
     /// PURE FUNCTION — reads tape only. No sidecar, no memory cache.
     fn derive_latest_belief_state_from_tape(
         &self,
@@ -745,6 +751,14 @@ impl ImmutableTapeLedger for MemoryTapeLedger {
         // its payload field.
         let latest = self.latest_node(NodeKind::RetryBeliefState, scope)?;
         serde_json::from_value(latest.payload).ok()
+    }
+
+    fn dump_all_nodes(&self) -> Vec<(String, TapeNode)> {
+        self.indexes
+            .by_hash
+            .iter()
+            .map(|(h, n)| (h.clone(), n.clone()))
+            .collect()
     }
 }
 
