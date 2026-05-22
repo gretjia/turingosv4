@@ -10,10 +10,21 @@
 // node via createElement + textContent — NEVER innerHTML.
 // Sets data-block-type="spec_result" on self.
 
-import type { GenerateResponse, SpecSubmitResponse, WsMessage } from '../ir.js';
+import type { GenerateResponse, WsMessage } from '../ir.js';
 import { truncateMiddle } from './render-helpers.js';
 
 const ELEMENT_NAME = 'tos-spec-result';
+
+/** Phase 5 local definition (Phase 1-4 lived in ir.ts as SpecSubmitResponse,
+ * removed when the static /api/spec/submit handler was deleted). This is the
+ * "spec ready" payload the result view consumes — driven mode would populate
+ * this from a future /api/spec/by-cid lookup; static mode is gone. */
+export interface SpecSubmitResponse {
+  session_id: string;
+  spec_md: string;
+  capsule_cid?: string | null;
+  transcript_jsonl?: string | null;
+}
 
 type ResultState = 'idle' | 'generating' | 'generated' | 'error';
 

@@ -370,6 +370,12 @@ pub mod replay;
 /// TRACE_MATRIX FC2 + FC3: Phase C10 PromptPromotionReceipt + runtime guard.
 pub mod prompt_promotion;
 
+/// TRACE_MATRIX FC2 + FC3: Phase 5 — compile-time-embedded grill prompts
+/// (meta / triage / synthesis) + binary-baked promotion-receipt seeder.
+/// Closes Phase 1-4 audit GAP-1 (C10 guard blocks fresh workspace) and GAP-3
+/// (assets/ not in workspace) without weakening the C10 bypass scope.
+pub mod embedded_prompts;
+
 /// TRACE_MATRIX FC1: Phase C11 TestScenarioSet (hidden-oracle CAS capsule).
 pub mod test_scenario;
 

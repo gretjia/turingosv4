@@ -486,6 +486,74 @@ pub(crate) async fn welcome_init_handler(
         ));
     }
 
+    // Phase 5 — driven-grill prerequisites.
+    //
+    // After `turingos init` creates the workspace + CAS dir, materialize the
+    // embedded grill prompt assets and seed binary-baked PromotionReceipts so
+    // that:
+    //   - `spec_turn_handler` finds `<workspace>/assets/prompts/grill_meta_v1.md`
+    //     (closes Phase 1-4 audit GAP-3 — assets/ not in workspace)
+    //   - `turingos llm triage` / `complete` subprocess C10 guard passes on
+    //     the first LLM call without needing a real `prompt-eval` run
+    //     (closes Phase 1-4 audit GAP-1 — C10 NoReceiptFound on fresh CAS)
+    //
+    // Both calls run synchronously inside spawn_blocking; failures bubble as
+    // `workspace_setup` errors so the welcome UI can surface a real reason.
+    let ws_for_materialize = workspace.clone();
+    let materialize_result = tokio::task::spawn_blocking(move || {
+        turingosv4::runtime::embedded_prompts::materialize_grill_prompts(&ws_for_materialize)
+    })
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("spawn_blocking error materializing grill prompts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+    materialize_result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to materialize embedded grill prompts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+
+    let ws_for_seed = workspace.clone();
+    let logical_t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let seed_result = tokio::task::spawn_blocking(move || {
+        turingosv4::runtime::embedded_prompts::seed_embedded_promotion_receipts(
+            &ws_for_seed,
+            logical_t,
+        )
+    })
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("spawn_blocking error seeding promotion receipts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+    seed_result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(SetupError {
+                reason: format!("failed to seed promotion receipts: {e}"),
+                kind: "workspace_setup",
+            }),
+        )
+    })?;
+
     let inspect = inspect_workspace(&workspace);
     Ok(Json(build_status(&workspace, inspect, api_key_set)))
 }
