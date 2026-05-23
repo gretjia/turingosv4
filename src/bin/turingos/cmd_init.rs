@@ -45,6 +45,17 @@ max_attempts_per_task = 100
 # role = "Solver"
 # budget_micro = 500_000
 # model = "deepseek-v4-flash"
+
+# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
+# Total = 110_000 µ (= 100_000 treasury + 10_000 worker-alpha). PR2 will add
+# worker-beta + worker-gamma; PR3 will rename "treasury" if real markets land.
+[treasury]
+agent_id = "treasury"
+initial_balance_micro = 100_000
+
+[worker_wallets]
+"worker-alpha" = 10_000
 "#;
 
 const GENESIS_POLYMARKET: &str = r#"# TuringOS genesis payload — Polymarket template
@@ -73,6 +84,15 @@ initial_balance_micro = 1_000_000
 # event_id = "evt_001"
 # outcome = "YES_NO"
 # resolution_oracle = "manual"
+
+# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
+[treasury]
+agent_id = "treasury"
+initial_balance_micro = 100_000
+
+[worker_wallets]
+"worker-alpha" = 10_000
 "#;
 
 const GENESIS_MULTI_AGENT: &str = r#"# TuringOS genesis payload — Multi-agent arena template
@@ -113,6 +133,15 @@ initial_balance_micro = 1_000_000
 # role = "BearTrader"
 # budget_micro = 500_000
 # model = "claude-haiku-4-5"
+
+# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
+[treasury]
+agent_id = "treasury"
+initial_balance_micro = 100_000
+
+[worker_wallets]
+"worker-alpha" = 10_000
 "#;
 
 const AGENT_PUBKEYS_PLACEHOLDER: &str = "{}\n";

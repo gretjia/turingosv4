@@ -23,6 +23,10 @@ pub(crate) mod spec;
 /// IBM Plex Sans + oxidized teal). Frontend `_renderDrivenComplete` embeds this in
 /// an iframe immediately after grill completion. Read-only, Class 1.
 pub(crate) mod spec_view;
+/// TRACE_MATRIX FC2-N16: Phase 7 web — GET /api/market/by-session/:session_id
+/// pure projection over transition_ledger + EconomicState. Class 1, read-only.
+/// Polymarket PR1 (2026-05-23) — no AppState cache, no shadow ledger.
+pub(crate) mod market_view;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — in-memory task store (AppState).
 pub(crate) mod store;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — heuristic artifact verifier (auto-retry trigger).

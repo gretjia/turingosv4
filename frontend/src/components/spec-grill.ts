@@ -486,6 +486,19 @@ export class TosSpecGrill extends HTMLElement {
     });
     wrap.appendChild(viewFrame);
 
+    // Polymarket PR1: mount agent attempts panel outside <tos-spec-grill>
+    // (sibling to the spec-result CTA) so it persists across internal re-renders.
+    // Idempotent: remove any prior mount for the same session before appending.
+    const existingPanels = mountHost.querySelectorAll<HTMLElement>(
+      `tos-agent-attempts-panel[data-spec-grill-mount="${this._drivenSessionId}"]`
+    );
+    existingPanels.forEach((el) => el.remove());
+
+    const attemptsPanel = document.createElement('tos-agent-attempts-panel');
+    attemptsPanel.setAttribute('session-id', this._drivenSessionId);
+    attemptsPanel.setAttribute('data-spec-grill-mount', this._drivenSessionId);
+    mountHost.appendChild(attemptsPanel);
+
     // CID footer (compact, below the visual view)
     const cidLine = document.createElement('p');
     cidLine.className = 'spec-grill-cid-footer';

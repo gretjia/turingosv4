@@ -26,6 +26,17 @@
 use crate::economy::money::MicroCoin;
 use crate::state::q_state::AgentId;
 
+// Polymarket PR1 (2026-05-23, revised post-Codex audit 2026-05-23): TOML-driven
+// genesis preseed for the `[treasury]` + `[worker_wallets]` tables landed in
+// `genesis_payload.toml`. This is the second allow-listed entry point into
+// `balances_t` mutation alongside `default_pput_preseed_pairs` — both are
+// consumed ONLY at Q_0 construction (`fc2_no_memory_only_preseed` permits
+// `src/runtime/bootstrap.rs`).
+//
+// Karpathy K10 fix: previously this module hand-rolled a ~170-LoC TOML
+// subset parser. Replaced with the `toml` crate (in Cargo.toml). The public
+// API + behavior + tests are unchanged.
+
 /// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — sponsor + user-sponsor + 10 solver agent budgets;
 /// **TB-N3 A0.5 (architect ruling 2026-05-11 amendment 6 + Q1+Q2 verdicts)**:
 /// + 1 MarketMakerBudget genesis preseed entry.
@@ -90,6 +101,123 @@ pub fn default_pput_preseed_pairs() -> Vec<(AgentId, MicroCoin)> {
         MicroCoin::from_micro_units(5_000_000),
     ));
     pairs
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Polymarket PR1 (2026-05-23) — TOML-driven Treasury + Worker preseed
+// ─────────────────────────────────────────────────────────────────────
+
+/// Error returned by [`parse_treasury_and_worker_preseed`] when the supplied
+/// TOML text is missing one of the two required tables or has a malformed
+/// `agent_id = ...` / `initial_balance_micro = ...` row.
+///
+/// TRACE_MATRIX FC2 Boot: Polymarket PR1 revision (2026-05-23).
+#[derive(Debug)]
+pub enum PreseedTomlError {
+    MissingSection(&'static str),
+    Parse(String),
+}
+
+impl std::fmt::Display for PreseedTomlError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingSection(s) => write!(f, "missing [{s}] section in genesis_payload.toml"),
+            Self::Parse(s) => write!(f, "genesis_payload.toml parse error: {s}"),
+        }
+    }
+}
+
+impl std::error::Error for PreseedTomlError {}
+
+/// TRACE_MATRIX FC2 Boot: Polymarket PR1 (2026-05-23, revised post-audit) —
+/// parse the new `[treasury]` + `[worker_wallets]` tables added to
+/// `genesis_payload.toml` into `(AgentId, MicroCoin)` pairs.
+///
+/// Returns the **combined** preseed list (treasury first, then each worker
+/// wallet in source order). Callers extend `default_pput_preseed_pairs()`
+/// (or its successor) with these entries before constructing the genesis
+/// QState via `runtime::adapter::genesis_with_balances`.
+///
+/// **Replay determinism**: pure parser (no env reads, no clock, no
+/// randomness). Same TOML bytes in → byte-identical `Vec` out.
+///
+/// **`fc2_no_memory_only_preseed` invariant**: this function does NOT
+/// mutate `economic_state_t` directly — it returns a `Vec` that the boot
+/// path feeds into `genesis_with_balances`, which is the single allow-
+/// listed mutation site.
+///
+/// Grammar accepted (full TOML — Karpathy K10 fix: was a hand-rolled subset
+/// parser; now uses the `toml` crate):
+///
+/// ```toml
+/// [treasury]
+/// agent_id = "treasury"
+/// initial_balance_micro = 100_000
+///
+/// [worker_wallets]
+/// "worker-alpha" = 10_000
+/// ```
+pub fn parse_treasury_and_worker_preseed(
+    text: &str,
+) -> Result<Vec<(AgentId, MicroCoin)>, PreseedTomlError> {
+    let doc: toml::Value = toml::from_str(text)
+        .map_err(|e| PreseedTomlError::Parse(format!("toml: {e}")))?;
+
+    let treasury = parse_treasury_section(&doc)?;
+    let workers = parse_worker_wallets_section(&doc)?;
+    let mut out = Vec::with_capacity(1 + workers.len());
+    out.push(treasury);
+    out.extend(workers);
+    Ok(out)
+}
+
+fn parse_treasury_section(doc: &toml::Value) -> Result<(AgentId, MicroCoin), PreseedTomlError> {
+    let tbl = doc
+        .get("treasury")
+        .ok_or(PreseedTomlError::MissingSection("treasury"))?
+        .as_table()
+        .ok_or_else(|| PreseedTomlError::Parse("[treasury] must be a table".to_string()))?;
+
+    let agent_id = tbl
+        .get("agent_id")
+        .ok_or_else(|| PreseedTomlError::Parse("[treasury].agent_id missing".to_string()))?
+        .as_str()
+        .ok_or_else(|| {
+            PreseedTomlError::Parse("[treasury].agent_id must be a string".to_string())
+        })?
+        .to_string();
+
+    let balance_value = tbl.get("initial_balance_micro").ok_or_else(|| {
+        PreseedTomlError::Parse("[treasury].initial_balance_micro missing".to_string())
+    })?;
+    let balance_micro = balance_value.as_integer().ok_or_else(|| {
+        PreseedTomlError::Parse(format!(
+            "[treasury].initial_balance_micro must be an integer (got {balance_value:?})"
+        ))
+    })?;
+
+    Ok((AgentId(agent_id), MicroCoin::from_micro_units(balance_micro)))
+}
+
+fn parse_worker_wallets_section(
+    doc: &toml::Value,
+) -> Result<Vec<(AgentId, MicroCoin)>, PreseedTomlError> {
+    let tbl = doc
+        .get("worker_wallets")
+        .ok_or(PreseedTomlError::MissingSection("worker_wallets"))?
+        .as_table()
+        .ok_or_else(|| PreseedTomlError::Parse("[worker_wallets] must be a table".to_string()))?;
+
+    let mut entries = Vec::with_capacity(tbl.len());
+    for (key, value) in tbl.iter() {
+        let balance = value.as_integer().ok_or_else(|| {
+            PreseedTomlError::Parse(format!(
+                "[worker_wallets].{key} must be an integer (got {value:?})"
+            ))
+        })?;
+        entries.push((AgentId(key.clone()), MicroCoin::from_micro_units(balance)));
+    }
+    Ok(entries)
 }
 
 #[cfg(test)]
@@ -220,5 +348,133 @@ mod tests {
             .map(|m| m.micro_units())
             .sum();
         assert_eq!(total, 35_000_000, "genesis balances Σ");
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // Polymarket PR1 (2026-05-23) — Treasury + worker-wallets TOML parser
+    // Karpathy K6: temporal `pr1_*` namespace dropped; tests renamed to
+    // describe what they prove rather than which PR they shipped under.
+    // ─────────────────────────────────────────────────────────────────
+
+    const PRESEED_FIXTURE: &str = r#"
+[treasury]
+agent_id = "treasury"
+initial_balance_micro = 100_000
+
+[worker_wallets]
+"worker-alpha" = 10_000
+"#;
+
+    #[test]
+    fn treasury_preseed_returns_treasury_and_one_worker() {
+        let pairs = parse_treasury_and_worker_preseed(PRESEED_FIXTURE).expect("parse ok");
+        assert_eq!(pairs.len(), 2, "treasury + 1 worker entry");
+        // First entry MUST be treasury (parser contract).
+        assert_eq!(pairs[0].0 .0, "treasury");
+        assert_eq!(pairs[0].1.micro_units(), 100_000);
+        // Worker entries follow.
+        let worker = pairs
+            .iter()
+            .find(|(a, _)| a.0 == "worker-alpha")
+            .expect("worker-alpha entry");
+        assert_eq!(worker.1.micro_units(), 10_000);
+    }
+
+    #[test]
+    fn treasury_preseed_total_supply_is_110k() {
+        let pairs = parse_treasury_and_worker_preseed(PRESEED_FIXTURE).expect("parse ok");
+        let total: i64 = pairs.iter().map(|(_, m)| m.micro_units()).sum();
+        assert_eq!(total, 110_000);
+    }
+
+    #[test]
+    fn treasury_preseed_genesis_construction_balances_match() {
+        use crate::runtime::adapter::genesis_with_balances;
+        let pairs = parse_treasury_and_worker_preseed(PRESEED_FIXTURE).expect("parse ok");
+        let q = genesis_with_balances(&pairs);
+        let total: i64 = q
+            .economic_state_t
+            .balances_t
+            .0
+            .values()
+            .map(|m| m.micro_units())
+            .sum();
+        assert_eq!(total, 110_000);
+        let treasury = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("treasury".into()))
+            .copied()
+            .expect("treasury preseeded");
+        assert_eq!(treasury.micro_units(), 100_000);
+        let worker = q
+            .economic_state_t
+            .balances_t
+            .0
+            .get(&AgentId("worker-alpha".into()))
+            .copied()
+            .expect("worker-alpha preseeded");
+        assert_eq!(worker.micro_units(), 10_000);
+    }
+
+    #[test]
+    fn treasury_preseed_fails_when_treasury_section_missing() {
+        let toml_text = r#"
+[worker_wallets]
+"worker-alpha" = 10_000
+"#;
+        let err = parse_treasury_and_worker_preseed(toml_text).expect_err("must fail");
+        match err {
+            PreseedTomlError::Parse(_) | PreseedTomlError::MissingSection(_) => {}
+        }
+    }
+
+    #[test]
+    fn treasury_preseed_fails_when_worker_wallets_section_missing() {
+        let toml_text = r#"
+[treasury]
+agent_id = "treasury"
+initial_balance_micro = 100_000
+"#;
+        let err = parse_treasury_and_worker_preseed(toml_text).expect_err("must fail");
+        match err {
+            PreseedTomlError::Parse(_) | PreseedTomlError::MissingSection(_) => {}
+        }
+    }
+
+    #[test]
+    fn treasury_preseed_deterministic() {
+        let a = parse_treasury_and_worker_preseed(PRESEED_FIXTURE).unwrap();
+        let b = parse_treasury_and_worker_preseed(PRESEED_FIXTURE).unwrap();
+        assert_eq!(a.len(), b.len());
+        for ((aid, am), (bid, bm)) in a.iter().zip(b.iter()) {
+            assert_eq!(aid.0, bid.0);
+            assert_eq!(am.micro_units(), bm.micro_units());
+        }
+    }
+
+    /// The live repo-root `genesis_payload.toml` MUST carry the
+    /// `[treasury]` + `[worker_wallets]` tables, and the parser MUST be
+    /// able to construct a genesis QState from them.
+    #[test]
+    fn treasury_preseed_live_genesis_payload_toml_parses() {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let path = std::path::PathBuf::from(manifest_dir).join("genesis_payload.toml");
+        let text = std::fs::read_to_string(&path).expect("read live genesis_payload.toml");
+        let pairs = parse_treasury_and_worker_preseed(&text)
+            .expect("live genesis_payload.toml must include treasury preseed sections");
+        // Treasury entry present.
+        let treasury = pairs
+            .iter()
+            .find(|(a, _)| a.0 == "treasury")
+            .expect("treasury entry in live preseed");
+        assert_eq!(treasury.1.micro_units(), 100_000);
+        // worker-alpha entry present.
+        let worker = pairs
+            .iter()
+            .find(|(a, _)| a.0 == "worker-alpha")
+            .expect("worker-alpha entry in live preseed");
+        assert_eq!(worker.1.micro_units(), 10_000);
     }
 }
