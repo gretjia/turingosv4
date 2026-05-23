@@ -25,18 +25,21 @@ dashboards, and handover notes are materialized views.
 
 ## Handover state
 
-Active: `handover/ai-direct/LATEST.md` (session #57 close 2026-05-21 —
-Boundary-Ratification-Hygiene PR #78 shipped after P7.z COMPLETE).
+Active: `handover/ai-direct/LATEST.md` (2026-05-23 close —
+**TB-SOFTWARE-3-0-CONSOLIDATION** + **TB-STRESS-PHASE-2** shipped on top
+of Phase E libgit2 cutover).
+
+Latest two packages (this session):
+- `handover/reports/SOFTWARE_3_0_CONSOLIDATION_2026-05-23.md` — 8-atom
+  single-maintainer substrate hardening ship report
+- `handover/reports/STRESS_PHASE_2_SHIP_REPORT_2026-05-23.md` — 10-test
+  adversarial battery ship report (8 PASS / 1 PARTIAL / 1 not-executed)
+- Audits: `handover/audits/{SOFTWARE_3_0,STRESS_PHASE_2}_VAL_{CONSTITUTION,KARPATHY}_2026-05-23.md`
 
 Session #56 audit + remediation evidence:
 - `handover/audits/CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md` (clean-context audit of overnight Gemini delivery)
 - `handover/audits/CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md` (Claude orchestrator session report)
 - `handover/audits/CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` (§8 sign-off records for C2-split, C10, C11, Cz Class 4)
-
-Session #57 boundary / process-hygiene evidence:
-- `docs/architecture/FC_REAL_WORLD_BOUNDARY.md` (Class 0 FC boundary fact record)
-- `handover/directives/2026-05-21_FC_BOUNDARY_RATIFICATION_DIRECTIVE.md` (§8 ratification directive)
-- `handover/evidence/sandbox_boundary_baseline_2026-05-21.md` (before-state grep/evidence baseline)
 
 Sessions #1–#54 archived at:
 `handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`
@@ -45,10 +48,79 @@ Sessions #1–#54 archived at:
 
 `main` currently includes PR #3, #4, #5, #6, #7, #8, #10, #11, #78, the
 complete **V4 Product-CAK Hardening P7.z charter** (atoms C0 through C11 +
-Cz Trust Root rehash), session #56 audit docs, and the
-**Boundary-Ratification-Hygiene** process-runner increment. PR #1, #2, #9,
-#45–#55 were merged or closed; no charter PRs remain open. Latest main tip:
-`38adc108` (PR #78, `feat(sandbox): add boundary hygiene runner`).
+Cz Trust Root rehash), session #56 audit docs, the
+**Boundary-Ratification-Hygiene** process-runner increment,
+**TB-TDMA-BOUNDED-RC1** kernel ship, **TB-TDMA-GENERATE-PHASE-E**
+libgit2 cutover (Phase E Path B), **TB-SOFTWARE-3-0-CONSOLIDATION**
+single-maintainer substrate hardening, and **TB-STRESS-PHASE-2** 10-test
+adversarial battery. Latest main tip: `6c12e092` (PR #132, stress ship
+report + cumulative audits).
+
+### TB-SOFTWARE-3-0-CONSOLIDATION — 2026-05-23 (PRs #120, #122–#128)
+
+Single-maintainer substrate hardening on top of the Phase E libgit2 cutover.
+8 atoms shipped:
+
+- **S1** (#122): removed stdout-as-truth (`t_hash_*` + `simple_hash` fallback
+  in `src/web/write.rs`); `task/open` now returns `502 BAD_GATEWAY` with
+  `kind="task_id_parse_failed"` on stdout parse failure (no TaskEntry written,
+  no WS broadcast).
+- **S2** (#123): private `GrillSessionSnapshot` in per-session CAS for
+  cross-restart resume. The web layer's in-memory `AppState.sessions` cache
+  is now rebuildable from CAS via `load_latest_snapshot`. NOT a new CAS
+  `ObjectType` — uses existing `EvidenceCapsule` with private `schema_id`.
+- **S3** (#124): `BuildSessionViewError { Open, Read, Decode }` taxonomy.
+  Empty workspace still returns `Ok(BuildStatus::SpecPending)`; only
+  genuine corruption surfaces as `Err`. `From<BuildSessionViewError> for
+  CapsuleError` propagator preserves caller ergonomics.
+- **S4.1** (#125): rename `src/bin/turingos/siliconflow_client.rs` →
+  `chat_client.rs` + 7 cmd_*.rs import sites. Generic naming so a 2nd
+  provider (VolcEngine, OpenAI direct, etc.) lands without another rename.
+  NO `ChatProvider` enum / `ModelCallReceipt` capsule — deferred per
+  Karpathy K10 (defer abstraction until 2nd concrete impl).
+- **S4.2** (#126): `handover/architect-insights/LLM_BOUNDARY_INVENTORY_2026-05-23.md`
+  documenting 17 `chat_complete*` call sites across 5 cmd_*.rs files,
+  prompt-guard coverage, and the deferred Class 3/4 abstraction packet.
+- **S5** (#127): `scripts/audit_legacy_bypass.sh` (standalone reporting
+  script, NOT wired into `scripts/run_constitution_gates.sh`) + checklist
+  doc. Reporting baseline, not a constitution gate.
+- **S6** (#128): aggregate ship report + cumulative audits.
+  Constitution: **NO-VIOLATION**. Karpathy: **PASS**.
+
+Scope freeze held across all 8 commits: no edit to `src/state/typed_tx.rs`,
+`src/state/sequencer.rs`, `src/bus.rs`, `src/bottom_white/cas/schema.rs`,
+`constitution.md`, `genesis_payload.toml`, `src/runtime/mod.rs` export;
+no new CAS `ObjectType`; no provider abstraction layer.
+
+### TB-STRESS-PHASE-2 — 2026-05-23 (PRs #129, #131, #132)
+
+Adversarial 10-test battery exercising Phase E + TB-SOFTWARE-3-0 surfaces
+under crash, concurrency, corruption, and provider-failure conditions.
+
+**Final tally**: 8 PASS / 1 PARTIAL / 1 NOT-EXECUTED / 0 FAIL.
+
+| Test | Surface | Result |
+|---|---|---|
+| ST-01 | GitTapeLedger SIGKILL mid-commit (20 iters) | PASS |
+| ST-02 | Kernel 3-writer concurrent (mock, 300 attempts) | PASS |
+| ST-03 | CAS sidecar half-truncation | PASS |
+| ST-04 | S2 snapshot restart storm | PARTIAL (write VERIFIED; load blocked on workspace bootstrap dep, not S2 defect) |
+| ST-05 | S3 BuildSessionView corruption | PASS |
+| ST-06 | LLM 5xx storm (50% mock failures) | PASS |
+| ST-07 | 100 concurrent malformed `task/open` | PASS |
+| ST-08 | 1000-turn grill drift | NOT-EXECUTED (same blocker as ST-04) |
+| ST-09 | Oversize prompt + truncated response | PASS |
+| ST-10 | Double-backend cross-process | PASS |
+
+Both cumulative audits (constitution + Karpathy) verdict GREEN. ST-04's
+partial finding documented S2's `write_snapshot` actually writing 418-byte
+capsules with the right `schema_id` to per-session CAS — the test exposed
+a workspace bootstrap requirement (`PromptPromotionReceipt` for triage),
+not a production defect.
+
+Runners at `scripts/stress/st0*.py`; evidence at
+`handover/evidence/stress_st0*_<UTC_TS>/` (each with `summary.md`
+ending in `KILL: PASS` or `KILL: FAIL`).
 
 ### Boundary-Ratification-Hygiene — PR #78, 2026-05-21
 
@@ -73,7 +145,7 @@ physical boundary discipline. It shipped:
   invocation with report artifacts.
 
 Important non-claim: this is **not** OS-level hermetic/no-network sandboxing.
-There is no `DenyAll` network claim in phase 0. The shipped claim is process
+There is no deny-all network claim in phase 0. The shipped claim is process
 hygiene for production shell-outs, not bwrap/unshare/seccomp/VM isolation.
 
 Verification for PR #78:
@@ -231,6 +303,17 @@ evidence instead.
 
 | PR | State | Main commit | Key information |
 |---|---|---|---|
+| [#132](https://github.com/gretjia/turingosv4/pull/132) | SQUASH-MERGED to `main` on 2026-05-23 | `6c12e092` | **TB-STRESS-PHASE-2 SHIP** — aggregate ship report + cumulative audits. 8 PASS / 1 PARTIAL / 1 NOT-EXECUTED / 0 FAIL across 10 adversarial tests. Constitution: NO-VIOLATION. Karpathy: PASS. ST-04 PARTIAL surfaced S2 `write_snapshot` VERIFIED in CAS; multi-turn blocked by upstream triage promotion-guard (workspace bootstrap dep, NOT S2 defect). |
+| [#131](https://github.com/gretjia/turingosv4/pull/131) | SQUASH-MERGED to `main` on 2026-05-23 | `1ea99a2d` | TB-STRESS-PHASE-2 STRESS-1..10 — execution evidence for all 10 runners + runner robustness fixes (schema/workspace bootstrap/port). 10 evidence dirs under `handover/evidence/stress_st0*_<UTC_TS>/`, each with `summary.md` ending in `KILL: PASS` or `KILL: FAIL`. LLM cost ≈ $0 (mocks throughout). |
+| [#129](https://github.com/gretjia/turingosv4/pull/129) | SQUASH-MERGED to `main` on 2026-05-23 | `22812db8` | TB-STRESS-PHASE-2 STRESS-0 — charter + §8 directive + 10 stress-test runner scripts in `scripts/stress/` + mock LLM provider (`_mock_llm_server.py`) + workspace bootstrap helper (`_ws_bootstrap.sh`). |
+| [#128](https://github.com/gretjia/turingosv4/pull/128) | SQUASH-MERGED to `main` on 2026-05-23 | `78717d26` | **TB-SOFTWARE-3-0 SHIP** — aggregate ship report + cumulative constitution + Karpathy audits. Both verdicts GREEN. 9-item ship-gate fully met. |
+| [#127](https://github.com/gretjia/turingosv4/pull/127) | SQUASH-MERGED to `main` on 2026-05-23 | `32e30d97` | TB-SOFTWARE-3-0 Atom S5 — `scripts/audit_legacy_bypass.sh` standalone reporting script (NOT a constitution gate) + `NO_LEGACY_BYPASS_CHECKLIST_2026-05-23.md`. Class 0+1. |
+| [#126](https://github.com/gretjia/turingosv4/pull/126) | SQUASH-MERGED to `main` on 2026-05-23 | `ac95ac12` | TB-SOFTWARE-3-0 Atom S4.2 — `LLM_BOUNDARY_INVENTORY_2026-05-23.md` documenting 17 `chat_complete*` call sites + the deferred Class 3/4 abstraction packet (per K10). Class 0. |
+| [#125](https://github.com/gretjia/turingosv4/pull/125) | SQUASH-MERGED to `main` on 2026-05-23 | `c2b6d954` | TB-SOFTWARE-3-0 Atom S4.1 — rename `src/bin/turingos/siliconflow_client.rs` → `chat_client.rs`. 7 cmd_*.rs import sites updated. NO `ChatProvider` enum (deferred per K10 until 2nd provider). Class 2. |
+| [#124](https://github.com/gretjia/turingosv4/pull/124) | SQUASH-MERGED to `main` on 2026-05-23 | `1d35058d` | TB-SOFTWARE-3-0 Atom S3 — `BuildSessionViewError { Open, Read, Decode }` taxonomy in `src/runtime/build_session_view.rs`. Empty workspace stays `Ok(BuildStatus::SpecPending)`; only corruption surfaces as `Err`. 3 distinction tests. Class 2. |
+| [#123](https://github.com/gretjia/turingosv4/pull/123) | SQUASH-MERGED to `main` on 2026-05-23 | `486adaa2` | TB-SOFTWARE-3-0 Atom S2 — private `GrillSessionSnapshot` in per-session CAS for cross-restart resume. `src/web/session_snapshot.rs` NEW (writes 418-byte capsules with `schema_id="turingos-web-grill-session-snapshot-v1"`); `src/web/spec.rs` calls `write_snapshot` after every successful turn and `load_latest_snapshot` on session-not-found before falling through to 404. Class 2. |
+| [#122](https://github.com/gretjia/turingosv4/pull/122) | SQUASH-MERGED to `main` on 2026-05-23 | `7130cf91` | TB-SOFTWARE-3-0 Atom S1 — remove stdout-as-truth in `src/web/write.rs`: deleted `t_hash_*` synthesized id fallback and `simple_hash` FNV helper. `task/open` returns `502 BAD_GATEWAY` with `kind="task_id_parse_failed"` on stdout parse failure (no TaskEntry written, no WS broadcast). Class 2. |
+| [#120](https://github.com/gretjia/turingosv4/pull/120) | SQUASH-MERGED to `main` on 2026-05-23 | `b0a2da1c` | TB-SOFTWARE-3-0 Atom S0.1 — package §8 directive + TB charter. Class 0. |
 | [#78](https://github.com/gretjia/turingosv4/pull/78) | SQUASH-MERGED to `main` on 2026-05-21 | `38adc108` | Boundary-Ratification-Hygiene increment. Adds `FC_REAL_WORLD_BOUNDARY.md`, §8 ratification directive, sandbox boundary baseline, `SanitizedCommand` process-hygiene runner, product shell-out wiring, P7.z truthfulness hygiene, real-world meaning fixtures, and faster constitution-gate CI runner. Explicit non-claim: no OS-level hermetic/no-network sandbox; network policy claim remains `NotEnforced`. GitHub checks green; clean-context audits `NO-VIOLATION`. |
 | Cz | MERGED via orchestrator local-merge on 2026-05-21 (no PR number; supersedes closed PR #55) | `9bdaddee` | Class 4 cumulative Trust Root realignment after all charter PRs landed. Updated 4 SHA pins (`src/runtime/mod.rs`, `Cargo.toml`, `src/bottom_white/cas/store.rs`, `tests/tb_7_legacy_append_regression.rs`); removed 14 deleted `experiments/minif2f_v4/*` pins; added 6 `pub mod` declarations missing from `src/runtime/mod.rs` (`preview_run`, `build_session_view`, `replay`, `prompt_promotion`, `test_scenario`, `test_run`); fixed `src/runtime/replay.rs` imports to source rejection types from `rejection_capsule` module. User §8 + Codex independent witness PROCEED. `cargo test --lib boot::tests::` 8/8 PASS post-Cz. |
 | [#56](https://github.com/gretjia/turingosv4/pull/56) | MERGED to `main` on 2026-05-21 | `298a1a7b` | Docs-only audit records from session #56 (Class 0). Adds `CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md`, `CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md`, and `CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` to `handover/audits/`. §8 sign-offs for the 4 Class 3+ atoms remediated this session (C2-split, C10, C11, Cz). |
