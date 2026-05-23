@@ -663,12 +663,19 @@ pub(crate) async fn spec_turn_handler(
         ));
     }
     if is_new_session && req.user_answer.is_some() {
-        // Can't provide an answer without a prior question.
+        // Session-lost recovery per R2 §A14: server restart wipes the
+        // in-memory `sessions` HashMap, so a client with an in-flight
+        // interview holding a stale session_id will land here on the next
+        // submit. The frontend (`spec-grill.ts` `_postTurn`) treats HTTP 404
+        // as "session lost → fall back to static 8-question mode"; HTTP 400
+        // is surfaced as an opaque "请求错误 (400)" nudge that leaves the
+        // user stuck at the previous question. Return NOT_FOUND so the
+        // documented fallback path engages instead of dead-ending the UI.
         return Err((
-            StatusCode::BAD_REQUEST,
+            StatusCode::NOT_FOUND,
             Json(ErrorBody::with_kind(
                 "session does not exist; send user_answer=null to start a new session",
-                "invalid_input",
+                "session_not_found",
             )),
         ));
     }
@@ -2451,6 +2458,7 @@ mod tests {
             spec_capsule_cid: None,
             turn_capsule_cid: None,
             termination_reason: Some("user_input_unparseable_no_spec".to_string()),
+            triage_class: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(
@@ -2471,6 +2479,7 @@ mod tests {
             spec_capsule_cid: None,
             turn_capsule_cid: None,
             termination_reason: None,
+            triage_class: None,
         };
         let json_none = serde_json::to_string(&resp_none).unwrap();
         assert!(

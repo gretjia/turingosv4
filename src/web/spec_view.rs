@@ -118,9 +118,16 @@ fn parse_spec_md(md: &str) -> ParsedSpec {
     ParsedSpec { sections, appendix }
 }
 
-/// Look up a section by Chinese label (with optional English suffix tolerance).
-fn pick<'a>(map: &'a BTreeMap<String, String>, key: &str) -> Option<&'a String> {
-    map.get(key)
+/// Look up a section by trying each candidate label in order, returning the
+/// first match. Both `synthesise_spec_md_no_llm_by_slot` and its non-slot
+/// sibling emit different headings per `Lang` — Chinese sessions yield e.g.
+/// `## 我们要做什么 (Goal)` while English sessions yield `## What We're
+/// Building (Goal)`. Pre-Codex-fix the lookup only knew the Chinese keys, so
+/// `/api/spec/view/:session_id` for an `lang="en"` session rendered nothing
+/// but the placeholder. Callers pass `[zh_label, en_label]` (Chinese first to
+/// preserve the historical default).
+fn pick<'a>(map: &'a BTreeMap<String, String>, keys: &[&str]) -> Option<&'a String> {
+    keys.iter().find_map(|k| map.get(*k))
 }
 
 /// Best-effort: clean spec content for a section. Strips the placeholder
@@ -233,7 +240,11 @@ fn render_spec_html(spec_md: &str) -> String {
         by_title.insert(title, body);
     }
 
-    let project_title = pick(&by_title, "一句话目标")
+    // Heading aliases mirror `runtime::spec_synthesis::synthesise_spec_md_no_llm_by_slot`:
+    // Chinese (Lang::Zh) emits the first form; English (Lang::En) emits the
+    // second. The web spec-view must accept both, or `lang="en"` sessions
+    // render every body as the placeholder.
+    let project_title = pick(&by_title, &["一句话目标", "One-line Goal"])
         .map(|s| {
             // Use first 60 chars as a hero title; full text becomes goal.
             let cleaned = clean(s);
@@ -247,46 +258,68 @@ fn render_spec_html(spec_md: &str) -> String {
         })
         .unwrap_or_else(|| "TuringOS Spec".to_string());
 
-    let goal_body = pick(&by_title, "我们要做什么 (Goal)")
-        .or_else(|| pick(&by_title, "一句话目标"))
+    let goal_body = pick(
+        &by_title,
+        &[
+            "我们要做什么 (Goal)",
+            "What We're Building (Goal)",
+            "一句话目标",
+            "One-line Goal",
+        ],
+    )
+    .map(|s| render_section_body(s))
+    .unwrap_or_default();
+
+    let reference_body = pick(&by_title, &["像谁 (Reference)", "Like What (Reference)"])
         .map(|s| render_section_body(s))
         .unwrap_or_default();
 
-    let reference_body = pick(&by_title, "像谁 (Reference)")
+    let memory_body = pick(
+        &by_title,
+        &["程序要记住的东西 (Memory)", "What the Program Remembers"],
+    )
+    .map(|s| render_section_body(s))
+    .unwrap_or_default();
+
+    let first_run_body = pick(&by_title, &["第一次使用 (First Run)", "First Run"])
         .map(|s| render_section_body(s))
         .unwrap_or_default();
 
-    let memory_body = pick(&by_title, "程序要记住的东西 (Memory)")
+    let robustness_body = pick(
+        &by_title,
+        &["不能搞坏的情况 (Robustness)", "What It Must Not Break On"],
+    )
+    .map(|s| render_section_body(s))
+    .unwrap_or_default();
+
+    let oos_body = pick(
+        &by_title,
+        &["故意不做的 (Out of Scope)", "Deliberately NOT Doing"],
+    )
+    .map(|s| render_section_body(s))
+    .unwrap_or_default();
+
+    let acceptance_body = pick(&by_title, &["算成功 (Acceptance)", "Success Looks Like"])
         .map(|s| render_section_body(s))
         .unwrap_or_default();
 
-    let first_run_body = pick(&by_title, "第一次使用 (First Run)")
-        .map(|s| render_section_body(s))
-        .unwrap_or_default();
+    let ai_coder = pick(
+        &by_title,
+        &["一句话给 AI 编程员", "One-line Brief to AI Coder"],
+    )
+    .map(|s| html_escape(&clean(s)))
+    .unwrap_or_default();
 
-    let robustness_body = pick(&by_title, "不能搞坏的情况 (Robustness)")
+    let build_now = pick(&by_title, &["立刻能做的 (Build Now)", "Build Now"])
         .map(|s| render_section_body(s))
         .unwrap_or_default();
-
-    let oos_body = pick(&by_title, "故意不做的 (Out of Scope)")
-        .map(|s| render_section_body(s))
-        .unwrap_or_default();
-
-    let acceptance_body = pick(&by_title, "算成功 (Acceptance)")
-        .map(|s| render_section_body(s))
-        .unwrap_or_default();
-
-    let ai_coder = pick(&by_title, "一句话给 AI 编程员")
-        .map(|s| html_escape(&clean(s)))
-        .unwrap_or_default();
-
-    let build_now = pick(&by_title, "立刻能做的 (Build Now)")
-        .map(|s| render_section_body(s))
-        .unwrap_or_default();
-    let deeper_insight = pick(&by_title, "更深的洞察 (Deeper Insight)")
-        .map(|s| render_section_body(s))
-        .unwrap_or_default();
-    let user_addition = pick(&by_title, "用户补充")
+    let deeper_insight = pick(
+        &by_title,
+        &["更深的洞察 (Deeper Insight)", "Deeper Insight"],
+    )
+    .map(|s| render_section_body(s))
+    .unwrap_or_default();
+    let user_addition = pick(&by_title, &["用户补充", "User Additions"])
         .map(|s| render_section_body(s))
         .unwrap_or_default();
 
@@ -712,6 +745,55 @@ mod tests {
         // Two-panel split present
         assert!(html.contains("立刻能做的 · Build Now"));
         assert!(html.contains("更深的洞察 · Deeper Insight"));
+    }
+
+    #[test]
+    fn render_html_finds_english_sections() {
+        // Mirrors `synthesise_spec_md_no_llm_by_slot(Lang::En, ...)` output:
+        // English sessions emit `## What We're Building (Goal)`, `## Build
+        // Now`, etc. Pre-fix the lookup only knew the Chinese keys and the
+        // bodies fell through to the "（待生成）" placeholder.
+        let md = "## One-line Goal\n\nBoba shop dashboard\n\n\
+                  ## What We're Building (Goal)\n\nA daily sales board\n\n\
+                  ## Like What (Reference)\n\nThe whiteboard behind the counter\n\n\
+                  ## What the Program Remembers\n\ndaily totals, top drinks\n\n\
+                  ## First Run\n\nopen the page, see today's number\n\n\
+                  ## What It Must Not Break On\n\nbad input, network blip\n\n\
+                  ## Deliberately NOT Doing\n\ninventory, payroll\n\n\
+                  ## Success Looks Like\n\nowner checks it every morning\n\n\
+                  ## User Additions\n\nmaybe a weekly view later\n\n\
+                  ## One-line Brief to AI Coder\n\nImplement a minimal version.\n\n\
+                  ## Build Now\n\nDaily sales board\n\n\
+                  ## Deeper Insight\n\nThe owner wants to understand staff load\n\n\
+                  <!-- TURINGOS_SPEC_END -->\n";
+        let html = render_spec_html(md);
+        // Every English body should reach the rendered HTML, not the placeholder.
+        for needle in [
+            "Boba shop dashboard",
+            "A daily sales board",
+            "whiteboard behind the counter",
+            "daily totals, top drinks",
+            "open the page, see today",
+            "bad input, network blip",
+            "inventory, payroll",
+            "owner checks it every morning",
+            "maybe a weekly view later",
+            "Implement a minimal version",
+            "Daily sales board",
+            "understand staff load",
+        ] {
+            assert!(
+                html.contains(needle),
+                "expected English section body {needle:?} in rendered HTML"
+            );
+        }
+        // The "待生成" placeholder must NOT appear for the AI-coder section
+        // (it has content in this fixture).
+        assert!(
+            !html.contains(r#"<p class="muted">（待生成）</p>"#)
+                || !html.contains("Implement a minimal version"),
+            "AI-coder section should render content, not placeholder"
+        );
     }
 
     #[test]
