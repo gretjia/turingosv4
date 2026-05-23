@@ -1,0 +1,3 @@
+# Auto-built helper crates inside stress evidence dirs should not be tracked
+*/_helper/target/
+*/workspace/cas/.git/objects/

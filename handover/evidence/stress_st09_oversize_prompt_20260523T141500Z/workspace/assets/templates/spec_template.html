@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{PROJECT_TITLE}} — TuringOS Spec</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* ─────────────────────────────────────────────
+       TuringOS Spec Template — Custom CSS Layer
+       All brand colors and structural patterns live
+       here as CSS custom properties so Tailwind
+       utilities can coexist with brand overrides.
+    ───────────────────────────────────────────── */
+
+    :root {
+      --teal:       #1a8a8a;
+      --teal-light: #e6f4f4;
+      --teal-dark:  #0f5f5f;
+      --bg:         #f8fafc;
+      --surface:    #ffffff;
+      --border:     #e2e8f0;
+      --text:       #0f172a;
+      --text-muted: #64748b;
+      --p0:         #dc2626;
+      --p1:         #d97706;
+      --p2:         #2563eb;
+      --warn:       #b45309;
+      --warn-bg:    #fffbeb;
+      --warn-border:#fcd34d;
+      --out-bg:     #f1f5f9;
+      --out-text:   #94a3b8;
+      --shadow:     0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+      --shadow-md:  0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --teal:       #2ab8b8;
+        --teal-light: #0d2b2b;
+        --teal-dark:  #5dd8d8;
+        --bg:         #0f172a;
+        --surface:    #1e293b;
+        --border:     #334155;
+        --text:       #f1f5f9;
+        --text-muted: #94a3b8;
+        --p0:         #f87171;
+        --p1:         #fbbf24;
+        --p2:         #60a5fa;
+        --warn:       #fbbf24;
+        --warn-bg:    #1c1207;
+        --warn-border:#78350f;
+        --out-bg:     #1e293b;
+        --out-text:   #475569;
+        --shadow:     0 1px 3px rgba(0,0,0,.3);
+        --shadow-md:  0 4px 6px rgba(0,0,0,.4);
+      }
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      .print-break { page-break-before: always; }
+      body { background: white !important; }
+      :root {
+        --bg: white; --surface: white; --border: #ccc;
+        --text: black; --text-muted: #555;
+        --teal: #1a8a8a; --teal-light: #e6f4f4;
+        --shadow: none; --shadow-md: none;
+      }
+    }
+
+    /* Base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    code, pre, .mono {
+      font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+    }
+
+    /* ── Layout shell ── */
+    .page-shell {
+      display: flex;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      gap: 2.5rem;
+      align-items: flex-start;
+    }
+
+    /* ── Sidebar nav ── */
+    .sidebar {
+      width: 200px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 1.5rem;
+    }
+    .sidebar-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .sidebar-link {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.3rem 0.5rem;
+      border-left: 2px solid var(--border);
+      margin-bottom: 0.15rem;
+      transition: all 0.15s;
+      border-radius: 0 3px 3px 0;
+    }
+    .sidebar-link:hover,
+    .sidebar-link.active {
+      color: var(--teal);
+      border-left-color: var(--teal);
+      background: var(--teal-light);
+    }
+    @media (max-width: 780px) {
+      .sidebar { display: none; }
+      .page-shell { padding: 1rem; gap: 0; }
+    }
+
+    /* ── Main content ── */
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      max-width: 800px;
+    }
+
+    /* ── Section spacing ── */
+    .spec-section {
+      margin-bottom: 2.5rem;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 50%;
+      background: var(--teal);
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .section-title-cn {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 0.25rem;
+    }
+
+    /* ── Project header card ── */
+    .project-header {
+      background: var(--surface);
+      border: 1.5px solid var(--teal);
+      border-radius: 12px;
+      padding: 1.75rem 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      overflow: hidden;
+    }
+    .project-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--teal), var(--teal-dark));
+    }
+    .project-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: var(--teal-light);
+      color: var(--teal);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.65rem;
+      border-radius: 99px;
+      margin-bottom: 0.75rem;
+    }
+    .project-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 0.5rem;
+    }
+    .project-goal {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+      font-style: italic;
+    }
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .meta-chip strong {
+      color: var(--text);
+    }
+
+    /* ── Summary two-panel ── */
+    .summary-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    @media (max-width: 580px) {
+      .summary-panels { grid-template-columns: 1fr; }
+    }
+    .summary-panel {
+      background: var(--surface);
+      padding: 1.25rem 1.5rem;
+    }
+    .summary-panel.build-now {
+      background: var(--surface);
+      border-left: 4px solid #22c55e;
+    }
+    .summary-panel.insight {
+      background: var(--teal-light);
+      border-left: 4px solid var(--teal);
+    }
+    .panel-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    .summary-panel.build-now .panel-label { color: #16a34a; }
+    .summary-panel.insight .panel-label    { color: var(--teal); }
+    .panel-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+    .panel-body {
+      font-size: 0.83rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ── Feature cards ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.9rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .feature-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--teal);
+    }
+    .feature-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .feature-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+    .priority-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .p0 { background: #fee2e2; color: var(--p0); }
+    .p1 { background: #fef3c7; color: var(--p1); }
+    .p2 { background: #dbeafe; color: var(--p2); }
+    @media (prefers-color-scheme: dark) {
+      .p0 { background: #450a0a; color: #f87171; }
+      .p1 { background: #431407; color: #fbbf24; }
+      .p2 { background: #1e3a5f; color: #60a5fa; }
+    }
+    .feature-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .feature-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      flex: 1;
+    }
+    .feature-dep {
+      font-size: 0.7rem;
+      color: var(--teal);
+      margin-top: 0.25rem;
+    }
+
+    /* ── First-run timeline ── */
+    .timeline {
+      position: relative;
+      padding-left: 2.5rem;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0.9rem;
+      top: 0.9rem;
+      bottom: 0.9rem;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline-step {
+      position: relative;
+      margin-bottom: 1.25rem;
+    }
+    .timeline-step:last-child { margin-bottom: 0; }
+    .step-dot {
+      position: absolute;
+      left: -2.5rem;
+      top: 0.1rem;
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 50%;
+      background: var(--teal);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+      z-index: 1;
+    }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      box-shadow: var(--shadow);
+    }
+    .step-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+    }
+    .step-detail {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .step-ux-note {
+      display: inline-block;
+      margin-top: 0.35rem;
+      font-size: 0.7rem;
+      background: var(--teal-light);
+      color: var(--teal);
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    /* ── Acceptance criteria table ── */
+    .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      box-shadow: var(--shadow);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .criteria-table thead tr {
+      background: var(--teal);
+      color: white;
+    }
+    .criteria-table th {
+      text-align: left;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .criteria-table td {
+      padding: 0.6rem 0.9rem;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      background: var(--surface);
+      line-height: 1.5;
+    }
+    .criteria-table tr:last-child td { border-bottom: none; }
+    .criteria-table tr:nth-child(even) td { background: var(--bg); }
+    .given-col { color: var(--text-muted) !important; font-style: italic; }
+    .when-col  { font-weight: 600; }
+    .then-col  {}
+    .check-icon { color: #16a34a; font-size: 0.85rem; }
+
+    /* ── Robustness rules ── */
+    .rule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .rule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+    .rule-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .rule-text {
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .rule-text strong {
+      color: var(--warn);
+      display: block;
+      margin-bottom: 0.1rem;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Out of scope ── */
+    .oos-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .oos-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--out-bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.82rem;
+      color: var(--out-text);
+    }
+    .oos-x {
+      font-size: 0.9rem;
+      color: var(--out-text);
+      flex-shrink: 0;
+    }
+    .oos-text { text-decoration: line-through; }
+
+    /* ── AI coder callout ── */
+    .ai-callout {
+      background: var(--surface);
+      border: 1.5px solid var(--teal);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    }
+    .ai-callout-header {
+      background: var(--teal);
+      color: white;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .ai-callout-body {
+      padding: 1.1rem 1.25rem;
+      font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+      font-size: 0.8rem;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .copy-hint {
+      display: block;
+      margin-top: 0.75rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ── Footer ── */
+    .spec-footer {
+      margin-top: 3rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .footer-brand {
+      color: var(--teal);
+      font-weight: 700;
+    }
+
+    /* ── Scrollbar (subtle) ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="page-shell">
+
+  <!-- ─── Sidebar Navigation ─── -->
+  <nav class="sidebar no-print" aria-label="Spec sections">
+    <div class="sidebar-label">目录 · Sections</div>
+    <a class="sidebar-link active" href="#header">① 项目概览</a>
+    <a class="sidebar-link" href="#summary">② 核心洞察</a>
+    <a class="sidebar-link" href="#features">③ 功能列表</a>
+    <a class="sidebar-link" href="#firstrun">④ 首次体验</a>
+    <a class="sidebar-link" href="#criteria">⑤ 验收标准</a>
+    <a class="sidebar-link" href="#robustness">⑥ 健壮性规则</a>
+    <a class="sidebar-link" href="#oos">⑦ 不包含</a>
+    <a class="sidebar-link" href="#prompt">⑧ AI 生成指令</a>
+  </nav>
+
+  <!-- ─── Main Content ─── -->
+  <main class="main-content">
+
+    <!-- ══════════════════════════════════════
+         [1] PROJECT HEADER
+    ══════════════════════════════════════ -->
+    <section id="header" class="spec-section">
+      <div class="project-header">
+        <div class="project-badge">⚡ TuringOS Spec · Software 3.0</div>
+        <h1 class="project-title">{{PROJECT_TITLE}}</h1>
+        <!-- DEMO: SmartChef — 智能食谱与购物清单管理器 -->
+        <p class="project-goal">{{ONE_LINE_GOAL}}</p>
+        <!-- DEMO: 让用户用自然语言描述想吃的，自动生成菜谱、营养信息和精准的购物清单 -->
+        <div class="meta-row">
+          <span class="meta-chip">🧩 复杂度 <strong>{{COMPLEXITY}}</strong></span>
+          <span class="meta-chip">🏷 领域 <strong>{{DOMAIN}}</strong></span>
+          <span class="meta-chip">⏱ 预估交付 <strong>{{TIMELINE_ESTIMATE}}</strong></span>
+          <span class="meta-chip">📅 生成时间 <strong>{{GENERATED_DATE}}</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [2] SUMMARY — BUILD NOW vs DEEPER INSIGHT
+    ══════════════════════════════════════ -->
+    <section id="summary" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">2</span>
+        <span class="section-title">核心洞察 <span class="section-title-cn">Summary</span></span>
+      </div>
+      <div class="summary-panels">
+        <div class="summary-panel build-now">
+          <div class="panel-label">✅ 立刻能做的 · Build Now</div>
+          <div class="panel-title">{{BUILD_NOW_TITLE}}</div>
+          <!-- DEMO: 自然语言菜谱查找 + 购物清单生成 -->
+          <div class="panel-body">{{BUILD_NOW_SUMMARY}}</div>
+          <!-- DEMO: 用户说"想吃一顿低卡意大利面"，系统返回3个合适的菜谱，
+               每道菜带卡路里、难度和预估时间。点击菜谱后自动生成购物清单，
+               按超市分区排好顺序，可一键分享给家人。 -->
+        </div>
+        <div class="summary-panel insight">
+          <div class="panel-label">💡 更深的洞察 · Deeper Insight</div>
+          <div class="panel-title">{{INSIGHT_TITLE}}</div>
+          <!-- DEMO: 用户真正需要的是"减少决策疲劳" -->
+          <div class="panel-body">{{DEEPER_INSIGHT_SUMMARY}}</div>
+          <!-- DEMO: 用户表面上要"菜谱查找"，但深层需求是减少"今晚吃什么"的决策焦虑。
+               系统应学习家庭口味偏好和冰箱库存，主动推荐而非被动检索。
+               购物清单的核心价值是"不重复购买"和"不遗漏"，不是格式美观。 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [3] CORE FEATURES
+         LLM: fill {{FEATURES_HTML}} with the
+         card HTML shown in the pattern below
+    ══════════════════════════════════════ -->
+    <section id="features" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">3</span>
+        <span class="section-title">功能列表 <span class="section-title-cn">Core Features</span></span>
+      </div>
+      <div class="feature-grid" role="list">
+
+        {{FEATURES_HTML}}
+
+        <!-- ─── DEMO CARDS (LLM replaces this block) ─── -->
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">🔍</span>
+            <span class="priority-badge p0">P0</span>
+          </div>
+          <div class="feature-name">自然语言菜谱搜索</div>
+          <div class="feature-desc">用户输入自由文本（"低卡周末早餐"），系统返回匹配的菜谱列表，附卡路里、时间、难度标签。</div>
+        </div>
+
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">🛒</span>
+            <span class="priority-badge p0">P0</span>
+          </div>
+          <div class="feature-name">一键生成购物清单</div>
+          <div class="feature-desc">从选定菜谱自动提取食材，去重合并，按超市分区（生鲜、调料、冷冻）排序后展示。</div>
+          <div class="feature-dep">→ 依赖：自然语言菜谱搜索</div>
+        </div>
+
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">❄️</span>
+            <span class="priority-badge p1">P1</span>
+          </div>
+          <div class="feature-name">冰箱库存管理</div>
+          <div class="feature-desc">用户可录入当前冰箱食材。生成购物清单时自动排除已有食材，避免重复购买。</div>
+          <div class="feature-dep">→ 依赖：购物清单生成</div>
+        </div>
+
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">📊</span>
+            <span class="priority-badge p1">P1</span>
+          </div>
+          <div class="feature-name">营养信息面板</div>
+          <div class="feature-desc">每道菜谱展示每份卡路里、蛋白质、碳水、脂肪数据，支持按日汇总。</div>
+        </div>
+
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">💬</span>
+            <span class="priority-badge p1">P1</span>
+          </div>
+          <div class="feature-name">清单分享</div>
+          <div class="feature-desc">生成可分享链接或微信文字格式，家庭成员可查看同一份购物清单并标记已购买。</div>
+        </div>
+
+        <div class="feature-card" role="listitem">
+          <div class="feature-card-top">
+            <span class="feature-icon">🎯</span>
+            <span class="priority-badge p2">P2</span>
+          </div>
+          <div class="feature-name">口味偏好学习</div>
+          <div class="feature-desc">记录用户的收藏和跳过历史，下次推荐时优先展示符合口味的菜谱。</div>
+          <div class="feature-dep">→ 依赖：用户账号系统</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [4] FIRST-RUN FLOW — VERTICAL TIMELINE
+         LLM: fill {{FIRST_RUN_STEPS_HTML}} with
+         step HTML shown in pattern below
+    ══════════════════════════════════════ -->
+    <section id="firstrun" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">4</span>
+        <span class="section-title">首次体验流程 <span class="section-title-cn">First-Run Flow</span></span>
+      </div>
+      <div class="timeline">
+
+        {{FIRST_RUN_STEPS_HTML}}
+
+        <!-- ─── DEMO STEPS (LLM replaces) ─── -->
+        <div class="timeline-step">
+          <div class="step-dot">1</div>
+          <div class="step-card">
+            <div class="step-title">打开应用 — 空状态欢迎页</div>
+            <div class="step-detail">用户看到简洁的欢迎界面：一个大搜索框，提示文字"今晚想吃什么？"。无需注册登录即可使用基础搜索。</div>
+            <span class="step-ux-note">💡 UX: 零门槛，立刻可用</span>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-dot">2</div>
+          <div class="step-card">
+            <div class="step-title">输入自然语言需求</div>
+            <div class="step-detail">用户输入"低卡意大利面，20分钟内，给2个人"。输入时有实时补全提示。按回车或点击搜索按钮提交。</div>
+            <span class="step-ux-note">💡 UX: 实时补全降低输入门槛</span>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-dot">3</div>
+          <div class="step-card">
+            <div class="step-title">查看菜谱结果</div>
+            <div class="step-detail">显示3-5个匹配菜谱卡片，每张卡片展示：封面图（可选）、菜名、卡路里/份、难度、时间。可收藏或直接点击查看详情。</div>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-dot">4</div>
+          <div class="step-card">
+            <div class="step-title">选择菜谱 — 查看详情</div>
+            <div class="step-detail">详情页展示完整食材列表（按克数）、步骤说明（可展开）、营养信息面板。页面底部有固定"加入购物清单"按钮。</div>
+            <span class="step-ux-note">💡 UX: 主要操作固定在视口底部</span>
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-dot">5</div>
+          <div class="step-card">
+            <div class="step-title">生成 &amp; 查看购物清单</div>
+            <div class="step-detail">清单自动生成，食材按分区分组。用户可勾选已有食材（冰箱存货），系统实时更新需购买项。底部显示"分享清单"按钮。</div>
+            <span class="step-ux-note">💡 UX: 核心操作闭环完成，用户获得即时价值</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [5] ACCEPTANCE CRITERIA
+         LLM: fill {{CRITERIA_ROWS_HTML}} with
+         <tr> elements using pattern below
+    ══════════════════════════════════════ -->
+    <section id="criteria" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">5</span>
+        <span class="section-title">验收标准 <span class="section-title-cn">Acceptance Criteria</span></span>
+      </div>
+      <table class="criteria-table" aria-label="Acceptance criteria">
+        <thead>
+          <tr>
+            <th style="width:25%">Given — 前提条件</th>
+            <th style="width:30%">When — 用户操作</th>
+            <th>Then — 期望结果</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {{CRITERIA_ROWS_HTML}}
+
+          <!-- ─── DEMO ROWS (LLM replaces) ─── -->
+          <tr>
+            <td class="given-col">用户在搜索框中</td>
+            <td class="when-col">输入自然语言查询并提交</td>
+            <td><span class="check-icon">✓</span> 在 2 秒内返回至少 3 个菜谱结果，每个结果含卡路里和时间信息</td>
+          </tr>
+          <tr>
+            <td class="given-col">用户在菜谱详情页</td>
+            <td class="when-col">点击"加入购物清单"</td>
+            <td><span class="check-icon">✓</span> 购物清单立即更新，重复食材自动合并（如：鸡蛋 × 3 不显示为两行）</td>
+          </tr>
+          <tr>
+            <td class="given-col">用户在购物清单页</td>
+            <td class="when-col">勾选一个食材为"已有"</td>
+            <td><span class="check-icon">✓</span> 该食材从"需购买"列表移除，总数量实时更新，页面不全量刷新</td>
+          </tr>
+          <tr>
+            <td class="given-col">用户在任意菜谱页</td>
+            <td class="when-col">网络断开后操作</td>
+            <td><span class="check-icon">✓</span> 显示离线提示 Banner；已加载的菜谱内容仍可查看；操作队列在重连后自动同步</td>
+          </tr>
+          <tr>
+            <td class="given-col">购物清单已生成</td>
+            <td class="when-col">点击"分享清单"</td>
+            <td><span class="check-icon">✓</span> 生成可分享链接，接收者无需登录即可只读查看清单</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [6] ROBUSTNESS RULES
+         LLM: fill {{ROBUSTNESS_RULES_HTML}} with
+         rule-item divs using pattern below
+    ══════════════════════════════════════ -->
+    <section id="robustness" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">6</span>
+        <span class="section-title">健壮性规则 <span class="section-title-cn">Robustness Rules — Do NOT Break</span></span>
+      </div>
+      <div class="rule-list">
+
+        {{ROBUSTNESS_RULES_HTML}}
+
+        <!-- ─── DEMO RULES (LLM replaces) ─── -->
+        <div class="rule-item">
+          <span class="rule-icon">⚠️</span>
+          <div class="rule-text">
+            <strong>数据一致性</strong>
+            购物清单与菜谱选择必须保持强一致。删除一道菜谱时，该菜谱贡献的所有食材（且不被其他菜谱共享的）必须从清单中移除。绝不能出现"孤儿食材"。
+          </div>
+        </div>
+
+        <div class="rule-item">
+          <span class="rule-icon">⚠️</span>
+          <div class="rule-text">
+            <strong>搜索不返回空</strong>
+            即使没有精确匹配，系统也必须返回"最接近"的结果，并注明差异（如："未找到精确匹配，以下是类似菜谱"）。空白页面永远不是合法状态。
+          </div>
+        </div>
+
+        <div class="rule-item">
+          <span class="rule-icon">⚠️</span>
+          <div class="rule-text">
+            <strong>分享链接永久有效</strong>
+            已生成的分享链接必须在至少 30 天内有效，内容快照不随原始清单的修改而变化。
+          </div>
+        </div>
+
+        <div class="rule-item">
+          <span class="rule-icon">⚠️</span>
+          <div class="rule-text">
+            <strong>食材单位统一</strong>
+            合并同类食材时必须统一单位（克 / 毫升）。不能将"200g 面粉"和"1杯面粉"直接相加显示为"200g + 1杯"。
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [7] OUT OF SCOPE
+         LLM: fill {{OOS_ITEMS_HTML}} with
+         oos-item divs using pattern below
+    ══════════════════════════════════════ -->
+    <section id="oos" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">7</span>
+        <span class="section-title">不包含 <span class="section-title-cn">Out of Scope — This Version</span></span>
+      </div>
+      <div class="oos-list">
+
+        {{OOS_ITEMS_HTML}}
+
+        <!-- ─── DEMO OOS ITEMS (LLM replaces) ─── -->
+        <div class="oos-item">
+          <span class="oos-x">✗</span>
+          <span class="oos-text">电商接口直接下单（跳转到外卖 / 超市平台购物）</span>
+        </div>
+        <div class="oos-item">
+          <span class="oos-x">✗</span>
+          <span class="oos-text">用户生成菜谱（UGC）和菜谱评论系统</span>
+        </div>
+        <div class="oos-item">
+          <span class="oos-x">✗</span>
+          <span class="oos-text">实时价格比较（各超市食材价格对比）</span>
+        </div>
+        <div class="oos-item">
+          <span class="oos-x">✗</span>
+          <span class="oos-text">视频烹饪教程（图文步骤已足够，视频生产成本过高）</span>
+        </div>
+        <div class="oos-item">
+          <span class="oos-x">✗</span>
+          <span class="oos-text">多语言支持（仅中文，英文界面不在本版本内）</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         [8] AI CODER ONE-LINER PROMPT
+    ══════════════════════════════════════ -->
+    <section id="prompt" class="spec-section">
+      <div class="section-header">
+        <span class="section-num">8</span>
+        <span class="section-title">AI 生成指令 <span class="section-title-cn">One-Liner for AI Coder</span></span>
+      </div>
+      <div class="ai-callout">
+        <div class="ai-callout-header">
+          <span>🤖</span>
+          <span>复制此提示词给 AI 编程助手</span>
+        </div>
+        <div class="ai-callout-body">{{AI_CODER_PROMPT}}<span class="copy-hint">→ 将以上文字完整复制给 Claude / GPT / Cursor 等 AI 编程助手</span>
+        </div>
+        <!-- DEMO CONTENT for AI_CODER_PROMPT:
+        构建一个名为 SmartChef 的智能菜谱与购物清单 Web 应用。
+        核心功能：自然语言菜谱搜索（P0）、一键购物清单生成（P0，支持食材去重合并）、
+        冰箱库存管理（P1，排除已有食材）、营养信息面板（P1）、清单分享链接（P1）。
+        技术栈：React + TypeScript + Tailwind CSS；数据持久化使用 localStorage（MVP 阶段）；
+        菜谱数据使用内置 JSON 文件（包含 50+ 条中文菜谱，含卡路里和分区标签）。
+        验收：搜索响应 < 2s；清单合并无重复；分享链接 30 天有效；离线可浏览已加载内容。
+        不实现：电商下单、UGC 菜谱、多语言。
+        -->
+      </div>
+    </section>
+
+    <!-- ─── Footer ─── -->
+    <footer class="spec-footer no-print">
+      <span>生成于 <strong>{{GENERATED_DATE}}</strong> · TuringOS Grill ▸ Spec</span>
+      <span class="footer-brand">TuringOS v4 · Software 3.0</span>
+    </footer>
+
+  </main>
+</div>
+
+<!-- ─── Sidebar active-link JS (enhancement only; not required) ─── -->
+<script>
+  // Progressive enhancement: highlight sidebar link for visible section
+  (function() {
+    if (!('IntersectionObserver' in window)) return;
+    const links = document.querySelectorAll('.sidebar-link');
+    const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          const link = document.querySelector('.sidebar-link[href="#' + e.target.id + '"]');
+          if (link) link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    sections.forEach(s => s && obs.observe(s));
+  })();
+</script>
+
+</body>
+</html>
