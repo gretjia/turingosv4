@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-label="TuringOS mark">
+
+  <rect width="64" height="64" fill="#FAFAF7"></rect>
+  <g transform="translate(32 32) rotate(45)">
+    <rect fill="#1F6E6B" x="-14" y="-14" width="28" height="28"></rect>
+  </g>
+</svg>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  /* Subtle live caret — signals the system is still thinking even at rest.
+     Sized to the cap-height of the surrounding text so it reads as
+     typography, not as decoration. */
+  @keyframes caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 0.85em;
+    background: var(--accent);
+    margin-left: 0.12em;
+    transform: translateY(0.08em);
+    animation: caret 1.05s steps(1) infinite;
+  }
+  .meta-row {
+    display:flex; gap:14px; align-items:baseline; margin-top:18px;
+    font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+  .meta-row .key { color: var(--accent); }
+</style>
+</head>
+<body class="card"><div class="card-body">
+  <p style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.22em;color:var(--fg-subtle);margin:0 0 12px">
+    page title · h1 specimen
+  </p>
+  <h1 style="font-family:var(--font-display);font-style:italic;font-weight:400;font-size:38px;line-height:1.12;letter-spacing:-0.018em;font-variation-settings:'opsz' 72,'SOFT' 50;margin:0;color:var(--fg);max-width:none">
+    把你的麻烦交给我，我帮你写成一份能跑的规范<span class="caret" aria-hidden="true"></span>
+  </h1>
+  <div class="meta-row">
+    <span class="key">Fraunces 400 italic</span>
+    <span>opsz 72 · SOFT 50</span>
+    <span>38 / 1.12 · -0.018 em</span>
+    <span style="margin-left:auto;color:var(--fg-muted)">h1 · --fs-2xl</span>
+  </div>
+</div></body></html>

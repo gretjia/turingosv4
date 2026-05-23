@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  /* The AGI-era replacement for a spinner: text streams in token-by-token,
+     and the caret stays visible at the leading edge to signal "still thinking." */
+  @keyframes caret { 50% { opacity: 0; } }
+  @keyframes reveal {
+    0%   { clip-path: inset(0 100% 0 0); }
+    100% { clip-path: inset(0 0    0 0); }
+  }
+  .stream {
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--fg);
+    max-width: none;
+    clip-path: inset(0 0 0 0);
+    animation: reveal 4.5s steps(80) infinite;
+  }
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: var(--accent);
+    margin-left: 2px;
+    transform: translateY(0.15em);
+    animation: caret 0.9s steps(1) infinite;
+  }
+  .badge {
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--font-mono);font-size:11px;
+    text-transform:uppercase;letter-spacing:0.16em;
+    color:var(--accent);padding:3px 8px;
+    border:1px solid var(--accent);border-radius:2px;
+    margin-bottom:14px;
+  }
+  .badge .dot { width:6px;height:6px;border-radius:50%;background:currentColor;animation:caret 1.4s steps(1) infinite; }
+</style></head>
+<body class="card"><div class="card-body">
+  <span class="badge"><span class="dot"></span>streaming · agent_001 · DeepSeek V3.2</span>
+  <p class="stream">把每周一早上你手动整理电费截图这件事，写成一份七槽规范——触发源、频率、当前流程、最痛的那一步、成功信号、不能搞坏的东西、故意不做的事<span class="caret" aria-hidden="true"></span></p>
+</div></body></html>

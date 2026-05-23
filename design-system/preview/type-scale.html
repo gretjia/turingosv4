@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  .row {
+    display: grid;
+    grid-template-columns: 36px 1fr 110px;
+    gap: 8px 22px;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .row:last-child { border-bottom: none; }
+  .px {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-subtle);
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .use {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--fg-muted);
+    text-align: right;
+  }
+  .sample { color: var(--fg); font-family: var(--font-body); }
+</style>
+</head>
+<body class="card"><div class="card-body">
+  <div class="row">
+    <span class="px">11</span>
+    <span class="sample" style="font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.22em;color:var(--fg-muted)">STEP 3 / 5 · eyebrow</span>
+    <span class="use">2xs · caps</span>
+  </div>
+  <div class="row">
+    <span class="px">13</span>
+    <span class="sample" style="font-family:var(--font-mono);font-size:13px;color:var(--fg-muted);letter-spacing:-0.01em">tx_a3f0…8c11 · footer + hashes</span>
+    <span class="use">xs · mono</span>
+  </div>
+  <div class="row">
+    <span class="px">15</span>
+    <span class="sample" style="font-size:15px">表格单元 · table cells · dl values</span>
+    <span class="use">sm · table</span>
+  </div>
+  <div class="row" style="padding:10px 0">
+    <span class="px">17</span>
+    <span class="sample" style="font-size:17px;line-height:1.6">长篇正文：在 17 px 下，中英文混排的阅读节奏最为舒缓。</span>
+    <span class="use">md · body</span>
+  </div>
+  <div class="row" style="padding:12px 0">
+    <span class="px">21</span>
+    <span class="sample" style="font-size:21px;font-family:var(--font-display);font-style:italic;font-variation-settings:'opsz' 32,'SOFT' 50;line-height:1.4">导语 — A lede that earns its weight.</span>
+    <span class="use">lg · lede</span>
+  </div>
+  <div class="row" style="padding:14px 0">
+    <span class="px">28</span>
+    <span class="sample" style="font-size:28px;font-family:var(--font-display);font-style:italic;font-variation-settings:'opsz' 72;line-height:1.22;letter-spacing:-0.01em">h2 · 章节标题</span>
+    <span class="use">xl · h2</span>
+  </div>
+  <div class="row" style="padding:16px 0">
+    <span class="px">38</span>
+    <span class="sample" style="font-size:38px;font-family:var(--font-display);font-style:italic;font-variation-settings:'opsz' 96,'SOFT' 40;line-height:1.1;letter-spacing:-0.018em">page title</span>
+    <span class="use">2xl · h1</span>
+  </div>
+</div></body></html>

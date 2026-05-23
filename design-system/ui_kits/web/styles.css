@@ -1,3 +1,167 @@
+/* TuringOS Web UI kit — full stylesheet.
+ *
+ * This file is mechanically regenerated from the current production frontend
+ * CSS so local design previews match turingos_web.
+ *
+ * Source files:
+ *   frontend/src/design-system.css
+ *   frontend/src/base-styles.css
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100&family=IBM+Plex+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+/* TRACE_MATRIX FC1-N5: read view materialization — design system tokens
+ *
+ * TuringOS Phase 7 W4.4 design system.
+ *
+ * Aesthetic brief: research instrument, NOT consumer SaaS. Closer to a
+ * paper-toned editorial publication, a UNIX manual page, or an academic
+ * notebook than a B2B dashboard. The constitution rendered as a UI.
+ *
+ * Typography pair:
+ *   - Display:  Fraunces (variable serif) — editorial, intentional, opinionated
+ *   - Monospace: JetBrains Mono (variable mono) — hashes, ids, numerics, code
+ *   - Body:     IBM Plex Sans (geometric humanist) — long-form prose
+ *   None of: Inter, Roboto, Arial, system-only sans (forbidden by Anthropic
+ *   Cookbook "Prompting for frontend aesthetics" generic-AI-slop checklist).
+ *
+ * Color palette:
+ *   Paper base #F5F0E5 (warm ember paper)
+ *   Ink fg    #1E1813 (warm near-black)
+ *   Accent    #2D7A72 (settled teal — NOT purple, NOT coral)
+ *   Hairline  #E0D9C7 (warm 1px rules)
+ *   Dark mode counterparts in @media block below.
+ *
+ * Spacing: 4px scale (--space-1 = 4px through --space-8 = 64px).
+ * No drop shadows. Hairline borders only. Generous line-height.
+ *
+ * Status colors (typographic + colored badges, never icon-only):
+ *   open      teal      #1F6E6B
+ *   accepted  moss      #3F6E3F
+ *   rejected  brick     #9C3A2F
+ *   finalized amber     #A87431
+ *   bankrupt  charcoal  #3A3633
+ *   expired   neutral   #807974
+ */
+
+:root {
+  /* ----- Color: paper / ink / accent ------------------------------------ */
+  --color-bg: #F5F0E5;
+  --color-bg-elev: #EEE7D6;
+  --color-bg-bright: #FBF7EE;
+  --color-fg: #1E1813;
+  --color-fg-muted: #5E5448;
+  --color-fg-subtle: #8E8474;
+  --color-accent: #2D7A72;
+  --color-accent-bright: #3A958A;
+  --color-accent-soft: #D5E5DF;
+  --color-accent-glow: #B8D6CE;
+  --color-hairline: #E0D9C7;
+  --color-hairline-strong: #C3BAA5;
+
+  /* ----- Status semantic colors ----------------------------------------- */
+  --color-status-open: #2D7A72;
+  --color-status-accepted: #557F4A;
+  --color-status-rejected: #A6493D;
+  --color-status-finalized: #B1813D;
+  --color-status-bankrupt: #463E36;
+  --color-status-expired: #8E8474;
+  --color-status-solved: #557F4A;
+  --color-status-exhausted: #8E8474;
+
+  /* Layer badge colors (event log) */
+  --color-layer-l4: #557F4A;
+  --color-layer-l4e: #A6493D;
+
+  /* ----- Typography ----------------------------------------------------- */
+  --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond",
+    "Baskerville", "Times New Roman", "Droid Serif", Times,
+    "Source Serif Pro", serif;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", "Berkeley Mono",
+    "SF Mono", "Cascadia Mono", Menlo, Consolas, ui-monospace, monospace;
+  --font-body: "IBM Plex Sans", "Söhne", "Helvetica Neue",
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Type scale — geometric, anchored at 18px for calmer editorial reading */
+  --fs-2xs: 0.6875rem;  /* 11px */
+  --fs-xs:  0.8125rem;  /* 13px */
+  --fs-sm:  0.9375rem;  /* 15px */
+  --fs-md:  1.125rem;   /* 18px */
+  --fs-lg:  1.375rem;   /* 22px */
+  --fs-xl:  1.875rem;   /* 30px */
+  --fs-2xl: 2.625rem;   /* 42px */
+  --fs-3xl: 3.5rem;     /* 56px */
+  --fs-4xl: 4.75rem;    /* 76px */
+
+  /* Weights — extremes encouraged (Anthropic guidance: 100/200 vs 800/900) */
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --fw-black: 900;
+
+  /* ----- Spacing scale (4px base) --------------------------------------- */
+  --space-1: 0.25rem;   /*  4px */
+  --space-2: 0.5rem;    /*  8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-7: 3rem;      /* 48px */
+  --space-8: 4rem;      /* 64px */
+  --space-9: 6rem;      /* 96px */
+
+  /* ----- Radii (very restrained — research instrument) ------------------ */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  /* ----- Borders (hairlines only) --------------------------------------- */
+  --border-hairline: 1px solid var(--color-hairline);
+  --border-hairline-strong: 1px solid var(--color-hairline-strong);
+
+  /* ----- Motion --------------------------------------------------------- */
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ----- Layout --------------------------------------------------------- */
+  --measure-prose: 72ch;
+  --measure-wide: 1240px;
+
+  color-scheme: light dark;
+}
+
+/* Dark mode: warm ink-on-paper-reversed, NOT pure black, NOT cool blue. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1B1612;
+    --color-bg-elev: #25201A;
+    --color-bg-bright: #2C261F;
+    --color-fg: #ECE4D2;
+    --color-fg-muted: #A89E8B;
+    --color-fg-subtle: #7A7066;
+    --color-accent: #6BBFB1;
+    --color-accent-bright: #82D2C4;
+    --color-accent-soft: #1F3C39;
+    --color-accent-glow: #2D5651;
+    --color-hairline: #2F2A23;
+    --color-hairline-strong: #423C32;
+
+    --color-status-open: #6BBFB1;
+    --color-status-accepted: #88B97B;
+    --color-status-rejected: #DC7E6F;
+    --color-status-finalized: #E0AC68;
+    --color-status-bankrupt: #756F69;
+    --color-status-expired: #807974;
+    --color-status-solved: #88B97B;
+    --color-status-exhausted: #807974;
+
+    --color-layer-l4: #88B97B;
+    --color-layer-l4e: #DC7E6F;
+  }
+}
+
+
 /* TRACE_MATRIX FC1-N5: read view materialization — base styles
  *
  * Typographic resets, body/landmark defaults, focus rings, and the

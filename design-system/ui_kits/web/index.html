@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>TuringOS — UI kit</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Hard-override the dark mode @media query so the UI kit always renders
+       in light mode. The production CSS uses `prefers-color-scheme: dark`
+       which causes verifier screenshots (and dev tooling) to render an
+       almost-invisible dark-on-dark surface in dark-mode environments.
+       Operators who want to inspect the dark palette can flip
+       `data-theme="dark"` on <html> manually. */
+    :root, html { color-scheme: light !important; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-bg: #F5F0E5; --color-bg-elev: #EEE7D6; --color-bg-bright: #FBF7EE;
+        --color-fg: #1E1813; --color-fg-muted: #5E5448; --color-fg-subtle: #8E8474;
+        --color-accent: #2D7A72; --color-accent-bright: #3A958A;
+        --color-accent-soft: #D5E5DF; --color-accent-glow: #B8D6CE;
+        --color-hairline: #E0D9C7; --color-hairline-strong: #C3BAA5;
+        --color-status-open: #2D7A72; --color-status-accepted: #557F4A;
+        --color-status-rejected: #A6493D; --color-status-finalized: #B1813D;
+        --color-status-bankrupt: #463E36; --color-status-expired: #8E8474;
+        --color-status-solved: #557F4A; --color-status-exhausted: #8E8474;
+        --color-layer-l4: #557F4A; --color-layer-l4e: #A6493D;
+      }
+    }
+  </style>
+  <style>
+    /* Flex column layout pinning footer to viewport bottom. Simple, and
+       html-to-image renders it correctly. */
+    html, body { height: 100%; margin: 0; }
+    body { min-height: 100vh; }
+    #root { display: flex; flex-direction: column; min-height: 100vh; }
+    #root > .tos-page-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .tos-page-wrap > main { flex: 1; }
+  </style>
+</head>
+<body data-view="welcome">
+  <div id="root"></div>
+
+  <!-- React + Babel runtime (pinned with integrity per design-agent guidelines) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+          integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+          integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+          integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+          crossorigin="anonymous"></script>
+
+  <!-- Order matters: Chrome (primitives) → Welcome → Build → Screens → App -->
+  <script type="text/babel" src="Chrome.jsx"></script>
+  <script type="text/babel" src="Welcome.jsx"></script>
+  <script type="text/babel" src="Build.jsx"></script>
+  <script type="text/babel" src="Screens.jsx"></script>
+  <script type="text/babel" src="App.jsx"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  details.trace {
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent-soft);
+    padding: 12px 16px;
+    background: var(--bg-elev);
+  }
+  summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  .trace-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--fg-muted);
+  }
+  .trace-eyebrow b { color: var(--accent); font-weight: 500; }
+  .trace-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-subtle);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+  .trace-body {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--hairline);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--fg-muted);
+    white-space: pre-wrap;
+  }
+  .trace-body em { color: var(--accent); font-style: normal; }
+</style></head>
+<body class="card"><div class="card-body">
+  <details class="trace" open>
+    <summary>
+      <span class="trace-eyebrow"><b>thought</b> · 推理 step 04 / 11</span>
+      <span class="trace-meta">387 tok · 2.1 s · DeepSeek V3.2</span>
+    </summary>
+    <div class="trace-body">用户的「触发源」是周一早上手动归档微信里的电费截图。
+我应该问 <em>frequency</em> 还是 <em>pain</em>？她已经隐含说了这件事一周一次——
+所以下一题问 <em>pain</em>：流程里最烦的那一步是什么。</div>
+  </details>
+</div></body></html>

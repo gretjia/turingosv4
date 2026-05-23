@@ -1,0 +1,387 @@
+/* TuringOS Design System — color & typography tokens
+ *
+ * Aesthetic brief, lifted verbatim from the codebase author:
+ *   "Research instrument, NOT consumer SaaS. Closer to a paper-toned
+ *    editorial publication, a UNIX manual page, or an academic notebook
+ *    than a B2B dashboard. The constitution rendered as a UI."
+ *
+ * Source of truth: frontend/src/design-system.css (paper / ink / accent),
+ * with semantic aliases (h1, h2, p, code, etc.) added for design work.
+ *
+ * Forbidden by brand:
+ *   - Inter, Roboto, Arial as primary face
+ *   - Purple / bluish-purple gradients
+ *   - Drop shadows (hairlines only)
+ *   - Heavy radii (max 3px)
+ *   - Icon-only status (always typographic + color)
+ *
+ * Fonts are loaded from Google Fonts:
+ *   Fraunces (display, variable opsz 9..144 + ital + SOFT 30..100)
+ *   IBM Plex Sans (body)
+ *   JetBrains Mono (monospace)
+ * Add this <link> tag in <head>:
+ *   <link rel="stylesheet"
+ *     href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100&family=IBM+Plex+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+ */
+
+:root {
+  /* ────────────────────────────────────────────────────────────
+     COLOR — warm ember paper, warm ink, settled teal.
+     v3 (May 2026 refresh): pivoted from v2's cool/luminous reading
+     toward the warm editorial register — ember background, slightly
+     softer teal, calmer leading. Still teal, never coral. Still
+     TuringOS, just in a calmer voice.
+     ──────────────────────────────────────────────────────────── */
+
+  /* Foreground/background scale — warm ember, not bright-cool */
+  --bg:           #F5F0E5;   /* ember paper    — page background        */
+  --bg-elev:      #EEE7D6;   /* warmer paper   — cards, code blocks     */
+  --bg-bright:    #FBF7EE;   /* lifted ember   — inputs, focused fields */
+  --fg:           #1E1813;   /* warm ink       — readable, slight warmth */
+  --fg-muted:     #5E5448;   /* warm muted     — secondary text         */
+  --fg-subtle:    #8E8474;   /* warm subtle    — captions, hints        */
+
+  /* Accent: settled teal — confident but not industrial, not luminous. */
+  --accent:        #2D7A72;   /* primary accent — links, active nav      */
+  --accent-bright: #3A958A;   /* highlight      — focus, hover ascent    */
+  --accent-soft:   #D5E5DF;   /* tint           — selection, soft bg     */
+  --accent-glow:   #B8D6CE;   /* halo           — focus ring outer       */
+
+  /* Hairlines — warm, paper-toned */
+  --hairline:        #E0D9C7;
+  --hairline-strong: #C3BAA5;
+
+  /* Status semantic colors — warm editorial register. */
+  --status-open:      #2D7A72;  /* teal     — open, in-progress       */
+  --status-accepted:  #557F4A;  /* moss     — accepted, solved, active*/
+  --status-rejected:  #A6493D;  /* terracotta — rejected, error      */
+  --status-finalized: #B1813D;  /* warm amber — finalized, warning   */
+  --status-bankrupt:  #463E36;  /* warm charcoal — bankrupt          */
+  --status-expired:   #8E8474;  /* neutral  — expired, exhausted     */
+
+  /* Event-log layer badge colors (L4 / L4-Exception). */
+  --layer-l4:  #557F4A;
+  --layer-l4e: #A6493D;
+
+  /* ────────────────────────────────────────────────────────────
+     TYPOGRAPHY — Fraunces / IBM Plex Sans / JetBrains Mono
+     ──────────────────────────────────────────────────────────── */
+
+  --font-display: "Fraunces", "Iowan Old Style", "Apple Garamond",
+                  "Baskerville", "Times New Roman", "Droid Serif",
+                  Times, "Source Serif Pro", serif;
+  --font-body:    "IBM Plex Sans", "Söhne", "Helvetica Neue",
+                  ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    "JetBrains Mono", "IBM Plex Mono", "Berkeley Mono",
+                  "SF Mono", "Cascadia Mono", Menlo, Consolas,
+                  ui-monospace, monospace;
+
+  /* Type scale — anchored at 18 px body for editorial reading comfort.
+   * v3: bumped from a 17 px anchor to 18 to give the system a calmer,
+   * more confident reading rhythm. Headings re-scaled in proportion. */
+  --fs-2xs: 0.6875rem;  /* 11px — mono caps eyebrow (STEP 3 / 5) */
+  --fs-xs:  0.8125rem;  /* 13px — mono caps for badges + footer */
+  --fs-sm:  0.9375rem;  /* 15px — table cells, dl values, captions */
+  --fs-md:  1.125rem;   /* 18px — body prose (anchor) */
+  --fs-lg:  1.375rem;   /* 22px — lede / blockquote */
+  --fs-xl:  1.875rem;   /* 30px — h2 */
+  --fs-2xl: 2.625rem;   /* 42px — h1 / page title */
+  --fs-3xl: 3.5rem;     /* 56px — hero */
+  --fs-4xl: 4.75rem;    /* 76px — AGI-era oracle text */
+
+  /* Weights — extremes encouraged (300 vs 700+). */
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-bold:    700;
+  --fw-black:   900;
+
+  /* ────────────────────────────────────────────────────────────
+     SPACING — 4 px base, with a macro stop for generous breathing.
+     ──────────────────────────────────────────────────────────── */
+  --space-1: 0.25rem;  /*  4px */
+  --space-2: 0.5rem;   /*  8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
+  --space-7: 3rem;     /* 48px */
+  --space-8: 4rem;     /* 64px */
+  --space-9: 6rem;     /* 96px — macro section breathing */
+
+  /* ────────────────────────────────────────────────────────────
+     RADII — restrained. Max 3px. No 12px+ pillowy cards.
+     ──────────────────────────────────────────────────────────── */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+
+  /* ────────────────────────────────────────────────────────────
+     MOTION — fast, subtle. No bounce. No spring.
+     ──────────────────────────────────────────────────────────── */
+  --motion-fast:   120ms;
+  --motion-normal: 180ms;
+  --motion-ease:   cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ────────────────────────────────────────────────────────────
+     LAYOUT — measure caps for prose / wide.
+     ──────────────────────────────────────────────────────────── */
+  --measure-prose: 72ch;
+  --measure-wide:  1240px;
+
+  color-scheme: light dark;
+}
+
+/* Dark mode — warm ink-on-paper reversed. NOT pure black. NOT cool blue.
+ * Reserved for explicit opt-in via [data-theme="dark"] on <html>. */
+[data-theme="dark"]:root,
+[data-theme="dark"] {
+  --bg:              #1B1612;
+  --bg-elev:         #25201A;
+  --bg-bright:       #2C261F;
+  --fg:              #ECE4D2;
+  --fg-muted:        #A89E8B;
+  --fg-subtle:       #7A7066;
+  --accent:          #6BBFB1;
+  --accent-bright:   #82D2C4;
+  --accent-soft:     #1F3C39;
+  --accent-glow:     #2D5651;
+  --hairline:        #2F2A23;
+  --hairline-strong: #423C32;
+
+  --status-open:      #6BBFB1;
+  --status-accepted:  #88B97B;
+  --status-rejected:  #DC7E6F;
+  --status-finalized: #E0AC68;
+  --status-bankrupt:  #756F69;
+  --status-expired:   #807974;
+
+  --layer-l4:  #88B97B;
+  --layer-l4e: #DC7E6F;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   SEMANTIC ELEMENT STYLES
+   Tag-level defaults so design work can drop into clean markup and get
+   the brand for free. These mirror the production base-styles.css but
+   are scoped to the canonical tags only.
+   ════════════════════════════════════════════════════════════════════════ */
+
+html {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: var(--fw-regular);
+  font-feature-settings: "ss01", "cv01";
+}
+
+::selection { background: var(--accent-soft); color: var(--fg); }
+
+/* ─── Headings — Fraunces, italic for h1, opsz tuned ────────────────── */
+
+h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-2xl);
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  font-variation-settings: "opsz" 96, "SOFT" 40;
+  max-width: var(--measure-prose);
+  margin: 0 0 var(--space-4);
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xl);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  font-variation-settings: "opsz" 80;
+  margin: var(--space-6) 0 var(--space-3);
+}
+
+h3 {
+  /* Tertiary headings ride the mono caps register — like a UNIX manpage section. */
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--fg-muted);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+h4 {
+  font-family: var(--font-body);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-md);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+/* ─── Body prose ───────────────────────────────────────────────────── */
+
+p {
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  line-height: 1.66;
+  margin: 0 0 var(--space-4);
+  max-width: var(--measure-prose);
+  text-wrap: pretty;
+  font-feature-settings: "ss01", "cv01", "kern";
+}
+
+small,
+.caption {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--fg-subtle);
+  letter-spacing: 0.04em;
+}
+
+/* Eyebrow / kicker — small caps in mono, used above headings. */
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--fg-subtle);
+  margin: 0 0 var(--space-2);
+}
+
+/* ─── Code / mono ──────────────────────────────────────────────────── */
+
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  color: var(--fg);
+  background: transparent;
+}
+
+pre {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  background: var(--bg-elev);
+  border: 1px solid var(--hairline);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  margin: 0 0 var(--space-4);
+  line-height: 1.55;
+}
+pre code { border: none; padding: 0; background: transparent; }
+
+/* CIDs, hashes, agent ids — mono, slightly tightened. */
+.hash,
+.cid {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: -0.01em;
+  color: var(--fg-muted);
+  word-break: break-all;
+}
+
+/* ─── Links ────────────────────────────────────────────────────────── */
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 1px;
+  transition: border-bottom-width var(--motion-fast) var(--motion-ease),
+              color var(--motion-fast) var(--motion-ease);
+}
+a:hover { border-bottom-width: 2px; color: var(--fg); }
+
+/* ─── Hairline rules ───────────────────────────────────────────────── */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--hairline);
+  margin: var(--space-6) 0;
+}
+
+/* ─── Tables — tabular numerics, bottom-rule headers ──────────────── */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+thead th {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--fg-muted);
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 2px solid var(--fg);
+  white-space: nowrap;
+}
+tbody td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--hairline);
+  vertical-align: top;
+}
+
+/* ─── Definition list — used heavily for card metadata ────────────── */
+
+dl.tos-dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+}
+dl.tos-dl dt {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-subtle);
+}
+dl.tos-dl dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+/* ─── Focus ring ───────────────────────────────────────────────────── */
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Scrollbars — minimal, paper-toned ───────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
+
+/* ─── Reduced motion ──────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}

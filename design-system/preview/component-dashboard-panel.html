@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  /* Modern dataviz register — Plex Sans medium at large size, tight tracking,
+     tabular numerals. Drops the Fraunces editorial italic in favor of a
+     confident geometric sans-serif read. */
+  .dp { border-top: 1px solid var(--fg); padding-top: 14px; }
+  .dp-h {
+    margin: 0 0 18px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--fg-muted);
+  }
+  .dp-h .live {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 9px; letter-spacing: 0.20em; color: var(--accent);
+  }
+  .dp-h .live::before {
+    content: ""; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+    animation: dp-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes dp-pulse { 0%,100% { opacity:1; transform:scale(1); }
+                        50%     { opacity:0.35; transform:scale(0.7); } }
+
+  .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 0;
+  }
+  .dp-cell {
+    padding: 0 18px 0 0;
+    display: flex; flex-direction: column; gap: 4px;
+    border-right: 1px solid var(--hairline);
+  }
+  .dp-cell:not(:first-child) { padding-left: 18px; }
+  .dp-cell:last-child { border-right: none; padding-right: 0; }
+
+  .dp-cell dt {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--fg-subtle);
+    margin: 0;
+  }
+
+  /* The big number — confident modern sans, not editorial italic. */
+  .dp-cell dd {
+    margin: 0;
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "ss01", "ss02", "cv01", "tnum";
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .dp-cell dd .unit,
+  .dp-cell dd .of {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--fg-subtle);
+    letter-spacing: 0.04em;
+  }
+
+  /* Tiny delta row — direction + magnitude, dataviz-modern. */
+  .dp-cell .delta {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+  .dp-cell .delta.up   { color: #3F6E3F; }
+  .dp-cell .delta.down { color: #9C3A2F; }
+  .dp-cell .delta.flat { color: var(--fg-subtle); }
+  .dp-cell .delta .since {
+    color: var(--fg-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 8.5px;
+    margin-left: 2px;
+  }
+  /* Mini sparkline trace under each metric — vector, tonal */
+  .dp-cell .spark {
+    margin-top: 6px;
+    width: 100%;
+    height: 14px;
+    display: block;
+  }
+  .dp-cell .spark path { fill: none; stroke: var(--accent); stroke-width: 1.25; opacity: 0.65; }
+  .dp-cell .spark.down path { stroke: #9C3A2F; }
+  .dp-cell .spark.flat path { stroke: var(--fg-subtle); }
+</style></head>
+<body class="card"><div class="card-body" style="justify-content:flex-start">
+  <section class="dp">
+    <h3 class="dp-h">
+      <span>Tape · current epoch</span>
+      <span class="live">live · 02:17</span>
+    </h3>
+    <dl class="dp-grid">
+      <div class="dp-cell">
+        <dt>capsules</dt>
+        <dd>1 247</dd>
+        <div class="delta up">▲ +42 <span class="since">vs 1 h</span></div>
+        <svg class="spark" viewBox="0 0 100 14" preserveAspectRatio="none"><path d="M 0,11 L 12,9 L 24,10 L 36,7 L 48,8 L 60,6 L 72,5 L 84,4 L 100,3"/></svg>
+      </div>
+      <div class="dp-cell">
+        <dt>agents</dt>
+        <dd>8 <span class="of">/ 12</span></dd>
+        <div class="delta flat">▶ steady <span class="since">vs 1 h</span></div>
+        <svg class="spark flat" viewBox="0 0 100 14" preserveAspectRatio="none"><path d="M 0,7 L 14,8 L 28,7 L 42,7 L 56,8 L 70,7 L 84,7 L 100,7"/></svg>
+      </div>
+      <div class="dp-cell">
+        <dt>bounty</dt>
+        <dd>42.6 <span class="unit">µC</span></dd>
+        <div class="delta up">▲ +3.1 <span class="since">vs 1 h</span></div>
+        <svg class="spark" viewBox="0 0 100 14" preserveAspectRatio="none"><path d="M 0,10 L 12,8 L 24,9 L 36,6 L 48,4 L 60,5 L 72,4 L 84,3 L 100,2"/></svg>
+      </div>
+      <div class="dp-cell">
+        <dt>last tick</dt>
+        <dd>02:17</dd>
+        <div class="delta down">▼ -0.4 s <span class="since">vs avg</span></div>
+        <svg class="spark down" viewBox="0 0 100 14" preserveAspectRatio="none"><path d="M 0,4 L 12,5 L 24,4 L 36,7 L 48,6 L 60,8 L 72,9 L 84,8 L 100,10"/></svg>
+      </div>
+    </dl>
+  </section>
+</div></body></html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  @keyframes flow { from { stroke-dashoffset: 240; } to { stroke-dashoffset: 0; } }
+  svg { width: 100%; height: 100%; }
+  .lane-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    fill: var(--fg-subtle);
+  }
+  .lane-rule { stroke: var(--hairline); stroke-width: 1; }
+  .node-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: var(--fg);
+    letter-spacing: -0.01em;
+  }
+  .node-tx { fill: var(--accent); }
+  .node-tx-out { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+  .flow {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 6;
+    animation: flow 3.6s linear infinite;
+  }
+</style></head>
+<body class="card"><div class="card-body" style="justify-content:flex-start">
+  <svg viewBox="0 0 660 160" preserveAspectRatio="xMidYMid meet">
+    <!-- Three lanes: solver / verifier / judge -->
+    <text class="lane-label" x="0"   y="22">solver · agent_001</text>
+    <text class="lane-label" x="0"   y="76">verifier · agent_002</text>
+    <text class="lane-label" x="0"   y="130">judge · agent_004</text>
+
+    <line class="lane-rule" x1="140" y1="20"  x2="660" y2="20"  />
+    <line class="lane-rule" x1="140" y1="74"  x2="660" y2="74"  />
+    <line class="lane-rule" x1="140" y1="128" x2="660" y2="128" />
+
+    <!-- Solver writes tx_a3f0 → verifier picks up → judge accepts -->
+    <circle class="node-tx"     cx="170" cy="20"  r="5"/>
+    <text class="node-id"       x="180"  y="14"  >tx_a3f0 · SpecCapsule.written</text>
+
+    <path class="flow" d="M170,20 C250,20 250,74 320,74"/>
+
+    <circle class="node-tx-out" cx="320" cy="74"  r="5"/>
+    <text class="node-id"       x="332" y="68"   >tx_b91c · TestRunCapsule.written</text>
+
+    <path class="flow" d="M320,74 C420,74 420,128 480,128"/>
+
+    <circle class="node-tx"     cx="480" cy="128" r="5"/>
+    <text class="node-id"       x="492" y="122"  >tx_47e9 · PromptPromotionReceipt</text>
+
+    <!-- A second solver thread starts -->
+    <circle class="node-tx"     cx="560" cy="20"  r="5"/>
+    <text class="node-id"       x="572" y="14"   >tx_d104 · GenerationAttempt</text>
+  </svg>
+</div></body></html>

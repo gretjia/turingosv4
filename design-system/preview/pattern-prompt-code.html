@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  .prompt {
+    border: 1px solid var(--hairline);
+    background: var(--bg-elev);
+    padding: 16px 20px;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--fg);
+    position: relative;
+  }
+  .prompt::before {
+    content: "PROMPT";
+    position: absolute;
+    top: -7px; left: 14px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    color: var(--fg-subtle);
+  }
+  .var { color: var(--accent); }
+  .role { color: var(--fg-subtle); }
+  .comment { color: var(--fg-subtle); font-style: italic; }
+</style></head>
+<body class="card"><div class="card-body">
+  <div class="prompt"><span class="comment"># 来源 · prompt_cid bafy2bz77c4…1109</span>
+<span class="role">@system</span>
+你是 TuringOS 的 spec-grill agent。<span class="var">{role=interviewer}</span>
+每次只问一道关于「日常麻烦」的问题，根据用户上一次回答即时决定下一题。
+最多 <span class="var">{max_turns=8}</span> 轮。
+
+<span class="role">@user</span>
+<span class="var">{user_seed_text}</span>
+
+<span class="role">@assistant</span>
+<span class="var">{streaming_response}</span></div>
+</div></body></html>

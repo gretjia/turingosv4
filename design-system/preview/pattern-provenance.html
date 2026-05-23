@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  .chip-row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .prov {
+    display:inline-flex; align-items:center; gap:8px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    border: 1px solid var(--hairline-strong);
+    border-radius: 2px;
+    background: var(--bg);
+    color: var(--fg-muted);
+    letter-spacing: -0.01em;
+  }
+  .prov .src {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 10px;
+    color: var(--accent);
+    border-right: 1px solid var(--hairline);
+    padding-right: 8px;
+  }
+  .prov .conf {
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-subtle);
+  }
+  .prov .conf b { color: var(--accent); font-weight: 500; }
+  .prov.warn { border-color: #A87431; color: #A87431; }
+  .prov.warn .src { color: #A87431; }
+  .prov.warn .conf b { color: #A87431; }
+</style></head>
+<body class="card"><div class="card-body">
+  <div class="chip-row">
+    <span class="prov"><span class="src">CAS</span><span>bafy2bzace4e7y3o6f…s4qm</span><span class="conf"><b>0.94</b></span></span>
+    <span class="prov"><span class="src">tape</span><span>tx_a3f0…8c11</span><span class="conf"><b>0.99</b></span></span>
+    <span class="prov warn"><span class="src">claim</span><span>by agent_003 · unverified</span><span class="conf"><b>0.51</b></span></span>
+  </div>
+  <p class="token" style="margin:14px 0 0;max-width:none">
+    every assertion in an AGI-era UI carries its source + confidence. provenance chips replace "trust the system."
+  </p>
+</div></body></html>

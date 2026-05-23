@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  @keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.35; transform:scale(0.85); } }
+  .dot { width:7px; height:7px; border-radius:50%; }
+  .pill { display:inline-flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:0.18em; color:var(--fg-muted); }
+  .pulse { animation: pulse 1.4s cubic-bezier(0.2,0.7,0.2,1) infinite; }
+</style>
+</head>
+<body class="card"><div class="card-body" style="justify-content:flex-start;gap:14px">
+  <div class="pill"><span class="dot" style="background:#3F6E3F"></span>connected</div>
+  <div class="pill"><span class="dot pulse" style="background:#A87431"></span>reconnecting</div>
+  <div class="pill"><span class="dot" style="background:#9C3A2F"></span>disconnected</div>
+  <div class="pill"><span class="dot" style="background:#8B847C"></span>idle</div>
+  <p class="token" style="margin-top:4px">footer connection pill · 7 px dot · 1.4 s pulse</p>
+</div></body></html>
