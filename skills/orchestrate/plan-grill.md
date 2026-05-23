@@ -186,6 +186,11 @@ trade-offs rather than orchestrator silently overriding.
   difficulty alone → fire plan-grill
 - **Phase 6** (`./SKILL.md`): when must-fix items require user
   authorization → fire plan-grill
+- **Phase 9** (`./SKILL.md`): when closing audit returns
+  `IMPL-DRIFT-FROM-PLAN` or `EXTERNAL-FEEDBACK-REQUIRES-REVISION` that
+  needs user-only decision (authorization to accept drift / sudo scope
+  extension / explicit deferral confirmation) → fire plan-grill before
+  looping back to Phase 6 triage
 - Plan-grill is also usable **STANDALONE** — outside any orchestration
   workflow, a solo orchestrator clarifying with a human still benefits
   from this protocol

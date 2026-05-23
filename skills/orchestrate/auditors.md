@@ -634,6 +634,36 @@ Game-Theory auditor would have enumerated specific exploits.
 - The "invented" auditor's attack vectors are not falsifiable (it's
   taste critique, not audit)
 
+## Two-mode invocation: planning (Phase 5) vs closing (Phase 9)
+
+Every archetype above can be invoked in EITHER mode. The attack vectors
++ anti-overlap clauses + domain triggers are the same in both modes;
+only the output shape and reference frame differ.
+
+### Planning mode (Phase 5)
+
+- Reviews the **diff** before PR opens
+- Output: open enumeration of findings (Critic enumerates)
+- Reference frame: "is the design / impl sound per the archetype's lens?"
+- Verdict: typically a list of N findings
+
+### Closing mode (Phase 9)
+
+- Reviews the **shipped artifact** after PR opens + CI + external review
+- Output: ONE token from the closing-mode closed set (see `./SKILL.md`
+  "Closing audit" section): `{ READY-TO-MERGE |
+  EXTERNAL-FEEDBACK-REQUIRES-REVISION <which> | IMPL-DRIFT-FROM-PLAN
+  <which> | DEFERRAL-MISSING <what> }`
+- Reference frame: "did the ship honor the design + absorb external
+  feedback cleanly, per the archetype's lens?"
+- Verdict: ONE token, plus a one-line justification
+
+**Default for Phase 9: REUSE the same agent that ran in Phase 5** —
+preserve context, skip re-onboarding, ensure consistency between
+"design we approved" and "ship we approved". Implementation depends on
+platform (Claude Code uses SendMessage; other platforms may need to
+spawn fresh agents with a saved planning-context bundle).
+
 ## Relationship to SKILL.md
 
 `./SKILL.md` Phase 5 dispatches 2-5 auditors picked from this file
@@ -642,6 +672,12 @@ AND/OR invented per the 4-step protocol. Each auditor's brief embeds:
 - The archetype's output structure (as the brief's Section 9 Final
   Report Format)
 - The archetype's anti-overlap clause (so the auditor stays in its lane)
+
+`./SKILL.md` Phase 9 reuses the same auditors in closing-mode (or spawns
+fresh equivalents briefed with the planning-context bundle if reuse is
+not feasible). Closing-mode briefs differ from planning-mode briefs in
+output shape (single closed-set token instead of open enumeration) and
+reference frame (shipped artifact + external feedback instead of diff).
 
 ## Related skills
 
