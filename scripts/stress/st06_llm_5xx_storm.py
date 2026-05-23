@@ -44,9 +44,11 @@ def start_mock(evid: Path) -> tuple[subprocess.Popen, int]:
 def main() -> int:
     evid = evidence_dir("st06_llm_5xx_storm")
     log: list[str] = []
-    ws = evid / "workspace"
-    ws.mkdir(exist_ok=True)
-    (ws / "cas").mkdir(exist_ok=True)
+    ws = (evid / "workspace").resolve()
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "stress" / "_ws_bootstrap.sh"), str(ws)],
+        check=True, cwd=PROJECT_ROOT,
+    )
 
     print("[ST-06] building turingos...")
     rc = subprocess.call(["cargo", "build", "--bin", "turingos", "--quiet"], cwd=PROJECT_ROOT)
@@ -72,8 +74,10 @@ def main() -> int:
                 "DEEPSEEK_API_KEY": "mock-key",
                 "TURINGOS_WORKSPACE": str(ws),
             })
-            prompt_file = evid / f"prompt_{i}.txt"
-            prompt_file.write_text(f"attempt-{i}")
+            prompt_file = evid / f"prompt_{i}.json"
+            prompt_file.write_text(json.dumps({
+                "messages": [{"role": "user", "content": f"attempt-{i}"}]
+            }))
             p = subprocess.run(
                 [str(bin_path), "llm", "complete",
                  "--workspace", str(ws),

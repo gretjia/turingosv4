@@ -1,0 +1,6 @@
+TuringOS Phase 7 Web MVP — workspace: /home/zephryj/projects/turingosv4/handover/evidence/stress_st07_taskopen_concurrent_malformed_20260523T135949Z/workspace
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+
+thread 'main' (901821) panicked at src/bin/turingos_web.rs:58:10:
+bind 127.0.0.1:8080: Os { code: 98, kind: AddrInUse, message: "Address already in use" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

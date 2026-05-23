@@ -1,0 +1,4 @@
+TuringOS Phase 7 Web MVP — workspace: /home/zephryj/projects/turingosv4/handover/evidence/stress_st04_snapshot_restart_storm_20260523T140828Z/workspace
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+[2026-05-23T14:08:29Z WARN  turingos_web::web::spec] spec_turn_handler: read meta-prompt /home/zephryj/projects/turingosv4/handover/evidence/stress_st04_snapshot_restart_storm_20260523T140828Z/workspace/assets/prompts/grill_meta_v1.md: No such file or directory (os error 2)

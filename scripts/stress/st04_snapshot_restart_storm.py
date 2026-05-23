@@ -38,11 +38,23 @@ def free_port() -> int:
 
 
 def start_mock(evid: Path) -> tuple[subprocess.Popen, int]:
+    # The grill driver parses the LLM content as a TurnPayload envelope
+    # (src/runtime/grill_envelope.rs). Need the full schema or the grill
+    # rejects with parse_failed.
+    payload = {
+        "turn": 1,
+        "question": "What is the target?",
+        "covered_slots": [],
+        "open_slots": ["goal"],
+        "confidence": 0.5,
+        "done": False,
+        "rationale": "stress",
+    }
     log = evid / "mock_llm.log"
     p = subprocess.Popen(
         ["python3", str(PROJECT_ROOT / "scripts" / "stress" / "_mock_llm_server.py"), "0"],
         env={**os.environ, "MOCK_FAIL_RATE": "0.0", "MOCK_LATENCY_MS": "10",
-             "MOCK_RESPONSE_BODY": "{\"next_question\": \"What's the target?\", \"covered_slot\": \"goal\"}"},
+             "MOCK_RESPONSE_BODY": json.dumps(payload)},
         stdout=subprocess.PIPE, stderr=open(log, "wb"),
     )
     port = int(p.stdout.readline().decode().strip())
@@ -51,7 +63,10 @@ def start_mock(evid: Path) -> tuple[subprocess.Popen, int]:
 
 def run_cycle(web_bin: Path, ws: Path, evid: Path, mock_port: int,
               cycle: int, session_id: str, turn_counter: list[int]) -> tuple[bool, str]:
-    port = free_port()
+    port = 8080
+    # turingos_web hardcodes port 8080; ensure no other process holds it
+    subprocess.run(["fuser", "-k", "8080/tcp"], capture_output=True)
+    time.sleep(0.3)
     server_log = evid / f"server_cycle{cycle}.log"
     env = os.environ.copy()
     env.update({
@@ -72,7 +87,7 @@ def run_cycle(web_bin: Path, ws: Path, evid: Path, mock_port: int,
         for _ in range(40):
             time.sleep(0.25)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1.0) as r:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tasks", timeout=1.0) as r:
                     if r.status == 200:
                         ready = True
                         break
@@ -82,13 +97,17 @@ def run_cycle(web_bin: Path, ws: Path, evid: Path, mock_port: int,
             return False, "server not ready"
 
         # do TURNS_PER_CYCLE grill turns
+        # SpecTurnRequest schema: first turn of a NEW session has
+        # user_answer=None (server emits Q1); subsequent turns have an
+        # actual user_answer. For cycle>=2 first turn, the session must
+        # exist via CAS snapshot, so sending user_answer is correct (and
+        # is the resume test).
         for t in range(TURNS_PER_CYCLE):
-            answer_text = f"stress-cycle{cycle}-turn{t}"
-            body = json.dumps({
-                "session_id": session_id,
-                "user_answer": answer_text,
-                "lang": "zh",
-            }).encode()
+            is_first_ever = (cycle == 1 and t == 0)
+            payload: dict = {"session_id": session_id, "lang": "zh"}
+            if not is_first_ever:
+                payload["user_answer"] = f"stress-cycle{cycle}-turn{t}"
+            body = json.dumps(payload).encode()
             req = urllib.request.Request(
                 f"http://127.0.0.1:{port}/api/spec/turn",
                 data=body, headers={"Content-Type": "application/json"},
@@ -120,9 +139,12 @@ def run_cycle(web_bin: Path, ws: Path, evid: Path, mock_port: int,
 def main() -> int:
     evid = evidence_dir("st04_snapshot_restart_storm")
     log: list[str] = []
-    ws = evid / "workspace"
-    ws.mkdir(exist_ok=True)
-    (ws / "cas").mkdir(exist_ok=True)
+    ws = (evid / "workspace").resolve()
+    # Bootstrap workspace via `turingos init` + assets copy.
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "stress" / "_ws_bootstrap.sh"), str(ws)],
+        check=True, cwd=PROJECT_ROOT,
+    )
 
     print("[ST-04] building turingos_web...")
     rc = subprocess.call(

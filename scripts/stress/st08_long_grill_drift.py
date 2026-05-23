@@ -42,13 +42,23 @@ def free_port() -> int:
 
 
 def start_mock(evid: Path) -> tuple[subprocess.Popen, int]:
+    # Grill envelope; see src/runtime/grill_envelope.rs::TurnPayload
+    payload = {
+        "turn": 1,
+        "question": "continue drift",
+        "covered_slots": [],
+        "open_slots": ["goal"],
+        "confidence": 0.5,
+        "done": False,
+        "rationale": "drift mock",
+    }
     log = evid / "mock_llm.log"
     p = subprocess.Popen(
         ["python3", str(PROJECT_ROOT / "scripts" / "stress" / "_mock_llm_server.py"), "0"],
         env={**os.environ,
              "MOCK_FAIL_RATE": "0.0",
              "MOCK_LATENCY_MS": "5",
-             "MOCK_RESPONSE_BODY": "{\"next_question\": \"continue drift\", \"covered_slot\": null}"},
+             "MOCK_RESPONSE_BODY": json.dumps(payload)},
         stdout=subprocess.PIPE, stderr=open(log, "wb"),
     )
     port = int(p.stdout.readline().decode().strip())
@@ -81,9 +91,11 @@ def main() -> int:
     evid = evidence_dir("st08_long_grill_drift")
     log: list[str] = []
     samples: list[dict] = []
-    ws = evid / "workspace"
-    ws.mkdir(exist_ok=True)
-    (ws / "cas").mkdir(exist_ok=True)
+    ws = (evid / "workspace").resolve()
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "stress" / "_ws_bootstrap.sh"), str(ws)],
+        check=True, cwd=PROJECT_ROOT,
+    )
 
     print("[ST-08] building turingos_web...")
     rc = subprocess.call(
@@ -106,7 +118,10 @@ def main() -> int:
         mock, mock_port = start_mock(evid)
         endpoint = f"http://127.0.0.1:{mock_port}/v1/chat/completions"
 
-    port = free_port()
+    port = 8080
+    # turingos_web hardcodes port 8080; ensure no other process holds it
+    subprocess.run(["fuser", "-k", "8080/tcp"], capture_output=True)
+    time.sleep(0.3)
     server_log = evid / "server.log"
     env = os.environ.copy()
     env.update({
@@ -129,7 +144,7 @@ def main() -> int:
         for _ in range(40):
             time.sleep(0.25)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1.0) as r:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tasks", timeout=1.0) as r:
                     if r.status == 200:
                         ready = True; break
             except Exception:

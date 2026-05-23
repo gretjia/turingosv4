@@ -97,7 +97,9 @@ def setup_helper(evid: Path) -> Path:
     helper = evid / "_helper"
     helper.mkdir(parents=True, exist_ok=True)
     (helper / "Cargo.toml").write_text(
-        f"""[package]
+        f"""[workspace]
+
+[package]
 name = "st05_helper"
 version = "0.0.0"
 edition = "2021"

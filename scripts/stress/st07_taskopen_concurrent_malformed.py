@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ST-07 — 100 concurrent task/open with 30% malformed CLI stdout.
 
-Starts a turingos_web server with TURINGOS_CLI_BIN pointing at a stub
+Starts a turingos_web server with TURINGOS_BACKEND_OVERRIDE pointing at a stub
 binary that emits malformed stdout 30% of the time. Fires 100 concurrent
 POST /api/task/open. Verifies the response distribution:
   - clean stdout → 200 OK with task_id (String)
@@ -91,11 +91,14 @@ def main() -> int:
         return 1
     web_bin = PROJECT_ROOT / "target" / "debug" / "turingos_web"
 
-    port = free_port()
+    port = 8080
+    # turingos_web hardcodes port 8080; ensure no other process holds it
+    subprocess.run(["fuser", "-k", "8080/tcp"], capture_output=True)
+    time.sleep(0.3)
     env = os.environ.copy()
     env["TURINGOS_WEB_WORKSPACE"] = str(ws)
     env["TURINGOS_WEB_PORT"] = str(port)
-    env["TURINGOS_CLI_BIN"] = str(stub)
+    env["TURINGOS_BACKEND_OVERRIDE"] = str(stub)
     env["ST07_STUB_MALFORM"] = str(MALFORM_PCT)
     env["RUST_LOG"] = "warn"
 
@@ -112,7 +115,7 @@ def main() -> int:
         for _ in range(40):
             time.sleep(0.25)
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=1.0) as r:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/tasks", timeout=1.0) as r:
                     if r.status == 200:
                         ready = True
                         break
@@ -122,9 +125,13 @@ def main() -> int:
             log.append("server failed to become ready")
             return 1
 
-        # Concurrent task/open
+        # Concurrent task/open — schema: { problem_id, bounty, agent_id }
         def one_request(i: int) -> tuple[int, str]:
-            body = json.dumps({"problem_md": f"# stress {i}", "bounty_cents": 1000}).encode()
+            body = json.dumps({
+                "problem_id": f"stress_{i:04d}",
+                "bounty": 1000,
+                "agent_id": "stress_agent",
+            }).encode()
             req = urllib.request.Request(
                 f"http://127.0.0.1:{port}/api/task/open",
                 data=body, headers={"Content-Type": "application/json"},

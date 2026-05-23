@@ -52,10 +52,11 @@ def free_port() -> int:
 def main() -> int:
     evid = evidence_dir("st02_concurrent_writers")
     log: list[str] = []
-    ws = evid / "workspace"
-    ws.mkdir(exist_ok=True)
-    (ws / "cas").mkdir(exist_ok=True)
-    subprocess.run(["git", "init", "--quiet"], cwd=ws / "cas", check=True)
+    ws = (evid / "workspace").resolve()
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "stress" / "_ws_bootstrap.sh"), str(ws)],
+        check=True, cwd=PROJECT_ROOT,
+    )
 
     print("[ST-02] building turingos...")
     rc = subprocess.call(
@@ -95,9 +96,9 @@ def main() -> int:
             # Fallback: not all turingos builds have --n-attempts; loop manually
             # via a small bash wrapper instead.
             script = f"""set -u
-PROMPT_FILE=$(mktemp)
+PROMPT_FILE=$(mktemp --suffix=.json)
 for i in $(seq 1 {ATTEMPTS_PER_WRITER}); do
-  echo "writer-{w}-attempt-$i" > "$PROMPT_FILE"
+  printf '{{"messages":[{{"role":"user","content":"writer-{w}-attempt-%d"}}]}}' "$i" > "$PROMPT_FILE"
   TURINGOS_SILICONFLOW_ENDPOINT='{endpoint}' \\
   SILICONFLOW_API_KEY=mock-key \\
   DEEPSEEK_API_KEY=mock-key \\
