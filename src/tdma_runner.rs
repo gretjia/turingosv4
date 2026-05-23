@@ -402,7 +402,7 @@ pub fn make_judge_stderr(
 /// parameterized implementation.
 ///
 /// The LLM call is supplied by the caller via the `llm_call` closure so this
-/// function does not depend on either the production siliconflow_client (used
+/// function does not depend on either the production chat_client (used
 /// by cmd_tdma) or the test-proxy `ResilientLLMClient` (used by the standalone
 /// evidence binaries).
 pub fn run_proof<F>(

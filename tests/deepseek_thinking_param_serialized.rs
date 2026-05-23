@@ -8,21 +8,21 @@
 ///
 /// No live API calls are made. Uses only `serde_json`.
 ///
-/// Note: `siliconflow_client` lives in the binary crate (`src/bin/turingos/`), not
+/// Note: `chat_client` lives in the binary crate (`src/bin/turingos/`), not
 /// in the library crate, so we test the JSON contract directly via `serde_json::Value`
 /// round-trips and struct-level serialization using local mirror structs that match
 /// the exact wire shape.
 
 use serde::{Deserialize, Serialize};
 
-/// Mirror of `ThinkingConfig` from siliconflow_client — same serde contract.
+/// Mirror of `ThinkingConfig` from chat_client — same serde contract.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ThinkingConfig {
     #[serde(rename = "type")]
     kind: String,
 }
 
-/// Mirror of `ChatRequest` from siliconflow_client — same serde contract.
+/// Mirror of `ChatRequest` from chat_client — same serde contract.
 #[derive(Debug, Serialize)]
 struct ChatRequest<'a> {
     model: &'a str,

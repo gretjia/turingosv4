@@ -19,7 +19,7 @@ fn assert_no_llm_imports(path: &std::path::Path) {
         .unwrap_or_else(|e| panic!("could not read {:?}: {e}", path));
 
     let forbidden_patterns = [
-        "siliconflow_client",
+        "chat_client",
         "reqwest",
         "hyper::",
         "LlmError",

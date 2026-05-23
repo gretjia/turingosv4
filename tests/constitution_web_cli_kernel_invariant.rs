@@ -17,7 +17,7 @@
 //!      route through the CLI binary (which is the single canonical
 //!      implementation that lives in `src/bin/turingos/cmd_*.rs`). If the web
 //!      layer ever calls `chat_complete_blocking` or
-//!      `siliconflow_client::require_api_key` itself, the kernel forks.
+//!      `chat_client::require_api_key` itself, the kernel forks.
 //!
 //!   2. **Web never defines its own capsule schema constants.** All
 //!      `pub const *_SCHEMA_ID` values must live in `src/runtime/*.rs`. If a
@@ -66,8 +66,8 @@ fn web_layer_never_calls_llm_client_directly() {
     // layer has bypassed the CLI canonical path for an LLM call.
     let forbidden_tokens = [
         "chat_complete_blocking",
-        "siliconflow_client::require_api_key",
-        "siliconflow_client::chat_complete",
+        "chat_client::require_api_key",
+        "chat_client::chat_complete",
     ];
 
     let mut violations: Vec<(std::path::PathBuf, &str)> = Vec::new();

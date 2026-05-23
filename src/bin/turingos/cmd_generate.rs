@@ -28,7 +28,7 @@ use std::process::ExitCode;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cmd_llm;
-use crate::siliconflow_client::{
+use crate::chat_client::{
     canonical_chat_request_bytes, chat_complete_blocking, require_api_key, ChatMessage, LlmError,
 };
 use sha2::{Digest, Sha256};
@@ -52,7 +52,7 @@ use turingosv4::runtime::test_run::{
 };
 use turingosv4::runtime::test_scenario::TestScenario;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
-use crate::siliconflow_client::{ChatResult, Usage};
+use crate::chat_client::{ChatResult, Usage};
 
 // Polymarket PR1 (2026-05-23, REVISED post-Codex audit 2026-05-23): after the
 // TDMA judge PASSES + the ArtifactBundleManifest is committed, ALSO admit a
@@ -971,7 +971,7 @@ fn chat_with_tdma_bounded(
     api_key: &str,
     model_id: &str,
     messages: &[ChatMessage],
-    blackbox_thinking: Option<crate::siliconflow_client::ThinkingConfig>,
+    blackbox_thinking: Option<crate::chat_client::ThinkingConfig>,
     entrypoint: &str,
     max_retries: usize,
     initial_prompt_hash: &str,

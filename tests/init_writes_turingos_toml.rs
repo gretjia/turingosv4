@@ -240,7 +240,7 @@ fn init_does_not_overwrite_existing_turingos_toml_without_force() {
 ///
 /// The constants are "deepseek-ai/DeepSeek-V3.2" and
 /// "Qwen/Qwen3-Coder-30B-A3B-Instruct" — if they ever change, this test
-/// catches a mismatch between cmd_init.rs and siliconflow_client.rs.
+/// catches a mismatch between cmd_init.rs and chat_client.rs.
 #[test]
 fn init_siliconflow_toml_contains_canonical_model_strings() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
@@ -258,7 +258,7 @@ fn init_siliconflow_toml_contains_canonical_model_strings() {
     let content = fs::read_to_string(ws.join("turingos.toml")).expect("read turingos.toml");
 
     // These must match DEFAULT_META_MODEL and DEFAULT_BLACKBOX_MODEL in
-    // siliconflow_client.rs — the build enforces it; this test adds a
+    // chat_client.rs — the build enforces it; this test adds a
     // runtime cross-check.
     assert!(
         content.contains("deepseek-ai/DeepSeek-V3.2"),

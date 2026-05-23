@@ -317,12 +317,12 @@ fn expand_intent_to_answers(
     api_key: &str,
     intent: &str,
 ) -> Result<Vec<String>, String> {
-    use crate::siliconflow_client::{chat_complete_blocking, ChatMessage};
+    use crate::chat_client::{chat_complete_blocking, ChatMessage};
 
     let model = if provider == "deepseek" {
         "deepseek-v4-pro"
     } else {
-        crate::siliconflow_client::DEFAULT_META_MODEL
+        crate::chat_client::DEFAULT_META_MODEL
     };
 
     let system = "你是 TuringOS 的意图扩展器。用户给你一两句自然语言，描述他们想要什么。\
