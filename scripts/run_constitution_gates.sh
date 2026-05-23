@@ -40,8 +40,14 @@ for g in $DISCOVERED; do
   CARGO_ARGS+=(--test "$g")
 done
 
+# Serialize cargo's test threads so process-global env-var mutations in tests
+# (e.g. TURINGOS_TEST_ROUTER_FAIL_AT_STEP in constitution_router_buy_with_coin)
+# cannot leak into peer tests within the same binary. CI mirrors this via
+# .github/workflows/constitution_gates.yml so local `bash
+# scripts/run_constitution_gates.sh` and `make constitution` share the same
+# isolation guarantee.
 FAIL=0
-if ! cargo test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee "$OUT_TXT"; then
+if ! RUST_TEST_THREADS=1 cargo test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee "$OUT_TXT"; then
   FAIL=$(grep -c "test result: FAILED" "$OUT_TXT" || true)
   if [ "$FAIL" -eq 0 ]; then
     FAIL=1

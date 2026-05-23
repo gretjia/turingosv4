@@ -53,9 +53,14 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
-// Static lock for env-var manipulation in atomic-rollback test (per
-// `feedback_env_var_test_lock` — process-global env-var mutation needs
-// serialization across parallel tests).
+// Static lock guarding TURINGOS_TEST_ROUTER_FAIL_AT_STEP, a process-global env
+// var that the BuyWithCoinRouter admission arm reads in cfg(test) /
+// debug_assertions builds (`src/state/sequencer.rs`). The 2 rollback tests
+// SET/REMOVE this var; the remaining tests do NOT mutate it but DO exercise
+// the same admission arm — without holding this lock they could observe a
+// polluting set_var from a peer test running in parallel and fail with a
+// spurious `Transition(TestForcedFailure)`. Per `feedback_env_var_test_lock`
+// every test in this file MUST acquire the lock as its first statement.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 // ── Harness (mirrors constitution_cpmm_swap.rs pattern) ─────────────────────
@@ -192,6 +197,7 @@ async fn seed_pool(
 /// 4_166_667. k_post >= k_pre (architect integer invariant `>=`).
 #[tokio::test]
 async fn buy_yes_with_coin_matches_formula() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-1");
     let mut h = fresh_harness(q0);
 
@@ -290,6 +296,7 @@ async fn buy_yes_with_coin_matches_formula() {
 /// 4M - 1_333_333 = 2_666_667.
 #[tokio::test]
 async fn buy_no_with_coin_matches_symmetric_formula() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-2");
     let mut h = fresh_harness(q0);
 
@@ -349,6 +356,7 @@ async fn buy_no_with_coin_matches_symmetric_formula() {
 /// preserved.
 #[tokio::test]
 async fn buy_yes_debits_coin_locks_collateral() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-3");
     let mut h = fresh_harness(q0);
 
@@ -443,6 +451,7 @@ async fn buy_yes_debits_coin_locks_collateral() {
 ///   Sum_yes == sum_no == collateral ✓ (complete-set mint witnessed).
 #[tokio::test]
 async fn buy_yes_mints_complete_set() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-4");
     let mut h = fresh_harness(q0);
 
@@ -531,6 +540,7 @@ fn sum_event_no(q: &QState, task: &str) -> u128 {
 /// outY independently and asserting the sum.
 #[tokio::test]
 async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-5");
     let mut h = fresh_harness(q0);
 
@@ -576,6 +586,7 @@ async fn buy_yes_transfers_retained_yes_plus_swap_yes() {
 /// one-above-floor (reject) boundaries.
 #[tokio::test]
 async fn buy_yes_respects_min_yes_out() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 = genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50)], "evt-6");
     let mut h = fresh_harness(q0);
 
@@ -664,6 +675,7 @@ async fn buy_yes_respects_min_yes_out() {
 ///   digit + `f64` / `f32` — float literals
 #[test]
 fn buy_yes_no_f64() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     use std::path::PathBuf;
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let sequencer_src = workspace.join("src/state/sequencer.rs");
@@ -752,6 +764,7 @@ fn buy_yes_no_f64() {
 /// shares without collateral; no collateral without claims).
 #[tokio::test]
 async fn buy_yes_no_ghost_liquidity() {
+    let _guard = ENV_LOCK.lock().expect("env lock");
     let q0 =
         genesis_with_balances_and_open_task(&[("alice", 50), ("bob", 50), ("carol", 50)], "evt-7");
     let mut h = fresh_harness(q0);
