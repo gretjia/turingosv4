@@ -6,11 +6,51 @@
 use std::path::Path;
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
-use crate::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody};
+use crate::runtime::spec_capsule::{cas_path, CapsuleError, GrillSessionCapsuleBody};
 use crate::runtime::generation_attempt::{GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID};
 use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
 use crate::runtime::test_run::{TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
+
+/// TRACE_MATRIX FC2-N16: error taxonomy for BuildSessionView derivation.
+///
+/// TB-SOFTWARE-3-0 Atom S3 (2026-05-23): missing CAS / empty session is NOT
+/// an error — that path still returns `Ok(BuildSessionView { current_status:
+/// SpecPending, .. })`. Only corruption surfaces as `Err`:
+///   - `Open`   — `CasStore::open` failed (e.g. damaged sqlite/sidecar/git refs)
+///   - `Read`   — index lists a CID but bytes can't be retrieved
+///   - `Decode` — a schema-id-matched capsule's bytes won't deserialize
+///
+/// The web layer maps all three to 500. Class 2 — derived view only;
+/// never feeds sequencer admission.
+#[derive(Debug)]
+pub enum BuildSessionViewError {
+    Open(String),
+    Read(String),
+    Decode(String),
+}
+
+impl std::fmt::Display for BuildSessionViewError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Open(e) => write!(f, "BuildSessionView open: {e}"),
+            Self::Read(e) => write!(f, "BuildSessionView read: {e}"),
+            Self::Decode(e) => write!(f, "BuildSessionView decode: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for BuildSessionViewError {}
+
+impl From<BuildSessionViewError> for CapsuleError {
+    fn from(e: BuildSessionViewError) -> Self {
+        match e {
+            BuildSessionViewError::Open(s) => CapsuleError::Open(s),
+            BuildSessionViewError::Read(s) => CapsuleError::Read(s),
+            BuildSessionViewError::Decode(s) => CapsuleError::Read(format!("decode: {s}")),
+        }
+    }
+}
 
 /// TRACE_MATRIX FC2-N16: build status enum of a build session.
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -43,10 +83,15 @@ pub struct BuildSessionView {
 }
 
 /// TRACE_MATRIX FC2-N16: reconstructs the BuildSessionView from CAS objects.
+///
+/// TB-SOFTWARE-3-0 Atom S3: empty workspace / no CAS dir is normal —
+/// returns `Ok(BuildSessionView { current_status: SpecPending, .. })`.
+/// Corruption (CasStore::open failure, missing-cid read, decode of
+/// schema-id-matched capsule) returns `Err(BuildSessionViewError)`.
 pub fn derive_build_session_view(
     workspace: &Path,
     session_id: &str,
-) -> Result<BuildSessionView, crate::runtime::spec_capsule::CapsuleError> {
+) -> Result<BuildSessionView, BuildSessionViewError> {
     let cas_dir = cas_path(workspace);
     if !cas_dir.exists() {
         return Ok(BuildSessionView {
@@ -61,21 +106,8 @@ pub fn derive_build_session_view(
         });
     }
 
-    let mut store = match CasStore::open(&cas_dir) {
-        Ok(s) => s,
-        Err(_) => {
-            return Ok(BuildSessionView {
-                session_id: session_id.to_string(),
-                spec_capsule_cid: None,
-                generation_attempts: Vec::new(),
-                artifact_versions: Vec::new(),
-                preview_runs: Vec::new(),
-                rejection_events: Vec::new(),
-                current_status: BuildStatus::SpecPending,
-                accepted_delivery: false,
-            });
-        }
-    };
+    let mut store = CasStore::open(&cas_dir)
+        .map_err(|e| BuildSessionViewError::Open(e.to_string()))?;
 
     // Reload index from sidecar to get any changes written since store opened
     let _ = store.reload_index_from_sidecar();
@@ -100,55 +132,63 @@ pub fn derive_build_session_view(
             None => continue,
         };
 
+        // S3: schema-id match implies this capsule should decode. Read/decode
+        // failures here mean corruption, not "unrelated capsule" — surface them.
         if schema_id == "turingos-spec-grill-session-v1" {
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(body) = serde_json::from_slice::<GrillSessionCapsuleBody>(&bytes) {
-                    if body.session_id == session_id {
-                        spec_grill_sessions.push((meta.created_at_logical_t, cid));
-                    }
-                }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("spec_grill_session {}: {e}", cid.hex())))?;
+            let body: GrillSessionCapsuleBody = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("spec_grill_session {}: {e}", cid.hex())))?;
+            if body.session_id == session_id {
+                spec_grill_sessions.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID {
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(body) = serde_json::from_slice::<GenerationAttemptCapsule>(&bytes) {
-                    if body.session_id == session_id {
-                        generation_attempts.push((meta.created_at_logical_t, cid));
-                    }
-                }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("generation_attempt {}: {e}", cid.hex())))?;
+            let body: GenerationAttemptCapsule = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("generation_attempt {}: {e}", cid.hex())))?;
+            if body.session_id == session_id {
+                generation_attempts.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == ARTIFACT_BUNDLE_SCHEMA_ID {
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(body) = serde_json::from_slice::<ArtifactBundleManifest>(&bytes) {
-                    if body.session_id == session_id {
-                        artifact_bundles.push((meta.created_at_logical_t, cid));
-                    }
-                }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("artifact_bundle {}: {e}", cid.hex())))?;
+            let body: ArtifactBundleManifest = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("artifact_bundle {}: {e}", cid.hex())))?;
+            if body.session_id == session_id {
+                artifact_bundles.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == PREVIEW_RUN_CAPSULE_SCHEMA_ID {
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(body) = serde_json::from_slice::<PreviewRunCapsule>(&bytes) {
-                    if body.session_id == session_id {
-                        preview_runs.push((meta.created_at_logical_t, cid));
-                    }
-                }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("preview_run {}: {e}", cid.hex())))?;
+            let body: PreviewRunCapsule = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("preview_run {}: {e}", cid.hex())))?;
+            if body.session_id == session_id {
+                preview_runs.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == "turingos-generate-rejection-v1" {
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(body) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                    if let Some(s_id) = body.get("session_id").and_then(|v| v.as_str()) {
-                        if s_id == session_id {
-                            rejection_events.push((meta.created_at_logical_t, cid));
-                        }
-                    }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("rejection_event {}: {e}", cid.hex())))?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("rejection_event {}: {e}", cid.hex())))?;
+            if let Some(s_id) = body.get("session_id").and_then(|v| v.as_str()) {
+                if s_id == session_id {
+                    rejection_events.push((meta.created_at_logical_t, cid));
                 }
             }
         } else if schema_id == TEST_RUN_CAPSULE_SCHEMA_ID {
             // C11: collect all TestRunCapsules for cross-referencing with artifact bundles.
-            if let Ok(bytes) = store.get(&cid) {
-                if let Ok(cap) = serde_json::from_slice::<TestRunCapsule>(&bytes) {
-                    test_run_capsules.push(cap);
-                }
-            }
+            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
+                format!("test_run {}: {e}", cid.hex())))?;
+            let cap: TestRunCapsule = serde_json::from_slice(&bytes)
+                .map_err(|e| BuildSessionViewError::Decode(
+                    format!("test_run {}: {e}", cid.hex())))?;
+            test_run_capsules.push(cap);
         }
     }
 
