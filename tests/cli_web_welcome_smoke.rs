@@ -316,6 +316,44 @@ async fn welcome_status_fresh_workspace() {
     assert_eq!(parsed["next_step"].as_str(), Some("Init"));
 }
 
+#[tokio::test]
+async fn welcome_page_first_paint_never_skips_missing_api_key() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let workspace = dir.path().join("ws");
+    std::fs::create_dir_all(&workspace).expect("mkdir workspace");
+    std::fs::write(
+        workspace.join("genesis_payload.toml"),
+        "[meta]\ntemplate = \"multi-agent\"\n",
+    )
+    .expect("write genesis");
+    std::fs::write(workspace.join("agent_pubkeys.json"), "{}\n").expect("write pubkeys");
+    std::fs::write(
+        workspace.join("turingos.toml"),
+        "llm.meta.model = \"deepseek-v4-pro\"\nllm.blackbox.model = \"deepseek-v4-flash\"\n",
+    )
+    .expect("write llm config");
+    let workspace = workspace.to_string_lossy().into_owned();
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace);
+    let addr = start_server().await;
+
+    let (status, _, body) = http_get(addr, "/welcome").await;
+
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(status, 200, "GET /welcome must return 200; body={body}");
+    assert!(
+        body.contains("API 密钥") || body.contains("把 API 密钥交给我"),
+        "server first paint must expose the API-key step; body={body}"
+    );
+    assert!(
+        !body.contains("你的工作站已就绪"),
+        "server first paint must not show Ready while api_key_set=false; body={body}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Test 2: POST /api/welcome/api-key rejects malformed keys with 400.
 // ---------------------------------------------------------------------------

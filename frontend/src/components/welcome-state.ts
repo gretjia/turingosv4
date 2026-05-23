@@ -2,9 +2,9 @@
 //
 // Extracted into their own module so the Node test runner can import them
 // without pulling in HTMLElement (which is undefined in Node). The
-// <tos-welcome> Web Component (welcome.ts) imports these.
+// <tos-welcome-v2> Web Component (welcome.ts) imports these.
 
-import type { NextStep } from '../ir.js';
+import type { NextStep, OnboardingStatus } from '../ir.js';
 
 const API_KEY_MIN = 16;
 const API_KEY_MAX = 256;
@@ -65,6 +65,61 @@ export function stateForNextStep(next: NextStep): WizardState {
     case 'Done':
       return 'step_ready';
   }
+}
+
+/**
+ * Defensive view state derived from the full onboarding snapshot. `next_step`
+ * is still the backend's compact answer, but the prerequisite booleans are
+ * cheap guard rails for old bundles, stale pages, or inconsistent fixtures.
+ */
+export function stateForOnboardingStatus(
+  status: Pick<
+    OnboardingStatus,
+    'next_step' | 'init_done' | 'llm_config_done' | 'api_key_set' | 'agents_count'
+  >,
+): WizardState {
+  if (!status.init_done) return 'step_init';
+  if (!status.llm_config_done) return 'step_llm_config';
+  if (!status.api_key_set) return 'step_api_key';
+  if (status.agents_count === 0) return 'step_agent_deploy';
+  return stateForNextStep(status.next_step);
+}
+
+/**
+ * Manual progress navigation. Users may go back to an already available step
+ * (for example to replace the API key), but clicking a future step clamps to
+ * the next unmet prerequisite instead of bypassing it.
+ */
+export function stateForProgressIndex(
+  status: Pick<
+    OnboardingStatus,
+    'next_step' | 'init_done' | 'llm_config_done' | 'api_key_set' | 'agents_count'
+  >,
+  index: number,
+): WizardState {
+  if (index === 0) return 'step_init';
+  if (index === 1) {
+    return status.init_done ? 'step_llm_config' : stateForOnboardingStatus(status);
+  }
+  if (index === 2) {
+    return status.init_done && status.llm_config_done
+      ? 'step_api_key'
+      : stateForOnboardingStatus(status);
+  }
+  if (index === 3) {
+    return status.init_done && status.llm_config_done && status.api_key_set
+      ? 'step_agent_deploy'
+      : stateForOnboardingStatus(status);
+  }
+  if (index === 4) {
+    return status.init_done &&
+      status.llm_config_done &&
+      status.api_key_set &&
+      status.agents_count > 0
+      ? 'step_ready'
+      : stateForOnboardingStatus(status);
+  }
+  return stateForOnboardingStatus(status);
 }
 
 /** Order index for a NextStep in the progress indicator (0..=4). */

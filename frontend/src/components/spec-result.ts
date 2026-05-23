@@ -118,8 +118,12 @@ export class TosSpecResult extends HTMLElement {
       if (!resp.ok) {
         let reason = `HTTP ${resp.status}`;
         try {
-          const errBody = (await resp.json()) as { reason?: string };
-          if (typeof errBody.reason === 'string') reason = errBody.reason;
+          const errBody = (await resp.json()) as { reason?: string; kind?: string };
+          if (errBody.kind === 'api_key_missing') {
+            reason = '请先回到 welcome 填写 API key，然后再生成。';
+          } else if (typeof errBody.reason === 'string') {
+            reason = errBody.reason;
+          }
         } catch { /* */ }
         throw new Error(reason);
       }

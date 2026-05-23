@@ -18,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 import {
   validateApiKey,
   stateForNextStep,
+  stateForOnboardingStatus,
+  stateForProgressIndex,
   stepIndex,
 } from '../src/components/welcome-state.js';
 
@@ -34,8 +36,8 @@ test('welcome_registers_custom_element: file exists and exports register()', () 
     'welcome.ts must export register()',
   );
   assert.ok(
-    src.includes("'tos-welcome'"),
-    'welcome.ts must define the tos-welcome custom element',
+    src.includes("'tos-welcome-v2'"),
+    'welcome.ts must define the tos-welcome-v2 custom element',
   );
 });
 
@@ -126,6 +128,31 @@ test('welcome_state_machine_advances: stepIndex monotonic', () => {
   assert.equal(stepIndex('Spec'), 4);
   assert.equal(stepIndex('Generate'), 4);
   assert.equal(stepIndex('Done'), 4);
+});
+
+test('welcome_state_machine_guards_ready_when_api_key_missing', () => {
+  assert.equal(
+    stateForOnboardingStatus({
+      init_done: true,
+      llm_config_done: true,
+      api_key_set: false,
+      agents_count: 1,
+      next_step: 'Spec',
+    }),
+    'step_api_key',
+  );
+});
+
+test('welcome_progress_buttons_do_not_bypass_missing_api_key', () => {
+  const status = {
+    init_done: true,
+    llm_config_done: true,
+    api_key_set: false,
+    agents_count: 1,
+    next_step: 'ApiKey' as const,
+  };
+  assert.equal(stateForProgressIndex(status, 4), 'step_api_key');
+  assert.equal(stateForProgressIndex(status, 2), 'step_api_key');
 });
 
 // ---------------------------------------------------------------------------

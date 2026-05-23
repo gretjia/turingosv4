@@ -157,6 +157,13 @@ export class TosSpecGrill extends HTMLElement {
     }
 
     if (!resp.ok) {
+      let errorKind = '';
+      try {
+        const errBody = (await resp.json()) as { kind?: string; error?: string };
+        errorKind = typeof errBody.kind === 'string' ? errBody.kind : '';
+      } catch {
+        errorKind = '';
+      }
       if (resp.status === 404) {
         // Session not found (server restart). Re-enter idle to restart.
         this._showDrivenToast('会话已失效，请重新开始访谈');
@@ -164,6 +171,11 @@ export class TosSpecGrill extends HTMLElement {
         this._drivenSessionId = '';
         this._drivenNudge = '';
         this._recent5xxCount = 0;
+        this._renderDriven();
+        return;
+      }
+      if (errorKind === 'api_key_missing') {
+        this._drivenNudge = '请先回到 welcome 填写 API key，然后再开始访谈。';
         this._renderDriven();
         return;
       }

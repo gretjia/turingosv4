@@ -220,7 +220,7 @@ async fn run_web_command(
 
 #[cfg(feature = "web")]
 fn explicit_cwd(path: PathBuf) -> PathBuf {
-    if path.is_dir() {
+    if path.is_absolute() && path.is_dir() {
         path
     } else {
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
@@ -259,7 +259,26 @@ fn current_session_api_key(state: &AppState) -> Option<String> {
     state.api_key.lock().ok().and_then(|guard| guard.clone())
 }
 
+/// TRACE_MATRIX FC2-N16: API-key availability gate shared by web spec and
+/// generate handlers before they shell out to LLM-bearing CLI commands.
 #[cfg(feature = "web")]
+pub(crate) fn web_llm_api_key_available(api_key: Option<&str>) -> bool {
+    api_key.is_some_and(|key| !key.is_empty())
+        || [
+            "SILICONFLOW_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_API_KEY_WORKER",
+            "OPENROUTER_API_KEY",
+            "OPENAI_API_KEY",
+        ]
+        .iter()
+        .any(|name| {
+            std::env::var(name)
+                .map(|value| !value.is_empty())
+                .unwrap_or(false)
+        })
+}
+
 #[cfg(feature = "web")]
 fn combine_truncated(stdout: &[u8], stderr: &[u8]) -> String {
     let stdout_s = String::from_utf8_lossy(stdout);
@@ -590,6 +609,16 @@ pub(crate) async fn spec_turn_handler(
     // ── Step 3: resolve workspace and binary ─────────────────────────────────
     let workspace = resolve_workspace();
     let bin = resolve_turingos_bin();
+    let session_api_key = current_session_api_key(&state);
+    if !web_llm_api_key_available(session_api_key.as_deref()) {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(ErrorBody::with_kind(
+                "API key missing; set it on /welcome before starting the spec interview",
+                "api_key_missing",
+            )),
+        ));
+    }
 
     // ── Step 4: fetch or create GrillSession ─────────────────────────────────
     let is_new_session;

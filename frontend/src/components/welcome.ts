@@ -1,5 +1,5 @@
 // TRACE_MATRIX FC2-N16: Phase 7 W7 — onboarding wizard centerpiece.
-// <tos-welcome> guides a non-developer through the Phase 6.3 5-step flow
+// <tos-welcome-v2> guides a non-developer through the Phase 6.3 5-step flow
 // inside the browser: workspace init, LLM config, API-key entry,
 // agent deploy, then a final "ready to interview" panel that hands off to
 // /build. State machine:
@@ -13,16 +13,17 @@
 import type { OnboardingStatus } from '../ir.js';
 import {
   validateApiKey,
-  stateForNextStep,
+  stateForOnboardingStatus,
+  stateForProgressIndex,
   stepIndex,
   WIZARD_STEPS,
   type WizardState,
 } from './welcome-state.js';
 
-const ELEMENT_NAME = 'tos-welcome';
+const ELEMENT_NAME = 'tos-welcome-v2';
 
 // Re-export so callers / tests that prefer the component path keep working.
-export { validateApiKey, stateForNextStep, stepIndex };
+export { validateApiKey, stateForOnboardingStatus, stateForProgressIndex, stepIndex };
 
 export class TosWelcome extends HTMLElement {
   private _state: WizardState = 'loading_status';
@@ -56,11 +57,11 @@ export class TosWelcome extends HTMLElement {
 
   private async _loadStatus(): Promise<void> {
     try {
-      const resp = await fetch('/api/welcome/status');
+      const resp = await fetch('/api/welcome/status', { cache: 'no-store' });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = (await resp.json()) as OnboardingStatus;
       this._status = data;
-      this._setState(stateForNextStep(data.next_step));
+      this._setState(stateForOnboardingStatus(data));
       this._render();
     } catch (err: unknown) {
       this._errorMessage = err instanceof Error ? err.message : '加载状态失败。';
@@ -95,7 +96,7 @@ export class TosWelcome extends HTMLElement {
       }
       const data = (await resp.json()) as OnboardingStatus;
       this._status = data;
-      this._setState(stateForNextStep(data.next_step));
+      this._setState(stateForOnboardingStatus(data));
       this._render();
     } catch (err: unknown) {
       this._errorMessage = err instanceof Error ? err.message : '请求失败。';
@@ -188,20 +189,34 @@ export class TosWelcome extends HTMLElement {
       }
       li.setAttribute('data-phase', phase);
 
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'welcome-progress-button';
+      button.setAttribute('aria-label', `跳到 ${step.label}`);
+      button.addEventListener('click', () => this._jumpToProgressIndex(idx));
+
       const circle = document.createElement('span');
       circle.className = 'welcome-progress-num';
       circle.textContent = String(idx + 1);
-      li.appendChild(circle);
+      button.appendChild(circle);
 
       const label = document.createElement('span');
       label.className = 'welcome-progress-label';
       label.textContent = step.label;
-      li.appendChild(label);
+      button.appendChild(label);
 
+      li.appendChild(button);
       nav.appendChild(li);
     });
 
     return nav;
+  }
+
+  private _jumpToProgressIndex(index: number): void {
+    if (this._status === null) return;
+    this._errorMessage = '';
+    this._setState(stateForProgressIndex(this._status, index));
+    this._render();
   }
 
   private _renderLoading(label: string): HTMLElement {
@@ -248,6 +263,12 @@ export class TosWelcome extends HTMLElement {
 
   /** Render the active card for whichever step is current. */
   private _renderCard(): HTMLElement {
+    if (this._status !== null && this._state === 'step_ready') {
+      const guardedState = stateForOnboardingStatus(this._status);
+      if (guardedState !== 'step_ready') {
+        this._setState(guardedState);
+      }
+    }
     if (this._state === 'step_init' || this._state === 'submitting_init' || this._state === 'error_init') {
       return this._renderStepCard({
         index: 1,

@@ -162,10 +162,13 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
 /// TRACE_MATRIX FC1-N5: serves the embedded esbuild ESM bundle.
 async fn serve_main_js() -> impl IntoResponse {
     (
-        [(
-            header::CONTENT_TYPE,
-            "application/javascript; charset=utf-8",
-        )],
+        [
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
         FRONTEND_MAIN_JS,
     )
 }
@@ -209,9 +212,25 @@ async fn handle_root_redirect(State(state): State<AppState>) -> axum::response::
     (StatusCode::OK, Html(html)).into_response()
 }
 
-/// W7: server-rendered welcome page chrome + <tos-welcome> mount.
-async fn handle_welcome_page() -> Html<String> {
-    Html(render_welcome_page())
+/// W7: server-rendered welcome page chrome + <tos-welcome-v2> mount.
+///
+/// The first HTML paint uses the same workspace inspection and in-memory
+/// API-key bit as `/api/welcome/status`; the client component then hydrates
+/// from that endpoint. This prevents a stale or cached frontend bundle from
+/// briefly presenting Ready while the server still requires step 3.
+async fn handle_welcome_page(State(state): State<AppState>) -> impl IntoResponse {
+    let workspace = super::welcome::resolve_workspace_path();
+    let api_key_set = state
+        .api_key
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
+        .unwrap_or(false);
+    let status = super::welcome::status_for(&workspace, api_key_set);
+    (
+        [(header::CACHE_CONTROL, "no-store")],
+        Html(render_welcome_page(&status)),
+    )
 }
 
 async fn handle_agents() -> Html<String> {
@@ -262,8 +281,27 @@ async fn handle_audit() -> Html<String> {
 /// `done=true` the component shows `<tos-spec-result>`, then `/api/generate`
 /// produces artifacts shown in `<tos-artifact-viewer>`. No IR is materialised
 /// on the server for this page; the interview is fully client-orchestrated.
-async fn handle_build() -> Html<String> {
-    Html(render_build_page())
+async fn handle_build(State(state): State<AppState>) -> axum::response::Response {
+    let workspace = super::welcome::resolve_workspace_path();
+    let api_key_set = state
+        .api_key
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
+        .unwrap_or(false);
+    let next = super::welcome::next_step_for(&workspace, api_key_set);
+    if matches!(
+        next,
+        NextStep::Init | NextStep::LlmConfig | NextStep::ApiKey | NextStep::AgentDeploy
+    ) {
+        return Redirect::to("/welcome").into_response();
+    }
+    (
+        StatusCode::OK,
+        [(header::CACHE_CONTROL, "no-store")],
+        Html(render_build_page()),
+    )
+        .into_response()
 }
 
 // ---------------------------------------------------------------------------

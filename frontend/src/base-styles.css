@@ -1172,10 +1172,31 @@ turingos-status {
   position: relative;
   z-index: 1;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.welcome-progress-button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  font: inherit;
+  margin: 0;
+  padding: 0;
   text-align: center;
+}
+
+.welcome-progress-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .welcome-progress-num {

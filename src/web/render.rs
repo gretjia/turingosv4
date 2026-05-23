@@ -21,6 +21,7 @@
 ///
 /// All items are `pub(crate)` — no public API leaks from this module.
 use super::ir::{Block, CellValue, IRRoot, MetricValue};
+use super::welcome::{NextStep, OnboardingStatus};
 
 // ---------------------------------------------------------------------------
 // View discriminator — used for nav aria-current + page chrome
@@ -297,7 +298,7 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html.push_str("</footer>\n");
 
     // W2/W3 frontend script tag (static path; wired in W2)
-    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
+    html.push_str("<script type=\"module\" src=\"/static/main.js?v=phase7-welcome-gate-20260523\"></script>\n");
 
     html.push_str("</body>\n</html>\n");
     html
@@ -402,23 +403,23 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html.push_str("  <turingos-status></turingos-status>\n");
     html.push_str("</footer>\n");
 
-    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
+    html.push_str("<script type=\"module\" src=\"/static/main.js?v=phase7-welcome-gate-20260523\"></script>\n");
     html.push_str("</body>\n</html>\n");
     html
 }
 
 // ---------------------------------------------------------------------------
-// W7: /welcome page renderer — minimal chrome, <tos-welcome> mount only
+// W7: /welcome page renderer — minimal chrome, <tos-welcome-v2> mount only
 // ---------------------------------------------------------------------------
 
 /// TRACE_MATRIX FC2-N16: Phase 7 W7 — `/welcome` page chrome.
 ///
 /// First-time-user entry point. Intentionally MORE MINIMAL than the standard
-/// page chrome: same wordmark header + footer, but NO full nav (a new user
-/// hasn't earned navigation yet — they get a "skip onboarding" link instead).
-/// Inside `<main>` mounts a `<tos-welcome>` placeholder; the Web Component
+/// page chrome: same wordmark header + footer, but NO full nav or bypass link:
+/// onboarding gates decide whether `/build` is reachable.
+/// Inside `<main>` mounts a `<tos-welcome-v2>` placeholder; the Web Component
 /// owns the entire 5-step state machine.
-pub(crate) fn render_welcome_page() -> String {
+pub(crate) fn render_welcome_page(status: &OnboardingStatus) -> String {
     let mut html = String::new();
 
     html.push_str("<!doctype html>\n<html lang=\"zh\">\n<head>\n");
@@ -456,16 +457,15 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
         "  <a class=\"tos-wordmark\" href=\"/welcome\" aria-label=\"TuringOS \u{2014} Phase 7 welcome\">\
          TuringOS<span class=\"tos-wordmark-sub\">Phase 7</span></a>\n",
     );
-    html.push_str(
-        "  <a class=\"tos-welcome-skip\" href=\"/build\" \
-         title=\"Already configured everything from the CLI? Jump straight to the spec interview.\">\
-         skip \u{2192} build</a>\n",
-    );
     html.push_str("</header>\n");
 
-    // Main — single <tos-welcome> mount; the centerpiece component.
+    // Main — single <tos-welcome-v2> mount; the centerpiece component.
+    // The child HTML is an authoritative server-rendered first paint. The
+    // custom element replaces it after fetching the same status endpoint.
     html.push_str("<main class=\"tos-main tos-main-welcome\" id=\"tos-main\" role=\"main\">\n");
-    html.push_str("  <tos-welcome></tos-welcome>\n");
+    html.push_str("  <tos-welcome-v2>\n");
+    html.push_str(&render_welcome_fallback(status));
+    html.push_str("  </tos-welcome-v2>\n");
     // turingos-root is included so WS state pill / connection still mounts.
     html.push_str("  <turingos-root></turingos-root>\n");
     html.push_str("</main>\n");
@@ -479,9 +479,99 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html.push_str("  <turingos-status></turingos-status>\n");
     html.push_str("</footer>\n");
 
-    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
+    html.push_str("<script type=\"module\" src=\"/static/main.js?v=phase7-welcome-gate-20260523\"></script>\n");
     html.push_str("</body>\n</html>\n");
     html
+}
+
+fn render_welcome_fallback(status: &OnboardingStatus) -> String {
+    let mut html = String::new();
+    html.push_str("    <section class=\"welcome-wrap\" data-rendered-by=\"server\">\n");
+    html.push_str("      <ol class=\"welcome-progress\" aria-label=\"安装进度\">\n");
+    let steps = [
+        ("工作站", NextStep::Init),
+        ("模型配置", NextStep::LlmConfig),
+        ("API 密钥", NextStep::ApiKey),
+        ("注册 Agent", NextStep::AgentDeploy),
+        ("开始访谈", NextStep::Spec),
+    ];
+    let active_idx = match status.next_step {
+        NextStep::Init => 0,
+        NextStep::LlmConfig => 1,
+        NextStep::ApiKey => 2,
+        NextStep::AgentDeploy => 3,
+        NextStep::Spec | NextStep::Generate | NextStep::Done => 4,
+    };
+    for (idx, (label, _)) in steps.iter().enumerate() {
+        let phase = if matches!(status.next_step, NextStep::Done) || idx < active_idx {
+            "done"
+        } else if idx == active_idx {
+            "active"
+        } else {
+            "pending"
+        };
+        html.push_str(&format!(
+            "        <li class=\"welcome-progress-step\" data-phase=\"{}\"><button type=\"button\" class=\"welcome-progress-button\" disabled aria-disabled=\"true\"><span class=\"welcome-progress-num\">{}</span><span class=\"welcome-progress-label\">{}</span></button></li>\n",
+            esc(phase),
+            idx + 1,
+            esc(label),
+        ));
+    }
+    html.push_str("      </ol>\n");
+    html.push_str(&render_welcome_fallback_card(status));
+    html.push_str("    </section>\n");
+    html
+}
+
+fn render_welcome_fallback_card(status: &OnboardingStatus) -> String {
+    match status.next_step {
+        NextStep::Init => render_welcome_static_step(
+            1,
+            "第一步 · 准备工作站",
+            "我帮你在硬盘上铺一张空白的账本桌面，后面所有步骤都会落在这里。",
+            "准备工作站后继续",
+        ),
+        NextStep::LlmConfig => render_welcome_static_step(
+            2,
+            "第二步 · 配置两个模型",
+            "工作站已建立；下一步需要把 meta 与 blackbox 模型名写入 turingos.toml。",
+            "写入模型配置后继续",
+        ),
+        NextStep::ApiKey => render_welcome_static_step(
+            3,
+            "把 API 密钥交给我",
+            "密钥只保存在当前服务器进程内存里。刷新后的交互控件会显示输入框；如果还没出现，请以此服务端状态为准。",
+            "等待 API 密钥输入控件",
+        ),
+        NextStep::AgentDeploy => render_welcome_static_step(
+            4,
+            "注册 Agent",
+            "API 密钥已在内存中；下一步注册本工作站的 Solver agent。",
+            "注册 Agent 后继续",
+        ),
+        NextStep::Spec | NextStep::Generate | NextStep::Done => render_welcome_static_step(
+            5,
+            "你的工作站已就绪。",
+            "五步全部完成。现在可以进入 spec 访谈和生成流程。",
+            "开始 spec 访谈",
+        ),
+    }
+}
+
+fn render_welcome_static_step(
+    index: usize,
+    title: &str,
+    subtitle: &str,
+    action_label: &str,
+) -> String {
+    format!(
+        "      <div class=\"welcome-card\" data-server-step=\"{}\"><p class=\"welcome-step-caption\">STEP {} / 5</p><h2 class=\"welcome-step-title\">{}</h2><p class=\"welcome-step-subtitle\">{}</p><p class=\"welcome-api-set\">{}</p></div>\n",
+        index,
+        index,
+        esc(title),
+        esc(subtitle),
+        esc(action_label),
+    )
 }
 
 // ---------------------------------------------------------------------------

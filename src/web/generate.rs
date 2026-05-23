@@ -41,7 +41,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[cfg(feature = "web")]
-use super::spec::{web_llm_child_env_for_api_key, SpecError};
+use super::spec::{web_llm_api_key_available, web_llm_child_env_for_api_key, SpecError};
 #[cfg(feature = "web")]
 use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, VerifyMode};
 #[cfg(feature = "web")]
@@ -188,6 +188,17 @@ pub(crate) async fn generate_handler(
             }),
         ));
     }
+    let session_api_key = state.api_key.lock().ok().and_then(|guard| guard.clone());
+    if !web_llm_api_key_available(session_api_key.as_deref()) {
+        return Err((
+            StatusCode::CONFLICT,
+            Json(SpecError {
+                reason: "API key missing; set it on /welcome before generating artifacts"
+                    .to_string(),
+                kind: "api_key_missing",
+            }),
+        ));
+    }
 
     // Step 4b: copy turingos.toml from global workspace into session dir so
     // that `turingos generate --workspace session_dir` can read llm config.
@@ -317,12 +328,16 @@ pub(crate) async fn generate_handler(
         let n_parallel_workers = req.n_parallel_workers.unwrap_or(3).clamp(1, 3);
         args.push("--n-parallel-workers".to_string());
         args.push(n_parallel_workers.to_string());
-        let session_api_key = state.api_key.lock().ok().and_then(|guard| guard.clone());
         let env = web_llm_child_env_for_api_key(session_api_key.as_deref());
+        let command_cwd = if session_dir.is_absolute() && session_dir.is_dir() {
+            session_dir.clone()
+        } else {
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+        };
         let command = SanitizedCommand {
             program: PathBuf::from(&bin),
             args,
-            cwd: session_dir.clone(),
+            cwd: command_cwd,
             env,
             stdin: None,
             timeout: Duration::from_secs(300),

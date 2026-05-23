@@ -27,7 +27,7 @@
 /// through the `/welcome` step-3 card. This is intentional and called out in
 /// the welcome UI copy.
 #[cfg(feature = "web")]
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, http::header, http::StatusCode, response::IntoResponse, Json};
 #[cfg(feature = "web")]
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "web")]
@@ -254,6 +254,14 @@ pub(crate) fn next_step_for(workspace: &Path, api_key_set: bool) -> NextStep {
     compute_next_step(&inspect, api_key_set)
 }
 
+/// TRACE_MATRIX FC2-N16: build the canonical welcome status snapshot for
+/// server-rendered `/welcome` and JSON `/api/welcome/status` callers.
+#[cfg(feature = "web")]
+pub(crate) fn status_for(workspace: &Path, api_key_set: bool) -> OnboardingStatus {
+    let inspect = inspect_workspace(workspace);
+    build_status(workspace, inspect, api_key_set)
+}
+
 // ---------------------------------------------------------------------------
 // Workspace + binary resolution
 // ---------------------------------------------------------------------------
@@ -335,11 +343,14 @@ fn validate_api_key_shape(key: &str) -> Result<(), SetupError> {
 #[cfg(feature = "web")]
 pub(crate) async fn welcome_status_handler(
     State(state): State<AppState>,
-) -> Json<OnboardingStatus> {
+) -> impl IntoResponse {
     let workspace = resolve_workspace_path();
     let inspect = inspect_workspace(&workspace);
     let api_key_set = current_api_key_set(&state);
-    Json(build_status(&workspace, inspect, api_key_set))
+    (
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(build_status(&workspace, inspect, api_key_set)),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -422,8 +433,8 @@ pub(crate) async fn welcome_init_handler(
     //   2. The materialize step overwrites workspace asset files with the
     //      current binary's embedded bytes — keeps source-of-truth consistent.
     let initial = inspect_workspace(&workspace);
-    seed_grill_prerequisites(&workspace).await?;
     if initial.init_done {
+        seed_grill_prerequisites(&workspace).await?;
         return Ok(Json(build_status(&workspace, initial, api_key_set)));
     }
 
@@ -475,6 +486,9 @@ pub(crate) async fn welcome_init_handler(
         init_args.push("--provider".into());
         init_args.push("deepseek".into());
     }
+    if workspace.exists() {
+        init_args.push("--force".into());
+    }
 
     let output = run_welcome_command(
         bin.clone(),
@@ -504,10 +518,10 @@ pub(crate) async fn welcome_init_handler(
         ));
     }
 
-    // Phase 5 driven-grill prerequisites already executed at the top of
-    // this handler (before the fast-path return). No-op here for the
-    // post-fresh-init path; the prerequisites are guaranteed to be present
-    // whether or not the shellout above ran.
+    // Phase 5 driven-grill prerequisites must exist after every successful
+    // init path. The idempotent branch above refreshes them before returning;
+    // the fresh-init branch refreshes them here after the workspace exists.
+    seed_grill_prerequisites(&workspace).await?;
 
     let inspect = inspect_workspace(&workspace);
     Ok(Json(build_status(&workspace, inspect, api_key_set)))
@@ -813,7 +827,7 @@ async fn run_welcome_command(
 
 #[cfg(feature = "web")]
 fn explicit_cwd(workspace: &Path) -> PathBuf {
-    if workspace.is_dir() {
+    if workspace.is_absolute() && workspace.is_dir() {
         workspace.to_path_buf()
     } else {
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))

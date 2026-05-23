@@ -26,7 +26,7 @@ export class TuringOSRoot extends HTMLElement {
   connectedCallback(): void {
     const view = currentView();
     // W6/W7: /build and /welcome are fully owned by their dedicated Web
-    // Components (<tos-spec-grill>, <tos-welcome>) which are mounted by the
+    // Components (<tos-spec-grill>, <tos-welcome-v2>) which are mounted by the
     // server-rendered HTML. <turingos-root> stays out of their way.
     if (view === 'build' || view === 'welcome') {
       this._renderInertView();
@@ -80,7 +80,7 @@ export class TuringOSRoot extends HTMLElement {
    */
   private async _checkOnboarding(): Promise<void> {
     try {
-      const resp = await fetch('/api/welcome/status');
+      const resp = await fetch('/api/welcome/status', { cache: 'no-store' });
       if (!resp.ok) return;
       const data = (await resp.json()) as { next_step?: string };
       const onboardingIncomplete =
