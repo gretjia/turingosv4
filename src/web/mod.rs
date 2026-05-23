@@ -18,6 +18,10 @@ pub(crate) mod render;
 pub(crate) mod router;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — POST /api/spec/submit handler (8-question grill wrapper).
 pub(crate) mod spec;
+/// TRACE_MATRIX FC1-N12 + FC3-replay: TB-SOFTWARE-3-0 Atom S2 — private GrillSession
+/// snapshot for cross-restart resume. Derived view over per-session CAS;
+/// NOT a truth source.
+pub(crate) mod session_snapshot;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — GET /api/spec/view/:session_id server-renders
 /// the per-session spec.md into an R2-aesthetic HTML view (Fraunces + JetBrains Mono +
 /// IBM Plex Sans + oxidized teal). Frontend `_renderDrivenComplete` embeds this in

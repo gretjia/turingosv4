@@ -663,21 +663,46 @@ pub(crate) async fn spec_turn_handler(
         ));
     }
     if is_new_session && req.user_answer.is_some() {
-        // Session-lost recovery per R2 §A14: server restart wipes the
-        // in-memory `sessions` HashMap, so a client with an in-flight
-        // interview holding a stale session_id will land here on the next
-        // submit. The frontend (`spec-grill.ts` `_postTurn`) treats HTTP 404
-        // as "session lost → fall back to static 8-question mode"; HTTP 400
-        // is surfaced as an opaque "请求错误 (400)" nudge that leaves the
-        // user stuck at the previous question. Return NOT_FOUND so the
-        // documented fallback path engages instead of dead-ending the UI.
-        return Err((
-            StatusCode::NOT_FOUND,
-            Json(ErrorBody::with_kind(
-                "session does not exist; send user_answer=null to start a new session",
-                "session_not_found",
-            )),
-        ));
+        // TB-SOFTWARE-3-0 Atom S2 (2026-05-23) — cross-restart session resume:
+        // before falling through to 404, try loading the latest snapshot for
+        // this session_id from per-session CAS. If found, rebuild the
+        // GrillSession cache and proceed normally. If not found, preserve
+        // the existing 404 R2 §A14 fallback behavior so the frontend's
+        // "session lost → static 8-question mode" path still engages.
+        let workspace_for_snapshot = PathBuf::from(resolve_workspace());
+        let mut resumed_from_snapshot = false;
+        if let Some(snap) = crate::web::session_snapshot::load_latest_snapshot(
+            &workspace_for_snapshot,
+            &req.session_id,
+        ) {
+            let rebuilt = snap.into_session();
+            if let Ok(mut sessions) = state.sessions.lock() {
+                sessions.insert(req.session_id.clone(), rebuilt);
+                resumed_from_snapshot = true;
+                log::info!(
+                    "spec_turn_handler: resumed session {} from CAS snapshot \
+                     (TB-SOFTWARE-3-0 S2)",
+                    &req.session_id
+                );
+            }
+        }
+        if !resumed_from_snapshot {
+            // Session-lost recovery per R2 §A14: server restart wipes the
+            // in-memory `sessions` HashMap, so a client with an in-flight
+            // interview holding a stale session_id will land here on the next
+            // submit. The frontend (`spec-grill.ts` `_postTurn`) treats HTTP 404
+            // as "session lost → fall back to static 8-question mode"; HTTP 400
+            // is surfaced as an opaque "请求错误 (400)" nudge that leaves the
+            // user stuck at the previous question. Return NOT_FOUND so the
+            // documented fallback path engages instead of dead-ending the UI.
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(ErrorBody::with_kind(
+                    "session does not exist; send user_answer=null to start a new session",
+                    "session_not_found",
+                )),
+            ));
+        }
     }
 
     // ── Step 7: read current session state snapshot ──────────────────────────
@@ -1534,6 +1559,30 @@ pub(crate) async fn spec_turn_handler(
                 session_id: req.session_id.clone(),
                 spec_capsule_cid: String::new(),
             });
+    }
+
+    // ── Step 15: TB-SOFTWARE-3-0 Atom S2 (2026-05-23) — persist GrillSession
+    //    snapshot to per-session CAS BEFORE returning Ok. This enables
+    //    cross-restart resume: if the server restarts and sessions HashMap
+    //    is wiped, the next /api/spec/turn for this session_id can rebuild
+    //    cache from this snapshot (see is_new_session branch above).
+    //    Best-effort: snapshot write failure logs a warning but does NOT
+    //    fail the user-facing request.
+    let ws = PathBuf::from(resolve_workspace());
+    {
+        let sessions_guard = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(sess) = sessions_guard.get(&req.session_id) {
+            let logical_t = sess.turn_count as u64;
+            if let Err(e) =
+                crate::web::session_snapshot::write_snapshot(&ws, sess, logical_t)
+            {
+                log::warn!(
+                    "spec_turn_handler: snapshot write failed for {} \
+                     (best-effort, request will still succeed): {}",
+                    &req.session_id, e
+                );
+            }
+        }
     }
 
     Ok(Json(SpecTurnResponse {
