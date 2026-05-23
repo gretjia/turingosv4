@@ -84,7 +84,6 @@ pub(crate) struct SpecError {
     pub(crate) kind: &'static str,
 }
 
-
 /// Returns `true` if `s` is a safe session ID: `^[a-zA-Z0-9_-]{1,128}$`.
 ///
 /// Session IDs are used as directory names under `sessions/`, so they must
@@ -229,8 +228,11 @@ fn explicit_cwd(path: PathBuf) -> PathBuf {
 }
 
 #[cfg(feature = "web")]
-fn web_llm_child_env() -> std::collections::BTreeMap<String, String> {
-    env_allowlist_from_current(&[
+/// TRACE_MATRIX FC1-N7: Web child LLM key handoff keeps API-key capability in child env only.
+pub(crate) fn web_llm_child_env_for_api_key(
+    api_key: Option<&str>,
+) -> std::collections::BTreeMap<String, String> {
+    let mut env = env_allowlist_from_current(&[
         "PATH",
         "SILICONFLOW_API_KEY",
         "DEEPSEEK_API_KEY",
@@ -238,9 +240,26 @@ fn web_llm_child_env() -> std::collections::BTreeMap<String, String> {
         "OPENROUTER_API_KEY",
         "OPENAI_API_KEY",
         "TURINGOS_SILICONFLOW_ENDPOINT",
-    ])
+    ]);
+    if let Some(key) = api_key.filter(|k| !k.is_empty()) {
+        for name in [
+            "SILICONFLOW_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_API_KEY_WORKER",
+        ] {
+            env.entry(name.to_string())
+                .or_insert_with(|| key.to_string());
+        }
+    }
+    env
 }
 
+#[cfg(feature = "web")]
+fn current_session_api_key(state: &AppState) -> Option<String> {
+    state.api_key.lock().ok().and_then(|guard| guard.clone())
+}
+
+#[cfg(feature = "web")]
 #[cfg(feature = "web")]
 fn combine_truncated(stdout: &[u8], stderr: &[u8]) -> String {
     let stdout_s = String::from_utf8_lossy(stdout);
@@ -829,7 +848,7 @@ pub(crate) async fn spec_turn_handler(
                 "--turn-id".into(),
                 triage_turn_id.clone(),
             ],
-            web_llm_child_env(),
+            web_llm_child_env_for_api_key(current_session_api_key(&state).as_deref()),
             Duration::from_secs(240),
         )
         .await
@@ -1163,7 +1182,7 @@ pub(crate) async fn spec_turn_handler(
             "--meta-prompt".into(),
             META_PROMPT_REL.into(),
         ],
-        web_llm_child_env(),
+        web_llm_child_env_for_api_key(current_session_api_key(&state).as_deref()),
         Duration::from_secs(240),
     )
     .await
@@ -1573,13 +1592,12 @@ pub(crate) async fn spec_turn_handler(
         let sessions_guard = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(sess) = sessions_guard.get(&req.session_id) {
             let logical_t = sess.turn_count as u64;
-            if let Err(e) =
-                crate::web::session_snapshot::write_snapshot(&ws, sess, logical_t)
-            {
+            if let Err(e) = crate::web::session_snapshot::write_snapshot(&ws, sess, logical_t) {
                 log::warn!(
                     "spec_turn_handler: snapshot write failed for {} \
                      (best-effort, request will still succeed): {}",
-                    &req.session_id, e
+                    &req.session_id,
+                    e
                 );
             }
         }
@@ -1736,6 +1754,33 @@ mod tests {
         assert!(!is_safe_session_id("a.b"));
         assert!(!is_safe_session_id(""));
         assert!(!is_safe_session_id(&"a".repeat(129)));
+    }
+
+    #[test]
+    fn web_llm_child_env_aliases_session_key_without_overriding_explicit_env() {
+        std::env::set_var("DEEPSEEK_API_KEY", "sk-explicit-meta-key");
+        std::env::remove_var("SILICONFLOW_API_KEY");
+        std::env::remove_var("DEEPSEEK_API_KEY_WORKER");
+
+        let env = web_llm_child_env_for_api_key(Some("sk-session-key"));
+
+        std::env::remove_var("DEEPSEEK_API_KEY");
+
+        assert_eq!(
+            env.get("SILICONFLOW_API_KEY").map(String::as_str),
+            Some("sk-session-key"),
+            "welcome session key must be available to SiliconFlow-configured children"
+        );
+        assert_eq!(
+            env.get("DEEPSEEK_API_KEY").map(String::as_str),
+            Some("sk-explicit-meta-key"),
+            "operator-provided explicit meta key must not be overwritten"
+        );
+        assert_eq!(
+            env.get("DEEPSEEK_API_KEY_WORKER").map(String::as_str),
+            Some("sk-session-key"),
+            "welcome session key must fill missing DeepSeek worker alias"
+        );
     }
 
     #[test]

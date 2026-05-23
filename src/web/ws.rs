@@ -121,6 +121,13 @@ pub enum WsBroadcastMsg {
         reason: String,
     },
 
+    /// TRACE_MATRIX FC1-N5 + FC2-N16: Polymarket live projection hint.
+    ///
+    /// Emitted after `turingos generate` has admitted market txs. The payload
+    /// is intentionally tiny: clients must refetch
+    /// `/api/market/by-session/:id` and treat replay JSON as authoritative.
+    AgentAttemptUpdate { session_id: String },
+
     // ── Phase 6.3.x driven-mode grill events (W7) ────────────────────────────
     /// TRACE_MATRIX FC2-N16 + FC1-N5: emitted by POST /api/spec/turn on each
     /// accepted Meta turn. Allows the frontend `<tos-spec-grill>` to update

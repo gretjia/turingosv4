@@ -200,3 +200,23 @@ When an FC node is renamed in constitution.md:
 2. Update `FC_ELEMENTS_*.md` raw extract.
 3. Update this matrix and `TRACE_MATRIX_v0_*.md`.
 4. Bump matrix file version: `TRACE_FLOWCHART_MATRIX_vN.md`.
+
+---
+
+## §9. 2026-05-23 Class 3 Polymarket Core User Flow Binding
+
+Charter:
+`handover/tracer_bullets/TB-POLYMARKET-CORE-FLOW_charter_2026-05-23.md`.
+Directive:
+`handover/directives/2026-05-23_POLYMARKET_CORE_FLOW_DIRECTIVE_AND_SECTION8.md`.
+
+This binding does not change the canonical flowchart hashes. It records the
+Class 3 user-flow wiring that makes Polymarket a replay-derived core mechanism
+for `/welcome -> spec grill -> generate -> panel -> artifact -> restart replay`.
+
+| FC Node | New/strengthened binding | Tests / evidence |
+|---|---|---|
+| FC2-N16 / FC2-N21 | Fresh init templates preseed worker-alpha/beta/gamma plus verifier/provider identities; old workspaces missing preseed degrade to N=1 instead of faking N=3. | `tests/generate_emits_work_tx_smoke.rs::generate_n3_emits_full_polymarket_lifecycle_and_replays`; `tests/cli_web_welcome_smoke.rs` |
+| FC1-N5 / FC1-N7 | Real-user LLM triage is unblocked while API keys stay child-env-only and out of disk/CAS/evidence. | `tests/cmd_llm_triage_stub.rs::triage_stub_uses_large_budget_and_forces_thinking_off`; `tests/web_spec_turn_endpoint.rs`; `tests/cli_web_generate_smoke.rs` |
+| FC1-N10 / FC1-N11 / FC1-N13 / FC1-N14 | Worker proposals and rejections are emitted through durable ChainTape with CAS-reconstructable ProposalTelemetry, then finalized through `VerifyTx -> FinalizeReward -> EventResolve`. | `tests/generate_emits_work_tx_smoke.rs`; `tests/generate_retry_attempts_are_distinct.rs` |
+| FC3-N31 / FC3-N36 / FC3-N37 / FC3-N38 | Websocket is live hint only; panel state is refetched from replayed chain view and winner is exposed only after finalized replay. | `tests/cli_web_generate_smoke.rs`; `src/web/market_view.rs::tests::top_level_winner_agent_id_is_null_until_market_finalized`; frontend test/build |

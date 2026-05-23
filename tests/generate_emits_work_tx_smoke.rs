@@ -8,7 +8,7 @@
 //!   1. Read the workspace's `genesis_payload.toml` + parse the
 //!      `[treasury]` + `[worker_wallets]` tables.
 //!   2. Build a genesis QState via `runtime::adapter::genesis_with_balances`
-//!      so treasury has 100_000µ and worker-alpha has 10_000µ.
+//!      so treasury has 100_000µ plus worker/verifier/provider wallets.
 //!   3. Open the canonical workspace ChainTape via
 //!      `build_chaintape_sequencer_with_initial_q` (resume_existing_chain=true).
 //!   4. Submit TaskOpen → EscrowLock → WorkTx → MarketSeed through the
@@ -35,8 +35,14 @@ use std::process::Command;
 use std::sync::Arc;
 use std::thread;
 
-use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
+};
+use turingosv4::bottom_white::ledger::system_keypair::{
+    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
+};
 use turingosv4::bottom_white::ledger::transition_ledger::{
     replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind,
 };
@@ -45,12 +51,11 @@ use turingosv4::runtime::artifact_bundle::{
     latest_artifact_bundle_cid_for_session, ARTIFACT_BUNDLE_SCHEMA_ID,
 };
 use turingosv4::runtime::bootstrap::parse_treasury_and_worker_preseed;
+use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
+use turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID;
 use turingosv4::runtime::PinnedPubkeyManifest;
-use turingosv4::bottom_white::ledger::system_keypair::{
-    PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
-};
 use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketState, TxId};
-use turingosv4::state::typed_tx::{EventId, TypedTx};
+use turingosv4::state::typed_tx::{AgentSignature, EventId, TypedTx};
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 fn turingos_bin() -> PathBuf {
@@ -118,12 +123,36 @@ fn happy_path_llm_response() -> String {
     payload.to_string()
 }
 
+fn no_files_llm_response() -> String {
+    let payload = serde_json::json!({
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "I cannot produce files for this request.",
+                },
+                "finish_reason": "stop"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 10,
+            "completion_tokens": 8,
+            "total_tokens": 18,
+        }
+    });
+    payload.to_string()
+}
+
+fn assert_nonzero_agent_signature(signature: AgentSignature, label: &str) {
+    assert!(
+        signature.as_bytes().iter().any(|b| *b != 0),
+        "{label} must carry a real non-zero agent signature"
+    );
+}
+
 /// Walk every L4 entry in `<workspace>/runtime_repo` and decode the TypedTx
 /// for each. Returns the (entry, decoded_tx) pairs.
-fn walk_chain(
-    runtime_repo_path: &std::path::Path,
-    cas: &CasStore,
-) -> Vec<(LedgerEntry, TypedTx)> {
+fn walk_chain(runtime_repo_path: &std::path::Path, cas: &CasStore) -> Vec<(LedgerEntry, TypedTx)> {
     use turingosv4::bottom_white::ledger::transition_ledger::canonical_decode;
     let writer = Git2LedgerWriter::open(runtime_repo_path).expect("open Git2LedgerWriter");
     let n = writer.len();
@@ -141,13 +170,9 @@ fn walk_chain(
 /// the canonical path that `verify_chaintape` takes and that
 /// `runtime::build_chaintape_sequencer_with_initial_q`'s resume branch uses
 /// under the hood — both call `replay_full_transition`.
-fn replay_from_disk(
-    runtime_repo_path: &std::path::Path,
-    cas_path: &std::path::Path,
-) -> QState {
+fn replay_from_disk(runtime_repo_path: &std::path::Path, cas_path: &std::path::Path) -> QState {
     let initial_q_path = runtime_repo_path.join("initial_q_state.json");
-    let initial_q_json =
-        fs::read_to_string(&initial_q_path).expect("read initial_q_state.json");
+    let initial_q_json = fs::read_to_string(&initial_q_path).expect("read initial_q_state.json");
     let initial_q: QState =
         serde_json::from_str(&initial_q_json).expect("parse initial_q_state.json");
 
@@ -241,6 +266,8 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         .arg(&ws)
         .arg("--entrypoint")
         .arg("index.html")
+        .arg("--n-parallel-workers")
+        .arg("3")
         .env("TURINGOS_SILICONFLOW_ENDPOINT", &endpoint)
         .env("SILICONFLOW_API_KEY", "mock-key")
         .output()
@@ -315,27 +342,118 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     };
 
     // The 4 chain admissions for our session (chain may have other entries
-    // from prior tests in CI; PR1 default scope is the empty-chain case, so
+    // from prior tests in CI; this smoke starts from an empty chain, so
     // we sanity-check the first 4 are ours).
     let kinds: Vec<TxKind> = chain.iter().map(|(e, _)| e.tx_kind).collect();
     assert!(
-        kinds.windows(4).any(|w| {
+        kinds.windows(9).any(|w| {
             matches!(
                 w,
-                [TxKind::TaskOpen, TxKind::EscrowLock, TxKind::Work, TxKind::MarketSeed]
+                [
+                    TxKind::TaskOpen,
+                    TxKind::EscrowLock,
+                    TxKind::Work,
+                    TxKind::Work,
+                    TxKind::Work,
+                    TxKind::MarketSeed,
+                    TxKind::Verify,
+                    TxKind::FinalizeReward,
+                    TxKind::EventResolve
+                ]
             )
         }),
-        "chain must contain the TaskOpen→EscrowLock→Work→MarketSeed sequence; \
+        "chain must contain the TaskOpen→EscrowLock→Work*3→MarketSeed→Verify→FinalizeReward→EventResolve sequence; \
          got kinds: {:?}",
         kinds
     );
+    assert!(
+        runtime_repo.join("agent_pubkeys.json").is_file(),
+        "runtime_repo/agent_pubkeys.json must pin the signing agents"
+    );
 
-    // Decode the WorkTx + assert it carries our session's bundle cid +
-    // worker-alpha agent.
-    let work_pair = chain
+    // Decode the WorkTx candidates + assert all three preseeded workers
+    // joined the market with distinct CAS-backed candidate bundles. The
+    // delivered alpha bundle remains the user-visible artifact; beta/gamma
+    // proposals are separate candidate manifests produced by their worker
+    // prompt/evidence loops.
+    let work_pairs: Vec<_> = chain
         .iter()
-        .find(|(e, _)| e.tx_kind == TxKind::Work)
-        .expect("at least one Work entry");
+        .filter(|(e, _)| e.tx_kind == TxKind::Work)
+        .collect();
+    assert_eq!(work_pairs.len(), 3, "N=3 fan-out must emit 3 WorkTxs");
+    let worker_agents: Vec<_> = work_pairs
+        .iter()
+        .filter_map(|(_, tx)| match tx {
+            TypedTx::Work(work) => Some(work.agent_id.0.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        worker_agents,
+        vec!["worker-alpha", "worker-beta", "worker-gamma"],
+        "N=3 worker roster"
+    );
+    let proposal_cids: Vec<String> = work_pairs
+        .iter()
+        .filter_map(|(_, tx)| match tx {
+            TypedTx::Work(work) => Some(work.proposal_cid.hex()),
+            _ => None,
+        })
+        .collect();
+    let unique_proposal_cids: std::collections::BTreeSet<_> =
+        proposal_cids.iter().cloned().collect();
+    assert_eq!(
+        unique_proposal_cids.len(),
+        3,
+        "each N=3 worker must have its own ProposalTelemetry CID; got {proposal_cids:?}"
+    );
+    let mut artifact_cids = Vec::new();
+    for cid_hex in &proposal_cids {
+        let mut bytes = [0u8; 32];
+        for (i, byte_pair) in cid_hex.as_bytes().chunks(2).enumerate() {
+            let hi = u8::from_str_radix(std::str::from_utf8(&[byte_pair[0]]).unwrap(), 16).unwrap();
+            let lo = u8::from_str_radix(std::str::from_utf8(&[byte_pair[1]]).unwrap(), 16).unwrap();
+            bytes[i] = (hi << 4) | lo;
+        }
+        let cid = Cid(bytes);
+        let meta = store
+            .metadata(&cid)
+            .unwrap_or_else(|| panic!("proposal CID {cid_hex} must resolve in CAS"));
+        assert_eq!(
+            meta.schema_id.as_deref(),
+            Some("turingosv4.proposal_telemetry.v1"),
+            "WorkTx.proposal_cid {cid_hex} must be ProposalTelemetry for verify_chaintape Gate 5"
+        );
+        let telemetry = read_proposal_telemetry(&store, &cid)
+            .unwrap_or_else(|e| panic!("proposal telemetry {cid_hex} must decode: {e}"));
+        artifact_cids.push(telemetry.proposal_artifact_cid.hex());
+        let artifact_meta = store
+            .metadata(&telemetry.proposal_artifact_cid)
+            .unwrap_or_else(|| {
+                panic!(
+                    "ProposalTelemetry.proposal_artifact_cid {} must resolve in CAS",
+                    telemetry.proposal_artifact_cid.hex()
+                )
+            });
+        assert_eq!(
+            artifact_meta.schema_id.as_deref(),
+            Some(ARTIFACT_BUNDLE_SCHEMA_ID),
+            "proposal artifact {} must be an ArtifactBundleManifest",
+            telemetry.proposal_artifact_cid.hex()
+        );
+    }
+    let unique_artifact_cids: std::collections::BTreeSet<_> =
+        artifact_cids.iter().cloned().collect();
+    assert_eq!(
+        unique_artifact_cids.len(),
+        3,
+        "each N=3 worker must have its own ArtifactBundleManifest; got {artifact_cids:?}"
+    );
+    assert!(
+        artifact_cids.contains(&bundle_cid_hex),
+        "the delivered session bundle must be one of the worker proposal artifacts"
+    );
+    let work_pair = work_pairs[0];
     if let TypedTx::Work(work) = &work_pair.1 {
         assert_eq!(work.task_id, expected_task, "WorkTx.task_id");
         assert_eq!(
@@ -343,10 +461,17 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
             AgentId("worker-alpha".into()),
             "WorkTx.agent_id"
         );
-        assert_eq!(
+        assert_ne!(
             work.proposal_cid.0, expected_bundle_cid_bytes,
-            "WorkTx.proposal_cid MUST equal ArtifactBundleManifest.cid"
+            "worker-alpha WorkTx.proposal_cid MUST be ProposalTelemetry, not the raw ArtifactBundleManifest CID"
         );
+        let telemetry = read_proposal_telemetry(&store, &work.proposal_cid)
+            .expect("worker-alpha WorkTx.proposal_cid must decode as ProposalTelemetry");
+        assert_eq!(
+            telemetry.proposal_artifact_cid.0, expected_bundle_cid_bytes,
+            "ProposalTelemetry.proposal_artifact_cid MUST equal delivered ArtifactBundleManifest.cid"
+        );
+        assert_nonzero_agent_signature(work.signature, "WorkTx.signature");
     } else {
         panic!("Work entry did not decode as TypedTx::Work");
     }
@@ -360,11 +485,22 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         assert_eq!(seed.event_id, expected_event, "MarketSeedTx.event_id");
         assert_eq!(
             seed.provider,
-            AgentId("treasury".into()),
+            AgentId("market-provider".into()),
             "MarketSeedTx.provider"
         );
+        assert_nonzero_agent_signature(seed.signature, "MarketSeedTx.signature");
     } else {
         panic!("MarketSeed entry did not decode as TypedTx::MarketSeed");
+    }
+
+    let verify_pair = chain
+        .iter()
+        .find(|(e, _)| e.tx_kind == TxKind::Verify)
+        .expect("at least one Verify entry");
+    if let TypedTx::Verify(verify) = &verify_pair.1 {
+        assert_nonzero_agent_signature(verify.signature, "VerifyTx.signature");
+    } else {
+        panic!("Verify entry did not decode as TypedTx::Verify");
     }
 
     // ──────────────── Step 8: post-state derived from live admission ────────────────
@@ -385,8 +521,10 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
             .stakes_t
             .0
             .iter()
-            .any(|(_tx, entry)| entry.staker == AgentId("worker-alpha".into())
-                && entry.task_id == expected_task),
+            .any(
+                |(_tx, entry)| entry.staker == AgentId("worker-alpha".into())
+                    && entry.task_id == expected_task
+            ),
         "EconomicState.stakes_t MUST contain worker-alpha's stake on the task"
     );
     assert!(
@@ -397,10 +535,21 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
             .contains_key(&expected_event),
         "EconomicState.conditional_collateral_t MUST be seeded by MarketSeed"
     );
+    let task_market = replayed
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&expected_task)
+        .expect("task market must exist after replay");
+    assert_eq!(
+        task_market.state,
+        TaskMarketState::Finalized,
+        "EventResolve must finalize the task market; winner must be derived from replayed chain"
+    );
 
     // Σ Coin conservation: assert_total_ctf_conserved-equivalent — sum
     // balances + escrow + conditional_collateral should equal the genesis
-    // total (110_000µ from treasury 100k + worker-alpha 10k).
+    // total (150_000µ from treasury 100k + 3 workers + verifier + provider).
     let bal_total: i64 = replayed
         .economic_state_t
         .balances_t
@@ -431,9 +580,9 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         .sum();
     let conserved = bal_total + escrow_total + collateral_total + stakes_total;
     assert_eq!(
-        conserved, 110_000,
-        "Σ Coin conservation: balances + escrow + collateral + stakes MUST = 110_000µ \
-         (genesis treasury 100k + worker-alpha 10k). bal={bal_total} escrow={escrow_total} \
+        conserved, 150_000,
+        "Σ Coin conservation: balances + escrow + collateral + stakes MUST = 150_000µ \
+         (genesis treasury 100k + 3 workers + verifier + provider). bal={bal_total} escrow={escrow_total} \
          collateral={collateral_total} stakes={stakes_total}"
     );
 
@@ -495,8 +644,11 @@ fn generate_from_session_subdir_writes_chain_to_root_workspace() {
         session_dir.join("turingos.toml"),
     )
     .expect("copy turingos.toml into session_dir");
-    fs::write(session_dir.join("spec.md"), "# Web Flow Spec\nMinimal HTML.")
-        .expect("write spec.md into session_dir");
+    fs::write(
+        session_dir.join("spec.md"),
+        "# Web Flow Spec\nMinimal HTML.",
+    )
+    .expect("write spec.md into session_dir");
 
     let endpoint = start_mock_llm_server(happy_path_llm_response());
 
@@ -541,15 +693,251 @@ fn generate_from_session_subdir_writes_chain_to_root_workspace() {
     let entries = walk_chain(&root_runtime_repo, &root_cas);
     assert!(
         entries.len() >= 4,
-        "expected ≥4 L4 entries at ROOT chain (TaskOpen + EscrowLock + WorkTx + MarketSeed), got {}",
+        "expected ≥4 L4 entries at ROOT chain (TaskOpen + EscrowLock + WorkTx + optional settlement), got {}",
         entries.len()
     );
+    let root_work = entries
+        .iter()
+        .find_map(|(entry, tx)| {
+            if entry.tx_kind == TxKind::Work {
+                match tx {
+                    TypedTx::Work(work) => Some(work),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        })
+        .expect("root chain must contain a WorkTx");
+    root_cas
+        .get(&root_work.proposal_cid)
+        .expect("root CAS must resolve the WorkTx proposal CID emitted from a session subdir");
 
     // Replay at the root must succeed (proves canonical state landed there).
     let replayed = replay_from_disk(&root_runtime_repo, &root_cas_dir);
     let task_id = TaskId(format!("pr1-{session_id}"));
     assert!(
-        replayed.economic_state_t.task_markets_t.0.contains_key(&task_id),
+        replayed
+            .economic_state_t
+            .task_markets_t
+            .0
+            .contains_key(&task_id),
         "task_markets_t at ROOT MUST contain pr1-{session_id} entry"
+    );
+}
+
+#[test]
+fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
+    let tmp = tempfile::tempdir().expect("create temp parent");
+    let ws = tmp.path().join("ws-polymarket-all-reject");
+
+    let status = Command::new(turingos_bin())
+        .arg("init")
+        .arg("--project")
+        .arg(&ws)
+        .status()
+        .expect("run init");
+    assert!(status.success(), "turingos init must succeed");
+
+    fs::write(ws.join("spec.md"), "# Rejection Spec\nPlease make an app.").expect("write spec.md");
+    let endpoint = start_mock_llm_server(no_files_llm_response());
+
+    let output = Command::new(turingos_bin())
+        .arg("generate")
+        .arg("--workspace")
+        .arg(&ws)
+        .arg("--entrypoint")
+        .arg("index.html")
+        .env("TURINGOS_SILICONFLOW_ENDPOINT", &endpoint)
+        .env("SILICONFLOW_API_KEY", "mock-key")
+        .output()
+        .expect("run generate");
+
+    assert!(
+        !output.status.success(),
+        "no-files response must fail generate so the rejected WorkTx path is exercised"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("polymarket_rejected_worktx_task_id=pr1-default"),
+        "failure footer must report rejected WorkTx admission; stderr={stderr}"
+    );
+
+    let runtime_repo = ws.join("runtime_repo");
+    let cas_dir = ws.join("cas");
+    let cas = CasStore::open(&cas_dir).expect("open root cas");
+    let chain = walk_chain(&runtime_repo, &cas);
+    let kinds: Vec<TxKind> = chain.iter().map(|(entry, _)| entry.tx_kind).collect();
+    assert_eq!(
+        kinds,
+        vec![TxKind::TaskOpen, TxKind::EscrowLock],
+        "all-rejected market must only advance TaskOpen/EscrowLock on L4; WorkTx rejection belongs to L4.E"
+    );
+
+    let rejection_path = runtime_repo.join("rejections.jsonl");
+    let rejection_writer =
+        RejectionEvidenceWriter::open_jsonl(rejection_path).expect("open L4.E rejection log");
+    rejection_writer
+        .verify_chain()
+        .expect("L4.E rejection hash chain verifies");
+    let work_rejections: Vec<_> = rejection_writer
+        .records()
+        .iter()
+        .filter(|record| record.tx_kind == TxKind::Work)
+        .collect();
+    assert_eq!(
+        work_rejections.len(),
+        1,
+        "failed primary candidate must emit exactly one rejected WorkTx"
+    );
+    let rejected = work_rejections[0];
+    assert_eq!(
+        rejected.rejection_class,
+        L4ERejectionClass::PredicateFailed,
+        "predicate=false WorkTx must route to L4.E PredicateFailed"
+    );
+
+    let payload_bytes = cas
+        .get(&rejected.tx_payload_cid)
+        .expect("rejected WorkTx payload must resolve in root CAS");
+    let rejected_tx: TypedTx =
+        turingosv4::bottom_white::ledger::transition_ledger::canonical_decode(&payload_bytes)
+            .expect("decode rejected WorkTx payload");
+    let work = match rejected_tx {
+        TypedTx::Work(work) => work,
+        other => panic!("expected rejected TypedTx::Work, got {other:?}"),
+    };
+    assert_eq!(work.agent_id, AgentId("worker-alpha".into()));
+    assert_eq!(work.task_id, TaskId("pr1-default".into()));
+    assert_nonzero_agent_signature(work.signature, "rejected WorkTx.signature");
+
+    let telemetry = read_proposal_telemetry(&cas, &work.proposal_cid)
+        .expect("rejected WorkTx proposal_cid must decode as ProposalTelemetry");
+    assert_eq!(telemetry.agent_id, AgentId("worker-alpha".into()));
+    assert_eq!(
+        telemetry.candidate_tactic, "generate-artifact-reject",
+        "rejected WorkTx telemetry must declare rejected candidate tactic"
+    );
+    let rejection_meta = cas
+        .metadata(&telemetry.proposal_artifact_cid)
+        .expect("rejection proposal payload must resolve in root CAS");
+    assert_eq!(
+        rejection_meta.schema_id.as_deref(),
+        Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID),
+        "no-files rejected proposal payload must be the GenerateRejectionCapsule"
+    );
+}
+
+#[test]
+fn generate_retry_after_rejected_worktx_finalizes_same_session_market() {
+    let tmp = tempfile::tempdir().expect("create temp parent");
+    let ws = tmp.path().join("ws-polymarket-retry-after-reject");
+
+    let status = Command::new(turingos_bin())
+        .arg("init")
+        .arg("--project")
+        .arg(&ws)
+        .status()
+        .expect("run init");
+    assert!(status.success(), "turingos init must succeed");
+
+    fs::write(ws.join("spec.md"), "# Retry Spec\nPlease make an app.").expect("write spec.md");
+
+    let reject_endpoint = start_mock_llm_server(no_files_llm_response());
+    let first = Command::new(turingos_bin())
+        .arg("generate")
+        .arg("--workspace")
+        .arg(&ws)
+        .arg("--entrypoint")
+        .arg("index.html")
+        .env("TURINGOS_SILICONFLOW_ENDPOINT", &reject_endpoint)
+        .env("SILICONFLOW_API_KEY", "mock-key")
+        .output()
+        .expect("run first rejected generate");
+    assert!(
+        !first.status.success(),
+        "first no-files response must fail so retry starts from an Open market"
+    );
+
+    let retry_endpoint = start_mock_llm_server(happy_path_llm_response());
+    let second = Command::new(turingos_bin())
+        .arg("generate")
+        .arg("--workspace")
+        .arg(&ws)
+        .arg("--entrypoint")
+        .arg("index.html")
+        .env("TURINGOS_SILICONFLOW_ENDPOINT", &retry_endpoint)
+        .env("SILICONFLOW_API_KEY", "mock-key")
+        .output()
+        .expect("run second successful generate");
+    if !second.status.success() {
+        panic!(
+            "retry generate must succeed and finalize the existing Open market.\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            String::from_utf8_lossy(&second.stdout),
+            String::from_utf8_lossy(&second.stderr)
+        );
+    }
+
+    let runtime_repo = ws.join("runtime_repo");
+    let cas_dir = ws.join("cas");
+    let cas = CasStore::open(&cas_dir).expect("open root cas");
+    let chain = walk_chain(&runtime_repo, &cas);
+    let kinds: Vec<TxKind> = chain.iter().map(|(entry, _)| entry.tx_kind).collect();
+    assert_eq!(
+        kinds.iter().filter(|kind| **kind == TxKind::TaskOpen).count(),
+        1,
+        "retry must reuse the existing TaskOpen instead of reopening the same task; kinds={kinds:?}"
+    );
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == TxKind::EscrowLock)
+            .count(),
+        1,
+        "retry must reuse the existing escrow instead of double-locking bounty; kinds={kinds:?}"
+    );
+    assert!(
+        kinds.windows(7).any(|w| {
+            matches!(
+                w,
+                [
+                    TxKind::TaskOpen,
+                    TxKind::EscrowLock,
+                    TxKind::Work,
+                    TxKind::MarketSeed,
+                    TxKind::Verify,
+                    TxKind::FinalizeReward,
+                    TxKind::EventResolve
+                ]
+            )
+        }),
+        "retry path must advance Open market to finalized via Work→MarketSeed→Verify→FinalizeReward→EventResolve; got {kinds:?}"
+    );
+
+    let replayed = replay_from_disk(&runtime_repo, &cas_dir);
+    let task_id = TaskId("pr1-default".into());
+    let market = replayed
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&task_id)
+        .expect("task market must exist after retry replay");
+    assert_eq!(
+        market.state,
+        TaskMarketState::Finalized,
+        "same-session retry must derive finalized winner from the canonical chain"
+    );
+
+    let rejection_writer =
+        RejectionEvidenceWriter::open_jsonl(runtime_repo.join("rejections.jsonl"))
+            .expect("open L4.E rejection log");
+    let rejected_work_count = rejection_writer
+        .records()
+        .iter()
+        .filter(|record| record.tx_kind == TxKind::Work)
+        .count();
+    assert_eq!(
+        rejected_work_count, 1,
+        "the original failed candidate must remain as exactly one L4.E WorkTx rejection"
     );
 }

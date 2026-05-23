@@ -4,7 +4,9 @@
 //! Implements an IneqMath-style multi-category judge for the 8-step canonical
 //! proof of Nesbitt's inequality:
 //!
-//!     For a, b, c > 0:  a/(b+c) + b/(a+c) + c/(a+b) ≥ 3/2
+//! ```text
+//! For a, b, c > 0:  a/(b+c) + b/(a+c) + c/(a+b) ≥ 3/2
+//! ```
 //!
 //! Five failure categories mirror the IneqMath paper's step-level judges
 //! (arxiv.org/abs/2506.07927):
@@ -165,8 +167,7 @@ impl NesbittStepJudge {
             || c.contains("amgm")
             || c.contains("arithmetic mean")
             || c.contains("geometric mean");
-        if mentions_amgm && (c.contains("<=") || c.contains("≤") || c.contains("less than"))
-        {
+        if mentions_amgm && (c.contains("<=") || c.contains("≤") || c.contains("less than")) {
             return (
                 JudgeVerdict::Fail {
                     reason: format!(
@@ -180,9 +181,8 @@ impl NesbittStepJudge {
 
         // 2. MissingEqualityCase: final step needs to say equality at a=b=c
         if stage == NesbittStage::Step8ConcludeAndEq {
-            let mentions_eq = c.contains("equality")
-                || c.contains("a=b=c")
-                || c.contains("a = b = c");
+            let mentions_eq =
+                c.contains("equality") || c.contains("a=b=c") || c.contains("a = b = c");
             if !mentions_eq {
                 return (
                     JudgeVerdict::Fail {
@@ -207,9 +207,7 @@ impl NesbittStepJudge {
         //    x = a+b after declaring x = b+c), flag it.
         if matches!(
             stage,
-            NesbittStage::Step1Substitute
-                | NesbittStage::Step2Rewrite
-                | NesbittStage::Step3Expand
+            NesbittStage::Step1Substitute | NesbittStage::Step2Rewrite | NesbittStage::Step3Expand
         ) {
             let bindings = [
                 ("x = a+b", "x = b+c"),
@@ -289,8 +287,7 @@ impl NesbittStepJudge {
         //     six pair sum as 5 / 8 / etc.
         if stage == NesbittStage::Step6Sum {
             // The correct claim at Step 6 is "sum of 6 pair-terms ≥ 6"
-            let has_six_bound =
-                c.contains("≥ 6") || c.contains(">= 6") || c.contains("at least 6");
+            let has_six_bound = c.contains("≥ 6") || c.contains(">= 6") || c.contains("at least 6");
             let has_wrong_bound = c.contains("≥ 4")
                 || c.contains(">= 4")
                 || c.contains("≥ 5")
@@ -327,40 +324,111 @@ impl NesbittStepJudge {
         // the strict-enough semantics while letting natural LLM prose pass.
         let keywords: &[&str] = match stage {
             NesbittStage::Step1Substitute => &[
-                "substitute", "substitution", "let x", "set x", "introduce",
-                "define", "denote", "x = b+c", "x=b+c", "x = b + c",
-                "y = a+c", "y = a + c", "z = a+b", "z = a + b",
+                "substitute",
+                "substitution",
+                "let x",
+                "set x",
+                "introduce",
+                "define",
+                "denote",
+                "x = b+c",
+                "x=b+c",
+                "x = b + c",
+                "y = a+c",
+                "y = a + c",
+                "z = a+b",
+                "z = a + b",
             ],
             NesbittStage::Step2Rewrite => &[
-                "rewrite", "(x+z-y)", "(x + z - y)", "in terms of x, y, z",
-                "in terms of x", "/y", "/x", "expressed in", "express",
-                "solve for a", "solve for", "from these", "from the definitions",
-                "adding", "y+z", "y + z", "x+z", "x + z", "x+y", "x + y",
+                "rewrite",
+                "(x+z-y)",
+                "(x + z - y)",
+                "in terms of x, y, z",
+                "in terms of x",
+                "/y",
+                "/x",
+                "expressed in",
+                "express",
+                "solve for a",
+                "solve for",
+                "from these",
+                "from the definitions",
+                "adding",
+                "y+z",
+                "y + z",
+                "x+z",
+                "x + z",
+                "x+y",
+                "x + y",
             ],
             NesbittStage::Step3Expand => &[
-                "expand", "six", "6 fractions", "separate fractions", "split",
-                "decompose", "break", "individual", "substitute",
-                "obtain", "frac{", "/y", "/x", "/z", "yielding",
+                "expand",
+                "six",
+                "6 fractions",
+                "separate fractions",
+                "split",
+                "decompose",
+                "break",
+                "individual",
+                "substitute",
+                "obtain",
+                "frac{",
+                "/y",
+                "/x",
+                "/z",
+                "yielding",
             ],
             NesbittStage::Step4Group => &[
-                "group", "pair", "(x/y + y/x)", "x/y + y/x", "x/y+y/x",
-                "three pairs", "combine", "reorganize",
+                "group",
+                "pair",
+                "(x/y + y/x)",
+                "x/y + y/x",
+                "x/y+y/x",
+                "three pairs",
+                "combine",
+                "reorganize",
             ],
             NesbittStage::Step5ApplyAmGm => &[
-                "am-gm", "amgm", "am - gm", "am gm", "≥ 2", ">= 2", ">=2",
-                "geometric mean", "arithmetic mean", "at least 2",
+                "am-gm",
+                "amgm",
+                "am - gm",
+                "am gm",
+                "≥ 2",
+                ">= 2",
+                ">=2",
+                "geometric mean",
+                "arithmetic mean",
+                "at least 2",
             ],
             NesbittStage::Step6Sum => &[
-                "sum", "≥ 6", ">= 6", ">=6", "total", "six pair",
-                "at least 6", "≥6",
+                "sum",
+                "≥ 6",
+                ">= 6",
+                ">=6",
+                "total",
+                "six pair",
+                "at least 6",
+                "≥6",
             ],
             NesbittStage::Step7Subtract => &[
-                "subtract", "minus 3", "- 3", "-3", "− 3", "−3",
-                "reduce by 3", "deduct",
+                "subtract",
+                "minus 3",
+                "- 3",
+                "-3",
+                "− 3",
+                "−3",
+                "reduce by 3",
+                "deduct",
             ],
             NesbittStage::Step8ConcludeAndEq => &[
-                "3/2", "1.5", "three halves", "conclude", "therefore",
-                "thus", "hence", "qed",
+                "3/2",
+                "1.5",
+                "three halves",
+                "conclude",
+                "therefore",
+                "thus",
+                "hence",
+                "qed",
             ],
         };
         let has_keyword = keywords.iter().any(|kw| c.contains(kw));
@@ -424,9 +492,7 @@ mod tests {
     fn canonical_step(stage: NesbittStage) -> &'static str {
         match stage {
             NesbittStage::Step1Substitute => "Let x = b+c, y = a+c, z = a+b. Substitute.",
-            NesbittStage::Step2Rewrite => {
-                "Rewrite a/(b+c) = (x+z-y)/(2y) in terms of x, y, z."
-            }
+            NesbittStage::Step2Rewrite => "Rewrite a/(b+c) = (x+z-y)/(2y) in terms of x, y, z.",
             NesbittStage::Step3Expand => {
                 "Expand into six separate fractions: (x+z)/y + (y+z)/x + (x+y)/z - 3"
             }
@@ -459,7 +525,11 @@ mod tests {
     fn judge_rejects_direction_reversal() {
         let j = NesbittStepJudge::new();
         let bad = "By AM-GM, each pair x/y + y/x ≤ 2 (mean ≤ geometric)";
-        let (v, c) = j.verdict_for_stage(bad, NesbittStage::Step5ApplyAmGm, &["s1".into(), "s2".into(), "s3".into(), "s4".into()]);
+        let (v, c) = j.verdict_for_stage(
+            bad,
+            NesbittStage::Step5ApplyAmGm,
+            &["s1".into(), "s2".into(), "s3".into(), "s4".into()],
+        );
         assert!(matches!(v, JudgeVerdict::Fail { .. }));
         assert_eq!(c, Some(NesbittRejectClass::DirectionReversal));
     }

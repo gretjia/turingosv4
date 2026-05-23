@@ -464,16 +464,22 @@ pub(crate) async fn welcome_init_handler(
         workspace_str
     );
 
+    let mut init_args = vec![
+        "init".into(),
+        "--project".into(),
+        workspace_str.clone(),
+        "--template".into(),
+        "multi-agent".into(),
+    ];
+    if deepseek_direct_endpoint_selected() {
+        init_args.push("--provider".into());
+        init_args.push("deepseek".into());
+    }
+
     let output = run_welcome_command(
         bin.clone(),
         workspace.clone(),
-        vec![
-            "init".into(),
-            "--project".into(),
-            workspace_str.clone(),
-            "--template".into(),
-            "multi-agent".into(),
-        ],
+        init_args,
         Duration::from_secs(120),
     )
     .await
@@ -523,9 +529,7 @@ pub(crate) async fn welcome_init_handler(
 /// Both steps are idempotent (file overwrite + CAS content-address dedup) so
 /// repeated calls are cheap and safe.
 #[cfg(feature = "web")]
-async fn seed_grill_prerequisites(
-    workspace: &Path,
-) -> Result<(), (StatusCode, Json<SetupError>)> {
+async fn seed_grill_prerequisites(workspace: &Path) -> Result<(), (StatusCode, Json<SetupError>)> {
     let ws_for_materialize = workspace.to_path_buf();
     let materialize_result = tokio::task::spawn_blocking(move || {
         turingosv4::runtime::embedded_prompts::materialize_grill_prompts(&ws_for_materialize)
@@ -632,12 +636,7 @@ pub(crate) async fn welcome_llm_config_handler(
     let output = run_welcome_command(
         bin.clone(),
         workspace.clone(),
-        vec![
-            "llm".into(),
-            "config".into(),
-            "--workspace".into(),
-            workspace_str.clone(),
-        ],
+        welcome_llm_config_args(&workspace_str),
         Duration::from_secs(120),
     )
     .await
@@ -833,6 +832,43 @@ fn combine_truncated(stdout: &[u8], stderr: &[u8]) -> String {
     } else {
         combined
     }
+}
+
+#[cfg(feature = "web")]
+fn deepseek_direct_endpoint_selected() -> bool {
+    std::env::var("TURINGOS_SILICONFLOW_ENDPOINT")
+        .map(|v| {
+            let lower = v.to_ascii_lowercase();
+            lower.contains("api.deepseek.com") || lower.contains("deepseek")
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(feature = "web")]
+fn welcome_llm_config_args(workspace_str: &str) -> Vec<String> {
+    let mut args = vec![
+        "llm".to_string(),
+        "config".to_string(),
+        "--workspace".to_string(),
+        workspace_str.to_string(),
+    ];
+    if deepseek_direct_endpoint_selected() {
+        args.extend([
+            "--provider".to_string(),
+            "deepseek".to_string(),
+            "--api-key-env".to_string(),
+            "DEEPSEEK_API_KEY".to_string(),
+            "--meta-model".to_string(),
+            "deepseek-v4-pro".to_string(),
+            "--blackbox-model".to_string(),
+            "deepseek-v4-flash".to_string(),
+            "--meta-thinking".to_string(),
+            "on".to_string(),
+            "--blackbox-thinking".to_string(),
+            "off".to_string(),
+        ]);
+    }
+    args
 }
 
 // ---------------------------------------------------------------------------

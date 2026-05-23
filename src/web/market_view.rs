@@ -40,9 +40,7 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::cid_hex::cid_from_hex_str;
 use turingosv4::runtime::PinnedPubkeyManifest;
-use turingosv4::state::q_state::{
-    AgentId, EconomicState, QState, TaskId, TaskMarketState, TxId,
-};
+use turingosv4::state::q_state::{AgentId, EconomicState, QState, TaskId, TaskMarketState, TxId};
 use turingosv4::state::typed_tx::{EventId, TypedTx};
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
@@ -79,7 +77,7 @@ const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 ///       "l4_state": "accepted" | "rejected" | "pending_dispatch",
 ///       "rejection_class": null | "...",
 ///       "predicate_results": {"tdma_judge_generate": true},
-///       "price_yes": 0.5,
+///       "yes_signal_bp": 5000,
 ///       "is_winner": true | false
 ///     }
 ///   ],
@@ -145,9 +143,10 @@ fn is_safe_session_id(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-/// Result of a single chain-derived candidate record (PR1 N=1; PR2 will
-/// extend this to a `Vec<CandidateRecord>` once N>1 workers land).
+/// Result of a single chain-derived candidate record.
+#[derive(Clone)]
 struct CandidateRecord {
+    tx_id: TxId,
     agent_id: AgentId,
     proposal_cid_hex: String,
     l4_state: &'static str,
@@ -188,19 +187,15 @@ fn build_market_view(
         return Ok(None);
     }
     let entries: Vec<LedgerEntry> = (1..=chain_len)
-        .map(|t| {
-            writer
-                .read_at(t)
-                .map_err(|e| format!("read_at({t}): {e}"))
-        })
+        .map(|t| writer.read_at(t).map_err(|e| format!("read_at({t}): {e}")))
         .collect::<Result<_, _>>()?;
 
     let cas = CasStore::open(&cas_path).map_err(|e| format!("open cas: {e}"))?;
 
-    // ── Decode the WorkTx for our task_id (if any) so we can pick out the
-    // agent + proposal_cid for the candidate row. Walk entries in order;
-    // for PR1 (N=1) we take the first match.
-    let mut candidate: Option<CandidateRecord> = None;
+    // ── Decode every WorkTx for our task_id so the panel can surface N=3
+    // candidates. Walk entries in chain order; the first finalized claim
+    // against a WorkTx is the winner source, not local ranking.
+    let mut candidates: Vec<CandidateRecord> = Vec::new();
     let mut market_seed_found = false;
     for entry in &entries {
         match entry.tx_kind {
@@ -208,11 +203,12 @@ fn build_market_view(
                 let bytes = cas
                     .get(&entry.tx_payload_cid)
                     .map_err(|e| format!("cas.get(work): {e:?}"))?;
-                let tx: TypedTx = canonical_decode(&bytes)
-                    .map_err(|e| format!("decode Work tx: {e}"))?;
+                let tx: TypedTx =
+                    canonical_decode(&bytes).map_err(|e| format!("decode Work tx: {e}"))?;
                 if let TypedTx::Work(work) = tx {
-                    if work.task_id == task_id && candidate.is_none() {
-                        candidate = Some(CandidateRecord {
+                    if work.task_id == task_id {
+                        candidates.push(CandidateRecord {
+                            tx_id: work.tx_id.clone(),
                             agent_id: work.agent_id.clone(),
                             proposal_cid_hex: hex_of_cid(&work.proposal_cid),
                             l4_state: "accepted",
@@ -225,8 +221,8 @@ fn build_market_view(
                 let bytes = cas
                     .get(&entry.tx_payload_cid)
                     .map_err(|e| format!("cas.get(market_seed): {e:?}"))?;
-                let tx: TypedTx = canonical_decode(&bytes)
-                    .map_err(|e| format!("decode MarketSeed tx: {e}"))?;
+                let tx: TypedTx =
+                    canonical_decode(&bytes).map_err(|e| format!("decode MarketSeed tx: {e}"))?;
                 if let TypedTx::MarketSeed(seed) = tx {
                     if seed.event_id == event_id {
                         market_seed_found = true;
@@ -240,19 +236,18 @@ fn build_market_view(
     // ── If no WorkTx for this task is in the chain, check L4.E rejections
     // before returning 404. A rejected WorkTx still produces a market view
     // (l4_state = "rejected") so the UI can show the failure.
-    if candidate.is_none() {
-        let rejections_path = runtime_repo_path.join("rejections.jsonl");
-        if rejections_path.exists() {
-            if let Some(rej) = find_rejected_worktx_for_task(&rejections_path, &cas, &task_id)? {
-                candidate = Some(rej);
+    let rejections_path = runtime_repo_path.join("rejections.jsonl");
+    if rejections_path.exists() {
+        for rejected in find_rejected_worktxs_for_task(&rejections_path, &cas, &task_id)? {
+            if !candidates.iter().any(|c| c.tx_id == rejected.tx_id) {
+                candidates.push(rejected);
             }
         }
     }
 
-    let candidate = match candidate {
-        Some(c) => c,
-        None => return Ok(None),
-    };
+    if candidates.is_empty() {
+        return Ok(None);
+    }
 
     // ── Replay the chain to get the post-state `EconomicState`. Same
     // canonical primitive `verify_chaintape` uses.
@@ -268,51 +263,50 @@ fn build_market_view(
     let market_state_str = derive_market_state(
         &replayed_q.economic_state_t,
         &task_id,
-        candidate.l4_state,
+        &candidates,
         market_seed_found,
     );
 
-    // ── Derive price_yes from the CPMM pool (if present). Pure projection;
-    // integer-rational ratio cast at the final layer to f64 for transport.
-    // PR3+ will switch to a structured rational representation per the
-    // money-path no-f64 rule when prices become decision-bearing rather
-    // than display-only.
-    let price_yes = derive_price_yes(&replayed_q.economic_state_t, &event_id);
+    // ── Derive the YES-side display signal from the pool, as integer basis
+    // points. It is a projection only; predicates and winner derivation never
+    // read it.
+    let yes_signal_bp = derive_yes_signal_bp(&replayed_q.economic_state_t, &event_id);
 
-    // ── `is_winner`: predicate-driven, not price-driven. For PR1 N=1, the
-    // single accepted WorkTx is the winner iff the market is opened
-    // (MarketSeed admitted). PR3 will read `EventResolveTx` to flip
-    // winner derivation to the resolved outcome.
-    let is_winner =
-        candidate.l4_state == "accepted" && market_seed_found && market_state_str != "all_rejected";
-
-    let predicate_results_json = serde_json::json!({
-        "tdma_judge_generate": candidate.l4_state == "accepted",
-    });
-
-    let winner_agent_id: Option<&str> = if is_winner {
-        Some(candidate.agent_id.0.as_str())
-    } else {
-        None
-    };
+    // ── `is_winner`: derived from finalized chain state, not price, panel,
+    // stdout, or in-memory ranking.
+    let winner_tx_id = finalized_winner_work_tx_id(&replayed_q.economic_state_t, &task_id);
+    let winner_agent_id =
+        winner_agent_id_for_market_state(market_state_str, winner_tx_id.as_ref(), &candidates);
+    let candidates_json: Vec<serde_json::Value> = candidates
+        .iter()
+        .map(|candidate| {
+            let predicate_results_json = serde_json::json!({
+                "tdma_judge_generate": candidate.l4_state == "accepted",
+            });
+            let is_winner = is_candidate_winner(
+                candidate.l4_state,
+                market_state_str,
+                winner_tx_id.as_ref() == Some(&candidate.tx_id),
+            );
+            serde_json::json!({
+                "agent_id": candidate.agent_id.0.as_str(),
+                "proposal_cid": candidate.proposal_cid_hex.as_str(),
+                "stake_micro": DEFAULT_WORK_STAKE_MICRO,
+                "l4_state": candidate.l4_state,
+                "rejection_class": candidate.rejection_class.as_deref(),
+                "predicate_results": predicate_results_json,
+                "yes_signal_bp": yes_signal_bp,
+                "is_winner": is_winner,
+            })
+        })
+        .collect();
 
     let payload = serde_json::json!({
         "session_id": session_id,
         "task_id": task_id_str,
         "market_state": market_state_str,
         "treasury_bounty_micro": DEFAULT_BOUNTY_MICRO,
-        "candidates": [
-            {
-                "agent_id": candidate.agent_id.0,
-                "proposal_cid": candidate.proposal_cid_hex,
-                "stake_micro": DEFAULT_WORK_STAKE_MICRO,
-                "l4_state": candidate.l4_state,
-                "rejection_class": candidate.rejection_class,
-                "predicate_results": predicate_results_json,
-                "price_yes": price_yes,
-                "is_winner": is_winner,
-            }
-        ],
+        "candidates": candidates_json,
         "winner_agent_id": winner_agent_id,
     });
     Ok(Some(payload.to_string()))
@@ -321,10 +315,10 @@ fn build_market_view(
 fn derive_market_state(
     econ: &EconomicState,
     task_id: &TaskId,
-    l4_state: &str,
+    candidates: &[CandidateRecord],
     market_seed_found: bool,
 ) -> &'static str {
-    if l4_state == "rejected" {
+    if !candidates.is_empty() && candidates.iter().all(|c| c.l4_state == "rejected") {
         return "all_rejected";
     }
     if !market_seed_found {
@@ -332,49 +326,76 @@ fn derive_market_state(
     }
     // PR3 will emit EventResolveTx → TaskMarketState::Finalized. Until then,
     // an admitted MarketSeed leaves the task entry in `Open`.
-    match econ
-        .task_markets_t
-        .0
-        .get(task_id)
-        .map(|e| e.state.clone())
-    {
+    match econ.task_markets_t.0.get(task_id).map(|e| e.state.clone()) {
         Some(TaskMarketState::Finalized) => "finalized",
         _ => "open",
     }
 }
 
-fn derive_price_yes(econ: &EconomicState, event_id: &EventId) -> f64 {
+fn finalized_winner_work_tx_id(econ: &EconomicState, task_id: &TaskId) -> Option<TxId> {
+    econ.claims_t
+        .0
+        .values()
+        .find(|claim| {
+            &claim.task_id == task_id
+                && matches!(
+                    claim.status,
+                    turingosv4::state::q_state::ClaimStatus::Finalized
+                )
+        })
+        .map(|claim| claim.work_tx_id.clone())
+}
+
+fn is_candidate_winner(
+    l4_state: &str,
+    market_state: &str,
+    finalized_claim_targets_candidate: bool,
+) -> bool {
+    l4_state == "accepted" && market_state == "finalized" && finalized_claim_targets_candidate
+}
+
+fn winner_agent_id_for_market_state(
+    market_state: &str,
+    winner_tx_id: Option<&TxId>,
+    candidates: &[CandidateRecord],
+) -> Option<String> {
+    if market_state != "finalized" {
+        return None;
+    }
+    winner_tx_id.and_then(|tx_id| {
+        candidates
+            .iter()
+            .find(|candidate| &candidate.tx_id == tx_id)
+            .map(|candidate| candidate.agent_id.0.clone())
+    })
+}
+
+fn derive_yes_signal_bp(econ: &EconomicState, event_id: &EventId) -> u32 {
     let pool = match econ.cpmm_pools_t.0.get(event_id) {
         Some(p) => p,
         None => {
-            // No pool yet → symmetric default (100/100 MarketSeed). Display-
-            // only; not consumed by predicate derivation per
-            // `price_never_overrides_predicate`.
-            return 0.5;
+            // No pool yet: symmetric default display signal.
+            return 5000;
         }
     };
     let yes = pool.pool_yes.units;
     let no = pool.pool_no.units;
     let total = yes.saturating_add(no);
     if total == 0 {
-        return 0.5;
+        return 5000;
     }
-    // CPMM convention: price_yes = pool_no / (pool_yes + pool_no).
-    // (Buying YES drains pool_yes, raising NO's relative weight; the price
-    // of YES is proportional to the OTHER side's reserve.)
-    let num = no as f64;
-    let den = total as f64;
-    num / den
+    ((no.saturating_mul(10_000)) / total) as u32
 }
 
-fn find_rejected_worktx_for_task(
+fn find_rejected_worktxs_for_task(
     rejections_path: &std::path::Path,
     cas: &CasStore,
     task_id: &TaskId,
-) -> Result<Option<CandidateRecord>, String> {
+) -> Result<Vec<CandidateRecord>, String> {
     use turingosv4::bottom_white::ledger::rejection_evidence::parse_and_verify_jsonl_record_bytes;
     let text = std::fs::read_to_string(rejections_path)
         .map_err(|e| format!("read rejections.jsonl: {e}"))?;
+    let mut out = Vec::new();
     for raw in text.lines().filter(|l| !l.trim().is_empty()) {
         let rec = parse_and_verify_jsonl_record_bytes(raw.as_bytes())
             .map_err(|e| format!("parse rejection line: {e:?}"))?;
@@ -391,16 +412,17 @@ fn find_rejected_worktx_for_task(
         };
         if let TypedTx::Work(work) = tx {
             if &work.task_id == task_id {
-                return Ok(Some(CandidateRecord {
+                out.push(CandidateRecord {
+                    tx_id: work.tx_id.clone(),
                     agent_id: work.agent_id.clone(),
                     proposal_cid_hex: hex_of_cid(&work.proposal_cid),
                     l4_state: "rejected",
                     rejection_class: Some(format!("{:?}", rec.rejection_class)),
-                }));
+                });
             }
         }
     }
-    Ok(None)
+    Ok(out)
 }
 
 fn hex_of_cid(cid: &turingosv4::bottom_white::cas::schema::Cid) -> String {
@@ -409,17 +431,17 @@ fn hex_of_cid(cid: &turingosv4::bottom_white::cas::schema::Cid) -> String {
 
 fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Result<QState, String> {
     let path = runtime_repo_path.join("initial_q_state.json");
-    let json = std::fs::read_to_string(&path)
-        .map_err(|e| format!("read initial_q_state.json: {e}"))?;
+    let json =
+        std::fs::read_to_string(&path).map_err(|e| format!("read initial_q_state.json: {e}"))?;
     serde_json::from_str(&json).map_err(|e| format!("parse initial_q_state.json: {e}"))
 }
 
 fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSystemPubkeys, String> {
     let path = runtime_repo_path.join("pinned_pubkeys.json");
-    let json = std::fs::read_to_string(&path)
-        .map_err(|e| format!("read pinned_pubkeys.json: {e}"))?;
-    let manifest: PinnedPubkeyManifest = serde_json::from_str(&json)
-        .map_err(|e| format!("parse pinned_pubkeys.json: {e}"))?;
+    let json =
+        std::fs::read_to_string(&path).map_err(|e| format!("read pinned_pubkeys.json: {e}"))?;
+    let manifest: PinnedPubkeyManifest =
+        serde_json::from_str(&json).map_err(|e| format!("parse pinned_pubkeys.json: {e}"))?;
     let mut pinned = PinnedSystemPubkeys::new();
     for entry in &manifest.pubkeys {
         let cid = cid_from_hex_str(&pad_hex_to_64(&entry.pubkey_hex))
@@ -441,7 +463,10 @@ fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSyst
                 }
                 Ok(out)
             })?;
-        pinned.insert(SystemEpoch::new(entry.epoch), SystemPublicKey::from_bytes(cid));
+        pinned.insert(
+            SystemEpoch::new(entry.epoch),
+            SystemPublicKey::from_bytes(cid),
+        );
     }
     Ok(pinned)
 }
@@ -514,7 +539,8 @@ mod tests {
     fn derive_market_state_no_seed_yet_returns_open() {
         let econ = EconomicState::default();
         let tid = TaskId("pr1-x".into());
-        assert_eq!(derive_market_state(&econ, &tid, "accepted", false), "open");
+        let candidates = vec![test_candidate("accepted")];
+        assert_eq!(derive_market_state(&econ, &tid, &candidates, false), "open");
     }
 
     #[test]
@@ -522,16 +548,51 @@ mod tests {
         let econ = EconomicState::default();
         let tid = TaskId("pr1-x".into());
         assert_eq!(
-            derive_market_state(&econ, &tid, "rejected", false),
+            derive_market_state(&econ, &tid, &[test_candidate("rejected")], false),
             "all_rejected"
         );
     }
 
     #[test]
-    fn derive_price_yes_returns_half_when_no_pool() {
+    fn derive_yes_signal_bp_returns_half_when_no_pool() {
         let econ = EconomicState::default();
         let eid = EventId(TaskId("pr1-x".into()));
-        assert!((derive_price_yes(&econ, &eid) - 0.5).abs() < 1e-9);
+        assert_eq!(derive_yes_signal_bp(&econ, &eid), 5000);
     }
 
+    #[test]
+    fn accepted_open_market_is_not_winner_until_finalized() {
+        assert!(
+            !is_candidate_winner("accepted", "open", true),
+            "open market must not surface a winner before EventResolve finalizes it"
+        );
+        assert!(is_candidate_winner("accepted", "finalized", true));
+        assert!(!is_candidate_winner("accepted", "finalized", false));
+        assert!(!is_candidate_winner("rejected", "finalized", true));
+    }
+
+    #[test]
+    fn top_level_winner_agent_id_is_null_until_market_finalized() {
+        let candidate = test_candidate("accepted");
+        let winner = candidate.tx_id.clone();
+        assert_eq!(
+            winner_agent_id_for_market_state("open", Some(&winner), &[candidate.clone()]),
+            None,
+            "FinalizeReward alone must not publish a top-level winner while the market is open"
+        );
+        assert_eq!(
+            winner_agent_id_for_market_state("finalized", Some(&winner), &[candidate]),
+            Some("worker-alpha".to_string())
+        );
+    }
+
+    fn test_candidate(l4_state: &'static str) -> CandidateRecord {
+        CandidateRecord {
+            tx_id: TxId("worktx-test".into()),
+            agent_id: AgentId("worker-alpha".into()),
+            proposal_cid_hex: "00".repeat(32),
+            l4_state,
+            rejection_class: None,
+        }
+    }
 }

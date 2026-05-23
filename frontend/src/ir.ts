@@ -319,7 +319,7 @@ export interface SpecTurnTriageRejectEvent {
  * /api/market/by-session/<session_id> on receipt.
  */
 export interface AgentAttemptUpdateEvent {
-  msg_type: 'AgentAttemptUpdate';
+  msg_type: 'agent_attempt_update';
   session_id: string;
 }
 
@@ -337,7 +337,7 @@ export interface AgentAttemptUpdateEvent {
  *   - `'SpecTurnAdvanced'`:         W8 driven-mode — turn accepted (optimistic)
  *   - `'SpecGrillComplete'`:        W8 driven-mode — session complete with CID
  *   - `'SpecTurnTriageReject'`:     W8 driven-mode — answer triage-rejected
- *   - `'AgentAttemptUpdate'`:      Polymarket PR1 — WorkTx admission / market state change
+ *   - `'agent_attempt_update'`:    Polymarket — replay view changed
  */
 export type WsMessage =
   | IRUpdateEvent
