@@ -186,10 +186,39 @@ Phase 7: Shipping-Witness audit (1 agent, DELIBERATIVE tier, restricted
          Witness returns ONE token from a closed set (see "Verdict domain"
          below).
 
-Phase 8: Ship
-  If Witness verdict = clean: commit + push + PR (per platform's PR-only
-  workflow if applicable).
+Phase 8: Ship to PR
+  If Witness verdict = clean: commit + push + open PR (per platform's
+  PR-only workflow). Sub-agents NEVER merge — orchestrator does it in
+  Phase 10.
   If Witness verdict = unresolved violation: STOP. Re-enter Phase 6.
+
+Phase 9: Closing audit — MANDATORY before merge
+  After CI passes + external review (Codex bot / human reviewers /
+  AGENTS.md §9 default Codex audit) leaves comments AND orchestrator has
+  addressed P1/P2 findings, fire a CLOSING audit team to verify the
+  SHIPPED artifact still matches the approved plan + external feedback
+  has been absorbed cleanly.
+
+  ⚠ DEFAULT: REUSE the Phase 5 auditor team via context handoff —
+    same auditors, same preserved context. The auditors already know the
+    design rationale + trade-offs from Phase 5; reusing them eliminates
+    re-onboarding cost and ensures consistency between "design we
+    approved" and "ship we approved".
+  See "Closing audit" section below for the dispatch protocol +
+    distinct closing-mode verdict domain.
+  ⚠ If closing audit returns IMPL-DRIFT-FROM-PLAN or EXTERNAL-FEEDBACK-
+    REQUIRES-REVISION that needs user-only decision → invoke
+    ./plan-grill.md to disambiguate before looping back.
+
+Phase 10: Merge to main
+  The orchestrator (NOT a sub-agent) executes the merge per the
+  platform's PR-only workflow. Per AGENTS.md §14a, the legitimate-
+  bypass `GIT_HARDEN_ALLOW_MAIN=1 git push origin main` is reserved
+  for the orchestrator merging a vetted PR locally; sub-agents NEVER
+  do this regardless of role or tier.
+
+  Gate: ALL Phase 9 closing-audit verdicts MUST be READY-TO-MERGE.
+  Any other verdict → loop back to Phase 6 (findings triage).
 ```
 
 ## Standard sub-agent prompt template (MANDATORY 9 sections)
@@ -344,6 +373,112 @@ follow these constraints:
 (Adversarial-Critic in Phase 5 has OPEN domain — Critics enumerate
 N findings each. Only the final Witness in Phase 7 is restricted to a
 single closed-set token. **Critic enumerates; Witness adjudicates.**)
+
+## Closing audit (Phase 9) — mandatory team review before merge
+
+Phase 7 Shipping-Witness audits the DIFF before the PR opens. Phase 9
+Closing audit verifies the SHIPPED artifact AFTER the PR opens — once
+CI has run, external review (Codex bot / human reviewers) has weighed
+in, and orchestrator has addressed P1/P2 findings.
+
+This is the LAST gate before merge to main. It is MANDATORY for any
+ship-class work (Class ≥ 2 in TuringOS taxonomy; or any irreversible
+public-facing ship in other domains).
+
+### Default mode: REUSE the Phase 5 auditor team (cost-saving)
+
+Cost / efficiency optimization (per user direction, 2026-05-23):
+
+> 最后审计的这个 multiagent 团队和计划阶段的可以共用一个团队，也可以
+> 共用一个 context。这样的话是最节省，也是效率最高的
+
+The Phase 5 auditors already know the design rationale + trade-offs +
+all the violations they previously raised + the orchestrator's
+remediation. Reusing them at Phase 9:
+
+- **Eliminates re-onboarding cost** — no need to re-explain the design
+- **Ensures consistency** — same lens for "design we approved" and
+  "ship we approved"
+- **Surfaces drift cleanly** — the auditor that approved the design is
+  the one best positioned to spot ship-time drift from it
+
+#### Implementation on Claude Code (and any platform with persistent agent context)
+
+- Phase 5 auditors run as background agents with stable agent IDs
+- At Phase 9, `SendMessage` to each Phase 5 agent ID with the closing
+  brief:
+  - PR HEAD SHA + diff link
+  - External review summary (Codex bot findings, human reviewer
+    comments, CI logs of interest)
+  - Orchestrator's responses to external feedback
+  - Pinned reference to their Phase 5 findings + verdict
+  - Request: closing-mode verdict from the restricted set below
+- Each auditor returns a closing verdict in the closing-mode domain
+  (different from Phase 5's open enumeration; see verdict domain below)
+
+#### Implementation on platforms without persistent agent context
+
+When the platform has no SendMessage / context-handoff primitive, OR
+the Phase 5 agents have timed out / been garbage-collected:
+
+- Save each Phase 5 agent's final output as a "planning-context bundle"
+  (the orchestrator does this at the end of Phase 5)
+- At Phase 9, spawn NEW auditors of the same archetypes briefed with
+  the bundle as required reading + the closing-mode brief
+- Cost: extra context re-load tokens. Benefit: auditors still don't
+  re-derive the design rationale from scratch — they read the prior
+  team's recorded reasoning
+
+### Verdict domain (Closing audit) — distinct from Phase 7 Witness
+
+Closing audit verdicts answer a different question than Phase 7 Witness:
+"is the SHIP right per the original design + external feedback?", not
+"is the diff structurally clean?".
+
+Each closing-audit auditor returns ONE token from this closed set:
+
+- `READY-TO-MERGE` — original concerns addressed + external feedback
+  absorbed + no plan drift; auditor signs off on merge
+- `EXTERNAL-FEEDBACK-REQUIRES-REVISION <which-feedback> <which-impact>` —
+  external review surfaced an issue the planning team didn't anticipate;
+  loop back to Phase 6 triage
+- `IMPL-DRIFT-FROM-PLAN <which-axis>` — shipped diff doesn't match
+  approved plan in some axis (named field / API contract / data shape
+  drift); loop back to Phase 6
+- `DEFERRAL-MISSING <what-was-deferred-but-not-documented>` — post-ship
+  TODO list is incomplete; document deferrals before merge
+
+Orchestrator gates Phase 10 (merge) on ALL closing-audit verdicts being
+`READY-TO-MERGE`. Any other verdict from any auditor → loop back to
+Phase 6.
+
+### When to add NEW auditors at Phase 9 (override the reuse default)
+
+Phase 5 reuse is the default but NOT mandatory. Add new auditors when:
+
+- **External review raised a new domain.** Example: Phase 5 had
+  Constitution + Karpathy auditors; external Codex bot review surfaced
+  a UX concern. Phase 9 should add a UX auditor in addition to reusing
+  Constitution + Karpathy.
+- **Phase 5 used invented archetypes that aren't in the standard menu.**
+  Those agents may be lost across sessions; spawn fresh equivalents
+  briefed with the planning-phase bundle.
+- **Significant time has elapsed.** If days passed between Phase 5 and
+  Phase 9, agent context may have stale assumptions about the codebase.
+  Spawn fresh agents with the bundle + a "current state of main" pre-read.
+
+### Orchestrator's pre-Phase-9 self-check
+
+Before firing closing audit:
+1. [ ] CI is green on the PR HEAD
+2. [ ] External review (Codex bot / human / AGENTS.md §9 audit) has
+       completed
+3. [ ] P1 / P2 findings from external review have been addressed
+       OR explicitly deferred with rationale
+4. [ ] PR body cites the original plan / charter / case studies the
+       closing auditors will check against
+5. [ ] If reusing Phase 5 agents: their context is still intact (test
+       with a small SendMessage ping before the full closing brief)
 
 ## Acceptance criteria patterns (the "checkability test")
 
