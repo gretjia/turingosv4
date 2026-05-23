@@ -37,7 +37,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 
 use crate::cmd_llm;
-use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
+use crate::chat_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use turingosv4::runtime::spec_capsule;
 use turingosv4::sdk::sanitized_runner::{
     env_allowlist_from_current, run_sanitized, SanitizedCommand,

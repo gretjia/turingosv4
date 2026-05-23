@@ -12,11 +12,11 @@
 // from the library crate (turingosv4) or from the binary via `#[path]`.
 // We use `#[path]` to pull in the binary module directly.
 
-#[path = "../src/bin/turingos/siliconflow_client.rs"]
+#[path = "../src/bin/turingos/chat_client.rs"]
 #[allow(dead_code)]
-mod siliconflow_client;
+mod chat_client;
 
-use siliconflow_client::maybe_rewrite_deepseek_model_error;
+use chat_client::maybe_rewrite_deepseek_model_error;
 
 /// The canonical DeepSeek direct-API error body that triggers B1.
 const DEEPSEEK_400_BODY: &str = r#"{"error":{"message":"The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed deepseek-ai/DeepSeek-V3.2.","type":"invalid_request_error","param":null,"code":null}}"#;

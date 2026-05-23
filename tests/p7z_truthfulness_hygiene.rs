@@ -6,7 +6,7 @@ const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 #[test]
 fn generate_prompt_hash_uses_provider_request_bytes() {
     let cmd_generate = read("src/bin/turingos/cmd_generate.rs");
-    let siliconflow = read("src/bin/turingos/siliconflow_client.rs");
+    let siliconflow = read("src/bin/turingos/chat_client.rs");
 
     assert!(
         siliconflow.contains("canonical_chat_request_bytes"),
@@ -25,7 +25,7 @@ fn generate_prompt_hash_uses_provider_request_bytes() {
 #[test]
 fn generate_raw_output_cid_uses_raw_response_body() {
     let cmd_generate = read("src/bin/turingos/cmd_generate.rs");
-    let siliconflow = read("src/bin/turingos/siliconflow_client.rs");
+    let siliconflow = read("src/bin/turingos/chat_client.rs");
 
     assert!(
         siliconflow.contains("raw_response_body"),

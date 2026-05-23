@@ -28,7 +28,7 @@ use std::time::Instant;
 use sha2::{Digest, Sha256};
 
 use crate::common::shell_quote_path;
-use crate::siliconflow_client::{ThinkingConfig, DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
+use crate::chat_client::{ThinkingConfig, DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
 use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
 
 /// TRACE_MATRIX FC2-N16: `llm` short-help
@@ -766,7 +766,7 @@ fn sha256_bytes(data: &[u8]) -> [u8; 32] {
 
 /// TRACE_MATRIX FC2-N16 W4: `turingos llm complete` entry.
 ///
-/// Performs a single LLM call via `siliconflow_client::chat_complete`,
+/// Performs a single LLM call via `chat_client::chat_complete`,
 /// optionally validates the JSON envelope via `grill_envelope::parse_and_validate`,
 /// optionally writes a `PromptCapsule` to CAS, and prints one JSON result line.
 ///
@@ -864,7 +864,7 @@ fn run_complete(args: &[String]) -> ExitCode {
             }
         },
     };
-    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+    let api_key = match crate::chat_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {
             return complete_err_exit("http_status", ca.lang.http_err_msg(&e.to_string()), 2);
@@ -872,10 +872,10 @@ fn run_complete(args: &[String]) -> ExitCode {
     };
 
     // ── 6. Convert messages to ChatMessage ──────────────────────────────────
-    let chat_messages: Vec<crate::siliconflow_client::ChatMessage> = prompt_file_data
+    let chat_messages: Vec<crate::chat_client::ChatMessage> = prompt_file_data
         .messages
         .iter()
-        .map(|m| crate::siliconflow_client::ChatMessage {
+        .map(|m| crate::chat_client::ChatMessage {
             role: m.role.clone(),
             content: m.content.clone(),
         })
@@ -902,7 +902,7 @@ fn run_complete(args: &[String]) -> ExitCode {
     };
 
     let t_start = Instant::now();
-    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+    let llm_result = rt.block_on(crate::chat_client::chat_complete(
         &api_key,
         &model_id,
         &chat_messages,
@@ -914,14 +914,14 @@ fn run_complete(args: &[String]) -> ExitCode {
 
     let chat_result = match llm_result {
         Ok(r) => r,
-        Err(crate::siliconflow_client::LlmError::HttpStatus { status, body }) => {
+        Err(crate::chat_client::LlmError::HttpStatus { status, body }) => {
             return complete_err_exit(
                 "http_status",
                 ca.lang.http_err_msg(&format!("HTTP {status}: {body}")),
                 2,
             );
         }
-        Err(crate::siliconflow_client::LlmError::Transport(e)) => {
+        Err(crate::chat_client::LlmError::Transport(e)) => {
             return complete_err_exit("timeout", ca.lang.http_err_msg(&e), 2);
         }
         Err(e) => {
@@ -940,7 +940,7 @@ fn run_complete(args: &[String]) -> ExitCode {
     // and unclosed blocks by truncating at the unclosed tag).
     //
     // Providers that emit reasoning in `message.reasoning_content` (separate
-    // from `content`) are handled implicitly: `siliconflow_client::ChatResponse`
+    // from `content`) are handled implicitly: `chat_client::ChatResponse`
     // deserializes only `content`, so `reasoning_content` is dropped at decode
     // time and never reaches this branch.
     let parsed_envelope: Option<serde_json::Value> = if ca.strict_json {
@@ -1324,8 +1324,8 @@ fn run_triage(args: &[String]) -> ExitCode {
         format!("QUESTION (turn N): {question_text}\n\nUSER ANSWER:\n{user_answer}");
 
     let chat_messages = vec![
-        crate::siliconflow_client::ChatMessage::system(system_prompt_text.clone()),
-        crate::siliconflow_client::ChatMessage::user(user_message_text.clone()),
+        crate::chat_client::ChatMessage::system(system_prompt_text.clone()),
+        crate::chat_client::ChatMessage::user(user_message_text.clone()),
     ];
 
     // ── 6. Determine Blackbox model + API key ───────────────────────────────
@@ -1336,7 +1336,7 @@ fn run_triage(args: &[String]) -> ExitCode {
             return complete_err_exit("config", ta.lang.http_err_msg(&e.to_string()), 1);
         }
     };
-    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+    let api_key = match crate::chat_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {
             return complete_err_exit("http_status", ta.lang.http_err_msg(&e.to_string()), 2);
@@ -1379,7 +1379,7 @@ fn run_triage(args: &[String]) -> ExitCode {
     let blackbox_thinking = read_blackbox_thinking(&ta.workspace);
 
     let t_start = Instant::now();
-    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+    let llm_result = rt.block_on(crate::chat_client::chat_complete(
         &api_key,
         &model_id,
         &chat_messages,
@@ -1391,14 +1391,14 @@ fn run_triage(args: &[String]) -> ExitCode {
 
     let chat_result = match llm_result {
         Ok(r) => r,
-        Err(crate::siliconflow_client::LlmError::HttpStatus { status, body }) => {
+        Err(crate::chat_client::LlmError::HttpStatus { status, body }) => {
             return complete_err_exit(
                 "http_status",
                 ta.lang.http_err_msg(&format!("HTTP {status}: {body}")),
                 2,
             );
         }
-        Err(crate::siliconflow_client::LlmError::Transport(e)) => {
+        Err(crate::chat_client::LlmError::Transport(e)) => {
             return complete_err_exit("timeout", ta.lang.http_err_msg(&e), 2);
         }
         Err(e) => {
@@ -1560,7 +1560,7 @@ fn triage_lang_args_err(detail: String, args: &[String]) -> String {
 //
 // Surface contract. One JSONL fixture file, one --prompt-file candidate,
 // one --role tag. For each fixture row we (a) build messages, (b) call the
-// LLM via siliconflow_client (same retry / think-strip semantics as
+// LLM via chat_client (same retry / think-strip semantics as
 // `complete` and `triage`), (c) score the response against expected_* fields,
 // (d) aggregate per-row verdicts into a summary. Exit 0 iff all PASS.
 //
@@ -1908,7 +1908,7 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
             }
         },
     };
-    let api_key = match crate::siliconflow_client::require_api_key(&api_key_env) {
+    let api_key = match crate::chat_client::require_api_key(&api_key_env) {
         Ok(k) => k,
         Err(e) => {
             return prompt_eval_err_exit("http_status", pe.lang.http_err_msg(&e.to_string()), 2);
@@ -2095,7 +2095,7 @@ fn eval_one_row(
     thinking: Option<ThinkingConfig>,
 ) -> RowVerdict {
     // ── (a) Build messages per role ─────────────────────────────────────────
-    let messages: Vec<crate::siliconflow_client::ChatMessage> = match role {
+    let messages: Vec<crate::chat_client::ChatMessage> = match role {
         PromptEvalRole::Blackbox => {
             let q = row
                 .question
@@ -2104,28 +2104,28 @@ fn eval_one_row(
             let a = row.user_answer.as_deref().unwrap_or("");
             let user_msg = format!("QUESTION (turn N): {q}\n\nUSER ANSWER:\n{a}");
             vec![
-                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
-                crate::siliconflow_client::ChatMessage::user(user_msg),
+                crate::chat_client::ChatMessage::system(system_text.to_string()),
+                crate::chat_client::ChatMessage::user(user_msg),
             ]
         }
         PromptEvalRole::Meta => {
-            let mut msgs = vec![crate::siliconflow_client::ChatMessage::system(
+            let mut msgs = vec![crate::chat_client::ChatMessage::system(
                 system_text.to_string(),
             )];
             // Replay history as alternating assistant(q) / user(a) pairs.
             for h in &row.history {
                 if let Some(q) = &h.q {
-                    msgs.push(crate::siliconflow_client::ChatMessage::assistant(q.clone()));
+                    msgs.push(crate::chat_client::ChatMessage::assistant(q.clone()));
                 }
                 if let Some(a) = &h.a {
-                    msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+                    msgs.push(crate::chat_client::ChatMessage::user(a.clone()));
                 }
             }
             // The current user turn (the answer under test).
             if let Some(a) = &row.user_answer {
-                msgs.push(crate::siliconflow_client::ChatMessage::user(a.clone()));
+                msgs.push(crate::chat_client::ChatMessage::user(a.clone()));
             }
-            msgs.push(crate::siliconflow_client::ChatMessage::user(
+            msgs.push(crate::chat_client::ChatMessage::user(
                 "Produce your next-turn output per the contract.".to_string(),
             ));
             msgs
@@ -2142,14 +2142,14 @@ fn eval_one_row(
                 "Here are the covered slots from the interview (JSON):\n{slots_json}\n\nProduce the 7-row 'fridge note' playback in the user's language, ONLY summarising the slots above. Do NOT invent new content."
             );
             vec![
-                crate::siliconflow_client::ChatMessage::system(system_text.to_string()),
-                crate::siliconflow_client::ChatMessage::user(user_msg),
+                crate::chat_client::ChatMessage::system(system_text.to_string()),
+                crate::chat_client::ChatMessage::user(user_msg),
             ]
         }
     };
 
     // ── (b) LLM call ────────────────────────────────────────────────────────
-    let llm_result = rt.block_on(crate::siliconflow_client::chat_complete(
+    let llm_result = rt.block_on(crate::chat_client::chat_complete(
         api_key,
         model_id,
         &messages,

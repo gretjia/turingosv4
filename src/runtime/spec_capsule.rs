@@ -206,7 +206,7 @@ pub enum GrillAttemptOutcome {
     // R2 §A5 reserved for W4.5: TriageNonRelevant = 10
 }
 
-/// Token usage triplet (mirrors siliconflow_client usage shape).
+/// Token usage triplet (mirrors chat_client usage shape).
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GrillTokenCounts {
     pub prompt_tokens: u32,

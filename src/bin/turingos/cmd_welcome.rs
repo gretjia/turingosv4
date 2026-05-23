@@ -248,8 +248,8 @@ fn check_env_var_set(ws: &Path, role: &str) {
 /// so users can see when their LLM traffic is going somewhere other than the
 /// default. Silent misconfiguration was flagged HIGH in user-sim Round 2.
 fn check_endpoint_not_default() {
-    let configured = crate::siliconflow_client::endpoint();
-    let default = crate::siliconflow_client::SILICONFLOW_ENDPOINT;
+    let configured = crate::chat_client::endpoint();
+    let default = crate::chat_client::SILICONFLOW_ENDPOINT;
     if configured != default {
         println!("  \u{26a0} TURINGOS_SILICONFLOW_ENDPOINT overridden to: {configured}");
         println!("    (default: {default})");

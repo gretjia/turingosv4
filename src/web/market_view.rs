@@ -18,7 +18,7 @@
 //!   Constitution agent "lying docstring" finding on the pre-revision file).
 //!
 //! **Class 1**: additive HTTP read view. No `economic_state_t` mutation, no
-//! `siliconflow_client::chat` call, no schema_id declaration (per
+//! `chat_client::chat` call, no schema_id declaration (per
 //! `constitution_web_cli_kernel_invariant.rs`).
 //!
 //! **No chain mutation**: this handler MUST NOT call

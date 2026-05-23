@@ -6,12 +6,12 @@
 //!   * workspace config + API-key resolution via cmd_llm helpers
 //!   * `AnyJudge` selection by `--judge` flag
 //!   * per-judge prompt builders
-//!   * a closure adapter from siliconflow_client::chat_complete_blocking
+//!   * a closure adapter from chat_client::chat_complete_blocking
 //!     (production path) to the runner's LlmResponse contract
 //!
 //! Compared with Atoms 12-14 (which targeted DeepSeek via the local
 //! `llm_proxy.py`), this binary path routes through the same
-//! `siliconflow_client::chat_complete_blocking` that `turingos llm complete`
+//! `chat_client::chat_complete_blocking` that `turingos llm complete`
 //! and `turingos generate` use — production traffic.
 //!
 //! K10 + K11 fix (Atom 18): the JudgeDriver trait + 3 impls and the
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use crate::cmd_llm;
-use crate::siliconflow_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
+use crate::chat_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
 /// TRACE_MATRIX FC2-N16: `tdma` short-help (registry display).
@@ -74,7 +74,7 @@ OPTIONS:
 
 DESCRIPTION:
     Production wire-up of the TDMA-Bounded RC1 kernel (Atoms 0-17).
-    Reuses the `siliconflow_client::chat_complete_blocking` path so
+    Reuses the `chat_client::chat_complete_blocking` path so
     requests go to the configured SiliconFlow endpoint with the API key
     in the env var named in turingos.toml.
 

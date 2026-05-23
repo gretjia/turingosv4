@@ -23,8 +23,13 @@ use std::process::ExitCode;
 mod cmd_init;
 #[path = "turingos/common.rs"]
 mod common;
-#[path = "turingos/siliconflow_client.rs"]
-mod siliconflow_client;
+// TB-SOFTWARE-3-0 Atom S4.1 (2026-05-23): legacy file renamed to chat_client.
+// Generic naming so future providers (VolcEngine etc.) can land without
+// another rename. Function names (`chat_complete`, `chat_complete_blocking`)
+// were already generic. NO ChatProvider enum yet — abstraction layer waits
+// for the 2nd concrete impl (Karpathy K10).
+#[path = "turingos/chat_client.rs"]
+mod chat_client;
 // A6 (2026-05-19): `spec_capsule` was library-ized to
 // `src/runtime/spec_capsule.rs`; bin callers now use
 // `turingosv4::runtime::spec_capsule`. The previous `#[path = "turingos/spec_capsule.rs"] mod spec_capsule;`
