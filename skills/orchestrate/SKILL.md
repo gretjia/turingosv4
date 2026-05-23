@@ -470,15 +470,52 @@ Phase 5 reuse is the default but NOT mandatory. Add new auditors when:
 ### Orchestrator's pre-Phase-9 self-check
 
 Before firing closing audit:
-1. [ ] CI is green on the PR HEAD
-2. [ ] External review (Codex bot / human / AGENTS.md §9 audit) has
-       completed
-3. [ ] P1 / P2 findings from external review have been addressed
-       OR explicitly deferred with rationale
-4. [ ] PR body cites the original plan / charter / case studies the
-       closing auditors will check against
-5. [ ] If reusing Phase 5 agents: their context is still intact (test
-       with a small SendMessage ping before the full closing brief)
+
+1. [ ] CI is green on the PR HEAD.
+
+2. [ ] **External review has completed at the level the artifact's
+       risk class demands.** The level required is NOT a free choice
+       — it is determined by the cadence table for the artifact's
+       risk class:
+       - **Ship-path / Class ≥ 2 / production-impacting work**:
+         clean-context independent audit is **MANDATORY**. In
+         TuringOS context this is the `AGENTS.md §9` Codex audit
+         (cadence table §14). Codex bot inline review + human
+         reviewer comments are **SUPPLEMENTARY, not substitutes**
+         for the clean-context audit.
+       - **Class 3 / money / CAS / capabilities work**: cadence
+         requires DUAL independent witness (Codex + Gemini per
+         AGENTS.md §14). Both must complete; Phase 9 does not fire
+         on a single witness for Class 3.
+       - **Docs / Class 0 / Class 1 non-production work**: any one
+         of (automated bot review / human reviewer / clean-context
+         audit) suffices.
+       - **Domain-specific overrides apply**: an orchestrator
+         working outside TuringOS context maps its own
+         risk-class-to-audit-cadence table; the structural rule
+         (clean-context audit is mandatory for ship-class work)
+         remains.
+
+3. [ ] **ALL blocking-severity findings are RESOLVED.** Blocking
+       severities are NEVER deferrable; they must be fixed before
+       Phase 9 fires, period. Naming varies by review system —
+       `P0` / `Critical` / `Blocker` / `VETO` are all instances of
+       this category. The rule: if the system would treat the
+       finding as a hard merge-block, the orchestrator MUST resolve
+       it before Phase 9, not defer it.
+
+4. [ ] **Non-blocking findings** (P1 / P2 / High / Medium / Low /
+       informational — any non-merge-blocking severity) are EITHER
+       addressed OR explicitly deferred with rationale documented in
+       the PR body. Each deferral cites: which finding, why
+       deferred, when it will be revisited (target PR / issue /
+       version).
+
+5. [ ] PR body cites the original plan / charter / case studies the
+       closing auditors will check against.
+
+6. [ ] If reusing Phase 5 agents: their context is still intact (test
+       with a small SendMessage ping before the full closing brief).
 
 ## Acceptance criteria patterns (the "checkability test")
 
