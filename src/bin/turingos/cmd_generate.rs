@@ -1738,8 +1738,12 @@ pub(crate) fn polymarket_task_id_for_session(session_id: &str) -> String {
     format!("pr1-{session_id}")
 }
 
-/// Polymarket PR1: locate the workspace ROOT (the directory containing
-/// `genesis_payload.toml`) starting from any path within the workspace tree.
+/// TRACE_MATRIX FC2-N16: Polymarket PR1 — locate workspace ROOT marker.
+///
+/// Returns the directory containing `genesis_payload.toml`, starting from any
+/// path within the workspace tree. Used by `emit_polymarket_market_for_session`
+/// to resolve the canonical chain location (root, not session subdir) when the
+/// `--workspace` argument may be either.
 ///
 /// Why: `turingos generate --workspace <X>` is invoked in two modes:
 ///   * CLI direct: `<X>` IS the root (genesis is right there, depth 0)
