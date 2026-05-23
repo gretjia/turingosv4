@@ -279,20 +279,71 @@ The skill provides a template per role under `./references/<platform>.md`.
 
 ## Verdict domain (Shipping-Witness, Phase 7)
 
-Closed restricted set. Witness MUST return EXACTLY one of these tokens:
+The Witness MUST return EXACTLY ONE token from a **domain-specific closed
+restricted set** that the orchestrator declares in the brief at dispatch
+time. Three SHAPE constraints are universal across all domains:
+
+1. **Closed** — finite enumerated list; the Witness picks ONE; no
+   inventing new tokens at response time
+2. **Restricted** — NOT free-form enumeration; NOT a list of findings
+3. **Non-subjective** — every token corresponds to a falsifiable
+   property of the artifact, NOT to taste or preference
+
+The orchestrator picks (or copies) the domain's closed set when
+authoring the Witness brief. Subjective opinions ("I think the code
+style …" / "Performance could be improved …" / "Architecture would be
+better if …") are ALWAYS out-of-domain regardless of the chosen token
+set — orchestrator REJECTS such responses and re-dispatches.
+
+### Canonical token set — code / governance domain
+
+For TuringOS-style code + governance work, use the 4-token set from
+`AGENTS.md §14`:
 
 - `NO-VIOLATION` — scanned N clauses, no violations found
 - `VIOLATION-FOUND <clause> <file>:<line>` — specific clause cited
 - `RECONSTRUCTION-FAILURE <which-path>` — state cannot be re-derived
-- `SECOND-SOURCE-DRIFT <which-derived-view>` — derived view usurping ground truth
+- `SECOND-SOURCE-DRIFT <which-derived-view>` — derived view usurping
+  ground truth
 
-Subjective opinions are out-of-domain. If a Witness response strays
-into "I think the code style ..." / "Performance could be improved
-..." / "Architecture would be better if ...", orchestrator REJECTS
-the report and re-dispatches.
+This is the default for code shipping in this repo; it maps directly to
+the cadence table in AGENTS.md.
 
-(Adversarial-Critic in Phase 5 has open domain — Critics enumerate.
-Only the final Witness in Phase 7 is restricted.)
+### Domain-specific closed sets — other domains derive their own
+
+Outside code/governance, the orchestrator picks a closed set tailored to
+the domain. The 4-token code set above does NOT translate. Concrete
+domain-specific sets used in the case studies below:
+
+- **Long-form writing**: `{ READY-TO-PUBLISH | NEEDS-ONE-MORE-PASS |
+  RESTART-FROM-OUTLINE }` — three closed states gating publication
+- **Literature synthesis**: `{ COVERAGE-OK | GAPS-FOUND |
+  SOURCES-WEAK }` — three closed states gating sharing
+
+Each domain-specific set follows the same SHAPE: closed, restricted,
+non-subjective. The orchestrator's Phase 7 brief explicitly lists the
+chosen tokens; the Witness picks ONE.
+
+### How to derive a new domain's verdict set
+
+When neither the canonical code set nor an existing case-study set
+applies (e.g., a new domain like clinical-trial design / legal review),
+follow these constraints:
+
+1. **3-5 tokens** (fewer = under-discriminating; more = mushy)
+2. **All-or-nothing decisions** the orchestrator gates on (e.g., "do we
+   ship?" / "do we publish?" / "do we file?")
+3. **Each token names a specific falsifiable artifact property**
+4. **NO ambiguous middle tokens** (e.g., "MOSTLY-OK" is forbidden —
+   either the gate condition holds or it doesn't)
+5. **One token MUST mean "passes the gate"** — there's always a clean
+   ship verdict
+
+### Adversarial-Critic verdict (Phase 5) is OPEN, distinct from Witness
+
+(Adversarial-Critic in Phase 5 has OPEN domain — Critics enumerate
+N findings each. Only the final Witness in Phase 7 is restricted to a
+single closed-set token. **Critic enumerates; Witness adjudicates.**)
 
 ## Acceptance criteria patterns (the "checkability test")
 
@@ -410,8 +461,11 @@ angles. Phase 2: orchestrator locks essay structure as outline (H1 + H2s
 + thesis sentence per H2). Phase 3: 1 Implementer drafts to the outline.
 Phase 5: 2 Critics dispatched — UX Auditor (cognitive load, flow
 friction, reading level) + a domain-specific Fact-Check Auditor invented
-per the 4-step protocol. Phase 7: Witness adjudicates against a closed
-domain `{READY-TO-PUBLISH | NEEDS-ONE-MORE-PASS | RESTART-FROM-OUTLINE}`.
+per the 4-step protocol. Phase 7: Witness adjudicates against a
+**domain-specific closed verdict set** (writing domain — NOT the canonical
+code set; declared in the Witness brief): `{ READY-TO-PUBLISH |
+NEEDS-ONE-MORE-PASS | RESTART-FROM-OUTLINE }`. See "Verdict domain" section
+above for how non-code domains derive their own closed sets.
 
 ### Research case study: Literature synthesis
 
@@ -420,7 +474,12 @@ non-overlapping source scope (assigned by orchestrator at Phase 2 as the
 "contract"). Phase 3 skipped (research-only task per the Phase 0
 decision tree). Phase 5: 1 Adversarial-Critic checks for source-coverage
 gaps + double-counting + citation accuracy. Phase 7: Witness adjudicates
-synthesis quality with closed domain `{COVERAGE-OK | GAPS-FOUND | SOURCES-WEAK}`.
+synthesis quality against a **domain-specific closed verdict set**
+(literature-synthesis domain — NOT the canonical code set; declared in the
+Witness brief): `{ COVERAGE-OK | GAPS-FOUND | SOURCES-WEAK }`. The
+domain-specific set follows the same SHAPE constraints (closed, restricted,
+non-subjective) as the canonical code set; only the tokens differ to match
+the artifact being shipped.
 
 ## Failure modes this pattern STILL doesn't catch (honest)
 
