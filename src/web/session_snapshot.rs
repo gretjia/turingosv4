@@ -33,7 +33,12 @@ use super::ws::{GrillSession, SlotState};
 /// NOT a CAS schema registration — just a serde tag used to distinguish
 /// these EvidenceCapsule bodies from other EvidenceCapsule payloads in the
 /// same CAS store. Tail-additive; do not change.
-pub(crate) const GRILL_SESSION_SNAPSHOT_SCHEMA_ID: &str =
+///
+/// Constitutional invariant (tests/constitution_web_cli_kernel_invariant.rs):
+/// canonical CAS schema_ids belong to `src/runtime/*`. This snapshot is a
+/// web-layer derived view, NOT a registered runtime schema, so we keep the
+/// tag module-private (no `pub`/`pub(crate)`) to satisfy the invariant.
+const GRILL_SESSION_SNAPSHOT_SCHEMA_ID: &str =
     "turingos-web-grill-session-snapshot-v1";
 
 /// TRACE_MATRIX FC1-N12: serialized snapshot of a GrillSession.
