@@ -54,6 +54,47 @@ use turingosv4::runtime::test_scenario::TestScenario;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 use crate::siliconflow_client::{ChatResult, Usage};
 
+// Polymarket PR1 (2026-05-23, REVISED post-Codex audit 2026-05-23): after the
+// TDMA judge PASSES + the ArtifactBundleManifest is committed, ALSO admit a
+// WorkTx + open a treasury-funded market via the canonical workspace
+// ChainTape sequencer (`build_chaintape_sequencer_with_initial_q`). The
+// original PR1 used an ephemeral InMemoryLedgerWriter + a per-call CAS dir;
+// the Constitution agent flagged that as Art. 0.4 + FC1 wtool drift (no
+// durable chain → no replay → no Run-1 verifier reconstruction). The revised
+// path lands every admission on `<workspace>/runtime_repo` so the chain is
+// the canonical source of truth for the web `market_view` projection and
+// for cold-restart replay.
+//
+// PR2 will fan out N parallel workers via `RunConfig.n_parallel_workers`.
+// PR3 deferred ChallengeTx (peer-Worker challenges violate Art. III.3
+// horizontal-independence — needs a dedicated isolated-context critic bot).
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
+use turingosv4::runtime::adapter::genesis_with_balances;
+use turingosv4::runtime::bootstrap::parse_treasury_and_worker_preseed;
+use turingosv4::runtime::cid_hex::cid_from_hex_str;
+use turingosv4::runtime::{
+    build_chaintape_sequencer_with_initial_q, ChaintapeBundle, RuntimeChaintapeConfig,
+};
+use turingosv4::state::q_state::{AgentId, Hash as StateHash, TaskId, TxId};
+use turingosv4::state::sequencer::{
+    escrow_lock_accept_state_root, task_open_accept_state_root, worktx_accept_state_root,
+};
+use turingosv4::state::typed_tx::{
+    AgentSignature, BoolWithProof, EscrowLockTx, EventId, MarketSeedTx, PredicateId,
+    PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
+};
+
+/// TODO(genesis_payload): move these defaults to genesis_payload.toml
+/// [polymarket_defaults] in a follow-up. Karpathy nice-fix #1 + Constitution
+/// nice-fix-1: parametric runtime constants belong in the trust-rooted
+/// manifest. For this PR they stay inline so the diff stays surgical.
+const TREASURY_AGENT_ID: &str = "treasury";
+const WORKER_ALPHA_AGENT_ID: &str = "worker-alpha";
+const DEFAULT_BOUNTY_MICRO: i64 = 1_000;
+const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
+const DEFAULT_MARKET_SEED_MICRO: i64 = 100; // = bounty / 10 per architect manual §7.4
+
+
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
     "Generate working code from spec.md via the Blackbox LLM; writes to <workspace>/artifacts/";
@@ -776,6 +817,51 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         });
                     }
                     // overall_pass=true — proceed to success output below.
+
+                    // Polymarket PR1 (2026-05-23): TDMA judge passed + bundle
+                    // committed. Now admit a WorkTx (worker-alpha staking 100µ
+                    // on this proposal_cid) and open a treasury-funded YES/NO
+                    // market for this session task via canonical sequencer
+                    // admission. PR1: single worker (`worker-alpha`); PR2 will
+                    // fan out N parallel workers via RunConfig.agent_ids.
+                    match emit_polymarket_market_for_session(
+                        &workspace,
+                        &session_id,
+                        &bundle_cid,
+                        logical_t,
+                    ) {
+                        Ok(summary) => {
+                            eprintln!(
+                                "[polymarket] WorkTx admitted (agent={}, stake={}µ, proposal_cid={})",
+                                summary.worker_agent,
+                                DEFAULT_WORK_STAKE_MICRO,
+                                summary.proposal_cid_hex_prefix,
+                            );
+                            if summary.market_opened {
+                                eprintln!(
+                                    "[polymarket] MarketSeed admitted (provider=treasury, collateral={}µ, task_id={})",
+                                    DEFAULT_MARKET_SEED_MICRO, summary.task_id
+                                );
+                            } else {
+                                eprintln!(
+                                    "[polymarket] WorkTx admission landed in L4.E ({}); MarketSeed skipped",
+                                    summary
+                                        .rejection_note
+                                        .unwrap_or_else(|| "unknown rejection".to_string())
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            // Per Hard Constraint #6 in PR1 brief: do NOT
+                            // swallow errors. Sequencer admission failure on
+                            // system genesis state is a system-level break
+                            // (kernel surface failure on a known-valid input
+                            // is not a user-fixable condition).
+                            return Err(GenError::Io(format!(
+                                "[polymarket] sequencer admission failed: {e}"
+                            )));
+                        }
+                    }
                 }
                 Err(e) => {
                     // Internal pipeline failure (CAS IO / bundle read error) — reject as InternalIo.
@@ -1321,4 +1407,418 @@ fn find_entrypoint(files: &[EmittedFile]) -> Option<String> {
     }
     // 3. Fallback to first file
     Some(files[0].path.clone())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Polymarket (2026-05-23 REVISED post-Codex/Karpathy audit) — post-judge
+// WorkTx + MarketSeedTx emission via the canonical workspace ChainTape.
+//
+// Wires the existing `turingos generate` flow into the kernel's WorkTx /
+// market surfaces through `build_chaintape_sequencer_with_initial_q` (TB-G
+// G1.1 architect-signed factory; `resume_existing_chain: true`). Every
+// admission lands on `<workspace>/runtime_repo` so the chain is the
+// canonical source of truth — `verify_chaintape` can replay the run, the
+// web `market_view` projection reads the same chain, and a cold restart
+// re-derives the same JSON.
+//
+// Architectural decisions:
+//   - NO new CLI subcommand (extends existing `generate` only)
+//   - Worker hardcoded to "worker-alpha" (PR2 makes this RunConfig-driven)
+//   - Bounty = 1000µ (treasury-funded); WorkTx.stake = 100µ; MarketSeed = 100µ
+//     each side (= bounty / 10 per architect manual §7.4)
+//   - Sequencer admission auto-runs predicates → L4 or L4.E (no shadow ledger)
+//   - On L4-accept: emit MarketSeedTx (treasury collateral) opening YES/NO pool
+//   - On L4.E reject: skip MarketSeed (existing rejection capsule path already
+//     runs; no extra work)
+//   - PR3 deferred: ChallengeTx (Art. III.3 horizontal-independence requires
+//     an isolated-context critic bot)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// TRACE_MATRIX FC2-N16: Polymarket (2026-05-23 revised) — summary of the
+/// post-judge sequencer dance for a single generate session. Returned by
+/// `emit_polymarket_market_for_session` so the stderr log lines can quote
+/// the worker / proposal_cid / task_id consistently. NOT a chain-resident
+/// capsule: status is re-derivable from `<workspace>/runtime_repo` +
+/// `EconomicState.task_markets_t[task_id]`.
+pub(crate) struct PolymarketEmitSummary {
+    pub(crate) worker_agent: String,
+    pub(crate) task_id: String,
+    pub(crate) proposal_cid_hex_prefix: String,
+    pub(crate) market_opened: bool,
+    pub(crate) rejection_note: Option<String>,
+}
+
+impl std::fmt::Display for PolymarketEmitSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(note) = &self.rejection_note {
+            write!(f, "{note}")
+        } else {
+            write!(f, "ok")
+        }
+    }
+}
+
+/// TRACE_MATRIX FC2-N16 + FC1: Polymarket (2026-05-23 revised) — orchestrate
+/// the post-judge sequencer admission flow against the workspace's canonical
+/// ChainTape.
+///
+/// Builds (or resumes) the workspace's chain via
+/// `build_chaintape_sequencer_with_initial_q` (TB-G G1.1 architect-signed
+/// `resume_existing_chain: true` mode — empty `runtime_repo` → fresh
+/// bootstrap with preseed; non-empty → resume + replay). Submits the
+/// canonical `TaskOpen → EscrowLock → WorkTx [→ MarketSeed]` sequence so
+/// WorkTx admission is REAL (per architect ruling 2026-05-23: "内核必须一致，
+/// 先有个中央银行" — no simulation branch, treasury preseed via the only
+/// allow-listed boot surface).
+///
+/// **Constitutional posture** (FC1 wtool, Art. 0.4):
+/// - Q_t → rtool: opens canonical sequencer that owns `Git2LedgerWriter` ←—
+///   the persistent wtool. NO `InMemoryLedgerWriter` in this code path.
+/// - Agent delta: 4 typed_tx submissions through canonical
+///   `submit_agent_tx` / driver / `apply_one` path.
+/// - wtool: `Git2LedgerWriter` appends each accepted entry to
+///   `<workspace>/runtime_repo/refs/transitions/main`; rejections land in
+///   `<workspace>/runtime_repo/rejections.jsonl`.
+/// - Q_{t+1}: post-drain `q_snapshot()` reflects all admissions. Subsequent
+///   `turingos generate` invocations resume this chain.
+fn emit_polymarket_market_for_session(
+    workspace: &Path,
+    session_id: &str,
+    bundle_cid_hex: &str,
+    logical_t: u64,
+) -> Result<PolymarketEmitSummary, String> {
+    let task_id_str = polymarket_task_id_for_session(session_id);
+
+    // Codex P1 #1 fix (2026-05-23): `--workspace` may be a session subdir
+    // (e.g. `<root>/sessions/<session_id>`) when invoked by the web flow
+    // (`src/web/generate.rs` shells out with the session dir as `--workspace`
+    // so `turingos generate` reads spec.md from there). The canonical
+    // Polymarket chain + genesis preseed live at the ROOT workspace, not in
+    // the session subdir. Walk up at most 3 levels to find the marker file
+    // `genesis_payload.toml`. CLI direct (workspace IS root, walk depth 0)
+    // and web (workspace is `<root>/sessions/<id>`, depth 2) both resolve
+    // correctly. Cap at 3 to avoid escaping into unrelated parent projects
+    // during local tests.
+    let root_workspace =
+        find_root_workspace(workspace).ok_or_else(|| {
+            format!(
+                "could not locate genesis_payload.toml within 3 parents of {}; \
+                 expected at workspace root for Polymarket chain anchor",
+                workspace.display()
+            )
+        })?;
+
+    let genesis_text = fs::read_to_string(root_workspace.join("genesis_payload.toml"))
+        .map_err(|e| format!("read root genesis_payload.toml: {e}"))?;
+    let preseed = parse_treasury_and_worker_preseed(&genesis_text)
+        .map_err(|e| format!("parse preseed: {e}"))?;
+    let initial_q = genesis_with_balances(&preseed);
+
+    let proposal_cid = cid_from_hex_str(bundle_cid_hex)
+        .map_err(|e| format!("decode bundle_cid_hex: {e}"))?;
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("tokio runtime: {e}"))?;
+
+    rt.block_on(async move {
+        // ──────────────── Step 0: open canonical workspace ChainTape ────────────────
+        // Per Codex P1 #2 (2026-05-23): runtime_repo + cas live at the ROOT
+        // workspace, NOT the session subdir. All sessions in one workspace
+        // share ONE canonical ChainTape (per-workspace, not per-session). The
+        // `src/web/market_view.rs` handler reads from the same root path; this
+        // alignment is what makes the side-panel JSON non-empty for real web
+        // sessions.
+        //
+        // Empty `runtime_repo` (post-`turingos init`) → fresh bootstrap with
+        // `initial_q` seed. Non-empty → resume + replay (subsequent
+        // `turingos generate` invocations on the same workspace land here).
+        // TB-G G1.1 packet §2: the resume path reads the persisted
+        // `initial_q_state.json` so on resume the `initial_q` argument is
+        // ignored — but the in-tree preseed is byte-identical to the
+        // initial bootstrap, so the seed is consistent across invocations.
+        let config = RuntimeChaintapeConfig {
+            runtime_repo_path: root_workspace.join("runtime_repo"),
+            cas_path: root_workspace.join("cas"),
+            run_id: format!("polymarket-{session_id}-{logical_t}"),
+            queue_capacity: 16,
+            resume_existing_chain: true,
+        };
+        let bundle: ChaintapeBundle =
+            build_chaintape_sequencer_with_initial_q(&config, initial_q)
+                .map_err(|e| format!("open canonical chaintape: {e}"))?;
+        let seq = bundle.sequencer.clone();
+        let rejection_writer = bundle.rejection_writer.clone();
+        // Snapshot rejection-record count before our admissions so we can
+        // tell which rejections (if any) belong to THIS call. The chain
+        // may already carry prior rejections from earlier invocations.
+        let pre_rejection_count = rejection_writer
+            .read()
+            .map_err(|e| format!("rejection_writer pre-read poison: {e}"))?
+            .records()
+            .len();
+
+        // ──────────────── Pre-compute parent_state_roots ────────────────
+        // Pre-compute the expected post-each-tx state roots via the kernel's
+        // pure `*_accept_state_root` helpers so all 4 txs can be submitted in
+        // one batch (the driver applies them in FIFO order). This mirrors
+        // tb_14's pattern: pre-compute the post-mint root for the redeem's
+        // parent_state_root. Without pre-computation, the driver's async
+        // apply would race the next `q_snapshot()` read.
+        let root_0 = seq
+            .q_snapshot()
+            .map_err(|e| format!("q_snapshot @ root_0: {e:?}"))?
+            .state_root_t;
+        let task_open_tx = TypedTx::TaskOpen(TaskOpenTx {
+            tx_id: TxId(format!("polymarket-taskopen-{session_id}-{logical_t}")),
+            task_id: TaskId(task_id_str.clone()),
+            parent_state_root: root_0,
+            sponsor_agent: AgentId(TREASURY_AGENT_ID.into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 0,
+            settlement_rule_hash: StateHash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: logical_t,
+        });
+        let root_1 = task_open_accept_state_root(&root_0, &task_open_tx);
+
+        let escrow_tx = TypedTx::EscrowLock(EscrowLockTx {
+            tx_id: TxId(format!("polymarket-escrowlock-{session_id}-{logical_t}")),
+            task_id: TaskId(task_id_str.clone()),
+            parent_state_root: root_1,
+            sponsor_agent: AgentId(TREASURY_AGENT_ID.into()),
+            amount: MicroCoin::from_micro_units(DEFAULT_BOUNTY_MICRO),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: logical_t,
+        });
+        let root_2 = escrow_lock_accept_state_root(&root_1, &escrow_tx);
+
+        let mut acceptance = std::collections::BTreeMap::new();
+        // The TDMA judge ALREADY signed off on the artifact (we're in the
+        // post-judge-success branch). Surface that pass-verdict as an
+        // acceptance predicate row so the WorkTx admission Step 2 succeeds.
+        acceptance.insert(
+            PredicateId("tdma_judge_generate".into()),
+            BoolWithProof {
+                value: true,
+                proof_cid: None,
+            },
+        );
+        let work_tx_id_str = format!("polymarket-worktx-{session_id}-{logical_t}");
+        let work_tx = TypedTx::Work(WorkTx {
+            tx_id: TxId(work_tx_id_str.clone()),
+            task_id: TaskId(task_id_str.clone()),
+            parent_state_root: root_2,
+            agent_id: AgentId(WORKER_ALPHA_AGENT_ID.into()),
+            // Minimal read/write sets — records the spec capsule + bundle
+            // cid as semantic anchors (mirrors `adapter::make_real_worktx_signed_by`).
+            read_set: [ReadKey("spec_capsule".into())].into_iter().collect(),
+            write_set: [WriteKey("artifact_bundle".into())].into_iter().collect(),
+            proposal_cid,
+            predicate_results: PredicateResultsBundle {
+                acceptance,
+                settlement: std::collections::BTreeMap::new(),
+                safety_class: SafetyOrCreation::Safety,
+            },
+            stake: StakeMicroCoin::from_micro_units(DEFAULT_WORK_STAKE_MICRO),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: logical_t,
+        });
+        let root_3 = worktx_accept_state_root(&root_2, &work_tx);
+
+        let market_seed_tx = TypedTx::MarketSeed(MarketSeedTx {
+            tx_id: TxId(format!("polymarket-marketseed-{session_id}-{logical_t}")),
+            parent_state_root: root_3,
+            event_id: EventId(TaskId(task_id_str.clone())),
+            provider: AgentId(TREASURY_AGENT_ID.into()),
+            collateral_amount: MicroCoin::from_micro_units(DEFAULT_MARKET_SEED_MICRO),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: logical_t,
+        });
+
+        // ──────────────── Submit all 4 in FIFO order ────────────────
+        // The canonical sequencer's driver task drains the queue; each
+        // submit is sync about queue-admission but async about
+        // apply-and-commit. We submit all 4, then `bundle.shutdown()`
+        // drains the queue + waits for the last commit before returning.
+        // If WorkTx is rejected (L4.E), MarketSeed will also reject because
+        // its `parent_state_root = root_3` won't match the actual state.
+        // We detect this via the rejection_writer records after drain.
+        for tx in [task_open_tx, escrow_tx, work_tx, market_seed_tx] {
+            seq.submit_agent_tx(tx)
+                .await
+                .map_err(|e| format!("submit error: {e:?}"))?;
+        }
+
+        // TODO(PR3): emit `EventResolveTx` (system-tx) to flip
+        // `task_markets_t[task_id].state` from Open → Finalized once a
+        // verifier-driven decision is in scope. PR1 N=1 has no peer-Worker
+        // critic — the single accepted WorkTx is the winner by definition
+        // but `EventResolveTx` admission requires `parent_state_root ==
+        // current q.state_root_t`, which is racy when the prior 4
+        // admissions are still draining in the driver task. The simpler
+        // path (defer to PR3 with the dedicated isolated-context critic
+        // bot Art. III.3 requires) keeps this PR surgical. Until then,
+        // `market_view.rs` surfaces `market_state: "open"` for any
+        // accepted-but-unresolved market — the web UI must distinguish
+        // open vs finalized when rendering.
+
+        let seq_handle = seq.clone();
+        bundle
+            .shutdown()
+            .await
+            .map_err(|e| format!("chaintape shutdown drain: {e:?}"))?;
+
+        // ──────────────── Post-drain: inspect chain state ────────────────
+        // `task_markets_t` is the canonical source for "did WorkTx admit".
+        // The WorkTx accept arm in `sequencer.rs` Step 5 inserts the task
+        // entry into `task_markets_t`; rejection leaves it absent (or the
+        // pre-existing entry from a prior call's TaskOpen, which we'll
+        // discriminate by checking `stakes_t` for our work_tx_id).
+        let post_q = seq_handle
+            .q_snapshot()
+            .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
+        let work_tx_id = TxId(work_tx_id_str.clone());
+        let work_tx_accepted = post_q
+            .economic_state_t
+            .stakes_t
+            .0
+            .contains_key(&work_tx_id);
+
+        // Determine if the MarketSeed admitted — the YES/NO cpmm pools or
+        // `conditional_collateral_t` entry presence signals MarketSeed
+        // accept. Simpler: check `conditional_collateral_t` for the event.
+        let event_id = EventId(TaskId(task_id_str.clone()));
+        let market_opened = post_q
+            .economic_state_t
+            .conditional_collateral_t
+            .0
+            .contains_key(&event_id);
+
+        // Collect any rejection notes belonging to THIS call.
+        let mut rejection_note: Option<String> = None;
+        if !work_tx_accepted {
+            let records = rejection_writer
+                .read()
+                .map_err(|e| format!("rejection_writer post-read poison: {e}"))?
+                .records()
+                .to_vec();
+            // Records after `pre_rejection_count` are ours.
+            for rec in records.iter().skip(pre_rejection_count) {
+                if let Some(summary) = &rec.public_summary {
+                    rejection_note = Some(format!("{:?}: {}", rec.tx_kind, summary));
+                    break;
+                }
+            }
+            if rejection_note.is_none() {
+                rejection_note = Some("WorkTx admission did not advance task_markets_t".into());
+            }
+        }
+
+        Ok::<PolymarketEmitSummary, String>(PolymarketEmitSummary {
+            worker_agent: WORKER_ALPHA_AGENT_ID.to_string(),
+            task_id: task_id_str,
+            proposal_cid_hex_prefix: bundle_cid_hex.chars().take(16).collect::<String>(),
+            market_opened: work_tx_accepted && market_opened,
+            rejection_note,
+        })
+    })
+}
+
+/// TRACE_MATRIX FC2-N16: Polymarket (2026-05-23 revised) — stable task_id
+/// derivation from session_id.
+///
+/// Convention: prefix `pr1-` so cross-PR session_ids never collide on the
+/// kernel task namespace. The prefix value is FROZEN (a chain-resident
+/// task_id; renaming it would invalidate prior workspaces' replay). PR2/3
+/// may extend with a UUID-derived scheme for net-new sessions while
+/// keeping existing chains valid.
+pub(crate) fn polymarket_task_id_for_session(session_id: &str) -> String {
+    format!("pr1-{session_id}")
+}
+
+/// TRACE_MATRIX FC2-N16: Polymarket PR1 — locate workspace ROOT marker.
+///
+/// Returns the directory containing `genesis_payload.toml`, starting from any
+/// path within the workspace tree. Used by `emit_polymarket_market_for_session`
+/// to resolve the canonical chain location (root, not session subdir) when the
+/// `--workspace` argument may be either.
+///
+/// Why: `turingos generate --workspace <X>` is invoked in two modes:
+///   * CLI direct: `<X>` IS the root (genesis is right there, depth 0)
+///   * Web: `<X> = <root>/sessions/<session_id>` (the session subdir; depth 2)
+///
+/// All Polymarket chain state (`runtime_repo` + `cas`) MUST live at the root
+/// so multiple sessions share ONE canonical ChainTape (this is what makes
+/// `src/web/market_view.rs` read the same chain that admissions write to).
+///
+/// Walks at most `MAX_DEPTH` parent directories; returns `None` if no
+/// `genesis_payload.toml` marker is found within that bound. Cap prevents
+/// escaping into unrelated parent projects during local tests / dev.
+pub(crate) fn find_root_workspace(start: &Path) -> Option<PathBuf> {
+    const MAX_DEPTH: usize = 3;
+    let mut current = start.to_path_buf();
+    for _ in 0..=MAX_DEPTH {
+        if current.join("genesis_payload.toml").is_file() {
+            return Some(current);
+        }
+        match current.parent() {
+            Some(parent) => current = parent.to_path_buf(),
+            None => return None,
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn polymarket_task_id_for_session_is_stable() {
+        assert_eq!(polymarket_task_id_for_session("abc"), "pr1-abc");
+        assert_eq!(polymarket_task_id_for_session(""), "pr1-");
+    }
+
+    #[test]
+    fn polymarket_constants_satisfy_invariants() {
+        // Hard constraint: MarketSeed = bounty / 10
+        assert_eq!(DEFAULT_MARKET_SEED_MICRO, DEFAULT_BOUNTY_MICRO / 10);
+        // Hard constraint: stake is positive
+        assert!(DEFAULT_WORK_STAKE_MICRO > 0);
+    }
+
+    #[test]
+    fn find_root_workspace_returns_self_when_genesis_at_start() {
+        // CLI direct mode: --workspace IS the root, depth 0.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("genesis_payload.toml"), b"# stub")
+            .expect("write stub genesis");
+        let resolved = find_root_workspace(tmp.path()).expect("find root");
+        assert_eq!(resolved, tmp.path());
+    }
+
+    #[test]
+    fn find_root_workspace_walks_up_from_session_subdir() {
+        // Web flow mode: --workspace is <root>/sessions/<session_id> — walk
+        // up 2 levels to find genesis_payload.toml at the root.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::write(root.join("genesis_payload.toml"), b"# stub")
+            .expect("write stub genesis");
+        let session_dir = root.join("sessions").join("session-abc");
+        std::fs::create_dir_all(&session_dir).expect("mkdir session");
+        let resolved = find_root_workspace(&session_dir).expect("walk up to root");
+        assert_eq!(resolved, root);
+    }
+
+    #[test]
+    fn find_root_workspace_returns_none_when_no_marker_within_depth() {
+        // No genesis_payload.toml anywhere in the temp tree.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let deep = tmp.path().join("a").join("b").join("c");
+        std::fs::create_dir_all(&deep).expect("mkdir deep");
+        assert!(find_root_workspace(&deep).is_none());
+    }
 }

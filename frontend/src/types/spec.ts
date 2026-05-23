@@ -52,6 +52,38 @@ export interface TurnResponse {
     triage_class?: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Polymarket PR1: agent attempt + market view types
+// ---------------------------------------------------------------------------
+
+/**
+ * One candidate agent's admission record as returned by
+ * GET /api/market/by-session/<session_id>.
+ * Strictly read-only — no betting UI (user-decision #3).
+ */
+export interface AgentCandidateView {
+  agent_id: string;
+  proposal_cid: string;
+  stake_micro: number;
+  l4_state: 'accepted' | 'rejected' | 'pending_dispatch';
+  rejection_class: string | null;
+  predicate_results: Record<string, boolean>;
+  price_yes: number | null;
+  is_winner: boolean;
+}
+
+/**
+ * Top-level response from GET /api/market/by-session/<session_id>.
+ */
+export interface MarketViewResponse {
+  session_id: string;
+  task_id: string;
+  market_state: 'open' | 'finalized' | 'all_rejected';
+  treasury_bounty_micro: number;
+  candidates: AgentCandidateView[];
+  winner_agent_id: string | null;
+}
+
 /**
  * Frontend driven-mode state machine.
  */

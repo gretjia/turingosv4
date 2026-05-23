@@ -134,6 +134,13 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/api/spec/turn", post(spec_turn_handler))
         // Phase 5.7: server-rendered R2-aesthetic spec view (text/html)
         .route("/api/spec/view/:session_id", get(super::spec_view::spec_view_handler))
+        // Polymarket PR1 (2026-05-23): pure-projection market view over
+        // per-session generate evidence (transition_ledger + EconomicState).
+        // Class 1, read-only. No AppState cache, no LLM call.
+        .route(
+            "/api/market/by-session/:session_id",
+            get(super::market_view::market_view_handler),
+        )
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
