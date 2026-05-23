@@ -84,7 +84,7 @@ export class TosAgentAttemptsPanel extends HTMLElement {
     // React to any market-state-relevant WS message that touches our session.
     const msgType = detail.msg_type;
     if (
-      (msgType === 'AgentAttemptUpdate' || msgType === 'generate_complete') &&
+      (msgType === 'agent_attempt_update' || msgType === 'generate_complete') &&
       'session_id' in detail &&
       (detail as { session_id: string }).session_id === this._sessionId
     ) {
@@ -425,11 +425,11 @@ export class TosAgentAttemptsPanel extends HTMLElement {
       card.appendChild(ul);
     }
 
-    // --- price ---
-    if (c.price_yes !== null) {
+    // --- market signal ---
+    if (c.yes_signal_bp !== null) {
       const price = document.createElement('p');
       price.className = 'aap-price';
-      price.textContent = `${(c.price_yes * 100).toFixed(1)}% likely`;
+      price.textContent = `${(c.yes_signal_bp / 100).toFixed(1)}% likely`;
       card.appendChild(price);
     }
 

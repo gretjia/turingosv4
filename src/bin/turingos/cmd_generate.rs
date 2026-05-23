@@ -25,12 +25,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::cmd_llm;
 use crate::chat_client::{
     canonical_chat_request_bytes, chat_complete_blocking, require_api_key, ChatMessage, LlmError,
 };
+use crate::chat_client::{ChatResult, Usage};
+use crate::cmd_llm;
 use sha2::{Digest, Sha256};
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
@@ -42,6 +44,9 @@ use turingosv4::runtime::generation_attempt::{
     write_generation_attempt_capsule, AttemptOutcome, GenerationAttemptCapsule,
     GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
+use turingosv4::runtime::proposal_telemetry::{
+    write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
+};
 use turingosv4::runtime::rejection_capsule::{
     write_generate_rejection_capsule_observed, GenerateRejectionCapsule, RejectClass,
     GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
@@ -52,37 +57,40 @@ use turingosv4::runtime::test_run::{
 };
 use turingosv4::runtime::test_scenario::TestScenario;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
-use crate::chat_client::{ChatResult, Usage};
 
-// Polymarket PR1 (2026-05-23, REVISED post-Codex audit 2026-05-23): after the
-// TDMA judge PASSES + the ArtifactBundleManifest is committed, ALSO admit a
-// WorkTx + open a treasury-funded market via the canonical workspace
-// ChainTape sequencer (`build_chaintape_sequencer_with_initial_q`). The
-// original PR1 used an ephemeral InMemoryLedgerWriter + a per-call CAS dir;
+// Polymarket chain integration (2026-05-23, revised post-Codex audit): after
+// candidate artifacts pass the local test gate, admit worker WorkTxs + settle
+// a treasury-funded market via the canonical workspace ChainTape sequencer
+// (`build_chaintape_sequencer_with_initial_q`). The original PR1 used an
+// ephemeral InMemoryLedgerWriter + a per-call CAS dir;
 // the Constitution agent flagged that as Art. 0.4 + FC1 wtool drift (no
 // durable chain → no replay → no Run-1 verifier reconstruction). The revised
 // path lands every admission on `<workspace>/runtime_repo` so the chain is
 // the canonical source of truth for the web `market_view` projection and
 // for cold-restart replay.
 //
-// PR2 will fan out N parallel workers via `RunConfig.n_parallel_workers`.
-// PR3 deferred ChallengeTx (peer-Worker challenges violate Art. III.3
-// horizontal-independence — needs a dedicated isolated-context critic bot).
-use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
-use turingosv4::runtime::adapter::genesis_with_balances;
+// PR-B fan-out stays in this CLI layer (`--n-parallel-workers`) so
+// `tdma_runner` remains a single proof-run primitive. ChallengeTx remains
+// deferred: peer-Worker challenges violate Art. III.3 horizontal-independence
+// unless routed through a dedicated isolated-context critic bot.
+use turingosv4::runtime::adapter::{
+    genesis_with_balances, make_real_escrow_lock_signed_by, make_real_market_seed_signed_by,
+    make_real_task_open_signed_by, make_real_verifytx_signed_by, make_real_worktx_signed_by,
+    tb8_emit_finalize_after_verify, tb_n2_emit_event_resolve_after_finalize,
+};
+use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
+use turingosv4::runtime::agent_keystore::keystore_password_from_env;
 use turingosv4::runtime::bootstrap::parse_treasury_and_worker_preseed;
 use turingosv4::runtime::cid_hex::cid_from_hex_str;
 use turingosv4::runtime::{
     build_chaintape_sequencer_with_initial_q, ChaintapeBundle, RuntimeChaintapeConfig,
 };
-use turingosv4::state::q_state::{AgentId, Hash as StateHash, TaskId, TxId};
+use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{
-    escrow_lock_accept_state_root, task_open_accept_state_root, worktx_accept_state_root,
+    escrow_lock_accept_state_root, market_seed_accept_state_root, task_open_accept_state_root,
+    verify_accept_state_root, worktx_accept_state_root,
 };
-use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, EscrowLockTx, EventId, MarketSeedTx, PredicateId,
-    PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
-};
+use turingosv4::state::typed_tx::{EventId, TypedTx};
 
 /// TODO(genesis_payload): move these defaults to genesis_payload.toml
 /// [polymarket_defaults] in a follow-up. Karpathy nice-fix #1 + Constitution
@@ -90,10 +98,19 @@ use turingosv4::state::typed_tx::{
 /// manifest. For this PR they stay inline so the diff stays surgical.
 const TREASURY_AGENT_ID: &str = "treasury";
 const WORKER_ALPHA_AGENT_ID: &str = "worker-alpha";
+const WORKER_BETA_AGENT_ID: &str = "worker-beta";
+const WORKER_THREE_AGENT_ID: &str = "worker-gamma";
+const POLYMARKET_WORKER_IDS: [&str; 3] = [
+    WORKER_ALPHA_AGENT_ID,
+    WORKER_BETA_AGENT_ID,
+    WORKER_THREE_AGENT_ID,
+];
+const VERIFIER_ALPHA_AGENT_ID: &str = "verifier-alpha";
+const MARKET_PROVIDER_AGENT_ID: &str = "market-provider";
 const DEFAULT_BOUNTY_MICRO: i64 = 1_000;
 const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 const DEFAULT_MARKET_SEED_MICRO: i64 = 100; // = bounty / 10 per architect manual §7.4
-
+const DEFAULT_VERIFY_BOND_MICRO: i64 = 50;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -105,6 +122,7 @@ pub(crate) const FULL_HELP: &str = r#"turingos generate — Emit code from spec.
 USAGE:
     turingos generate --workspace <PATH> [--from-capsule] [--max-files <N>]
                        [--tdma-bounded [--entrypoint <PATH>] [--max-retries <N>]]
+                       [--n-parallel-workers <1..3>]
 
 OPTIONS:
     --workspace <PATH>      Workspace directory (required; must have spec.md
@@ -131,6 +149,11 @@ OPTIONS:
                             when --tdma-bounded is set.
     --max-retries <N>       Hard cap on TDMA-Bounded attempts (default: 5).
                             Used only when --tdma-bounded is set.
+    --n-parallel-workers <N>
+                            Number of Polymarket worker candidates to admit
+                            after the artifact passes local tests. CLI default:
+                            1. Web default: 3. Old workspaces without
+                            beta/gamma preseed degrade to 1.
     -h, --help              Print this help.
 
 DESCRIPTION:
@@ -191,7 +214,10 @@ impl std::fmt::Display for GenError {
                 "Blackbox LLM emitted no parseable files. Expected `### File: <path>` followed by a fenced code block.\n  (Transient API error? Try running `turingos generate` again.)"
             ),
             Self::TooManyFiles { found, max } => {
-                write!(f, "Blackbox LLM emitted {found} files; --max-files cap is {max}")
+                write!(
+                    f,
+                    "Blackbox LLM emitted {found} files; --max-files cap is {max}"
+                )
             }
             Self::WithFooter { inner, .. } => write!(f, "{inner}"),
         }
@@ -245,6 +271,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let mut tdma_entrypoint = "main.py".to_string();
     let mut tdma_max_retries: usize = 5;
     let mut tape_backend = "git".to_string();
+    let mut n_parallel_workers: usize = 1;
     // Atom 25: --no-tdma-bounded escape only inside this PR for the negative
     // test that verifies the flag wiring; production users never set it.
     // (KILL-cutover-1 grep guard rejects `--legacy`; --no-tdma-bounded is
@@ -277,6 +304,19 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 tdma_max_retries = v
                     .parse()
                     .map_err(|_| GenError::Io(format!("--max-retries: not a number: {v}")))?;
+            }
+            "--n-parallel-workers" => {
+                let v = iter
+                    .next()
+                    .ok_or(GenError::MissingFlag("--n-parallel-workers"))?;
+                n_parallel_workers = v.parse().map_err(|_| {
+                    GenError::Io(format!("--n-parallel-workers: not a number: {v}"))
+                })?;
+                if !(1..=3).contains(&n_parallel_workers) {
+                    return Err(GenError::Io(format!(
+                        "--n-parallel-workers must be in 1..=3; got {n_parallel_workers}"
+                    )));
+                }
             }
             "--tape-backend" => {
                 tape_backend = iter
@@ -399,7 +439,10 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     // READ side (chain was previously write-only).
     let prior_feedback = read_prior_rejection_feedback(&workspace, &session_id);
     let user_msg = if let Some(ref fb) = prior_feedback {
-        eprintln!("[generate] tape-relay: feeding prior rejection diagnostics into LLM prompt (attempt #{})", retry_index);
+        eprintln!(
+            "[generate] tape-relay: feeding prior rejection diagnostics into LLM prompt (attempt #{})",
+            retry_index
+        );
         format!(
             "{fb}Below is the spec. Generate the working code per the rules.\n\nspec source: {source}\n\n{spec_md}"
         )
@@ -686,6 +729,25 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         )];
         if let Ok(rej_cid) = write_generate_rejection_capsule_observed(&workspace, &rej) {
             footer_parts.push(format!("[failed run] rejection_cid={rej_cid}"));
+            match root_workspace_for_polymarket(&workspace)
+                .map_err(GenError::Io)
+                .and_then(|root_workspace| {
+                    mirror_rejection_capsule_to_root(&workspace, &root_workspace, &rej_cid)?;
+                    emit_rejected_primary_polymarket_candidate(
+                        &workspace,
+                        &session_id,
+                        logical_t,
+                        &rej_cid,
+                    )
+                }) {
+                Ok(summary) => footer_parts.push(format!(
+                    "[failed run] polymarket_rejected_worktx_task_id={} proposal_cid={}",
+                    summary.task_id, summary.proposal_cid_hex_prefix
+                )),
+                Err(e) => {
+                    footer_parts.push(format!("[failed run] polymarket_rejected_worktx_error={e}"))
+                }
+            }
         }
         let footer = footer_parts.join("\n");
         // Shadow run_result to wrap any error with the CID footer.
@@ -804,11 +866,32 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             logical_t,
                         };
                         // X1: collect footer; run() emits it after the error message.
-                        let footer = if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
-                            format!("[failed run] rejection_cid={rej_cid}")
-                        } else {
-                            String::new()
-                        };
+                        let mut footer_parts = Vec::new();
+                        if let Ok(rej_cid) = turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
+                            footer_parts.push(format!("[failed run] rejection_cid={rej_cid}"));
+                            match root_workspace_for_polymarket(&workspace)
+                                .map_err(GenError::Io)
+                                .and_then(|root_workspace| {
+                                    mirror_artifact_bundle_to_root(&workspace, &root_workspace, &bundle_cid)?;
+                                    mirror_test_run_to_root(&workspace, &root_workspace, &test_run_cid)?;
+                                    mirror_rejection_capsule_to_root(&workspace, &root_workspace, &rej_cid)?;
+                                    emit_rejected_primary_polymarket_candidate(
+                                        &workspace,
+                                        &session_id,
+                                        logical_t,
+                                        &bundle_cid,
+                                    )
+                                }) {
+                                Ok(summary) => footer_parts.push(format!(
+                                    "[failed run] polymarket_rejected_worktx_task_id={} proposal_cid={}",
+                                    summary.task_id, summary.proposal_cid_hex_prefix
+                                )),
+                                Err(e) => footer_parts.push(format!(
+                                    "[failed run] polymarket_rejected_worktx_error={e}"
+                                )),
+                            }
+                        }
+                        let footer = footer_parts.join("\n");
                         return Err(GenError::WithFooter {
                             inner: Box::new(GenError::Io(
                                 "generated artifacts failed spec-derived tests".to_string(),
@@ -818,17 +901,60 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     }
                     // overall_pass=true — proceed to success output below.
 
-                    // Polymarket PR1 (2026-05-23): TDMA judge passed + bundle
-                    // committed. Now admit a WorkTx (worker-alpha staking 100µ
-                    // on this proposal_cid) and open a treasury-funded YES/NO
-                    // market for this session task via canonical sequencer
-                    // admission. PR1: single worker (`worker-alpha`); PR2 will
-                    // fan out N parallel workers via RunConfig.agent_ids.
+                    // Polymarket PR-B (2026-05-23): the first worker's
+                    // accepted artifact is the user-visible delivery. For
+                    // N>1, ask the remaining preseeded workers for their own
+                    // independent candidate bundles and put every candidate
+                    // through the canonical sequencer. UI/panel state is only
+                    // a replay projection over these CAS-backed WorkTxs.
+                    let root_workspace =
+                        root_workspace_for_polymarket(&workspace).map_err(GenError::Io)?;
+                    mirror_artifact_bundle_to_root(&workspace, &root_workspace, &bundle_cid)?;
+                    mirror_test_run_to_root(&workspace, &root_workspace, &test_run_cid)?;
+                    let workers =
+                        polymarket_worker_roster_for_workspace(&workspace, n_parallel_workers)
+                            .map_err(GenError::Io)?;
+                    let mut candidate_proposals = vec![PolymarketCandidateProposal {
+                        worker_agent: workers[0].clone(),
+                        artifact_cid_hex: bundle_cid.clone(),
+                        predicate_passes: true,
+                    }];
+                    for worker in workers.iter().skip(1) {
+                        eprintln!("[polymarket] generating candidate for {worker}...");
+                        let candidate = generate_additional_worker_candidate(
+                            &workspace,
+                            &root_workspace,
+                            &session_id,
+                            worker,
+                            spec_capsule_cid.clone(),
+                            &capsule.spec_source,
+                            &capsule.model_id,
+                            &api_key,
+                            &messages,
+                            blackbox_thinking.clone(),
+                            &tdma_entrypoint,
+                            effective_max_retries,
+                            &tape_backend,
+                            &spec_md,
+                            logical_t,
+                        )?;
+                        eprintln!(
+                            "[polymarket] candidate ready (agent={}, accepted_by_tests={}, proposal_cid={})",
+                            candidate.worker_agent,
+                            candidate.predicate_passes,
+                            candidate
+                                .artifact_cid_hex
+                                .chars()
+                                .take(16)
+                                .collect::<String>()
+                        );
+                        candidate_proposals.push(candidate);
+                    }
                     match emit_polymarket_market_for_session(
                         &workspace,
                         &session_id,
-                        &bundle_cid,
                         logical_t,
+                        &candidate_proposals,
                     ) {
                         Ok(summary) => {
                             eprintln!(
@@ -844,7 +970,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                 );
                             } else {
                                 eprintln!(
-                                    "[polymarket] WorkTx admission landed in L4.E ({}); MarketSeed skipped",
+                                    "[polymarket] no finalized market ({}); MarketSeed skipped",
                                     summary
                                         .rejection_note
                                         .unwrap_or_else(|| "unknown rejection".to_string())
@@ -852,7 +978,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             }
                         }
                         Err(e) => {
-                            // Per Hard Constraint #6 in PR1 brief: do NOT
+                            // Per Hard Constraint #6 in the Polymarket brief: do NOT
                             // swallow errors. Sequencer admission failure on
                             // system genesis state is a system-level break
                             // (kernel surface failure on a known-valid input
@@ -984,7 +1110,11 @@ fn chat_with_tdma_bounded(
         .join("tdma_generate")
         .join(session_id);
     if let Err(e) = fs::create_dir_all(&evidence_dir) {
-        eprintln!("[generate-tdma] cannot create evidence-dir {}: {}", evidence_dir.display(), e);
+        eprintln!(
+            "[generate-tdma] cannot create evidence-dir {}: {}",
+            evidence_dir.display(),
+            e
+        );
     }
 
     let mut judge = AnyJudge::generate(entrypoint.to_string(), false);
@@ -1087,10 +1217,7 @@ fn chat_with_tdma_bounded(
 
     let attempts_inner = attempts.into_inner();
     if attempts_inner.is_empty() {
-        return (
-            Err(LlmError::NoChoices),
-            initial_prompt_hash.to_string(),
-        );
+        return (Err(LlmError::NoChoices), initial_prompt_hash.to_string());
     }
 
     // KILL-gen-3: select the prompt_hash that matches the final probe's body.
@@ -1101,11 +1228,11 @@ fn chat_with_tdma_bounded(
 
     if summary.stages_completed >= 1 {
         eprintln!(
-            "[generate-tdma] stages_completed={}/{} attempts={} wall={:.1}s leak={}",
+            "[generate-tdma] stages_completed={}/{} attempts={} wall={}s leak={}",
             summary.stages_completed,
             summary.stages_total,
             summary.probes.len(),
-            summary.total_wall_clock_ms as f64 / 1000.0,
+            format_ms_tenths(summary.total_wall_clock_ms),
             summary.leak_anywhere
         );
         // Aggregate token counts across all attempts (cumulative cost reporting).
@@ -1130,15 +1257,19 @@ fn chat_with_tdma_bounded(
             .cloned()
             .unwrap_or_else(|| "max-retries".to_string());
         eprintln!(
-            "[generate-tdma] escalated: {} (attempts={} wall={:.1}s)",
+            "[generate-tdma] escalated: {} (attempts={} wall={}s)",
             escalation,
             summary.probes.len(),
-            summary.total_wall_clock_ms as f64 / 1000.0,
+            format_ms_tenths(summary.total_wall_clock_ms),
         );
         // Return the final attempt's content so the existing
         // rejection-capsule path can record the failure with diagnostic detail.
         (Ok(final_result), final_hash)
     }
+}
+
+fn format_ms_tenths(ms: u128) -> String {
+    format!("{}.{:01}", ms / 1000, (ms % 1000) / 100)
 }
 
 fn read_prior_rejection_feedback(workspace: &Path, session_id: &str) -> Option<String> {
@@ -1409,9 +1540,513 @@ fn find_entrypoint(files: &[EmittedFile]) -> Option<String> {
     Some(files[0].path.clone())
 }
 
+fn root_workspace_for_polymarket(workspace: &Path) -> Result<PathBuf, String> {
+    find_root_workspace(workspace).ok_or_else(|| {
+        format!(
+            "could not locate genesis_payload.toml within 3 parents of {}; \
+             expected at workspace root for Polymarket chain anchor",
+            workspace.display()
+        )
+    })
+}
+
+fn polymarket_worker_roster_for_workspace(
+    workspace: &Path,
+    requested: usize,
+) -> Result<Vec<String>, String> {
+    let root_workspace = root_workspace_for_polymarket(workspace)?;
+    let genesis_text = fs::read_to_string(root_workspace.join("genesis_payload.toml"))
+        .map_err(|e| format!("read root genesis_payload.toml: {e}"))?;
+    let preseed = parse_treasury_and_worker_preseed(&genesis_text)
+        .map_err(|e| format!("parse preseed: {e}"))?;
+    let preseed_agent_ids: std::collections::BTreeSet<String> =
+        preseed.iter().map(|(agent, _)| agent.0.clone()).collect();
+    polymarket_workers_for_preseed(&preseed_agent_ids, requested)
+}
+
+fn write_artifact_bundle_for_candidate(
+    workspace: &Path,
+    session_id: &str,
+    spec_capsule_cid: Option<String>,
+    generation_attempt_cid: String,
+    previous_bundle_cid: Option<String>,
+    files: &[EmittedFile],
+    logical_t: u64,
+) -> Result<String, GenError> {
+    let cas_dir = workspace.join("cas");
+    let mut store =
+        CasStore::open(&cas_dir).map_err(|e| GenError::Io(format!("open cas store: {e}")))?;
+    let entrypoint_path = find_entrypoint(files).unwrap_or_default();
+    let mut file_entries = Vec::new();
+    let mut bundle_size_bytes_total = 0u64;
+
+    for f in files {
+        sanitize_relative_path(&f.path).map_err(GenError::Io)?;
+        let content_bytes = f.content.as_bytes();
+        let size_bytes = content_bytes.len() as u64;
+        bundle_size_bytes_total += size_bytes;
+
+        let mut hasher = Sha256::new();
+        hasher.update(content_bytes);
+        let sha256_hex = format!("{:x}", hasher.finalize());
+        let role = if f.path == entrypoint_path {
+            ArtifactFileRole::Entrypoint
+        } else if f.path.ends_with(".html")
+            || f.path.ends_with(".js")
+            || f.path.ends_with(".css")
+            || f.path.ends_with(".ts")
+        {
+            ArtifactFileRole::Source
+        } else {
+            ArtifactFileRole::Asset
+        };
+        let file_cid = store
+            .put(
+                content_bytes,
+                ObjectType::EvidenceCapsule,
+                "generate_system",
+                logical_t,
+                None,
+            )
+            .map_err(|e| GenError::Io(format!("CAS put candidate file failed: {e}")))?;
+
+        file_entries.push(ArtifactFileEntry {
+            path: f.path.clone(),
+            cid: file_cid.hex(),
+            mime: guess_mime(&f.path),
+            sha256: sha256_hex,
+            size_bytes,
+            role,
+        });
+    }
+
+    let manifest = ArtifactBundleManifest {
+        schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
+        session_id: session_id.to_string(),
+        spec_capsule_cid,
+        generation_attempt_cid,
+        previous_bundle_cid,
+        files: file_entries,
+        entrypoint: entrypoint_path,
+        bundle_size_bytes_total,
+        created_at_logical_t: logical_t,
+    };
+
+    write_artifact_bundle(workspace, &manifest).map_err(GenError::Capsule)
+}
+
+fn parse_cid_hex_for_generate(cid_hex: &str) -> Result<Cid, GenError> {
+    cid_from_hex_str(cid_hex).map_err(|e| GenError::Io(format!("decode cid {cid_hex}: {e}")))
+}
+
+fn mirror_cas_cid_to_root(
+    source_workspace: &Path,
+    root_workspace: &Path,
+    cid_hex: &str,
+) -> Result<(), GenError> {
+    if source_workspace == root_workspace {
+        return Ok(());
+    }
+    let cid = parse_cid_hex_for_generate(cid_hex)?;
+    let source_cas_dir = source_workspace.join("cas");
+    let root_cas_dir = root_workspace.join("cas");
+    let source_store = CasStore::open(&source_cas_dir)
+        .map_err(|e| GenError::Io(format!("open source cas: {e}")))?;
+    let mut root_store =
+        CasStore::open(&root_cas_dir).map_err(|e| GenError::Io(format!("open root cas: {e}")))?;
+    if root_store.get(&cid).is_ok() {
+        return Ok(());
+    }
+    let metadata = source_store
+        .metadata(&cid)
+        .cloned()
+        .ok_or_else(|| GenError::Io(format!("source CAS metadata missing for {cid_hex}")))?;
+    let bytes = source_store
+        .get(&cid)
+        .map_err(|e| GenError::Io(format!("source CAS object missing for {cid_hex}: {e}")))?;
+    root_store
+        .put(
+            &bytes,
+            metadata.object_type,
+            &metadata.creator,
+            metadata.created_at_logical_t,
+            metadata.schema_id.clone(),
+        )
+        .map_err(|e| GenError::Io(format!("mirror CAS object {cid_hex} to root: {e}")))?;
+    Ok(())
+}
+
+fn mirror_generation_attempt_to_root(
+    source_workspace: &Path,
+    root_workspace: &Path,
+    attempt_cid_hex: &str,
+) -> Result<(), GenError> {
+    mirror_cas_cid_to_root(source_workspace, root_workspace, attempt_cid_hex)?;
+    if source_workspace == root_workspace {
+        return Ok(());
+    }
+    let cid = parse_cid_hex_for_generate(attempt_cid_hex)?;
+    let store = CasStore::open(&source_workspace.join("cas"))
+        .map_err(|e| GenError::Io(format!("open source cas: {e}")))?;
+    let bytes = store
+        .get(&cid)
+        .map_err(|e| GenError::Io(format!("read generation attempt {attempt_cid_hex}: {e}")))?;
+    let attempt: GenerationAttemptCapsule = serde_json::from_slice(&bytes).map_err(|e| {
+        GenError::Io(format!(
+            "deserialize generation attempt {attempt_cid_hex}: {e}"
+        ))
+    })?;
+    if let Some(raw_cid) = attempt.raw_output_cid {
+        mirror_cas_cid_to_root(source_workspace, root_workspace, &raw_cid)?;
+    }
+    Ok(())
+}
+
+fn mirror_artifact_bundle_to_root(
+    source_workspace: &Path,
+    root_workspace: &Path,
+    bundle_cid_hex: &str,
+) -> Result<(), GenError> {
+    if source_workspace == root_workspace {
+        return Ok(());
+    }
+    let cid = parse_cid_hex_for_generate(bundle_cid_hex)?;
+    let store = CasStore::open(&source_workspace.join("cas"))
+        .map_err(|e| GenError::Io(format!("open source cas: {e}")))?;
+    let bytes = store
+        .get(&cid)
+        .map_err(|e| GenError::Io(format!("read artifact bundle {bundle_cid_hex}: {e}")))?;
+    let manifest: ArtifactBundleManifest = serde_json::from_slice(&bytes)
+        .map_err(|e| GenError::Io(format!("deserialize artifact bundle {bundle_cid_hex}: {e}")))?;
+    for file in &manifest.files {
+        mirror_cas_cid_to_root(source_workspace, root_workspace, &file.cid)?;
+    }
+    mirror_generation_attempt_to_root(
+        source_workspace,
+        root_workspace,
+        &manifest.generation_attempt_cid,
+    )?;
+    mirror_cas_cid_to_root(source_workspace, root_workspace, bundle_cid_hex)?;
+    Ok(())
+}
+
+fn mirror_test_run_to_root(
+    source_workspace: &Path,
+    root_workspace: &Path,
+    test_run_cid_hex: &str,
+) -> Result<(), GenError> {
+    mirror_cas_cid_to_root(source_workspace, root_workspace, test_run_cid_hex)?;
+    if source_workspace == root_workspace {
+        return Ok(());
+    }
+    let cid = parse_cid_hex_for_generate(test_run_cid_hex)?;
+    let store = CasStore::open(&source_workspace.join("cas"))
+        .map_err(|e| GenError::Io(format!("open source cas: {e}")))?;
+    let bytes = store
+        .get(&cid)
+        .map_err(|e| GenError::Io(format!("read test run {test_run_cid_hex}: {e}")))?;
+    let test_run: TestRunCapsule = serde_json::from_slice(&bytes)
+        .map_err(|e| GenError::Io(format!("deserialize test run {test_run_cid_hex}: {e}")))?;
+    if !test_run.test_scenario_set_cid.is_empty() {
+        mirror_cas_cid_to_root(
+            source_workspace,
+            root_workspace,
+            &test_run.test_scenario_set_cid,
+        )?;
+    }
+    Ok(())
+}
+
+fn mirror_rejection_capsule_to_root(
+    source_workspace: &Path,
+    root_workspace: &Path,
+    rejection_cid_hex: &str,
+) -> Result<(), GenError> {
+    mirror_cas_cid_to_root(source_workspace, root_workspace, rejection_cid_hex)?;
+    if source_workspace == root_workspace {
+        return Ok(());
+    }
+    let cid = parse_cid_hex_for_generate(rejection_cid_hex)?;
+    let store = CasStore::open(&source_workspace.join("cas"))
+        .map_err(|e| GenError::Io(format!("open source cas: {e}")))?;
+    let bytes = store
+        .get(&cid)
+        .map_err(|e| GenError::Io(format!("read rejection capsule {rejection_cid_hex}: {e}")))?;
+    let rejection: GenerateRejectionCapsule = serde_json::from_slice(&bytes).map_err(|e| {
+        GenError::Io(format!(
+            "deserialize rejection capsule {rejection_cid_hex}: {e}"
+        ))
+    })?;
+    if let Some(attempt_cid) = rejection.generation_attempt_cid {
+        mirror_generation_attempt_to_root(source_workspace, root_workspace, &attempt_cid)?;
+    }
+    if let Some(private_cid) = rejection.private_diagnostic_cid {
+        mirror_cas_cid_to_root(source_workspace, root_workspace, &private_cid)?;
+    }
+    Ok(())
+}
+
+fn write_candidate_rejection_capsule(
+    workspace: &Path,
+    session_id: &str,
+    spec_capsule_cid: Option<String>,
+    generation_attempt_cid: Option<String>,
+    reject_class: RejectClass,
+    public_error_summary: String,
+    reason: String,
+    private_diagnostic_cid: Option<String>,
+    retryable: bool,
+    logical_t: u64,
+) -> Result<String, GenError> {
+    let rejection = GenerateRejectionCapsule {
+        schema_id: GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+        session_id: session_id.to_string(),
+        spec_capsule_cid,
+        generation_attempt_cid,
+        triage_attempted: true,
+        reject_class,
+        public_error_summary,
+        reason,
+        private_diagnostic_cid,
+        retryable,
+        world_head_unchanged: false,
+        logical_t,
+    };
+    write_generate_rejection_capsule_observed(workspace, &rejection).map_err(GenError::Capsule)
+}
+
+/// TRACE_MATRIX FC2-N16 + FC1-N14: failed primary generate attempts still
+/// become canonical rejected market evidence. The proposal payload CID must
+/// already resolve in the root workspace CAS; this helper only builds the
+/// rejected alpha WorkTx and lets the canonical sequencer route it to L4.E.
+fn emit_rejected_primary_polymarket_candidate(
+    workspace: &Path,
+    session_id: &str,
+    logical_t: u64,
+    proposal_payload_cid_hex: &str,
+) -> Result<PolymarketEmitSummary, GenError> {
+    let candidate = PolymarketCandidateProposal {
+        worker_agent: WORKER_ALPHA_AGENT_ID.to_string(),
+        artifact_cid_hex: proposal_payload_cid_hex.to_string(),
+        predicate_passes: false,
+    };
+    emit_polymarket_market_for_session(workspace, session_id, logical_t, &[candidate]).map_err(
+        |e| {
+            GenError::Io(format!(
+                "[polymarket] rejected WorkTx admission failed: {e}"
+            ))
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generate_additional_worker_candidate(
+    workspace: &Path,
+    root_workspace: &Path,
+    base_session_id: &str,
+    worker_agent: &str,
+    spec_capsule_cid: Option<String>,
+    spec_source: &str,
+    model_id: &str,
+    api_key: &str,
+    base_messages: &[ChatMessage],
+    blackbox_thinking: Option<crate::chat_client::ThinkingConfig>,
+    tdma_entrypoint: &str,
+    effective_max_retries: usize,
+    tape_backend: &str,
+    spec_md: &str,
+    logical_t: u64,
+) -> Result<PolymarketCandidateProposal, GenError> {
+    let candidate_session_id = format!("{base_session_id}::{worker_agent}");
+    let worker_messages: Vec<ChatMessage> = base_messages
+        .iter()
+        .map(|m| {
+            if m.role == "user" {
+                ChatMessage::user(format!(
+                    "Worker candidate id: {worker_agent}\n\
+                     Produce this worker's independent candidate artifact. \
+                     The market will admit or reject your WorkTx from CAS-backed tests.\n\n{}",
+                    m.content
+                ))
+            } else {
+                m.clone()
+            }
+        })
+        .collect();
+    let canonical_request_bytes = canonical_chat_request_bytes(
+        model_id,
+        &worker_messages,
+        Some(6000),
+        Some(0.2),
+        blackbox_thinking.clone(),
+    )
+    .map_err(GenError::Llm)?;
+    let mut hasher = Sha256::new();
+    hasher.update(&canonical_request_bytes);
+    let prompt_hash = format!("{:x}", hasher.finalize());
+
+    let (llm_res, final_prompt_hash) = chat_with_tdma_bounded(
+        workspace,
+        &candidate_session_id,
+        api_key,
+        model_id,
+        &worker_messages,
+        blackbox_thinking,
+        tdma_entrypoint,
+        effective_max_retries,
+        &prompt_hash,
+        tape_backend,
+    );
+
+    let cas_dir = workspace.join("cas");
+    let (outcome, raw_output_cid, usage_total_tokens, parsed_file_count, files, error_summary) =
+        match llm_res {
+            Err(e) => (
+                AttemptOutcome::LlmApiError,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some(e.to_string()),
+            ),
+            Ok(result) => {
+                let raw_cid = match CasStore::open(&cas_dir) {
+                    Ok(mut store) => store
+                        .put(
+                            result.raw_response_body.as_slice(),
+                            ObjectType::EvidenceCapsule,
+                            "generate_system",
+                            logical_t,
+                            None,
+                        )
+                        .ok()
+                        .map(|cid| cid.hex()),
+                    Err(_) => None,
+                };
+                let files = parse_emitted_files(&result.content);
+                if files.is_empty() {
+                    (
+                        AttemptOutcome::NoFilesParsed,
+                        raw_cid,
+                        Some(result.usage.total_tokens as u32),
+                        0,
+                        files,
+                        Some("Blackbox LLM emitted no parseable files".to_string()),
+                    )
+                } else {
+                    let parsed_file_count = files.len();
+                    (
+                        AttemptOutcome::Success,
+                        raw_cid,
+                        Some(result.usage.total_tokens as u32),
+                        parsed_file_count,
+                        files,
+                        None,
+                    )
+                }
+            }
+        };
+
+    let attempt = GenerationAttemptCapsule {
+        schema_id: GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string(),
+        session_id: candidate_session_id.clone(),
+        spec_capsule_cid: spec_capsule_cid.clone(),
+        spec_source: spec_source.to_string(),
+        model_id: model_id.to_string(),
+        model_seed: None,
+        prompt_hash: final_prompt_hash,
+        raw_output_cid: raw_output_cid.clone(),
+        usage_total_tokens,
+        retry_index: 0,
+        parent_attempt_cid: None,
+        outcome,
+        parsed_file_count,
+        logical_t,
+    };
+    let attempt_cid = write_generation_attempt_capsule(workspace, &attempt)?;
+
+    if outcome != AttemptOutcome::Success {
+        let reject_class = match outcome {
+            AttemptOutcome::LlmApiError => RejectClass::LlmApiError,
+            AttemptOutcome::NoFilesParsed => RejectClass::NoFilesParsed,
+            AttemptOutcome::ParseFailed => RejectClass::TooManyFiles,
+            AttemptOutcome::InternalIo => RejectClass::InternalIo,
+            AttemptOutcome::Success => unreachable!(),
+        };
+        let rejection_cid = write_candidate_rejection_capsule(
+            workspace,
+            &candidate_session_id,
+            spec_capsule_cid,
+            Some(attempt_cid),
+            reject_class,
+            error_summary.unwrap_or_else(|| "worker candidate failed".to_string()),
+            format!("worker_candidate_failed:{worker_agent}"),
+            raw_output_cid,
+            true,
+            logical_t,
+        )?;
+        mirror_rejection_capsule_to_root(workspace, root_workspace, &rejection_cid)?;
+        return Ok(PolymarketCandidateProposal {
+            worker_agent: worker_agent.to_string(),
+            artifact_cid_hex: rejection_cid,
+            predicate_passes: false,
+        });
+    }
+
+    let attempt_cid_for_rejection = attempt_cid.clone();
+    let bundle_cid = write_artifact_bundle_for_candidate(
+        workspace,
+        &candidate_session_id,
+        spec_capsule_cid.clone(),
+        attempt_cid,
+        None,
+        &files,
+        logical_t,
+    )?;
+    let spec_capsule_cid_for_test = spec_capsule_cid.as_deref().unwrap_or("");
+    let (test_run_cid, overall_pass, test_results) = run_and_write_test_pipeline(
+        workspace,
+        spec_md.as_bytes(),
+        spec_capsule_cid_for_test,
+        &bundle_cid,
+        logical_t,
+    )
+    .map_err(|e| GenError::Io(format!("candidate test pipeline error: {e}")))?;
+    mirror_artifact_bundle_to_root(workspace, root_workspace, &bundle_cid)?;
+    mirror_test_run_to_root(workspace, root_workspace, &test_run_cid)?;
+
+    if !overall_pass {
+        let rejection_cid = write_candidate_rejection_capsule(
+            workspace,
+            &candidate_session_id,
+            spec_capsule_cid,
+            Some(attempt_cid_for_rejection),
+            RejectClass::HeuristicFailed,
+            "worker candidate artifacts failed spec-derived tests".to_string(),
+            format!("worker_candidate_heuristic_failed:{worker_agent}:test_run_cid={test_run_cid}"),
+            None,
+            true,
+            logical_t,
+        )?;
+        let _ = format_test_run_summary(&test_results);
+        mirror_rejection_capsule_to_root(workspace, root_workspace, &rejection_cid)?;
+        return Ok(PolymarketCandidateProposal {
+            worker_agent: worker_agent.to_string(),
+            artifact_cid_hex: bundle_cid,
+            predicate_passes: false,
+        });
+    }
+
+    Ok(PolymarketCandidateProposal {
+        worker_agent: worker_agent.to_string(),
+        artifact_cid_hex: bundle_cid,
+        predicate_passes: true,
+    })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Polymarket (2026-05-23 REVISED post-Codex/Karpathy audit) — post-judge
-// WorkTx + MarketSeedTx emission via the canonical workspace ChainTape.
+// WorkTx candidate admission + settlement via canonical workspace ChainTape.
 //
 // Wires the existing `turingos generate` flow into the kernel's WorkTx /
 // market surfaces through `build_chaintape_sequencer_with_initial_q` (TB-G
@@ -1423,7 +2058,7 @@ fn find_entrypoint(files: &[EmittedFile]) -> Option<String> {
 //
 // Architectural decisions:
 //   - NO new CLI subcommand (extends existing `generate` only)
-//   - Worker hardcoded to "worker-alpha" (PR2 makes this RunConfig-driven)
+//   - Worker roster is `worker-alpha/beta/gamma`, bounded by genesis preseed
 //   - Bounty = 1000µ (treasury-funded); WorkTx.stake = 100µ; MarketSeed = 100µ
 //     each side (= bounty / 10 per architect manual §7.4)
 //   - Sequencer admission auto-runs predicates → L4 or L4.E (no shadow ledger)
@@ -1448,6 +2083,13 @@ pub(crate) struct PolymarketEmitSummary {
     pub(crate) rejection_note: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct PolymarketCandidateProposal {
+    worker_agent: String,
+    artifact_cid_hex: String,
+    predicate_passes: bool,
+}
+
 impl std::fmt::Display for PolymarketEmitSummary {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(note) = &self.rejection_note {
@@ -1458,6 +2100,55 @@ impl std::fmt::Display for PolymarketEmitSummary {
     }
 }
 
+fn write_polymarket_proposal_telemetry(
+    cas: &mut CasStore,
+    task_id: &str,
+    session_id: &str,
+    logical_t: u64,
+    proposal_index: u64,
+    candidate: &PolymarketCandidateProposal,
+    artifact_cid: Cid,
+) -> Result<Cid, String> {
+    cas.get(&artifact_cid).map_err(|e| {
+        format!(
+            "candidate artifact {} for {} is not reconstructable in root CAS: {e}",
+            artifact_cid.hex(),
+            candidate.worker_agent
+        )
+    })?;
+
+    let mut hctx = Sha256::new();
+    hctx.update(b"turingosv4.polymarket.generate.proposal_context.v1");
+    hctx.update(task_id.as_bytes());
+    hctx.update(session_id.as_bytes());
+    hctx.update(candidate.worker_agent.as_bytes());
+    hctx.update(proposal_index.to_be_bytes());
+    hctx.update(artifact_cid.0);
+    let prompt_context_hash = Hash(hctx.finalize().into());
+
+    let candidate_tactic = if candidate.predicate_passes {
+        "generate-artifact-pass"
+    } else {
+        "generate-artifact-reject"
+    };
+    let telemetry = ProposalTelemetry::new_root(
+        AgentId(candidate.worker_agent.clone()),
+        prompt_context_hash,
+        artifact_cid,
+        candidate_tactic.to_string(),
+        TokenCounts::default(),
+        format!("polymarket.{session_id}.b{proposal_index}"),
+    );
+    write_proposal_telemetry_to_cas(cas, &telemetry, &candidate.worker_agent, logical_t).map_err(
+        |e| {
+            format!(
+                "write ProposalTelemetry for {}: {e}",
+                candidate.worker_agent
+            )
+        },
+    )
+}
+
 /// TRACE_MATRIX FC2-N16 + FC1: Polymarket (2026-05-23 revised) — orchestrate
 /// the post-judge sequencer admission flow against the workspace's canonical
 /// ChainTape.
@@ -1466,8 +2157,9 @@ impl std::fmt::Display for PolymarketEmitSummary {
 /// `build_chaintape_sequencer_with_initial_q` (TB-G G1.1 architect-signed
 /// `resume_existing_chain: true` mode — empty `runtime_repo` → fresh
 /// bootstrap with preseed; non-empty → resume + replay). Submits the
-/// canonical `TaskOpen → EscrowLock → WorkTx [→ MarketSeed]` sequence so
-/// WorkTx admission is REAL (per architect ruling 2026-05-23: "内核必须一致，
+/// canonical `TaskOpen → EscrowLock → WorkTx* [→ MarketSeed → Verify →
+/// FinalizeReward → EventResolve]` sequence so WorkTx admission is REAL
+/// (per architect ruling 2026-05-23: "内核必须一致，
 /// 先有个中央银行" — no simulation branch, treasury preseed via the only
 /// allow-listed boot surface).
 ///
@@ -1484,10 +2176,13 @@ impl std::fmt::Display for PolymarketEmitSummary {
 fn emit_polymarket_market_for_session(
     workspace: &Path,
     session_id: &str,
-    bundle_cid_hex: &str,
     logical_t: u64,
+    candidate_proposals: &[PolymarketCandidateProposal],
 ) -> Result<PolymarketEmitSummary, String> {
     let task_id_str = polymarket_task_id_for_session(session_id);
+    if candidate_proposals.is_empty() {
+        return Err("at least one Polymarket worker candidate is required".to_string());
+    }
 
     // Codex P1 #1 fix (2026-05-23): `--workspace` may be a session subdir
     // (e.g. `<root>/sessions/<session_id>`) when invoked by the web flow
@@ -1499,23 +2194,36 @@ fn emit_polymarket_market_for_session(
     // and web (workspace is `<root>/sessions/<id>`, depth 2) both resolve
     // correctly. Cap at 3 to avoid escaping into unrelated parent projects
     // during local tests.
-    let root_workspace =
-        find_root_workspace(workspace).ok_or_else(|| {
-            format!(
-                "could not locate genesis_payload.toml within 3 parents of {}; \
-                 expected at workspace root for Polymarket chain anchor",
-                workspace.display()
-            )
-        })?;
+    let root_workspace = root_workspace_for_polymarket(workspace)?;
 
     let genesis_text = fs::read_to_string(root_workspace.join("genesis_payload.toml"))
         .map_err(|e| format!("read root genesis_payload.toml: {e}"))?;
     let preseed = parse_treasury_and_worker_preseed(&genesis_text)
         .map_err(|e| format!("parse preseed: {e}"))?;
+    let preseed_agent_ids: std::collections::BTreeSet<String> =
+        preseed.iter().map(|(agent, _)| agent.0.clone()).collect();
+    let verifier_agent = if preseed_agent_ids.contains(VERIFIER_ALPHA_AGENT_ID) {
+        VERIFIER_ALPHA_AGENT_ID.to_string()
+    } else {
+        TREASURY_AGENT_ID.to_string()
+    };
+    let market_provider = if preseed_agent_ids.contains(MARKET_PROVIDER_AGENT_ID) {
+        MARKET_PROVIDER_AGENT_ID.to_string()
+    } else {
+        TREASURY_AGENT_ID.to_string()
+    };
+    let workers = polymarket_workers_for_preseed(&preseed_agent_ids, candidate_proposals.len())?;
+    let candidate_agents: Vec<String> = candidate_proposals
+        .iter()
+        .map(|candidate| candidate.worker_agent.clone())
+        .collect();
+    if candidate_agents != workers {
+        return Err(format!(
+            "candidate worker roster {:?} does not match preseed-backed roster {:?}",
+            candidate_agents, workers
+        ));
+    }
     let initial_q = genesis_with_balances(&preseed);
-
-    let proposal_cid = cid_from_hex_str(bundle_cid_hex)
-        .map_err(|e| format!("decode bundle_cid_hex: {e}"))?;
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -1545,11 +2253,13 @@ fn emit_polymarket_market_for_session(
             queue_capacity: 16,
             resume_existing_chain: true,
         };
-        let bundle: ChaintapeBundle =
-            build_chaintape_sequencer_with_initial_q(&config, initial_q)
-                .map_err(|e| format!("open canonical chaintape: {e}"))?;
+        let bundle: ChaintapeBundle = build_chaintape_sequencer_with_initial_q(&config, initial_q)
+            .map_err(|e| format!("open canonical chaintape: {e}"))?;
         let seq = bundle.sequencer.clone();
         let rejection_writer = bundle.rejection_writer.clone();
+        let mut keypairs =
+            open_polymarket_agent_registry(&root_workspace, &config.runtime_repo_path)
+                .map_err(|e| format!("open polymarket agent registry: {e}"))?;
         // Snapshot rejection-record count before our admissions so we can
         // tell which rejections (if any) belong to THIS call. The chain
         // may already carry prior rejections from earlier invocations.
@@ -1558,111 +2268,217 @@ fn emit_polymarket_market_for_session(
             .map_err(|e| format!("rejection_writer pre-read poison: {e}"))?
             .records()
             .len();
+        let existing_q = seq
+            .q_snapshot()
+            .map_err(|e| format!("q_snapshot @ existing market check: {e:?}"))?;
+        let task_id = TaskId(task_id_str.clone());
+        if let Some(existing_market) = existing_q.economic_state_t.task_markets_t.0.get(&task_id) {
+            if existing_market.state == TaskMarketState::Finalized {
+                return Ok(PolymarketEmitSummary {
+                    worker_agent: workers.join(","),
+                    task_id: task_id_str,
+                    proposal_cid_hex_prefix: candidate_proposals[0]
+                        .artifact_cid_hex
+                        .chars()
+                        .take(16)
+                        .collect::<String>(),
+                    market_opened: true,
+                    rejection_note: None,
+                });
+            }
+            let event_id = EventId(task_id.clone());
+            if existing_market.state != TaskMarketState::Open
+                || existing_q
+                    .economic_state_t
+                    .conditional_collateral_t
+                    .0
+                    .contains_key(&event_id)
+            {
+                return Ok(PolymarketEmitSummary {
+                    worker_agent: workers.join(","),
+                    task_id: task_id_str,
+                    proposal_cid_hex_prefix: candidate_proposals[0]
+                        .artifact_cid_hex
+                        .chars()
+                        .take(16)
+                        .collect::<String>(),
+                    market_opened: existing_market.state == TaskMarketState::Open,
+                    rejection_note: None,
+                });
+            }
+        }
 
         // ──────────────── Pre-compute parent_state_roots ────────────────
         // Pre-compute the expected post-each-tx state roots via the kernel's
-        // pure `*_accept_state_root` helpers so all 4 txs can be submitted in
-        // one batch (the driver applies them in FIFO order). This mirrors
+        // pure `*_accept_state_root` helpers so the agent tx batch can be
+        // submitted in FIFO order. This mirrors
         // tb_14's pattern: pre-compute the post-mint root for the redeem's
         // parent_state_root. Without pre-computation, the driver's async
         // apply would race the next `q_snapshot()` read.
-        let root_0 = seq
-            .q_snapshot()
-            .map_err(|e| format!("q_snapshot @ root_0: {e:?}"))?
-            .state_root_t;
-        let task_open_tx = TypedTx::TaskOpen(TaskOpenTx {
-            tx_id: TxId(format!("polymarket-taskopen-{session_id}-{logical_t}")),
-            task_id: TaskId(task_id_str.clone()),
-            parent_state_root: root_0,
-            sponsor_agent: AgentId(TREASURY_AGENT_ID.into()),
-            verifier_quorum: 1,
-            max_reuse_royalty_fraction_basis_points: 0,
-            settlement_rule_hash: StateHash::ZERO,
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: logical_t,
-        });
-        let root_1 = task_open_accept_state_root(&root_0, &task_open_tx);
+        let suffix = format!("{session_id}-{logical_t}");
+        let existing_market = existing_q.economic_state_t.task_markets_t.0.get(&task_id);
+        let mut txs: Vec<TypedTx> = Vec::new();
+        let mut current_root = existing_q.state_root_t;
+        let needs_task_open = existing_market.is_none();
+        let needs_escrow = existing_market
+            .map(|market| market.total_escrow.micro_units() <= 0)
+            .unwrap_or(true);
 
-        let escrow_tx = TypedTx::EscrowLock(EscrowLockTx {
-            tx_id: TxId(format!("polymarket-escrowlock-{session_id}-{logical_t}")),
-            task_id: TaskId(task_id_str.clone()),
-            parent_state_root: root_1,
-            sponsor_agent: AgentId(TREASURY_AGENT_ID.into()),
-            amount: MicroCoin::from_micro_units(DEFAULT_BOUNTY_MICRO),
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: logical_t,
-        });
-        let root_2 = escrow_lock_accept_state_root(&root_1, &escrow_tx);
+        if needs_task_open {
+            let task_open_tx = make_real_task_open_signed_by(
+                &mut keypairs,
+                &task_id_str,
+                TREASURY_AGENT_ID,
+                current_root,
+                &suffix,
+                logical_t,
+            )
+            .map_err(|e| format!("build signed TaskOpenTx: {e:?}"))?;
+            current_root = task_open_accept_state_root(&current_root, &task_open_tx);
+            txs.push(task_open_tx);
+        }
 
-        let mut acceptance = std::collections::BTreeMap::new();
-        // The TDMA judge ALREADY signed off on the artifact (we're in the
-        // post-judge-success branch). Surface that pass-verdict as an
-        // acceptance predicate row so the WorkTx admission Step 2 succeeds.
-        acceptance.insert(
-            PredicateId("tdma_judge_generate".into()),
-            BoolWithProof {
-                value: true,
-                proof_cid: None,
-            },
-        );
-        let work_tx_id_str = format!("polymarket-worktx-{session_id}-{logical_t}");
-        let work_tx = TypedTx::Work(WorkTx {
-            tx_id: TxId(work_tx_id_str.clone()),
-            task_id: TaskId(task_id_str.clone()),
-            parent_state_root: root_2,
-            agent_id: AgentId(WORKER_ALPHA_AGENT_ID.into()),
-            // Minimal read/write sets — records the spec capsule + bundle
-            // cid as semantic anchors (mirrors `adapter::make_real_worktx_signed_by`).
-            read_set: [ReadKey("spec_capsule".into())].into_iter().collect(),
-            write_set: [WriteKey("artifact_bundle".into())].into_iter().collect(),
-            proposal_cid,
-            predicate_results: PredicateResultsBundle {
-                acceptance,
-                settlement: std::collections::BTreeMap::new(),
-                safety_class: SafetyOrCreation::Safety,
-            },
-            stake: StakeMicroCoin::from_micro_units(DEFAULT_WORK_STAKE_MICRO),
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: logical_t,
-        });
-        let root_3 = worktx_accept_state_root(&root_2, &work_tx);
+        if needs_escrow {
+            let escrow_tx = make_real_escrow_lock_signed_by(
+                &mut keypairs,
+                &task_id_str,
+                TREASURY_AGENT_ID,
+                DEFAULT_BOUNTY_MICRO,
+                current_root,
+                &suffix,
+                logical_t,
+            )
+            .map_err(|e| format!("build signed EscrowLockTx: {e:?}"))?;
+            current_root = escrow_lock_accept_state_root(&current_root, &escrow_tx);
+            txs.push(escrow_tx);
+        }
 
-        let market_seed_tx = TypedTx::MarketSeed(MarketSeedTx {
-            tx_id: TxId(format!("polymarket-marketseed-{session_id}-{logical_t}")),
-            parent_state_root: root_3,
-            event_id: EventId(TaskId(task_id_str.clone())),
-            provider: AgentId(TREASURY_AGENT_ID.into()),
-            collateral_amount: MicroCoin::from_micro_units(DEFAULT_MARKET_SEED_MICRO),
-            signature: AgentSignature::from_bytes([0u8; 64]),
-            timestamp_logical: logical_t,
-        });
+        let mut work_txs: Vec<TypedTx> = Vec::new();
+        let mut accepted_work_tx_ids: Vec<TxId> = Vec::new();
+        let mut root_cas = CasStore::open(&config.cas_path)
+            .map_err(|e| format!("open root CAS for proposal telemetry: {e}"))?;
+        let mut first_proposal_cid_hex_prefix = String::new();
+        for (proposal_index, candidate) in candidate_proposals.iter().enumerate() {
+            let worker_suffix = if workers.len() == 1 {
+                suffix.clone()
+            } else {
+                format!("{suffix}-{}", candidate.worker_agent)
+            };
+            let artifact_cid = cid_from_hex_str(&candidate.artifact_cid_hex)
+                .map_err(|e| format!("decode candidate artifact_cid_hex: {e}"))?;
+            let proposal_cid = write_polymarket_proposal_telemetry(
+                &mut root_cas,
+                &task_id_str,
+                session_id,
+                logical_t,
+                proposal_index as u64,
+                candidate,
+                artifact_cid,
+            )?;
+            if first_proposal_cid_hex_prefix.is_empty() {
+                first_proposal_cid_hex_prefix =
+                    proposal_cid.hex().chars().take(16).collect::<String>();
+            }
+            let work_tx = make_real_worktx_signed_by(
+                &mut keypairs,
+                &task_id_str,
+                &candidate.worker_agent,
+                current_root,
+                DEFAULT_WORK_STAKE_MICRO,
+                &worker_suffix,
+                proposal_cid,
+                candidate.predicate_passes,
+                logical_t,
+            )
+            .map_err(|e| format!("build signed WorkTx for {}: {e:?}", candidate.worker_agent))?;
+            let work_tx_id = match &work_tx {
+                TypedTx::Work(work) => work.tx_id.clone(),
+                _ => unreachable!("make_real_worktx_signed_by returns Work"),
+            };
+            if candidate.predicate_passes {
+                current_root = worktx_accept_state_root(&current_root, &work_tx);
+                accepted_work_tx_ids.push(work_tx_id);
+            }
+            work_txs.push(work_tx);
+        }
+        let winner_work_tx_id = accepted_work_tx_ids.first().cloned();
+        let work_tx_id_str = winner_work_tx_id.as_ref().map(|tx_id| tx_id.0.clone());
 
-        // ──────────────── Submit all 4 in FIFO order ────────────────
+        txs.extend(work_txs);
+        let verify_tx_id = if let Some(winner_work_tx_id) = winner_work_tx_id.clone() {
+            let market_seed_tx = make_real_market_seed_signed_by(
+                &mut keypairs,
+                current_root,
+                &task_id_str,
+                &market_provider,
+                DEFAULT_MARKET_SEED_MICRO,
+                &suffix,
+                logical_t,
+            )
+            .map_err(|e| format!("build signed MarketSeedTx: {e:?}"))?;
+            let root_4 = market_seed_accept_state_root(&current_root, &market_seed_tx);
+
+            let verify_tx = make_real_verifytx_signed_by(
+                &mut keypairs,
+                root_4,
+                winner_work_tx_id,
+                &verifier_agent,
+                DEFAULT_VERIFY_BOND_MICRO,
+                &suffix,
+                true,
+                logical_t,
+            )
+            .map_err(|e| format!("build signed VerifyTx: {e:?}"))?;
+            let verify_tx_id = match &verify_tx {
+                TypedTx::Verify(verify) => verify.tx_id.clone(),
+                _ => unreachable!("make_real_verifytx_signed_by returns Verify"),
+            };
+            let _root_5 = verify_accept_state_root(&root_4, &verify_tx);
+            txs.push(market_seed_tx);
+            txs.push(verify_tx);
+            Some(verify_tx_id)
+        } else {
+            None
+        };
+
+        seq.set_agent_pubkeys(Arc::new(keypairs.manifest()))
+            .map_err(|_| "agent pubkey manifest was already set".to_string())?;
+
+        // ──────────────── Submit agent txs in FIFO order ────────────────
         // The canonical sequencer's driver task drains the queue; each
         // submit is sync about queue-admission but async about
-        // apply-and-commit. We submit all 4, then `bundle.shutdown()`
-        // drains the queue + waits for the last commit before returning.
-        // If WorkTx is rejected (L4.E), MarketSeed will also reject because
-        // its `parent_state_root = root_3` won't match the actual state.
-        // We detect this via the rejection_writer records after drain.
-        for tx in [task_open_tx, escrow_tx, work_tx, market_seed_tx] {
+        // apply-and-commit. We submit the signed agent txs, then emit the
+        // market seed + verifier txs only when at least one worker candidate
+        // passed tests. All-rejected calls stop after L4.E WorkTx evidence.
+        // `bundle.shutdown()` drains the queue + waits for the last commit.
+        for tx in txs {
             seq.submit_agent_tx(tx)
                 .await
                 .map_err(|e| format!("submit error: {e:?}"))?;
         }
 
-        // TODO(PR3): emit `EventResolveTx` (system-tx) to flip
-        // `task_markets_t[task_id].state` from Open → Finalized once a
-        // verifier-driven decision is in scope. PR1 N=1 has no peer-Worker
-        // critic — the single accepted WorkTx is the winner by definition
-        // but `EventResolveTx` admission requires `parent_state_root ==
-        // current q.state_root_t`, which is racy when the prior 4
-        // admissions are still draining in the driver task. The simpler
-        // path (defer to PR3 with the dedicated isolated-context critic
-        // bot Art. III.3 requires) keeps this PR surgical. Until then,
-        // `market_view.rs` surfaces `market_state: "open"` for any
-        // accepted-but-unresolved market — the web UI must distinguish
-        // open vs finalized when rendering.
+        if let Some(verify_tx_id) = verify_tx_id {
+            let finalized = tb8_emit_finalize_after_verify(&seq, &verify_tx_id, 5_000)
+                .await
+                .map_err(|e| format!("emit FinalizeReward after VerifyTx: {e:?}"))?;
+            if !finalized {
+                return Err("VerifyTx did not create a claim before finalize poll expired".into());
+            }
+
+            let resolved = tb_n2_emit_event_resolve_after_finalize(
+                &seq,
+                TaskId(task_id_str.clone()),
+                &verify_tx_id,
+                5_000,
+            )
+            .await
+            .map_err(|e| format!("emit EventResolve after FinalizeReward: {e:?}"))?;
+            if !resolved {
+                return Err(
+                    "FinalizeReward did not settle before EventResolve poll expired".into(),
+                );
+            }
+        }
 
         let seq_handle = seq.clone();
         bundle
@@ -1679,12 +2495,16 @@ fn emit_polymarket_market_for_session(
         let post_q = seq_handle
             .q_snapshot()
             .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
-        let work_tx_id = TxId(work_tx_id_str.clone());
-        let work_tx_accepted = post_q
-            .economic_state_t
-            .stakes_t
-            .0
-            .contains_key(&work_tx_id);
+        let work_tx_accepted = work_tx_id_str
+            .as_ref()
+            .map(|tx_id| {
+                post_q
+                    .economic_state_t
+                    .stakes_t
+                    .0
+                    .contains_key(&TxId(tx_id.clone()))
+            })
+            .unwrap_or(false);
 
         // Determine if the MarketSeed admitted — the YES/NO cpmm pools or
         // `conditional_collateral_t` entry presence signals MarketSeed
@@ -1711,15 +2531,17 @@ fn emit_polymarket_market_for_session(
                     break;
                 }
             }
-            if rejection_note.is_none() {
+            if rejection_note.is_none() && accepted_work_tx_ids.is_empty() {
+                rejection_note = Some("all worker candidates rejected before market seed".into());
+            } else if rejection_note.is_none() {
                 rejection_note = Some("WorkTx admission did not advance task_markets_t".into());
             }
         }
 
         Ok::<PolymarketEmitSummary, String>(PolymarketEmitSummary {
-            worker_agent: WORKER_ALPHA_AGENT_ID.to_string(),
+            worker_agent: workers.join(","),
             task_id: task_id_str,
-            proposal_cid_hex_prefix: bundle_cid_hex.chars().take(16).collect::<String>(),
+            proposal_cid_hex_prefix: first_proposal_cid_hex_prefix,
             market_opened: work_tx_accepted && market_opened,
             rejection_note,
         })
@@ -1771,6 +2593,57 @@ pub(crate) fn find_root_workspace(start: &Path) -> Option<PathBuf> {
     None
 }
 
+/// TRACE_MATRIX FC2-N16 + FC1-N14: choose Polymarket worker roster from the
+/// genesis preseed. Fresh PR-B workspaces have alpha/beta/gamma and can run
+/// N=3. Older PR1 workspaces only have worker-alpha; when asked for N>1 they
+/// degrade to N=1 rather than fabricating unbacked wallets.
+fn polymarket_workers_for_preseed(
+    preseed_agent_ids: &std::collections::BTreeSet<String>,
+    requested: usize,
+) -> Result<Vec<String>, String> {
+    if !(1..=3).contains(&requested) {
+        return Err(format!(
+            "n_parallel_workers must be in 1..=3; got {requested}"
+        ));
+    }
+    let available: Vec<String> = POLYMARKET_WORKER_IDS
+        .iter()
+        .filter(|id| preseed_agent_ids.contains(**id))
+        .map(|id| (*id).to_string())
+        .collect();
+    if requested > available.len() {
+        if preseed_agent_ids.contains(WORKER_ALPHA_AGENT_ID) {
+            return Ok(vec![WORKER_ALPHA_AGENT_ID.to_string()]);
+        }
+        return Err("genesis preseed has no worker-alpha wallet".to_string());
+    }
+    Ok(available.into_iter().take(requested).collect())
+}
+
+/// TRACE_MATRIX FC1-N14 + FC2-N16: Polymarket worker signing registry.
+///
+/// The public replay input is `<runtime_repo>/agent_pubkeys.json`; the
+/// encrypted private side is workspace-local and never written to CAS,
+/// stdout, stderr, or evidence capsules. Existing workspaces that predate
+/// PR-B have no agent manifest, so they initialize the registry on the next
+/// generate; workspaces that already have the manifest resume fail-closed
+/// from the encrypted keystore.
+fn open_polymarket_agent_registry(
+    root_workspace: &Path,
+    runtime_repo_path: &Path,
+) -> Result<AgentKeypairRegistry, String> {
+    let keystore_path = root_workspace.join(".turingos_agent_keystore.enc");
+    let password = keystore_password_from_env();
+    let manifest_path = runtime_repo_path.join("agent_pubkeys.json");
+    if manifest_path.exists() {
+        AgentKeypairRegistry::resume_existing_durable(runtime_repo_path, &keystore_path, password)
+            .map_err(|e| format!("{e}"))
+    } else {
+        AgentKeypairRegistry::generate_or_load_durable(runtime_repo_path, &keystore_path, password)
+            .map_err(|e| format!("{e}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1805,8 +2678,7 @@ mod tests {
         // up 2 levels to find genesis_payload.toml at the root.
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path();
-        std::fs::write(root.join("genesis_payload.toml"), b"# stub")
-            .expect("write stub genesis");
+        std::fs::write(root.join("genesis_payload.toml"), b"# stub").expect("write stub genesis");
         let session_dir = root.join("sessions").join("session-abc");
         std::fs::create_dir_all(&session_dir).expect("mkdir session");
         let resolved = find_root_workspace(&session_dir).expect("walk up to root");
@@ -1820,5 +2692,32 @@ mod tests {
         let deep = tmp.path().join("a").join("b").join("c");
         std::fs::create_dir_all(&deep).expect("mkdir deep");
         assert!(find_root_workspace(&deep).is_none());
+    }
+
+    #[test]
+    fn polymarket_workers_uses_three_when_preseeded() {
+        let ids = [
+            "treasury",
+            "worker-alpha",
+            "worker-beta",
+            "worker-gamma",
+            "verifier-alpha",
+            "market-provider",
+        ]
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
+        let workers = polymarket_workers_for_preseed(&ids, 3).expect("workers");
+        assert_eq!(workers, vec!["worker-alpha", "worker-beta", "worker-gamma"]);
+    }
+
+    #[test]
+    fn polymarket_workers_degrades_old_workspace_to_alpha() {
+        let ids = ["treasury", "worker-alpha"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+        let workers = polymarket_workers_for_preseed(&ids, 3).expect("workers");
+        assert_eq!(workers, vec!["worker-alpha"]);
     }
 }

@@ -27,9 +27,11 @@ use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 
-use crate::common::shell_quote_path;
 use crate::chat_client::{ThinkingConfig, DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
-use turingosv4::runtime::prompt_promotion::{check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError};
+use crate::common::shell_quote_path;
+use turingosv4::runtime::prompt_promotion::{
+    check_promotion_guard, sha256_hex_of_prompt, PromotionGuardError,
+};
 
 /// TRACE_MATRIX FC2-N16: `llm` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -486,8 +488,7 @@ pub(crate) fn read_blackbox_model(workspace: &Path) -> String {
 /// the key is absent — does NOT fall back to the blackbox slot, preventing
 /// silent role-key sharing when users configure separate Meta and Worker keys.
 pub(crate) fn read_meta_api_key_env(workspace: &Path) -> Result<String, LlmError> {
-    read_config_value(workspace, "llm.meta.api_key_env")
-        .ok_or(LlmError::MetaKeyEnvNotConfigured)
+    read_config_value(workspace, "llm.meta.api_key_env").ok_or(LlmError::MetaKeyEnvNotConfigured)
 }
 
 /// TRACE_MATRIX FC2-N16: Blackbox env-var NAME lookup (never the key value).
@@ -684,7 +685,7 @@ fn parse_complete_args(args: &[String]) -> Result<CompleteArgs, String> {
                     "meta" => ModelRole::Meta,
                     "blackbox" => ModelRole::Blackbox,
                     other => {
-                        return Err(format!("unknown --role: {other}; expected meta|blackbox"))
+                        return Err(format!("unknown --role: {other}; expected meta|blackbox"));
                     }
                 };
             }
@@ -1170,6 +1171,7 @@ struct BlackboxClassification {
 
 /// The four valid classification classes (W4.5 spec).
 const VALID_TRIAGE_CLASSES: &[&str] = &["relevant", "off_topic", "abusive", "gibberish"];
+const TRIAGE_MAX_TOKENS: u32 = 512;
 
 /// TRACE_MATRIX FC2-N16 W4.5: parse `triage` CLI args.
 fn parse_triage_args(args: &[String]) -> Result<TriageArgs, String> {
@@ -1239,7 +1241,7 @@ fn parse_triage_args(args: &[String]) -> Result<TriageArgs, String> {
 ///
 /// Classifies a user answer using the Blackbox model. Reads the system prompt
 /// verbatim from `assets/prompts/grill_triage_blackbox_v1.md`, constructs
-/// the user message, calls `chat_complete` with max_tokens=50 temperature=0.0,
+/// the user message, calls `chat_complete` with max_tokens=512 temperature=0.0,
 /// parses the classification JSON, optionally writes a PromptCapsule to CAS,
 /// and prints one JSON result line.
 ///
@@ -1361,7 +1363,7 @@ fn run_triage(args: &[String]) -> ExitCode {
         }
     }
 
-    // ── 7. LLM call (max_tokens=50, temperature=0.0) ────────────────────────
+    // ── 7. LLM call (max_tokens=512, temperature=0.0, thinking off) ─────────
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -1376,16 +1378,14 @@ fn run_triage(args: &[String]) -> ExitCode {
         }
     };
 
-    let blackbox_thinking = read_blackbox_thinking(&ta.workspace);
-
     let t_start = Instant::now();
     let llm_result = rt.block_on(crate::chat_client::chat_complete(
         &api_key,
         &model_id,
         &chat_messages,
-        Some(50),
+        Some(TRIAGE_MAX_TOKENS),
         Some(0.0),
-        blackbox_thinking,
+        None,
     ));
     let elapsed_ms = t_start.elapsed().as_millis();
 
@@ -1893,11 +1893,7 @@ fn run_prompt_eval(args: &[String]) -> ExitCode {
             match read_meta_api_key_env(&pe.workspace) {
                 Ok(v) => v,
                 Err(e) => {
-                    return prompt_eval_err_exit(
-                        "config",
-                        pe.lang.http_err_msg(&e.to_string()),
-                        1,
-                    );
+                    return prompt_eval_err_exit("config", pe.lang.http_err_msg(&e.to_string()), 1);
                 }
             }
         }
@@ -2478,14 +2474,20 @@ fn run_prompt_promote(args: &[String]) -> ExitCode {
     let from_bytes = match std::fs::read(&from_path) {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("turingos llm prompt-eval: cannot read --from {:?}: {e}", from_path);
+            eprintln!(
+                "turingos llm prompt-eval: cannot read --from {:?}: {e}",
+                from_path
+            );
             return ExitCode::from(4);
         }
     };
     let to_bytes = match std::fs::read(&to_path) {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("turingos llm prompt-eval: cannot read --to {:?}: {e}", to_path);
+            eprintln!(
+                "turingos llm prompt-eval: cannot read --to {:?}: {e}",
+                to_path
+            );
             return ExitCode::from(4);
         }
     };

@@ -41,15 +41,13 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[cfg(feature = "web")]
-use super::spec::SpecError;
+use super::spec::{web_llm_child_env_for_api_key, SpecError};
 #[cfg(feature = "web")]
 use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, VerifyMode};
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
 #[cfg(feature = "web")]
-use turingosv4::sdk::sanitized_runner::{
-    env_allowlist_from_current, run_sanitized, SanitizedCommand,
-};
+use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 
 // ---------------------------------------------------------------------------
 // W8 — auto-retry constants
@@ -76,6 +74,9 @@ pub(crate) const MAX_GENERATE_ATTEMPTS: u8 = 3;
 /// `from_capsule`: if true, pass `--from-capsule` to the CLI (reads spec from
 ///   CAS rather than spec.md on disk).
 /// `max_files`: optional cap passed as `--max-files <N>` to the CLI.
+/// `n_parallel_workers`: optional Polymarket worker fan-out. Web defaults to
+///   3 so fresh workspaces surface collaboration; old workspaces degrade in
+///   the CLI if beta/gamma wallets are absent.
 #[cfg(feature = "web")]
 #[derive(Debug, Deserialize)]
 pub(crate) struct GenerateRequest {
@@ -84,6 +85,8 @@ pub(crate) struct GenerateRequest {
     pub(crate) from_capsule: bool,
     #[serde(default)]
     pub(crate) max_files: Option<u32>,
+    #[serde(default)]
+    pub(crate) n_parallel_workers: Option<u8>,
 }
 
 /// TRACE_MATRIX FC1-N5 + FC2-N16: POST /api/generate success response.
@@ -201,8 +204,7 @@ pub(crate) async fn generate_handler(
         if src.exists() && !dst.exists() {
             let src_for_log = src.clone();
             let dst_for_log = dst.clone();
-            let join_result =
-                tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
+            let join_result = tokio::task::spawn_blocking(move || std::fs::copy(&src, &dst)).await;
             match join_result {
                 Ok(Ok(_bytes)) => {}
                 Ok(Err(io_err)) => {
@@ -312,27 +314,11 @@ pub(crate) async fn generate_handler(
             args.push("--max-files".to_string());
             args.push(max_files.to_string());
         }
-        // W7: include the LLM endpoint env var so generate child can reach the
-        // configured provider (e.g. DeepSeek direct). Without this the child
-        // defaults to the SiliconFlow endpoint, causing 401 when the key is a
-        // DeepSeek key.
-        let mut env = env_allowlist_from_current(&[
-            "PATH",
-            "TURINGOS_SILICONFLOW_ENDPOINT",
-            "SILICONFLOW_API_KEY",
-            "DEEPSEEK_API_KEY",
-            "DEEPSEEK_API_KEY_WORKER",
-            "OPENROUTER_API_KEY",
-            "OPENAI_API_KEY",
-        ]);
-        // W7: inject SILICONFLOW_API_KEY from AppState if set. Value lives
-        // in memory only; we do not log it. If unset, the sanitized runner
-        // does not inherit the parent environment.
-        if let Ok(guard) = state.api_key.lock() {
-            if let Some(key) = guard.as_ref() {
-                env.insert("SILICONFLOW_API_KEY".to_string(), key.clone());
-            }
-        }
+        let n_parallel_workers = req.n_parallel_workers.unwrap_or(3).clamp(1, 3);
+        args.push("--n-parallel-workers".to_string());
+        args.push(n_parallel_workers.to_string());
+        let session_api_key = state.api_key.lock().ok().and_then(|guard| guard.clone());
+        let env = web_llm_child_env_for_api_key(session_api_key.as_deref());
         let command = SanitizedCommand {
             program: PathBuf::from(&bin),
             args,
@@ -518,6 +504,12 @@ pub(crate) async fn generate_handler(
             };
             Some(excerpt)
         };
+
+        // Broadcast a Polymarket live hint first. The panel must refetch the
+        // replay-derived endpoint; this event is not itself authoritative.
+        let _ = state.broadcast_tx.send(WsBroadcastMsg::AgentAttemptUpdate {
+            session_id: req.session_id.clone(),
+        });
 
         // Broadcast GenerateComplete (existing contract preserved).
         let artifact_paths: Vec<String> = artifact_entries.iter().map(|e| e.path.clone()).collect();

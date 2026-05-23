@@ -68,7 +68,7 @@ export interface AgentCandidateView {
   l4_state: 'accepted' | 'rejected' | 'pending_dispatch';
   rejection_class: string | null;
   predicate_results: Record<string, boolean>;
-  price_yes: number | null;
+  yes_signal_bp: number | null;
   is_winner: boolean;
 }
 

@@ -64,7 +64,9 @@ fn test_generate_retry_attempts_are_distinct() {
     // Setup mock LLM response
     let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<!DOCTYPE html><html><body><h1>Hello</h1></body></html>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
 
-    let endpoint = start_mock_llm_server(raw_response, 2);
+    // TDMA-bounded generation may make several probe calls per CLI invocation
+    // before the internal zero-gain breaker stops retrying.
+    let endpoint = start_mock_llm_server(raw_response, 8);
 
     // First generate run
     let output1 = Command::new(turingos_bin())

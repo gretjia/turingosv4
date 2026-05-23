@@ -117,6 +117,7 @@ fn spec_turn_response_shape_serializes() {
         turn_capsule_cid: Some("abc123def456".into()),
         // F6 (2026-05-18): new field, None for normal in-progress turns.
         termination_reason: None,
+        triage_class: None,
     };
 
     let json = serde_json::to_string(&resp).expect("serialize SpecTurnResponse");
@@ -178,6 +179,7 @@ fn spec_turn_response_done_true_has_playback() {
         // F6 (2026-05-18): clean synthesis path — termination_reason is None
         // when spec_capsule_cid is populated.
         termination_reason: None,
+        triage_class: None,
     };
 
     let json = serde_json::to_string(&resp).expect("serialize");

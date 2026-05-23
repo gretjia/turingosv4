@@ -138,6 +138,39 @@ exit {exit_code}
     script_path.to_string_lossy().into_owned()
 }
 
+fn write_env_recording_generate_stub(
+    dir: &tempfile::TempDir,
+    record_args_file: &str,
+    record_env_file: &str,
+) -> String {
+    let script_path = dir.path().join("turingos");
+    let script_content = format!(
+        r#"#!/bin/sh
+printf '%s\n' "$@" > {record_args_file}
+{{
+  printf 'SILICONFLOW_API_KEY=%s\n' "${{SILICONFLOW_API_KEY:-<unset>}}"
+  printf 'DEEPSEEK_API_KEY=%s\n' "${{DEEPSEEK_API_KEY:-<unset>}}"
+  printf 'DEEPSEEK_API_KEY_WORKER=%s\n' "${{DEEPSEEK_API_KEY_WORKER:-<unset>}}"
+}} > {record_env_file}
+WORKSPACE="$3"
+mkdir -p "$WORKSPACE/artifacts"
+cat > "$WORKSPACE/artifacts/index.html" <<'HTMLEOF'
+{good_html}
+HTMLEOF
+exit 0
+"#,
+        record_args_file = shell_quote(record_args_file),
+        record_env_file = shell_quote(record_env_file),
+        good_html = good_html_payload(),
+    );
+    std::fs::write(&script_path, &script_content).expect("write env stub");
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = std::fs::metadata(&script_path).unwrap().permissions();
+    perms.set_mode(0o755);
+    std::fs::set_permissions(&script_path, perms).unwrap();
+    script_path.to_string_lossy().into_owned()
+}
+
 fn shell_quote(s: &str) -> String {
     let escaped = s.replace('\'', "'\\''");
     format!("'{escaped}'")
@@ -447,6 +480,11 @@ async fn generate_invokes_shellout_with_correct_args_via_override() {
     assert!(
         !args.contains(&"--from-capsule"),
         "stub must NOT receive --from-capsule when from_capsule=false; recorded={recorded:?}"
+    );
+    assert!(
+        args.windows(2)
+            .any(|w| matches!(w, ["--n-parallel-workers", "3"])),
+        "web default must request N=3 Polymarket workers; recorded={recorded:?}"
     );
 }
 
@@ -779,6 +817,67 @@ async fn generate_accepts_bare_session_id_payload_regression_w6_1() {
     );
 }
 
+#[tokio::test]
+async fn generate_injects_welcome_api_key_into_all_provider_aliases() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let workspace = dir.path().to_path_buf();
+    let session_id = "test-env-aliases";
+    let session_dir = setup_session(&workspace, session_id);
+    write_spec_md(&session_dir);
+
+    let args_file = dir
+        .path()
+        .join("recorded_args.txt")
+        .to_string_lossy()
+        .into_owned();
+    let env_file = dir
+        .path()
+        .join("recorded_env.txt")
+        .to_string_lossy()
+        .into_owned();
+    let script_path = write_env_recording_generate_stub(&dir, &args_file, &env_file);
+    let workspace_str = workspace.to_string_lossy().into_owned();
+    let api_key = "sk-session-generate-alias-test-0000000000";
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &script_path);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace_str);
+    std::env::remove_var("SILICONFLOW_API_KEY");
+    std::env::remove_var("DEEPSEEK_API_KEY");
+    std::env::remove_var("DEEPSEEK_API_KEY_WORKER");
+    let addr = start_server().await;
+
+    let (key_status, key_body) = http_post_json(
+        addr,
+        "/api/welcome/api-key",
+        &format!(r#"{{"api_key":"{api_key}"}}"#),
+    )
+    .await;
+    assert_eq!(key_status, 200, "api-key set failed; body={key_body}");
+
+    let body = format!(r#"{{"session_id":"{session_id}"}}"#);
+    let (status, resp_body) = http_post_json(addr, "/api/generate", &body).await;
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(status, 200, "generate must succeed; body={resp_body}");
+    let recorded_env = std::fs::read_to_string(&env_file).expect("env recorded");
+    assert!(
+        recorded_env.contains(&format!("SILICONFLOW_API_KEY={api_key}")),
+        "SiliconFlow alias missing from child env; env={recorded_env}"
+    );
+    assert!(
+        recorded_env.contains(&format!("DEEPSEEK_API_KEY={api_key}")),
+        "DeepSeek meta alias missing from child env; env={recorded_env}"
+    );
+    assert!(
+        recorded_env.contains(&format!("DEEPSEEK_API_KEY_WORKER={api_key}")),
+        "DeepSeek worker alias missing from child env; env={recorded_env}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Test (W8): generate_retries_on_heuristic_failure_via_stub
 //
@@ -963,6 +1062,10 @@ async fn generate_retries_on_heuristic_failure_via_stub() {
         .iter()
         .filter(|m| m.contains("\"msg_type\":\"generate_complete\""))
         .count();
+    let attempt_update_count = messages
+        .iter()
+        .filter(|m| m.contains("\"msg_type\":\"agent_attempt_update\""))
+        .count();
     assert_eq!(
         started_count, 2,
         "must broadcast 2 generate_attempt_started events; got {started_count}; messages={messages:?}"
@@ -974,5 +1077,21 @@ async fn generate_retries_on_heuristic_failure_via_stub() {
     assert_eq!(
         complete_count, 1,
         "must broadcast 1 generate_complete event; got {complete_count}; messages={messages:?}"
+    );
+    assert_eq!(
+        attempt_update_count, 1,
+        "must broadcast 1 agent_attempt_update before generate_complete so the panel refetches replay-derived market view; got {attempt_update_count}; messages={messages:?}"
+    );
+    let attempt_update_pos = messages
+        .iter()
+        .position(|m| m.contains("\"msg_type\":\"agent_attempt_update\""))
+        .expect("agent_attempt_update must be present");
+    let complete_pos = messages
+        .iter()
+        .position(|m| m.contains("\"msg_type\":\"generate_complete\""))
+        .expect("generate_complete must be present");
+    assert!(
+        attempt_update_pos < complete_pos,
+        "agent_attempt_update must arrive before generate_complete; messages={messages:?}"
     );
 }

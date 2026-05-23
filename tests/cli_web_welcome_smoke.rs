@@ -154,6 +154,31 @@ fi
     write_recording_stub(dir, args_path, env_path, side)
 }
 
+fn make_init_stub_with_toml(dir: &tempfile::TempDir, args_path: &str, env_path: &str) -> String {
+    let side = r#"
+proj=""
+provider="siliconflow"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --project) proj="$2"; shift 2 ;;
+        --provider) provider="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
+if [ -n "$proj" ]; then
+    mkdir -p "$proj"
+    printf '# stub genesis\n[meta]\ntemplate = "multi-agent"\n' > "$proj/genesis_payload.toml"
+    printf '{}\n' > "$proj/agent_pubkeys.json"
+    if [ "$provider" = "deepseek" ]; then
+        printf 'llm.provider = "deepseek"\nllm.meta.model = "deepseek-v4-pro"\nllm.blackbox.model = "deepseek-v4-flash"\n' > "$proj/turingos.toml"
+    else
+        printf 'llm.provider = "siliconflow"\nllm.meta.model = "deepseek-ai/DeepSeek-V3.2"\nllm.blackbox.model = "Qwen/Qwen3-Coder-30B-A3B-Instruct"\n' > "$proj/turingos.toml"
+    fi
+fi
+"#;
+    write_recording_stub(dir, args_path, env_path, side)
+}
+
 fn make_agent_deploy_stub(dir: &tempfile::TempDir, args_path: &str, env_path: &str) -> String {
     let side = r#"
 ws=""
@@ -495,6 +520,46 @@ async fn welcome_init_invokes_correct_shellout() {
     let parsed: serde_json::Value = serde_json::from_str(&body2).unwrap();
     assert_eq!(parsed["init_done"].as_bool(), Some(true));
     assert_eq!(parsed["next_step"].as_str(), Some("LlmConfig"));
+}
+
+#[tokio::test]
+async fn welcome_init_uses_deepseek_provider_when_endpoint_is_deepseek_direct() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let workspace = dir.path().join("ws").to_string_lossy().into_owned();
+    let args_path = dir.path().join("args.txt").to_string_lossy().into_owned();
+    let env_path = dir.path().join("env.txt").to_string_lossy().into_owned();
+    let stub = make_init_stub_with_toml(&dir, &args_path, &env_path);
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &stub);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace);
+    std::env::set_var(
+        "TURINGOS_SILICONFLOW_ENDPOINT",
+        "https://api.deepseek.com/v1/chat/completions",
+    );
+    let addr = start_server().await;
+
+    let (status, body) = http_post_json(addr, "/api/welcome/init", "{}").await;
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    std::env::remove_var("TURINGOS_SILICONFLOW_ENDPOINT");
+    drop(_guard);
+
+    assert_eq!(status, 200, "init must return 200; body={body}");
+    let recorded = std::fs::read_to_string(&args_path).expect("stub must record args");
+    let args: Vec<&str> = recorded.lines().collect();
+    assert!(
+        args.windows(2)
+            .any(|pair| pair == ["--provider", "deepseek"]),
+        "DeepSeek direct endpoint must initialize DeepSeek model namespace; args={args:?}"
+    );
+    let toml = std::fs::read_to_string(std::path::Path::new(&workspace).join("turingos.toml"))
+        .expect("stub writes turingos.toml");
+    assert!(
+        toml.contains("deepseek-v4-pro") && toml.contains("deepseek-v4-flash"),
+        "fresh welcome init must leave DeepSeek direct model IDs when endpoint is DeepSeek; toml={toml}"
+    );
 }
 
 // ---------------------------------------------------------------------------

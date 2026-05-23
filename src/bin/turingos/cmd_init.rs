@@ -8,8 +8,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use crate::common::shell_quote_path;
 use crate::chat_client::{DEFAULT_BLACKBOX_MODEL, DEFAULT_META_MODEL};
+use crate::common::shell_quote_path;
 
 // ─────────────────────────────────────────────────────────────────────
 // Genesis payload templates
@@ -46,16 +46,19 @@ max_attempts_per_task = 100
 # budget_micro = 500_000
 # model = "deepseek-v4-flash"
 
-# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Polymarket PR-B (2026-05-23) — Treasury + multi-agent market wallets.
 # Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
-# Total = 110_000 µ (= 100_000 treasury + 10_000 worker-alpha). PR2 will add
-# worker-beta + worker-gamma; PR3 will rename "treasury" if real markets land.
+# Total = 150_000 µ (= 100_000 treasury + 3 workers + verifier + provider).
 [treasury]
 agent_id = "treasury"
 initial_balance_micro = 100_000
 
 [worker_wallets]
 "worker-alpha" = 10_000
+"worker-beta" = 10_000
+"worker-gamma" = 10_000
+"verifier-alpha" = 10_000
+"market-provider" = 10_000
 "#;
 
 const GENESIS_POLYMARKET: &str = r#"# TuringOS genesis payload — Polymarket template
@@ -85,7 +88,7 @@ initial_balance_micro = 1_000_000
 # outcome = "YES_NO"
 # resolution_oracle = "manual"
 
-# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Polymarket PR-B (2026-05-23) — Treasury + multi-agent market wallets.
 # Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
 [treasury]
 agent_id = "treasury"
@@ -93,6 +96,10 @@ initial_balance_micro = 100_000
 
 [worker_wallets]
 "worker-alpha" = 10_000
+"worker-beta" = 10_000
+"worker-gamma" = 10_000
+"verifier-alpha" = 10_000
+"market-provider" = 10_000
 "#;
 
 const GENESIS_MULTI_AGENT: &str = r#"# TuringOS genesis payload — Multi-agent arena template
@@ -134,7 +141,7 @@ initial_balance_micro = 1_000_000
 # budget_micro = 500_000
 # model = "claude-haiku-4-5"
 
-# Polymarket PR1 (2026-05-23) — Treasury "central bank" + Worker wallets.
+# Polymarket PR-B (2026-05-23) — Treasury + multi-agent market wallets.
 # Read at Q_0 by src/runtime/bootstrap.rs::parse_treasury_and_worker_preseed.
 [treasury]
 agent_id = "treasury"
@@ -142,6 +149,10 @@ initial_balance_micro = 100_000
 
 [worker_wallets]
 "worker-alpha" = 10_000
+"worker-beta" = 10_000
+"worker-gamma" = 10_000
+"verifier-alpha" = 10_000
+"market-provider" = 10_000
 "#;
 
 const AGENT_PUBKEYS_PLACEHOLDER: &str = "{}\n";
@@ -452,7 +463,9 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
             println!("Next steps:");
             println!("  cd {cd_hint}");
             println!("  export SILICONFLOW_API_KEY=\"sk-...\"");
-            println!("  turingos spec --workspace {cd_hint}           # 8-question grill -> spec.md (CAS-anchored)");
+            println!(
+                "  turingos spec --workspace {cd_hint}           # 8-question grill -> spec.md (CAS-anchored)"
+            );
             println!(
                 "  turingos generate --workspace {cd_hint}       # emit working code into artifacts/"
             );
@@ -462,7 +475,9 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
             println!("Next steps:");
             println!("  export DEEPSEEK_API_KEY=\"sk-...\"");
             println!("  export DEEPSEEK_API_KEY_WORKER=\"sk-...\"");
-            println!("  export TURINGOS_SILICONFLOW_ENDPOINT=\"https://api.deepseek.com/v1/chat/completions\"");
+            println!(
+                "  export TURINGOS_SILICONFLOW_ENDPOINT=\"https://api.deepseek.com/v1/chat/completions\""
+            );
             println!("  turingos spec --workspace {cd_hint} --lang en --mode static");
         }
     }
