@@ -86,7 +86,8 @@ pub(crate) struct TaskOpenResponse {
 /// `kind` values:
 /// - `"invalid_input"`: field failed validation (400)
 /// - `"shellout_failed"`: CLI exited non-zero (500)
-/// - `"task_id_parse_failed"`: CLI succeeded but stdout unparseable (200 w/ warning)
+/// - `"task_id_parse_failed"`: CLI exit 0 but stdout has no parseable task id (502).
+///   No TaskEntry written, no WS TaskCreated broadcast — fail clean. (TB-SOFTWARE-3-0 Atom S1).
 #[cfg(feature = "web")]
 #[derive(Debug, Serialize)]
 pub(crate) struct TaskOpenError {
@@ -345,22 +346,35 @@ pub(crate) async fn task_open_handler(
     }
 
     // Step 5: parse task_id from stdout.
+    // TB-SOFTWARE-3-0 Atom S1 (2026-05-23): on parse failure, return
+    // 502 BAD_GATEWAY with kind="task_id_parse_failed". Do NOT synthesize
+    // a fake canonical id from stdout hash; do NOT write to task_store;
+    // do NOT broadcast WS TaskCreated. The legacy stdout-hash fallback
+    // and its FNV helper are removed — they were stdout-as-truth
+    // anti-patterns surfaced by PHASE_E_REAL_VALIDATION_2026-05-23 §3 F1.
     let stdout_str = String::from_utf8_lossy(&output.stdout).into_owned();
-    let (task_id, parse_warning) = match parse_task_id_from_stdout(&stdout_str) {
-        Some(id) => (id, false),
+    let task_id = match parse_task_id_from_stdout(&stdout_str) {
+        Some(id) => id,
         None => {
-            // Fallback: hash stdout bytes for a deterministic but unique id.
-            let hash = simple_hash(output.stdout.as_slice());
-            (format!("t_hash_{hash:016x}"), true)
+            log::warn!(
+                "task_open_handler: CLI exit 0 but stdout has no parseable task id; \
+                 returning 502 BAD_GATEWAY. stdout={:?}",
+                &stdout_str[..stdout_str.len().min(256)],
+            );
+            let truncated = stdout_str.chars().take(512).collect::<String>();
+            return Err((
+                StatusCode::BAD_GATEWAY,
+                Json(TaskOpenError {
+                    reason: format!(
+                        "turingos CLI exited 0 but stdout had no parseable task_id; \
+                         stdout: {}",
+                        truncated
+                    ),
+                    kind: "task_id_parse_failed",
+                }),
+            ));
         }
     };
-
-    if parse_warning {
-        log::warn!(
-            "task_open_handler: task_id parse failed; using hash fallback. stdout={:?}",
-            &stdout_str[..stdout_str.len().min(256)],
-        );
-    }
 
     // Step 6: push to in-memory store BEFORE broadcasting so that a WS
     // subscriber racing to re-fetch /api/tasks immediately after receiving
@@ -392,22 +406,6 @@ pub(crate) async fn task_open_handler(
         task_id,
         status: "created",
     }))
-}
-
-// ---------------------------------------------------------------------------
-// Minimal hash (no external crates)
-// ---------------------------------------------------------------------------
-
-/// FNV-1a 64-bit hash for fallback task_id synthesis.
-/// This is a stable, deterministic, dependency-free hash.
-#[cfg(feature = "web")]
-fn simple_hash(data: &[u8]) -> u64 {
-    let mut h: u64 = 14_695_981_039_346_656_037;
-    for &b in data {
-        h ^= b as u64;
-        h = h.wrapping_mul(1_099_511_628_211);
-    }
-    h
 }
 
 // ---------------------------------------------------------------------------

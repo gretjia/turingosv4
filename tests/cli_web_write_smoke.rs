@@ -688,3 +688,54 @@ fn task_store_cap_enforced_at_1001() {
         store.len()
     );
 }
+
+// ---------------------------------------------------------------------------
+// Test 10: TB-SOFTWARE-3-0 Atom S1 — CLI exit 0 with unparseable stdout returns
+// 502 BAD_GATEWAY (NOT a synthesized t_hash_* canonical id, NOT 200-with-warning).
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn task_open_returns_502_on_unparseable_stdout() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let args_file = dir.path().join("recorded_args.txt");
+    let args_path = args_file.to_string_lossy().into_owned();
+    // Stub exits 0 but emits stdout the parser CANNOT recognize as a task id.
+    // Pre-S1: synthesized `t_hash_xxxxxxxx` + 200 OK + write to store + broadcast.
+    // Post-S1: 502 BAD_GATEWAY + kind="task_id_parse_failed" + no store write.
+    let script_path = write_stub_script(
+        &dir,
+        0,
+        "opening task...\nsome arbitrary CLI output\nno task identifier here\n",
+        "",
+        &args_path,
+    );
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &script_path);
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", dir.path().to_str().unwrap_or("."));
+
+    let addr = start_server().await;
+    let body = r#"{"problem_id":"prob-001","bounty":5000,"agent_id":"agent_0"}"#;
+    let (status, resp_body) = http_post_json(addr, "/api/task/open", body).await;
+
+    std::env::remove_var("TURINGOS_BACKEND_OVERRIDE");
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    drop(_guard);
+
+    assert_eq!(
+        status, 502,
+        "unparseable stdout MUST return 502 BAD_GATEWAY; body={resp_body}"
+    );
+    assert!(
+        resp_body.contains("task_id_parse_failed"),
+        "response must contain kind=task_id_parse_failed; body={resp_body}"
+    );
+    assert!(
+        !resp_body.contains("t_hash_"),
+        "S1 KILL: response must NOT contain synthesized t_hash_* id; body={resp_body}"
+    );
+    assert!(
+        !resp_body.contains("\"status\":\"created\""),
+        "response must NOT claim status=created on parse failure; body={resp_body}"
+    );
+}
