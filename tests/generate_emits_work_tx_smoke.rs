@@ -454,3 +454,102 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     // Silence unused-import warning for TxId.
     let _ = TxId("_".into());
 }
+
+/// Codex P1 regression test (2026-05-23): exercise the exact pattern the web
+/// flow uses, where `src/web/generate.rs` shells out with
+/// `turingos generate --workspace <root>/sessions/<session_id>`.
+///
+/// The canonical Polymarket chain MUST land at the ROOT (`<root>/runtime_repo`),
+/// NOT in the session subdir (`<root>/sessions/<id>/runtime_repo`), so that
+/// `src/web/market_view.rs` — which reads `<root>/runtime_repo` — sees the
+/// admissions. Before the `find_root_workspace` fix, the Polymarket code read
+/// genesis + wrote runtime_repo under the `--workspace` arg verbatim and the
+/// web endpoint returned 404.
+///
+/// This test fails (a) if `genesis_payload.toml` is read from the wrong
+/// path, (b) if `runtime_repo` is created under the session subdir, OR
+/// (c) if no L4 entries land at the root chain.
+#[test]
+fn generate_from_session_subdir_writes_chain_to_root_workspace() {
+    let tmp = tempfile::tempdir().expect("create temp parent");
+    let root_ws = tmp.path().join("ws-root");
+
+    // turingos init at the ROOT.
+    let status = Command::new(turingos_bin())
+        .arg("init")
+        .arg("--project")
+        .arg(&root_ws)
+        .status()
+        .expect("run init");
+    assert!(status.success(), "turingos init must succeed");
+
+    // Simulate the web flow: create `<root>/sessions/<id>/`, copy
+    // `turingos.toml` + write `spec.md` into the session subdir. Then call
+    // `turingos generate --workspace <session_dir>` exactly like
+    // `src/web/generate.rs` does.
+    let session_id = "websmoke-12345";
+    let session_dir = root_ws.join("sessions").join(session_id);
+    fs::create_dir_all(&session_dir).expect("mkdir session_dir");
+    fs::copy(
+        root_ws.join("turingos.toml"),
+        session_dir.join("turingos.toml"),
+    )
+    .expect("copy turingos.toml into session_dir");
+    fs::write(session_dir.join("spec.md"), "# Web Flow Spec\nMinimal HTML.")
+        .expect("write spec.md into session_dir");
+
+    let endpoint = start_mock_llm_server(happy_path_llm_response());
+
+    let output = Command::new(turingos_bin())
+        .arg("generate")
+        .arg("--workspace")
+        .arg(&session_dir) // session subdir, matching web flow
+        .arg("--entrypoint")
+        .arg("index.html")
+        .env("TURINGOS_SILICONFLOW_ENDPOINT", &endpoint)
+        .env("SILICONFLOW_API_KEY", "mock-key")
+        .output()
+        .expect("run generate from session subdir");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+        panic!(
+            "turingos generate (web-mode) failed.\n--- stdout ---\n{}\n--- stderr ---\n{}",
+            stdout, stderr
+        );
+    }
+
+    // The chain MUST land at the ROOT, not in the session subdir.
+    let root_runtime_repo = root_ws.join("runtime_repo");
+    let session_runtime_repo = session_dir.join("runtime_repo");
+    assert!(
+        root_runtime_repo.exists(),
+        "runtime_repo MUST be created at ROOT workspace ({}), not session subdir",
+        root_runtime_repo.display()
+    );
+    assert!(
+        !session_runtime_repo.exists(),
+        "runtime_repo MUST NOT be created in session subdir ({}); \
+         find_root_workspace should walk up to the root",
+        session_runtime_repo.display()
+    );
+
+    // Verify the chain at the ROOT has the Polymarket admissions.
+    let root_cas_dir = root_ws.join("cas");
+    let root_cas = CasStore::open(&root_cas_dir).expect("open root cas");
+    let entries = walk_chain(&root_runtime_repo, &root_cas);
+    assert!(
+        entries.len() >= 4,
+        "expected ≥4 L4 entries at ROOT chain (TaskOpen + EscrowLock + WorkTx + MarketSeed), got {}",
+        entries.len()
+    );
+
+    // Replay at the root must succeed (proves canonical state landed there).
+    let replayed = replay_from_disk(&root_runtime_repo, &root_cas_dir);
+    let task_id = TaskId(format!("pr1-{session_id}"));
+    assert!(
+        replayed.economic_state_t.task_markets_t.0.contains_key(&task_id),
+        "task_markets_t at ROOT MUST contain pr1-{session_id} entry"
+    );
+}

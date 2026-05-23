@@ -1489,8 +1489,27 @@ fn emit_polymarket_market_for_session(
 ) -> Result<PolymarketEmitSummary, String> {
     let task_id_str = polymarket_task_id_for_session(session_id);
 
-    let genesis_text = fs::read_to_string(workspace.join("genesis_payload.toml"))
-        .map_err(|e| format!("read workspace genesis_payload.toml: {e}"))?;
+    // Codex P1 #1 fix (2026-05-23): `--workspace` may be a session subdir
+    // (e.g. `<root>/sessions/<session_id>`) when invoked by the web flow
+    // (`src/web/generate.rs` shells out with the session dir as `--workspace`
+    // so `turingos generate` reads spec.md from there). The canonical
+    // Polymarket chain + genesis preseed live at the ROOT workspace, not in
+    // the session subdir. Walk up at most 3 levels to find the marker file
+    // `genesis_payload.toml`. CLI direct (workspace IS root, walk depth 0)
+    // and web (workspace is `<root>/sessions/<id>`, depth 2) both resolve
+    // correctly. Cap at 3 to avoid escaping into unrelated parent projects
+    // during local tests.
+    let root_workspace =
+        find_root_workspace(workspace).ok_or_else(|| {
+            format!(
+                "could not locate genesis_payload.toml within 3 parents of {}; \
+                 expected at workspace root for Polymarket chain anchor",
+                workspace.display()
+            )
+        })?;
+
+    let genesis_text = fs::read_to_string(root_workspace.join("genesis_payload.toml"))
+        .map_err(|e| format!("read root genesis_payload.toml: {e}"))?;
     let preseed = parse_treasury_and_worker_preseed(&genesis_text)
         .map_err(|e| format!("parse preseed: {e}"))?;
     let initial_q = genesis_with_balances(&preseed);
@@ -1505,6 +1524,13 @@ fn emit_polymarket_market_for_session(
 
     rt.block_on(async move {
         // ──────────────── Step 0: open canonical workspace ChainTape ────────────────
+        // Per Codex P1 #2 (2026-05-23): runtime_repo + cas live at the ROOT
+        // workspace, NOT the session subdir. All sessions in one workspace
+        // share ONE canonical ChainTape (per-workspace, not per-session). The
+        // `src/web/market_view.rs` handler reads from the same root path; this
+        // alignment is what makes the side-panel JSON non-empty for real web
+        // sessions.
+        //
         // Empty `runtime_repo` (post-`turingos init`) → fresh bootstrap with
         // `initial_q` seed. Non-empty → resume + replay (subsequent
         // `turingos generate` invocations on the same workspace land here).
@@ -1513,8 +1539,8 @@ fn emit_polymarket_market_for_session(
         // ignored — but the in-tree preseed is byte-identical to the
         // initial bootstrap, so the seed is consistent across invocations.
         let config = RuntimeChaintapeConfig {
-            runtime_repo_path: workspace.join("runtime_repo"),
-            cas_path: workspace.join("cas"),
+            runtime_repo_path: root_workspace.join("runtime_repo"),
+            cas_path: root_workspace.join("cas"),
             run_id: format!("polymarket-{session_id}-{logical_t}"),
             queue_capacity: 16,
             resume_existing_chain: true,
@@ -1712,6 +1738,35 @@ pub(crate) fn polymarket_task_id_for_session(session_id: &str) -> String {
     format!("pr1-{session_id}")
 }
 
+/// Polymarket PR1: locate the workspace ROOT (the directory containing
+/// `genesis_payload.toml`) starting from any path within the workspace tree.
+///
+/// Why: `turingos generate --workspace <X>` is invoked in two modes:
+///   * CLI direct: `<X>` IS the root (genesis is right there, depth 0)
+///   * Web: `<X> = <root>/sessions/<session_id>` (the session subdir; depth 2)
+///
+/// All Polymarket chain state (`runtime_repo` + `cas`) MUST live at the root
+/// so multiple sessions share ONE canonical ChainTape (this is what makes
+/// `src/web/market_view.rs` read the same chain that admissions write to).
+///
+/// Walks at most `MAX_DEPTH` parent directories; returns `None` if no
+/// `genesis_payload.toml` marker is found within that bound. Cap prevents
+/// escaping into unrelated parent projects during local tests / dev.
+pub(crate) fn find_root_workspace(start: &Path) -> Option<PathBuf> {
+    const MAX_DEPTH: usize = 3;
+    let mut current = start.to_path_buf();
+    for _ in 0..=MAX_DEPTH {
+        if current.join("genesis_payload.toml").is_file() {
+            return Some(current);
+        }
+        match current.parent() {
+            Some(parent) => current = parent.to_path_buf(),
+            None => return None,
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1728,5 +1783,38 @@ mod tests {
         assert_eq!(DEFAULT_MARKET_SEED_MICRO, DEFAULT_BOUNTY_MICRO / 10);
         // Hard constraint: stake is positive
         assert!(DEFAULT_WORK_STAKE_MICRO > 0);
+    }
+
+    #[test]
+    fn find_root_workspace_returns_self_when_genesis_at_start() {
+        // CLI direct mode: --workspace IS the root, depth 0.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        std::fs::write(tmp.path().join("genesis_payload.toml"), b"# stub")
+            .expect("write stub genesis");
+        let resolved = find_root_workspace(tmp.path()).expect("find root");
+        assert_eq!(resolved, tmp.path());
+    }
+
+    #[test]
+    fn find_root_workspace_walks_up_from_session_subdir() {
+        // Web flow mode: --workspace is <root>/sessions/<session_id> — walk
+        // up 2 levels to find genesis_payload.toml at the root.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::write(root.join("genesis_payload.toml"), b"# stub")
+            .expect("write stub genesis");
+        let session_dir = root.join("sessions").join("session-abc");
+        std::fs::create_dir_all(&session_dir).expect("mkdir session");
+        let resolved = find_root_workspace(&session_dir).expect("walk up to root");
+        assert_eq!(resolved, root);
+    }
+
+    #[test]
+    fn find_root_workspace_returns_none_when_no_marker_within_depth() {
+        // No genesis_payload.toml anywhere in the temp tree.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let deep = tmp.path().join("a").join("b").join("c");
+        std::fs::create_dir_all(&deep).expect("mkdir deep");
+        assert!(find_root_workspace(&deep).is_none());
     }
 }
