@@ -11,30 +11,87 @@
 
 ## Current Snapshot
 
+**Session**: 2026-05-23 close — TB-SOFTWARE-3-0 + TB-STRESS-PHASE-2 SHIPPED.
+
+**Main tip**: `6c12e092` (PR #132 stress ship report + audits, 2026-05-23T13:00Z).
+
+### TB-SOFTWARE-3-0-CONSOLIDATION (8 atoms, 8 PRs merged 2026-05-23)
+
+Single-maintainer substrate hardening on top of Phase E cutover. Atoms +
+PRs:
+
+| Atom | PR | Class | What |
+|------|----|----|----|
+| S0.1 | #120 | 0 | Package §8 directive + TB charter |
+| S1   | #122 | 2 | Remove stdout-as-truth in `task/open` (`t_hash_*` + `simple_hash` deleted; 502 BAD_GATEWAY on parse failure) |
+| S2   | #123 | 2 | Private `GrillSessionSnapshot` in per-session CAS for cross-restart resume |
+| S3   | #124 | 2 | `BuildSessionViewError { Open, Read, Decode }` taxonomy; empty stays `Ok(SpecPending)` |
+| S4.1 | #125 | 2 | Rename `siliconflow_client` → `chat_client` (file + 7 cmd_*.rs imports); NO `ChatProvider` enum (deferred per K10) |
+| S4.2 | #126 | 0 | `LLM_BOUNDARY_INVENTORY_2026-05-23.md` documenting 17 chat_complete* sites + deferred abstraction packet |
+| S5   | #127 | 1+0 | `scripts/audit_legacy_bypass.sh` (reporting-only, NOT a constitution gate) + checklist doc |
+| S6.1 + S6.2 | #128 | 0 | Aggregate ship report + cumulative audits (Constitution: NO-VIOLATION; Karpathy: PASS) |
+
+Ship report: `handover/reports/SOFTWARE_3_0_CONSOLIDATION_2026-05-23.md`
+Audits: `handover/audits/SOFTWARE_3_0_VAL_{CONSTITUTION,KARPATHY}_2026-05-23.md`
+Charter: `handover/tracer_bullets/TB-SOFTWARE-3-0_charter_2026-05-23.md`
+
+Scope freeze (held across all 8 commits): NO touch to `src/state/typed_tx.rs`,
+`src/state/sequencer.rs`, `src/bus.rs`, `src/bottom_white/cas/schema.rs`,
+`constitution.md`, `genesis_payload.toml`, `src/runtime/mod.rs` export,
+no new CAS `ObjectType`, no provider abstraction layer.
+
+### TB-STRESS-PHASE-2 (3 PRs merged 2026-05-23)
+
+Adversarial 10-test battery on top of Phase E + TB-SOFTWARE-3-0.
+
+| Atom | PR | Class | What |
+|------|----|----|----|
+| STRESS-0 | #129 | 0+1 | Charter + §8 + 10 runner scripts under `scripts/stress/` |
+| STRESS-1..10 | #131 | 1+2 | Execution evidence + runner robustness fixes |
+| STRESS-SHIP | #132 | 0 | Aggregate ship report + cumulative audits |
+
+**Final tally**: 8 PASS / 1 PARTIAL (ST-04) / 1 NOT-EXECUTED (ST-08) / 0 FAIL.
+
+Substantive finding (ST-04 PARTIAL): S2's `write_snapshot` VERIFIED writing
+418-byte capsules with schema_id `turingos-web-grill-session-snapshot-v1`
+to per-session CAS. Multi-turn resume blocked by upstream triage promotion
+guard requiring `PromptPromotionReceipt` — workspace bootstrap dependency,
+NOT S2 defect. Production guard correctly fail-closes on unconfigured
+workspaces.
+
+Audits: `handover/audits/STRESS_PHASE_2_VAL_{CONSTITUTION,KARPATHY}_2026-05-23.md`
+Ship report: `handover/reports/STRESS_PHASE_2_SHIP_REPORT_2026-05-23.md`
+Charter: `handover/tracer_bullets/TB-STRESS-PHASE-2_charter_2026-05-23.md`
+
+LLM cost: ~$0 (mock providers throughout). Wall time: ~3 hr.
+
+### Memory updates from this session
+
+- `feedback_defer_abstraction_until_second_impl` — don't propose
+  ChatProvider/ModelCallReceipt-style framework before 2nd concrete impl
+  lands. Rename to generic naming OK; abstraction layer deferred.
+- `feedback_git_hygiene_no_bulk_ops` — forbidden: `git stash -u`, `git add -A`;
+  default execution base = fresh worktree from origin/main.
+- `feedback_conservative_error_semantics` — empty IS normal (`Ok(SpecPending)`,
+  not `Err(EmptySession)`); HTTP failures use 502/500, not 200-with-warning.
+
+---
+
+## Pre-session-#60 snapshot (for forensic continuity)
+
 **Session**: #60 close, 2026-05-22 — TDMA-Generate + Phase E libgit2 cutover SHIPPED.
 
-**Main tip after this session**: PR #116 (Atom 25 full cutover) at
-2026-05-22T18:36Z. `turingos generate --tdma-bounded` and `turingos tdma run`
-both default to TDMA-Bounded + GitTapeLedger (Phase E Path B). 8 atoms
-(19–26) merged to main. Constitution Art. 0.4 Path B obligations (all 6)
-materially satisfied. MemoryTapeLedger retired from production paths.
-Ship report:
-`handover/tracer_bullets/TB-TDMA-GENERATE-PHASE-E_ship_report_2026-05-22.md`
-Package §8: `handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md`
-GA §8 template: `handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_GA_§8_TEMPLATE.md`
+PR #116 (Atom 25 full cutover) at 2026-05-22T18:36Z. `turingos generate
+--tdma-bounded` and `turingos tdma run` both default to TDMA-Bounded +
+GitTapeLedger (Phase E Path B). 8 atoms (19–26) merged to main.
+Constitution Art. 0.4 Path B obligations (all 6) materially satisfied.
+MemoryTapeLedger retired from production paths. Ship report:
+`handover/tracer_bullets/TB-TDMA-GENERATE-PHASE-E_ship_report_2026-05-22.md`.
+Package §8: `handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md`.
 
-PRs in this ship: #109 (gen wire-up), #110 (skeleton), #111 (roundtrip),
+PRs in that ship: #109 (gen wire-up), #110 (skeleton), #111 (roundtrip),
 #112 (head+BBS), #113 (migrate + single-chain fix), #115 (opt-in flag),
-#116 (full cutover). Atom 26 (THIS) lands ship report + §8 template +
-Path A retirement.
-
-Karpathy + Constitution plan-level audits passed with 3 remediations
-applied in plan revision 2: C12 (KILL-gen-1 wording tightened), K14
-(`--legacy` flag dropped; legacy single-pass path deleted), K15 (E.3
-conservation extracted to parallel `TB-ECON-E3-STRICT-EQ` package).
-
-Per-atom Codex+Gemini cumulative audit dispatch (plan §8.2) deferred
-to next-session orchestration.
+#116 (full cutover), #117 (Atom 26 ship report + §8 template + Path A retirement).
 
 ---
 
