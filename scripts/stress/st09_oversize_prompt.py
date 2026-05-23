@@ -51,9 +51,11 @@ def start_truncated_server() -> tuple[HTTPServer, int]:
 def main() -> int:
     evid = evidence_dir("st09_oversize_prompt")
     log: list[str] = []
-    ws = evid / "workspace"
-    ws.mkdir(exist_ok=True)
-    (ws / "cas").mkdir(exist_ok=True)
+    ws = (evid / "workspace").resolve()
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "stress" / "_ws_bootstrap.sh"), str(ws)],
+        check=True, cwd=PROJECT_ROOT,
+    )
 
     print("[ST-09] building turingos...")
     rc = subprocess.call(["cargo", "build", "--bin", "turingos", "--quiet"], cwd=PROJECT_ROOT)
@@ -75,8 +77,10 @@ def main() -> int:
     log.append(f"mock_port={mock_port}")
 
     big_prompt = "X " * (75 * 1024)  # ~150KB
-    big_path = evid / "big_prompt.txt"
-    big_path.write_text(big_prompt)
+    big_path = evid / "big_prompt.json"
+    big_path.write_text(json.dumps({
+        "messages": [{"role": "user", "content": big_prompt}]
+    }))
 
     env = os.environ.copy()
     env.update({
@@ -109,8 +113,10 @@ def main() -> int:
             "SILICONFLOW_API_KEY": "mock-key",
             "DEEPSEEK_API_KEY": "mock-key",
         })
-        small_prompt = evid / "small_prompt.txt"
-        small_prompt.write_text("small prompt")
+        small_prompt = evid / "small_prompt.json"
+        small_prompt.write_text(json.dumps({
+            "messages": [{"role": "user", "content": "small prompt"}]
+        }))
         p9b = subprocess.run(
             [str(bin_path), "llm", "complete",
              "--workspace", str(ws),
