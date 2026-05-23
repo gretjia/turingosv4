@@ -365,9 +365,8 @@ async fn spec_turn_request_rejects_oversized_answer() {
     let body = format!(r#"{{"session_id":"valid-session-001","user_answer":"{long_answer}"}}"#);
     let (status, resp_body) = http_post_json(addr, "/api/spec/turn", &body).await;
 
-    // The session doesn't exist yet so the handler may also 400 on the
-    // "session does not exist; send user_answer=null to start" check.
-    // Both 400 paths are correct; either counts as validation working.
+    // Step-2 (length check) fires before step-6 (session-not-found, now 404),
+    // so an oversized answer must return 400 regardless of session state.
     assert_eq!(
         status, 400,
         "oversized user_answer must return 400; body={resp_body}"
@@ -389,32 +388,28 @@ async fn spec_turn_request_rejects_malformed_json() {
     );
 }
 
-/// POST /api/spec/turn with an existing session that tries to re-init (null
-/// user_answer sent a second time) must return 400.
+/// POST /api/spec/turn with a `user_answer` against an unknown session must
+/// return 404 so the frontend's R2 §A14 "session lost → fall back to static
+/// mode" recovery path engages. Pre-fix this returned 400, which the UI
+/// surfaced as an opaque "请求错误 (400)" nudge — the user was stuck at the
+/// previous question with no recovery.
 #[tokio::test]
-async fn spec_turn_rejects_double_init() {
-    // This test exercises the "session already exists; null user_answer only
-    // valid on first turn" guard. We use a stub backend that always fails so
-    // the first call hits the LLM shellout and returns 500 (due to missing
-    // binary), but the session is NOT inserted in that case. We use a fresh
-    // session ID that already exists only if we pre-populate it.
-    //
-    // Simpler: we just verify that sending user_answer=null for an unknown
-    // session_id triggers the "session does not exist" path, and sending
-    // user_answer=something for an unknown session also fails.
+async fn spec_turn_unknown_session_with_answer_returns_404() {
     let addr = start_server().await;
 
-    // First: provide user_answer with a brand-new session_id (no null init first)
+    // Send `user_answer` for a brand-new session_id (no null-init first).
+    // Mirrors the post-restart shape: client holds a stale session_id from
+    // the previous server instance and submits its next answer.
     let body = r#"{"session_id":"double-init-test-001","user_answer":"some answer"}"#;
     let (status, resp_body) = http_post_json(addr, "/api/spec/turn", body).await;
 
     assert_eq!(
-        status, 400,
-        "providing user_answer without prior null init must return 400; body={resp_body}"
+        status, 404,
+        "user_answer against unknown session must return 404 (R2 §A14 session-lost recovery); body={resp_body}"
     );
     assert!(
-        resp_body.contains("null") || resp_body.contains("session"),
-        "error should mention session / null; got: {resp_body}"
+        resp_body.contains("session"),
+        "error should mention session; got: {resp_body}"
     );
 }
 
