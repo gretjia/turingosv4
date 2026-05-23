@@ -435,7 +435,21 @@ where
 {
     fs::create_dir_all(&cfg.evidence_dir)
         .map_err(|e| format!("cannot create evidence-dir: {}", e))?;
-    tape.set_verified_head("H0".into());
+    // Atom 27 (F1 cross-CLI kernel resume): only initialize verified_head to
+    // "H0" if there isn't already a real one. This preserves kernel-semantic
+    // state across CLI invocations when using a durable substrate
+    // (GitTapeLedger). For MemoryTapeLedger, this is a no-op (empty ledger
+    // returns "H0" sentinel anyway). For GitTapeLedger, the prior session's
+    // verified_head is read from refs/tdma/verified_head and chained forward.
+    let existing_head = tape.get_verified_head();
+    if existing_head.is_empty() || existing_head == "H0" {
+        tape.set_verified_head("H0".into());
+    } else {
+        eprintln!(
+            "[tdma_runner] resuming from existing verified_head: {}",
+            existing_head
+        );
+    }
     let charter = compile_charter_core(
         "# Constitution\nArt. 0.4 — Q_t Path A; FC1a tape_t; FC1b wtool.\n".as_bytes(),
         "v1.0",
