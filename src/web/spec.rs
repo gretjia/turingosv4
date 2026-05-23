@@ -2458,6 +2458,7 @@ mod tests {
             spec_capsule_cid: None,
             turn_capsule_cid: None,
             termination_reason: Some("user_input_unparseable_no_spec".to_string()),
+            triage_class: None,
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(
@@ -2478,6 +2479,7 @@ mod tests {
             spec_capsule_cid: None,
             turn_capsule_cid: None,
             termination_reason: None,
+            triage_class: None,
         };
         let json_none = serde_json::to_string(&resp_none).unwrap();
         assert!(
