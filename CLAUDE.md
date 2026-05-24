@@ -83,6 +83,12 @@ expected: `/grill-recursive`
 Before calling `turingos generate` when the artifact is an HTML UI app:
 `/spec-html-renderer`
 
+Before any implementation / audit / "完成" turn at task Class ≥ 1: read
+`OBLIGATIONS.md` and lead the turn with `Active obligations: OBL-001
+(open), OBL-002 (satisfied), ... → next action`. User mid-flight debug
+input is **input** to existing OBL, never replacement — replacement requires
+explicit trigger phrase. See `AGENTS.md §16` + `skills/OBLIGATIONS_LEDGER.md`.
+
 ## 6. Audit boundary
 
 See `AGENTS.md §15` for audit class-by-class cadence and verdict domain.

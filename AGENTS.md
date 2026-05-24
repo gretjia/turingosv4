@@ -307,6 +307,10 @@ A task is done only when:
 - Clean-context Codex audit is completed for high-risk or ship-path work.
 - Dynamic handover files are updated only if current project state actually
   changed.
+- `OBLIGATIONS.md` reconciled: every `Level=must` entry is `satisfied`
+  (with evidence path), `blocked` (with blocker + proof), or `superseded`
+  (with explicit user trigger phrase + `superseded-by`). No `open` must.
+  See `skills/OBLIGATIONS_LEDGER.md`.
 
 For docs-only changes like this file, no Rust tests are required unless the doc
 change also modifies scripts, source code, or executable workflow.
@@ -395,6 +399,19 @@ Clean-context Codex / Gemini audit 可合法输出（仅这四个）:
 - "Architecture would be better if ..."
 - 任何其他主观品味 / 性能 / 覆盖率 / 架构偏好类语句
 
+### Obligation completeness witness (K-OBL-1, 2026-05-24)
+
+Separate witness role per `skills/OBLIGATIONS_LEDGER.md §3 Rule 4`. Reads
+`OBLIGATIONS.md` and emits exactly one of:
+- `OBL-ALL-CLOSED`
+- `OBL-OPEN-MUST <OBL-id>`
+- `OBL-EVIDENCE-MISSING <OBL-id>`
+- `OBL-BLOCKER-UNVERIFIED <OBL-id>`
+
+A `PROCEED` from any other audit witness is **invalid** if obligation
+witness verdict ≠ `OBL-ALL-CLOSED`. The obligation witness does not opine on
+code/style/architecture — same subjective-opinion boundary as above.
+
 ## 14a. PR-only workflow (K-HARDEN-7, 2026-05-20) — universal across agent runtimes
 
 **All coding agents may only create pull requests. Approval + merge is the
@@ -444,3 +461,42 @@ Useful research baseline:
   continuous evaluation, and clear graders rather than final-output vibes.
 - Recent AGENTS/harness research is mixed on instruction volume; therefore
   prefer minimal, accurate, high-signal instructions over long repeated policy.
+
+## 16. User Obligation Ledger (K-OBL-1, 2026-05-24)
+
+Universal across agent runtimes — Claude Code, Codex CLI, Gemini CLI, Aider,
+Cursor, Windsurf, Copilot, Warp, future runtimes.
+
+Per-project file: `<project_root>/OBLIGATIONS.md`. Tracks user-stated
+obligations to the agent across multi-turn conversations to prevent
+**Conversational Anchor Drift** (silent task substitution when user offers
+mid-flight debug input).
+
+Lesson source: V-010 — a 15-persona DeepSeek Chrome E2E mandate was silently
+replaced by a node/polymarket UI fix; multi-agent audit returned `PROCEED` on
+the substitution. Full skill + schema: `skills/OBLIGATIONS_LEDGER.md`.
+
+### The four rules (mandatory, every agent)
+
+1. **Create on first imperative** — at task Class ≥ 1, create `OBLIGATIONS.md`
+   if missing; extract user imperatives into `OBL-001..OBL-00N`.
+2. **Every-turn reconcile** — implementation/audit/completion turns must begin
+   with `Active obligations: OBL-001 (open), OBL-002 (satisfied), ... → next`.
+3. **No implicit redefinition** — user debug input = input to existing OBL or
+   new sub-OBL, **never replacement**. Replacement needs an explicit user
+   trigger phrase (`取消 X` / `不要 X 了` / `改用 Y 代替 X`).
+4. **Done gate** — no `done` / `完成` / `PROCEED` while any `Level=must` is
+   `open`. See §11.
+
+### Audit integration
+
+Obligation completeness is a separate witness role with its own verdict
+domain — see §14 "Obligation completeness witness". A `PROCEED` from any
+other audit witness is invalid if obligation witness ≠ `OBL-ALL-CLOSED`.
+
+### Cross-platform discovery
+
+All thin discovery files (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`,
+`.cursorrules`, `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
+`.github/copilot-instructions.md`, `WARP.md`) already redirect here. No
+per-agent shim. One file, one schema, every agent.
