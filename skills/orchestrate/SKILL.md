@@ -484,9 +484,10 @@ Before firing closing audit:
          reviewer comments are **SUPPLEMENTARY, not substitutes**
          for the clean-context audit.
        - **Class 3 / money / CAS / capabilities work**: cadence
-         requires DUAL independent witness (Codex + Gemini per
-         AGENTS.md §14). Both must complete; Phase 9 does not fire
-         on a single witness for Class 3.
+         requires clean-context Codex audit (single witness per
+         AGENTS.md §14 + §9; Gemini auditor dropped 2026-05-24 per
+         architect ratification). Witness must complete; Phase 9
+         does not fire on missing witness for Class 3.
        - **Docs / Class 0 / Class 1 non-production work**: any one
          of (automated bot review / human reviewer / clean-context
          audit) suffices.

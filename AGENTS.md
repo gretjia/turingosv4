@@ -247,9 +247,8 @@ document rather than mutating historical evidence.
 
 ## 9. Audit Default
 
-Default audit path for this repository is now one clean-context Codex audit.
-Do not require Gemini unless a future user message or directive explicitly asks
-for Gemini.
+Default and only audit path for this repository is one clean-context Codex audit.
+**Gemini audit deprecated 2026-05-24** per architect ratification («经过这么多审计流程，gemini 审计可以放弃，codex作为一次独立审计可以保留»). All older references to "dual Codex+Gemini" in docs / memory / skills are superseded by this single-Codex doctrine. Class 3 + Class 4 cadence (see §14) now use single Codex witness; pre-§8 timing for Class 4 unchanged.
 
 Implementation agents must not self-certify high-risk work. For Class 3/4 or
 ship-path changes, after implementation evidence exists, invoke a fresh
@@ -358,8 +357,8 @@ ship.
 | 0 docs | no | no | no | no | no | only recurring rule |
 | 1 additive | no | no | no | no | predicate self-test only | only recurring rule |
 | 2 wire-up | brief | optional | yes | no | clean-context Codex audit (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
-| 3 auth/money/CAS | TB charter | yes | yes | required | full dual independent witness (Codex + Gemini) | yes |
-| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | dual independent witness PRE-§8 | yes |
+| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context Codex audit (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context Codex audit PRE-§8 (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
 
 **Audit witness is not judge.** Ship gate = predicates GREEN (hard judge —
 `cargo test --workspace`, `bash scripts/run_constitution_gates.sh`,
@@ -386,7 +385,7 @@ Auditor copy-pastes this batch; no human judgment in any line:
 
 ### Independent audit witness verdict domain
 
-Clean-context Codex / Gemini audit 可合法输出（仅这四个）:
+Clean-context Codex audit 可合法输出（仅这四个；Gemini auditor deprecated 2026-05-24, see §9）:
 - `NO-VIOLATION`（扫了 N 条款，无违宪发现）
 - `VIOLATION-FOUND <constitutional-clause> <file>:<line>`
 - `RECONSTRUCTION-FAILURE <which-tape-or-cas-path-cannot-be-reconstructed>`
