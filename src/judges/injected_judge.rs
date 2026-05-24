@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Scripted-verdict judge for stress testing.
+//! TRACE_MATRIX FC1a-judge_pi: Scripted-verdict judge for stress testing.
 //!
 //! `InjectedJudge` consumes a pre-specified `Vec<JudgeVerdict>` and returns
 //! the next verdict each time `verdict()` is called. After the list is
@@ -17,7 +17,7 @@ use std::cell::Cell;
 use super::math_step_judge::{JudgeVerdict, MathStepJudge};
 
 /// Scripted-verdict judge.
-/// TRACE_MATRIX FC1a-predicate_pi: Deterministic backend for stress tests.
+/// TRACE_MATRIX FC1a-judge_pi: Deterministic backend for stress tests.
 pub struct InjectedJudge {
     verdicts: Vec<JudgeVerdict>,
     cursor: Cell<usize>,
@@ -25,7 +25,7 @@ pub struct InjectedJudge {
 }
 
 impl InjectedJudge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Build from a verdict script + fallback.
+    /// TRACE_MATRIX FC1a-judge_pi: Build from a verdict script + fallback.
     pub fn new(verdicts: Vec<JudgeVerdict>, fallback: JudgeVerdict) -> Self {
         Self {
             verdicts,
@@ -34,7 +34,7 @@ impl InjectedJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: How many verdicts have been served.
+    /// TRACE_MATRIX FC1a-judge_pi: How many verdicts have been served.
     pub fn served(&self) -> usize {
         self.cursor.get()
     }

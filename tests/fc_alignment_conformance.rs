@@ -140,17 +140,6 @@ fn fc2_n22_halt_via_halt_and_settle() {
     let _ = result;
 }
 
-#[test]
-fn fc2_n23_event_type_omega_accepted_canonical() {
-    // FC2-N23 HaltReason variants — the only one currently TYPED as a
-    // Rust enum variant is EventType::OmegaAccepted (per ledger.rs:147
-    // "V3L-09: only OmegaAccepted is a true OMEGA event").
-    // The other variants {MaxTxExhausted, WallClockCap, ComputeCapViolated,
-    // ErrorHalt} per CLAUDE.md report standard live as strings in jsonl
-    // `extra` map — see ignored stub fc2_n23_haltreason_full_taxonomy_typed
-    // below.
-    let _ = EventType::OmegaAccepted;
-}
 
 #[test]
 fn fc2_n20_n27_tick_mr_present() {
@@ -258,9 +247,9 @@ fn fc3_s3_readonly_subgraph_manifest_size() {
 // Per TRACE_MATRIX_v0 § 4 + v1 amendment notes. Stubs reserve the row.
 
 #[test]
-#[ignore = "📅 Not yet typed as Rust enum — only OmegaAccepted exists; \
-            other 4 variants {MaxTxExhausted, WallClockCap, ComputeCapViolated, \
-            ErrorHalt} per CLAUDE.md report standard live as jsonl strings in \
+#[ignore = "📅 Not yet typed as Rust enum — HaltReason variants \
+            {MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt} \
+            per CLAUDE.md report standard live as jsonl strings in \
             extra map. Type promotion is Phase C+ work."]
 fn fc2_n23_haltreason_full_taxonomy_typed() {
     panic!("HaltReason full taxonomy not yet a Rust enum");

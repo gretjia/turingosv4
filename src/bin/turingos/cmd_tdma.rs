@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC2-N16 + FC1a-rtool + FC1a-predicate_pi:
+//! TRACE_MATRIX FC2-N16 + FC1a-rtool + FC1a-judge_pi:
 //! turingos tdma — TDMA-Bounded production runner.
 //!
 //! Atom 18 thin-shim refactor: the kernel-driving loop now lives in

@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Math-step JudgeAI predicate for the
+//! TRACE_MATRIX FC1a-judge_pi: Math-step JudgeAI for the
 //! Atom 7.5 real-evidence run.
 //!
 //! Two backends behind the same `MathStepJudge` API:
@@ -22,7 +22,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Judgement of a single proof step.
-/// TRACE_MATRIX FC1a-predicate_pi: Ternary verdict from JudgeAI.
+/// TRACE_MATRIX FC1a-judge_pi: Ternary verdict from JudgeAI.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum JudgeVerdict {
     Pass,
@@ -31,14 +31,14 @@ pub enum JudgeVerdict {
 }
 
 impl JudgeVerdict {
-    /// TRACE_MATRIX FC1a-predicate_pi: Coerce to a kernel-friendly success bit.
+    /// TRACE_MATRIX FC1a-judge_pi: Coerce to a kernel-friendly success bit.
     pub fn is_pass(&self) -> bool {
         matches!(self, JudgeVerdict::Pass)
     }
 }
 
 /// Contract for a math-step judge.
-/// TRACE_MATRIX FC1a-predicate_pi: Pluggable JudgeAI backend.
+/// TRACE_MATRIX FC1a-judge_pi: Pluggable JudgeAI backend.
 pub trait MathStepJudge {
     /// Judge a single candidate step in the context of prior accepted steps.
     fn verdict(&self, prior_steps: &[String], candidate_step: &str) -> JudgeVerdict;
@@ -57,12 +57,12 @@ pub trait MathStepJudge {
 ///     asymptotic.
 ///   * Final step starts with `[COMPLETE]` AND mentions `-1/12`.
 ///
-/// TRACE_MATRIX FC1a-predicate_pi: Offline judge for CI + integration tests.
+/// TRACE_MATRIX FC1a-judge_pi: Offline judge for CI + integration tests.
 #[derive(Debug, Default, Clone)]
 pub struct OfflineHeuristicJudge;
 
 impl OfflineHeuristicJudge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Constructor (default offline judge).
+    /// TRACE_MATRIX FC1a-judge_pi: Constructor (default offline judge).
     pub fn new() -> Self {
         Self
     }

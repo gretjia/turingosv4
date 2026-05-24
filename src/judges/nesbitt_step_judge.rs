@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Nesbitt's-inequality step judge for Atom 10
+//! TRACE_MATRIX FC1a-judge_pi: Nesbitt's-inequality step judge for Atom 10
 //! real-world stress test.
 //!
 //! Implements an IneqMath-style multi-category judge for the 8-step canonical
@@ -31,7 +31,7 @@
 use super::math_step_judge::{JudgeVerdict, MathStepJudge};
 
 /// Eight canonical stages of the Nesbitt AM-GM proof.
-/// TRACE_MATRIX FC1a-predicate_pi: Tracks where the worker is in the proof.
+/// TRACE_MATRIX FC1a-judge_pi: Tracks where the worker is in the proof.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NesbittStage {
     Step1Substitute,    // x = b+c, y = a+c, z = a+b   (or analog)
@@ -45,7 +45,7 @@ pub enum NesbittStage {
 }
 
 impl NesbittStage {
-    /// TRACE_MATRIX FC1a-predicate_pi: Next stage in the canonical proof.
+    /// TRACE_MATRIX FC1a-judge_pi: Next stage in the canonical proof.
     pub fn next(self) -> Option<Self> {
         Some(match self {
             NesbittStage::Step1Substitute => NesbittStage::Step2Rewrite,
@@ -60,7 +60,7 @@ impl NesbittStage {
     }
 
     /// Human-readable label.
-    /// TRACE_MATRIX FC1a-predicate_pi: For evidence reporting.
+    /// TRACE_MATRIX FC1a-judge_pi: For evidence reporting.
     pub fn label(self) -> &'static str {
         match self {
             NesbittStage::Step1Substitute => "Step1-Substitute",
@@ -76,7 +76,7 @@ impl NesbittStage {
 }
 
 /// Reject classes — mirror IneqMath's five-judge taxonomy + an off-stage class.
-/// TRACE_MATRIX FC1a-predicate_pi: Five orthogonal failure signatures.
+/// TRACE_MATRIX FC1a-judge_pi: Five orthogonal failure signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NesbittRejectClass {
     DirectionReversal,
@@ -88,7 +88,7 @@ pub enum NesbittRejectClass {
 }
 
 impl NesbittRejectClass {
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical reject_class string for
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical reject_class string for
     /// the tape's `RetryConstraint.id` and TapeNode.reject_class field.
     pub fn reject_class_str(self) -> &'static str {
         match self {
@@ -101,7 +101,7 @@ impl NesbittRejectClass {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical failed_predicate string for
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical failed_predicate string for
     /// the StateUpdate header's `failed_predicate` field.
     pub fn failed_predicate_str(self) -> &'static str {
         match self {
@@ -117,7 +117,7 @@ impl NesbittRejectClass {
 
 /// Judge for one step. Internal state advances through `NesbittStage` as the
 /// worker accumulates accepted steps.
-/// TRACE_MATRIX FC1a-predicate_pi: Multi-category sequential judge.
+/// TRACE_MATRIX FC1a-judge_pi: Multi-category sequential judge.
 pub struct NesbittStepJudge {
     /// Current expected stage. After `verdict()` returns Pass, the caller
     /// should call `advance()` to move to the next stage. (We keep advance
@@ -133,14 +133,14 @@ impl Default for NesbittStepJudge {
 }
 
 impl NesbittStepJudge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Construct judge starting at Step 1.
+    /// TRACE_MATRIX FC1a-judge_pi: Construct judge starting at Step 1.
     pub fn new() -> Self {
         Self {
             current_stage: std::cell::Cell::new(NesbittStage::Step1Substitute),
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Promote stage after a successful step.
+    /// TRACE_MATRIX FC1a-judge_pi: Promote stage after a successful step.
     pub fn advance(&self) -> bool {
         match self.current_stage.get().next() {
             Some(next) => {
@@ -151,7 +151,7 @@ impl NesbittStepJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Convert verdict into a `JudgeVerdict`
+    /// TRACE_MATRIX FC1a-judge_pi: Convert verdict into a `JudgeVerdict`
     /// for the kernel's success bit.
     pub fn verdict_for_stage(
         &self,

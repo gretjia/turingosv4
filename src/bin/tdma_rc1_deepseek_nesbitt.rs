@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi + FC3-replay:
+//! TRACE_MATRIX FC1a-rtool + FC1a-judge_pi + FC3-replay:
 //! Atom 12 — Real DeepSeek vs Nesbitt's inequality (via local llm_proxy).
 //!
 //! Atom 18 thin-shim refactor: all the kernel-driving / probe-capture /

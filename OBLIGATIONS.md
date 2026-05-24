@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **PARTIAL** — OBL-001 open.
+Current overall status: **PARTIAL** — OBL-001 open, OBL-004 in-progress.
 
 ---
 
@@ -29,4 +29,21 @@ Current overall status: **PARTIAL** — OBL-001 open.
 - Level: must
 - Status: satisfied
 - Evidence: `skills/OBLIGATIONS_LEDGER.md` (canonical skill, 195 行) + `OBLIGATIONS.md` (本 ledger) + `AGENTS.md §11/§14/§16` patches (+44 行) + `CLAUDE.md §5` patch (+5 行) + user "批准" 2026-05-24
+- Last-touched: 2026-05-24
+
+## OBL-004: TuringOS v4 全量违宪代码修复（守宪法 + 保留工程实践）
+- Source: "你马上要进行的任务是一个非常严肃且重要的，就是修复本项目所有的违宪代码，要求非常细致的排查和修正，需要最高思考深度的模型来完成。不能有任何失误。我的原则是严格守宪法，尽可能保留本项目已经实现的优秀工程开发，在确定不违反宪法的情况下，给你自主裁决权力。如果你发现不守宪法，不需要问我意见，直接千万kill那个方案" + "我无论你是什么方案，我要的是全量修复，不留任何违宪。我提供给你的 GPT 方案也是他做了大量的研究的，我希望你认真参考、综合全部的意见" + "让 Turing OS v4 这个项目完全守宪法，在这个原则上尽可能保留已经开发的工程实践"
+- Level: must
+- Status: in_progress
+- Scope: R1+R2+R3 audit 共 30 finding 去重至 24 atom，分 3 wave 实施 (Wave 1 自主 = PR-A/B/C；Wave 2 §6 batch 预授权 = PR-D；Wave 3 W3-1 retire legacy Node 折入 PR-D；W3-2 PredicateRegistry 起草 Class 4 charter)
+- User-decisions (plan-grill 2026-05-24): Wave 1 拆 3 PR / Wave 2 批量预授权 / W3-1 retire Node / W3-2 起草 charter + per-atom §8
+- Evidence: TBD — expected
+  - `handover/audits/CONSTITUTION_REPAIR_R1R2R3_SYNTHESIS_2026-05-24.md` (synthesis report)
+  - PR-A: `constitution-repair/wave1-pr-a-orphan-delete` branch + merged PR
+  - PR-B: `constitution-repair/wave1-pr-b-shielding-judge` branch + merged PR
+  - PR-C: `constitution-repair/wave1-pr-c-librarian-disjointness` branch + merged PR
+  - PR-D: `constitution-repair/wave2-bus-cleanup-node-retire` branch + merged PR (Wave 2 5 atoms + W1-4 + W3-1)
+  - Charter: `handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-2X.md` + §8 ratification
+  - cargo check + cargo test --workspace 全程 GREEN
+- GPT-plan disposition: KILLED as TS prototype, NOT v4 — content was for `gretjia/turingos` (deprecated TS register kernel `delta(q,s)→(q',s',d')` with `.reg_q/.reg_d/MAIN_TAPE.md/FileChronos`)；仅 CanonicalEvent 14 种 + Gate 测试 15 条作为对照清单复用，余皆弃
 - Last-touched: 2026-05-24

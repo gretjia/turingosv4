@@ -144,18 +144,10 @@ impl Default for Tape {
 // ── Ledger event log ────────────────────────────────────────────
 
 /// Event types for the append-only event ledger.
-/// V3L-09: explicit vocabulary — only OmegaAccepted is a true OMEGA event.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EventType {
     RunStart,
     Append,
-    Invest,
-    MarketCreate,
-    MarketResolve,
-    OmegaInvoke,
-    OmegaAccepted,
-    OmegaRejected,
-    OmegaError,
     RunEnd,
 }
 
@@ -164,13 +156,6 @@ impl fmt::Display for EventType {
         match self {
             EventType::RunStart => write!(f, "RunStart"),
             EventType::Append => write!(f, "Append"),
-            EventType::Invest => write!(f, "Invest"),
-            EventType::MarketCreate => write!(f, "MarketCreate"),
-            EventType::MarketResolve => write!(f, "MarketResolve"),
-            EventType::OmegaInvoke => write!(f, "OmegaInvoke"),
-            EventType::OmegaAccepted => write!(f, "OmegaAccepted"),
-            EventType::OmegaRejected => write!(f, "OmegaRejected"),
-            EventType::OmegaError => write!(f, "OmegaError"),
             EventType::RunEnd => write!(f, "RunEnd"),
         }
     }
@@ -931,20 +916,6 @@ mod tests {
         ledger.events.as_mut_slice()[0].hash = "tampered".to_string();
 
         assert!(ledger.verify().is_err());
-    }
-
-    #[test]
-    fn test_ledger_omega_vocabulary() {
-        // V3L-09: only OmegaAccepted is the canonical OMEGA event
-        let mut ledger = Ledger::new();
-        ledger
-            .append(EventType::OmegaInvoke, Some("n1".into()), None, None)
-            .unwrap();
-        ledger
-            .append(EventType::OmegaAccepted, Some("n1".into()), None, None)
-            .unwrap();
-        assert!(ledger.verify().is_ok());
-        assert_eq!(ledger.events()[1].event_type, EventType::OmegaAccepted);
     }
 
     // ── TDMA-Bounded-RC1 Atom 1 tests ───────────────────────────

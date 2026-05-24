@@ -14,9 +14,13 @@
 //! lines, packs them under the B_G ceiling, and stores the rest as retrieval
 //! handles so the kernel can fetch them on demand.
 //!
-//! Phase E obligation (Art. 0.4 Path B / libgit2) is declared in
-//! `handover/architect-insights/PHASE_E_TODO_TDMA.md` and re-affirmed in every
-//! Atom 8 ship report.
+//! Phase E Path B (libgit2 real-git substrate per Art. 0.4) is implemented
+//! for the TDMA-bounded loop in `src/git_tape_ledger.rs` and for the L4
+//! canonical transition ledger in `src/bottom_white/ledger/transition_ledger.rs`.
+//! The legacy `src/ledger.rs` in-memory `Tape` Path A peer remains for the
+//! `run_proof` default and emergency in-process rollback.
+//! See `handover/architect-insights/PHASE_E_TODO_TDMA.md` for the original
+//! Phase E obligation chain.
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
 

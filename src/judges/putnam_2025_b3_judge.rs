@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Putnam 2025 B3 strict step judge.
+//! TRACE_MATRIX FC1a-judge_pi: Putnam 2025 B3 strict step judge.
 //!
 //! Problem (Putnam 2025 B3, December 6, 2025):
 //!   Suppose S is a nonempty set of positive integers with the property
@@ -29,7 +29,7 @@ use std::cell::Cell;
 use super::math_step_judge::{JudgeVerdict, MathStepJudge};
 
 /// Five stages of the Putnam 2025 B3 canonical proof.
-/// TRACE_MATRIX FC1a-predicate_pi: Sequential proof state.
+/// TRACE_MATRIX FC1a-judge_pi: Sequential proof state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PutnamB3Stage {
     Stage1Simplify,     // 2025n − 15n = 2010n
@@ -40,7 +40,7 @@ pub enum PutnamB3Stage {
 }
 
 impl PutnamB3Stage {
-    /// TRACE_MATRIX FC1a-predicate_pi: Next stage in canonical proof.
+    /// TRACE_MATRIX FC1a-judge_pi: Next stage in canonical proof.
     pub fn next(self) -> Option<Self> {
         use PutnamB3Stage::*;
         Some(match self {
@@ -52,7 +52,7 @@ impl PutnamB3Stage {
         })
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Human-readable stage label.
+    /// TRACE_MATRIX FC1a-judge_pi: Human-readable stage label.
     pub fn label(self) -> &'static str {
         use PutnamB3Stage::*;
         match self {
@@ -66,7 +66,7 @@ impl PutnamB3Stage {
 }
 
 /// Reject classes. Six orthogonal failure signatures.
-/// TRACE_MATRIX FC1a-predicate_pi: Failure classification.
+/// TRACE_MATRIX FC1a-judge_pi: Failure classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PutnamB3RejectClass {
     MissingSimplification, // Stage 1: didn't compute 2025−15=2010
@@ -80,7 +80,7 @@ pub enum PutnamB3RejectClass {
 }
 
 impl PutnamB3RejectClass {
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical reject_class string for tape.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical reject_class string for tape.
     pub fn reject_class_str(self) -> &'static str {
         use PutnamB3RejectClass::*;
         match self {
@@ -94,7 +94,7 @@ impl PutnamB3RejectClass {
             LogicalGap => "logical-gap",
         }
     }
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical failed_predicate string for header.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical failed_predicate string for header.
     pub fn failed_predicate_str(self) -> &'static str {
         use PutnamB3RejectClass::*;
         match self {
@@ -111,7 +111,7 @@ impl PutnamB3RejectClass {
 }
 
 /// Sequential strict judge for Putnam 2025 B3.
-/// TRACE_MATRIX FC1a-predicate_pi: Strict step-aware verifier.
+/// TRACE_MATRIX FC1a-judge_pi: Strict step-aware verifier.
 pub struct PutnamB3Judge {
     pub current_stage: Cell<PutnamB3Stage>,
 }
@@ -123,14 +123,14 @@ impl Default for PutnamB3Judge {
 }
 
 impl PutnamB3Judge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Constructor at Stage 1.
+    /// TRACE_MATRIX FC1a-judge_pi: Constructor at Stage 1.
     pub fn new() -> Self {
         Self {
             current_stage: Cell::new(PutnamB3Stage::Stage1Simplify),
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Promote stage after successful step.
+    /// TRACE_MATRIX FC1a-judge_pi: Promote stage after successful step.
     pub fn advance(&self) -> bool {
         match self.current_stage.get().next() {
             Some(n) => {
@@ -141,7 +141,7 @@ impl PutnamB3Judge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Strict step verdict.
+    /// TRACE_MATRIX FC1a-judge_pi: Strict step verdict.
     pub fn verdict_for_stage(
         &self,
         candidate: &str,
