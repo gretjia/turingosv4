@@ -1076,7 +1076,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
 }
 
 /// TRACE_MATRIX FC1-N4 / FC2-N18: Read prior rejection diagnostics from CAS
-/// TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi: Drive `turingos generate` through
+/// TRACE_MATRIX FC1a-rtool + FC1a-judge_pi: Drive `turingos generate` through
 /// the TDMA-Bounded MemoryKernel via `tdma_runner::run_proof` and an
 /// `AnyJudge::Generate` single-stage judge.
 ///

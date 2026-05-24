@@ -11,17 +11,6 @@
 
 use rand::Rng;
 
-/// Agent submission (from agent channel to bus reactor).
-#[derive(Debug, Clone)]
-pub struct MinerTx {
-    pub agent_id: String,
-    pub model_name: String,
-    pub payload: String,
-    pub parent_id: Option<String>,
-    pub action_type: String,
-    pub completion_tokens: u32,
-}
-
 // ── Boltzmann v2 (TB-14 Atom 5 integer-rational) ─────────────────────────
 
 /// TRACE_MATRIX TB-14 Atom 5 (FC2-N29; architect §5.5 SG-14.4 + SG-14.5

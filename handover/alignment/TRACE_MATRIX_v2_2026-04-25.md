@@ -46,7 +46,7 @@ A0b added the missing `tests/fc_alignment_conformance.rs` (was only in `.claude/
 | FC1-N15 / E18 (∏p=0 → Q_t preserve) | ⚠️ | ✅ | `fc1_n11_n15_e18_*` (same test) |
 | FC2-N20/N27 (mr tick) | ✅ | ✅ + witness | `fc2_n20_n27_tick_mr_present` |
 | FC2-N22 (HALT) | ⚠️ | ✅ | `fc2_n22_halt_via_halt_and_settle` |
-| FC2-N23 (HaltReason — only OmegaAccepted typed) | ✅ | ✅ + witness | `fc2_n23_event_type_omega_accepted_canonical` |
+| FC2-N23 (HaltReason — only OmegaAccepted typed) | ✅ | ✅ + witnesses | `tests/constitution_fc1_runtime_loop.rs` (5 `RunOutcome::OmegaAccepted` typed witnesses at lines 55, 83, 88, 175, 182, 187) + `src/bin/tb_18r_compute_invariant.rs` (full 6-variant taxonomy parser at lines 13, 33). Predecessor witness `fc2_n23_event_type_omega_accepted_canonical` retired by Wave 1 PR-A constitution repair (2026-05-24) along with the legacy `EventType::OmegaAccepted` enum variant per Art. 0.2 dormant_tape_field cleanup; typed `RunOutcome` enum binding supersedes the jsonl-vocabulary path. |
 | FC3-N31 (Wal logs archive) | ⚠️ | ✅ | `fc3_n31_logs_archive_wal_present` |
 | FC3-N34 (readonly guard verify_trust_root) | ✅ | ✅ + 3 witnesses | `fc3_n34_*` (3 tests) |
 | FC3-N39 (Ledger log) | ✅ | ✅ + witness | `fc3_n39_log_ledger_present_and_appendable` |

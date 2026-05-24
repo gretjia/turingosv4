@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Single-stage code-generation JudgeAI.
+//! TRACE_MATRIX FC1a-judge_pi: Single-stage code-generation JudgeAI.
 //!
 //! Atom 19 of the TDMA-Generate + Phase E package. Verdicts whether an LLM
 //! response is a usable artifact bundle for `turingos generate --tdma-bounded`.
@@ -13,14 +13,14 @@ use std::cell::Cell;
 
 use crate::judges::math_step_judge::JudgeVerdict;
 
-/// TRACE_MATRIX FC1a-predicate_pi: Single-stage cursor for generate.
+/// TRACE_MATRIX FC1a-judge_pi: Single-stage cursor for generate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GenerateStage {
     Compile,
 }
 
 impl GenerateStage {
-    /// TRACE_MATRIX FC1a-predicate_pi: Human-readable stage label.
+    /// TRACE_MATRIX FC1a-judge_pi: Human-readable stage label.
     pub fn label(self) -> &'static str {
         match self {
             GenerateStage::Compile => "Compile",
@@ -28,7 +28,7 @@ impl GenerateStage {
     }
 }
 
-/// TRACE_MATRIX FC1a-predicate_pi: Reject classes for generate output.
+/// TRACE_MATRIX FC1a-judge_pi: Reject classes for generate output.
 ///
 /// Mapped one-to-one to the existing `runtime::rejection_capsule::RejectClass`
 /// at the cmd_generate.rs callsite when constructing a GenerateRejectionCapsule.
@@ -43,7 +43,7 @@ pub enum GenerateRejectClass {
 }
 
 impl GenerateRejectClass {
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical reject_class string for tape.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical reject_class string for tape.
     pub fn reject_class_str(self) -> &'static str {
         match self {
             GenerateRejectClass::NoFilesParsed => "no-files-parsed",
@@ -55,7 +55,7 @@ impl GenerateRejectClass {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical failed_predicate string for header.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical failed_predicate string for header.
     pub fn failed_predicate_str(self) -> &'static str {
         match self {
             GenerateRejectClass::NoFilesParsed => "bundle.has_at_least_one_file",
@@ -68,7 +68,7 @@ impl GenerateRejectClass {
     }
 }
 
-/// TRACE_MATRIX FC1a-predicate_pi: Single-stage generate-judge state.
+/// TRACE_MATRIX FC1a-judge_pi: Single-stage generate-judge state.
 pub struct GenerateJudge {
     current_stage: Cell<GenerateStage>,
     expected_entrypoint: String,
@@ -127,7 +127,7 @@ fn path_unsafe(path: &str) -> bool {
 }
 
 impl GenerateJudge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Constructor at stage Compile.
+    /// TRACE_MATRIX FC1a-judge_pi: Constructor at stage Compile.
     pub fn new(expected_entrypoint: String, enable_compile_check: bool) -> Self {
         Self {
             current_stage: Cell::new(GenerateStage::Compile),
@@ -136,13 +136,13 @@ impl GenerateJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Promote stage after a successful step.
+    /// TRACE_MATRIX FC1a-judge_pi: Promote stage after a successful step.
     /// Single-stage judge — first advance terminates the proof.
     pub fn advance(&self) -> bool {
         false
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Run verdict on candidate body.
+    /// TRACE_MATRIX FC1a-judge_pi: Run verdict on candidate body.
     pub fn verdict_for_stage(
         &self,
         body: &str,
@@ -217,7 +217,7 @@ impl GenerateJudge {
         (JudgeVerdict::Pass, None)
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Inspect current stage cursor.
+    /// TRACE_MATRIX FC1a-judge_pi: Inspect current stage cursor.
     pub fn current_stage(&self) -> GenerateStage {
         self.current_stage.get()
     }

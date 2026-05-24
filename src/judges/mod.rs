@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: TDMA-Bounded JudgeAI predicate module.
+//! TRACE_MATRIX FC1a-judge_pi: TDMA-Bounded JudgeAI predicate module.
 //!
 //! Constitution explicitly permits JudgeAI as a verdict authority for FC1
 //! predicates. This module holds the math-step judge used in the Atom 7.5
@@ -7,15 +7,15 @@
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
 
-/// TRACE_MATRIX FC1a-predicate_pi: math-step JudgeAI submodule.
+/// TRACE_MATRIX FC1a-judge_pi: math-step JudgeAI submodule.
 pub mod math_step_judge;
-/// TRACE_MATRIX FC1a-predicate_pi: deterministic scripted-verdict judge (Atom 9 stress fixture).
+/// TRACE_MATRIX FC1a-judge_pi: deterministic scripted-verdict judge (Atom 9 stress fixture).
 pub mod injected_judge;
-/// TRACE_MATRIX FC1a-predicate_pi: Nesbitt's-inequality multi-category step judge (Atom 10).
+/// TRACE_MATRIX FC1a-judge_pi: Nesbitt's-inequality multi-category step judge (Atom 10).
 pub mod nesbitt_step_judge;
-/// TRACE_MATRIX FC1a-predicate_pi: Putnam 2024 A1 strict step judge (Atom 13 extreme stress).
+/// TRACE_MATRIX FC1a-judge_pi: Putnam 2024 A1 strict step judge (Atom 13 extreme stress).
 pub mod putnam_2024_a1_judge;
-/// TRACE_MATRIX FC1a-predicate_pi: Putnam 2025 B3 strict step judge (Atom 14 post-cutoff stress).
+/// TRACE_MATRIX FC1a-judge_pi: Putnam 2025 B3 strict step judge (Atom 14 post-cutoff stress).
 pub mod putnam_2025_b3_judge;
-/// TRACE_MATRIX FC1a-predicate_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
+/// TRACE_MATRIX FC1a-judge_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
 pub mod generate_judge;

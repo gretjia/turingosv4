@@ -1,18 +1,19 @@
 //! TRACE_MATRIX FC1a-substrate_seam + FC3-replay:
-//! Phase E `GitTapeLedger` skeleton — Atom 20.
-//!
-//! Constitution Art. 0.4 mandates Path B (real-git substrate) for the TDMA
-//! tape. This file lands the SKELETON: type definitions, repo open/init,
-//! ImmutableTapeLedger trait wired with `todo!()` panics for the bodies that
-//! Atoms 21 (commit/retrieve roundtrip) and 22 (verified_head + BBS via
-//! refs/log) will fill in.
+//! Path B (real-git substrate per Art. 0.4) for the TDMA tape — Atom 20
+//! seam, Atoms 21+22 commit semantics.
 //!
 //! Why a skeleton-first split (Karpathy ARCHITECT §3 micro-version-before-real):
-//! Atom 20 proves the trait wiring, the `pub mod` registration, the
+//! Atom 20 proved the trait wiring, the `pub mod` registration, the
 //! `run_proof_with_ledger` generic, and the Trust Root rehash discipline ALL
-//! compile end-to-end BEFORE Atoms 21/22 commit canonical semantics. The
-//! skeleton has Class 2 risk (additive trait impl + one-line generic
-//! parameterization); Atoms 21/22 are Class 3 (tape semantics).
+//! compiled end-to-end BEFORE Atoms 21/22 committed canonical semantics. The
+//! skeleton had Class 2 risk (additive trait impl + one-line generic
+//! parameterization); Atoms 21/22 were Class 3 (tape semantics).
+//!
+//! Post-Atoms-21+22 status: bodies are fully implemented — `commit`,
+//! `count_nodes`, `latest_node`, `verified_head`,
+//! `derive_latest_belief_state_from_tape` all land canonical libgit2
+//! semantics via the `git2` crate. The original `todo!()` panics for those
+//! bodies no longer exist.
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md
 
@@ -89,12 +90,10 @@ impl From<git2::Error> for GitTapeLedgerError {
 // ── GitTapeLedger ──────────────────────────────────────────────────
 
 /// TRACE_MATRIX FC1a-substrate_seam: Real-git implementation of the
-/// `ImmutableTapeLedger` trait. Phase E Path B per constitution Art. 0.4.
+/// `ImmutableTapeLedger` trait. Phase B Path B per constitution Art. 0.4.
 ///
-/// Bodies for commit / count_nodes / latest_node / verified_head /
-/// derive_latest_belief_state_from_tape are intentionally `todo!()` until
-/// Atoms 21 + 22 land. Atom 20 verifies the surface compiles, the trait
-/// wires up, and `Box<dyn ImmutableTapeLedger>` accepts the type.
+/// `commit`, `count_nodes`, `latest_node`, `verified_head`, and
+/// `derive_latest_belief_state_from_tape` are fully implemented via libgit2.
 pub struct GitTapeLedger {
     repo: git2::Repository,
     #[allow(dead_code)]

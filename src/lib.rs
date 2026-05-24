@@ -26,9 +26,9 @@ pub mod distiller;
 pub mod charter_core;
 /// TRACE_MATRIX FC1a-rtool: TDMA-Bounded-RC1 rtool checkout_digest (Atom 6).
 pub mod rtool;
-/// TRACE_MATRIX FC1a-predicate_pi: TDMA-Bounded-RC1 JudgeAI predicates (Atom 7.5).
+/// TRACE_MATRIX FC1a-judge_pi: TDMA-Bounded-RC1 JudgeAI predicates (Atom 7.5).
 pub mod judges;
-/// TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi + FC3-replay:
+/// TRACE_MATRIX FC1a-rtool + FC1a-judge_pi + FC3-replay:
 /// TDMA-Bounded shared runner library (Atom 18 — K10+K11 refactor).
 pub mod tdma_runner;
 /// TRACE_MATRIX FC1a-substrate_seam + FC3-replay:

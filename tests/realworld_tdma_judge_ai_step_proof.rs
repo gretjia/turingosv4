@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-Q_t + FC1b-Q_{t+1} + FC1a-predicate_pi:
+//! TRACE_MATRIX FC1a-Q_t + FC1b-Q_{t+1} + FC1a-judge_pi:
 //! Atom 7.5 real-evidence integration test.
 //!
 //! Drives the full TDMA-Bounded kernel through the user-supplied math problem

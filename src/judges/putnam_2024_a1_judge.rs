@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Putnam 2024 A1 step-level judge.
+//! TRACE_MATRIX FC1a-judge_pi: Putnam 2024 A1 step-level judge.
 //!
 //! Problem (Putnam 2024 A1):
 //!   Determine all positive integers n such that there exist positive
@@ -27,7 +27,7 @@ use std::cell::Cell;
 use super::math_step_judge::{JudgeVerdict, MathStepJudge};
 
 /// Eight canonical stages of the Putnam 2024 A1 proof.
-/// TRACE_MATRIX FC1a-predicate_pi: Sequential proof state.
+/// TRACE_MATRIX FC1a-judge_pi: Sequential proof state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PutnamA1Stage {
     Stage1WitnessN1,    // verify (1,2,2) works for n=1: 2+6=8=4·2
@@ -41,7 +41,7 @@ pub enum PutnamA1Stage {
 }
 
 impl PutnamA1Stage {
-    /// TRACE_MATRIX FC1a-predicate_pi: Next stage in the canonical proof.
+    /// TRACE_MATRIX FC1a-judge_pi: Next stage in the canonical proof.
     pub fn next(self) -> Option<Self> {
         use PutnamA1Stage::*;
         Some(match self {
@@ -56,7 +56,7 @@ impl PutnamA1Stage {
         })
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Human-readable stage label.
+    /// TRACE_MATRIX FC1a-judge_pi: Human-readable stage label.
     pub fn label(self) -> &'static str {
         use PutnamA1Stage::*;
         match self {
@@ -73,7 +73,7 @@ impl PutnamA1Stage {
 }
 
 /// Reject classes mirroring the IneqMath taxonomy, adapted to A1.
-/// TRACE_MATRIX FC1a-predicate_pi: Orthogonal failure signatures.
+/// TRACE_MATRIX FC1a-judge_pi: Orthogonal failure signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PutnamA1RejectClass {
     MissingWitness,        // Stage 1: didn't verify (1,2,2) works numerically
@@ -87,7 +87,7 @@ pub enum PutnamA1RejectClass {
 }
 
 impl PutnamA1RejectClass {
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical reject_class string.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical reject_class string.
     pub fn reject_class_str(self) -> &'static str {
         use PutnamA1RejectClass::*;
         match self {
@@ -102,7 +102,7 @@ impl PutnamA1RejectClass {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Canonical failed_predicate string.
+    /// TRACE_MATRIX FC1a-judge_pi: Canonical failed_predicate string.
     pub fn failed_predicate_str(self) -> &'static str {
         use PutnamA1RejectClass::*;
         match self {
@@ -119,7 +119,7 @@ impl PutnamA1RejectClass {
 }
 
 /// Judge for one step of the Putnam 2024 A1 proof.
-/// TRACE_MATRIX FC1a-predicate_pi: Strict stage-aware verifier.
+/// TRACE_MATRIX FC1a-judge_pi: Strict stage-aware verifier.
 pub struct PutnamA1Judge {
     pub current_stage: Cell<PutnamA1Stage>,
 }
@@ -131,14 +131,14 @@ impl Default for PutnamA1Judge {
 }
 
 impl PutnamA1Judge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Start at Stage 1.
+    /// TRACE_MATRIX FC1a-judge_pi: Start at Stage 1.
     pub fn new() -> Self {
         Self {
             current_stage: Cell::new(PutnamA1Stage::Stage1WitnessN1),
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Advance after a successful step.
+    /// TRACE_MATRIX FC1a-judge_pi: Advance after a successful step.
     pub fn advance(&self) -> bool {
         match self.current_stage.get().next() {
             Some(n) => {
@@ -149,7 +149,7 @@ impl PutnamA1Judge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Sequential strict step verdict.
+    /// TRACE_MATRIX FC1a-judge_pi: Sequential strict step verdict.
     pub fn verdict_for_stage(
         &self,
         candidate: &str,

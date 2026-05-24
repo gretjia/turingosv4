@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-rtool + FC1a-predicate_pi + FC3-replay:
+//! TRACE_MATRIX FC1a-rtool + FC1a-judge_pi + FC3-replay:
 //! TDMA-Bounded shared runner library (Atom 18 — K10 + K11 refactor).
 //!
 //! Consolidates the kernel-driving loop that was previously duplicated across:
@@ -43,7 +43,7 @@ use crate::tokenizer::Tokenizer;
 
 // ── Public types ────────────────────────────────────────────────────
 
-/// TRACE_MATRIX FC1a-predicate_pi: Selectable judge sum-type. K10 fix —
+/// TRACE_MATRIX FC1a-judge_pi: Selectable judge sum-type. K10 fix —
 /// replaces the JudgeDriver trait + 3 impls from Atom 17 with one enum.
 /// Match-based dispatch reduces ~180 LOC of trait scaffolding to ~60.
 pub enum AnyJudge {
@@ -70,7 +70,7 @@ pub enum AnyJudge {
 }
 
 impl AnyJudge {
-    /// TRACE_MATRIX FC1a-predicate_pi: Construct a Nesbitt judge.
+    /// TRACE_MATRIX FC1a-judge_pi: Construct a Nesbitt judge.
     pub fn nesbitt() -> Self {
         Self::Nesbitt {
             judge: NesbittStepJudge::new(),
@@ -88,7 +88,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Construct a Putnam 2024 A1 judge.
+    /// TRACE_MATRIX FC1a-judge_pi: Construct a Putnam 2024 A1 judge.
     pub fn putnam_a1() -> Self {
         Self::PutnamA1 {
             judge: PutnamA1Judge::new(),
@@ -106,7 +106,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Construct a Putnam 2025 B3 judge.
+    /// TRACE_MATRIX FC1a-judge_pi: Construct a Putnam 2025 B3 judge.
     pub fn putnam_b3() -> Self {
         Self::PutnamB3 {
             judge: PutnamB3Judge::new(),
@@ -121,7 +121,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Construct a single-stage Generate judge.
+    /// TRACE_MATRIX FC1a-judge_pi: Construct a single-stage Generate judge.
     pub fn generate(expected_entrypoint: String, enable_compile_check: bool) -> Self {
         Self::Generate {
             judge: GenerateJudge::new(expected_entrypoint, enable_compile_check),
@@ -130,7 +130,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Total canonical stages in the proof.
+    /// TRACE_MATRIX FC1a-judge_pi: Total canonical stages in the proof.
     pub fn total_stages(&self) -> usize {
         match self {
             Self::Nesbitt { stages, .. } => stages.len(),
@@ -140,7 +140,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Human-readable current stage label.
+    /// TRACE_MATRIX FC1a-judge_pi: Human-readable current stage label.
     pub fn current_stage_label(&self) -> String {
         match self {
             Self::Nesbitt { stages, cursor, .. } => stages[*cursor].label().to_string(),
@@ -150,7 +150,7 @@ impl AnyJudge {
         }
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Run verdict on candidate body.
+    /// TRACE_MATRIX FC1a-judge_pi: Run verdict on candidate body.
     /// Returns (success, reject_class_str, failed_predicate_str, judge_reason).
     pub fn verdict(
         &self,
@@ -212,7 +212,7 @@ impl AnyJudge {
         (success, class_str, pred_str, reason)
     }
 
-    /// TRACE_MATRIX FC1a-predicate_pi: Promote stage after a successful step.
+    /// TRACE_MATRIX FC1a-judge_pi: Promote stage after a successful step.
     pub fn advance(&mut self) {
         match self {
             Self::Nesbitt { judge, stages, cursor } => {

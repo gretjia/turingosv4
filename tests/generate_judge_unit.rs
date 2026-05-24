@@ -1,4 +1,4 @@
-//! TRACE_MATRIX FC1a-predicate_pi: Atom 19 unit tests for GenerateJudge
+//! TRACE_MATRIX FC1a-judge_pi: Atom 19 unit tests for GenerateJudge
 //! exported as integration tests (run via `cargo test --test generate_judge_unit`).
 //!
 //! The implementation tests live inline in `src/judges/generate_judge.rs::tests`.
