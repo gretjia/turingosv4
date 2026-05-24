@@ -20,7 +20,8 @@ fn predicate_registry_mutation_surface_is_crate_private() {
         "PredicateRegistry must not expose an empty public constructor"
     );
     assert!(
-        !src.contains("pub struct PredicateRegistry") || !src.contains("Default)]\npub struct PredicateRegistry"),
+        !src.contains("pub struct PredicateRegistry")
+            || !src.contains("Default)]\npub struct PredicateRegistry"),
         "PredicateRegistry must not expose public Default construction"
     );
 }
@@ -53,6 +54,7 @@ fn production_replay_paths_use_shared_registry_loader() {
         "src/runtime/risk_cap_impact_report.rs",
         "src/web/market_view.rs",
         "src/bin/audit_dashboard.rs",
+        "experiments/minif2f_v4/src/bin/lean_market.rs",
     ];
     for file in files {
         let src = fs::read_to_string(file).expect(file);
@@ -61,6 +63,10 @@ fn production_replay_paths_use_shared_registry_loader() {
         assert!(
             !src.contains(&ad_hoc_registry_new) && !src.contains(&empty_boot_manifest),
             "{file} must use load_replay_registry instead of constructing an ad hoc empty registry"
+        );
+        assert!(
+            !src.contains("replay_full_transition("),
+            "{file} must use replay_full_transition_with_predicate_binding for production replay"
         );
     }
 }
