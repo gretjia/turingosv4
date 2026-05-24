@@ -44,13 +44,12 @@ use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter, LedgerWriterError,
-    ReplayError,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    LedgerWriterError, ReplayError,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::runtime::PinnedPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
-use crate::top_white::predicates::registry::PredicateRegistry;
 
 const PINNED_PUBKEYS_FILENAME: &str = "pinned_pubkeys.json";
 const INITIAL_Q_STATE_FILENAME: &str = "initial_q_state.json";
@@ -295,11 +294,12 @@ pub fn verify_chaintape(
     let l4e_last_hash_hex = hash_to_hex(&l4e_writer.last_hash());
 
     // Step 6: replay.
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let replay_outcome = replay_full_transition(
+    let replay_outcome = replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
+        &cas_store,
         &cas_store,
         &pinned,
         &predicate_registry,

@@ -25,6 +25,7 @@ use turingosv4::runtime::proposal_telemetry::{
 };
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash};
+use turingosv4::state::sequencer::task_open_accept_state_root;
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
@@ -52,12 +53,18 @@ async fn quiescent_post_shutdown_passes() {
 
     // Submit 1 TaskOpen + 3 zero-stake WorkTx → 4 total submissions →
     // 1 L4 (TaskOpen) + 3 L4.E (zero-stake rejections) = 4 chain entries.
+    let boot_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
     let task_open = make_synthetic_task_open(
         "task-r4-quiescent",
         "tb18r-r4-sponsor",
-        Hash::ZERO,
+        boot_root,
         "quiescent-seed",
     );
+    let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
@@ -79,7 +86,7 @@ async fn quiescent_post_shutdown_passes() {
             &mut reg,
             "task-r4-quiescent",
             &agent,
-            Hash::ZERO,
+            post_task_open_root,
             0,
             &format!("q{idx}"),
             tel_cid,

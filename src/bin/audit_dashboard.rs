@@ -35,8 +35,8 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry,
-    LedgerWriter, ReplayError, TxKind,
+    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter,
+    LedgerCasView, LedgerEntry, LedgerWriter, ReplayError, TxKind,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
@@ -52,7 +52,6 @@ use turingosv4::state::q_state::QState;
 use turingosv4::state::q_state::{AgentId, EconomicState};
 use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide, TypedTx};
 use turingosv4::state::{compute_price_index, NodeMarketEntry, TaskId, TxId};
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 #[derive(Debug)]
 struct Args {
@@ -1172,13 +1171,14 @@ fn rebuild_autopsy_event_counts(
         QState::genesis()
     };
 
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = turingosv4::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
     let cas_view = AuditCasRef(cas);
-    let final_q = match replay_full_transition(
+    let final_q = match replay_full_transition_with_predicate_binding(
         &initial_q,
         entries,
         &cas_view,
+        cas,
         &pinned,
         &predicate_registry,
         &tool_registry,

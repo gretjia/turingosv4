@@ -299,6 +299,8 @@ fn prompt_capsule_object_type_is_distinct() {
             ObjectType::ToolBytecode => "tool",
             ObjectType::AmendmentDiff => "amendment",
             ObjectType::ReversibilityPlan => "reversibility",
+            ObjectType::PredicateRegistrySnapshotCapsule => "predicate_registry_snapshot",
+            ObjectType::PredicateProofCapsule => "predicate_proof",
             ObjectType::Generic => "generic",
         }
     }

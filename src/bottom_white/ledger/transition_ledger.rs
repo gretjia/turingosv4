@@ -161,6 +161,10 @@ pub enum TxKind {
     /// rejects pre-queue; emit via
     /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)`.
     EventResolve = 18,
+    /// W3-2 PredicateRegistryBind — system-emitted activation of bound
+    /// predicate admission. Tail-added so all existing discriminants remain
+    /// byte-stable.
+    PredicateBindingActivate = 19,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
@@ -519,10 +523,42 @@ pub fn replay_full_transition(
     predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
     tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
 ) -> Result<crate::state::q_state::QState, ReplayError> {
+    replay_full_transition_with_predicate_binding(
+        genesis,
+        entries,
+        cas,
+        &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        pinned_pubkeys,
+        predicate_registry,
+        tool_registry,
+    )
+}
+
+/// TRACE_MATRIX FC1-N11 + FC1-N12 + FC2-N19: replay L4 with the tape-activated predicate registry snapshot instead of an ad hoc empty registry.
+pub fn replay_full_transition_with_predicate_binding(
+    genesis: &crate::state::q_state::QState,
+    entries: &[LedgerEntry],
+    cas: &dyn LedgerCasView,
+    predicate_cas: &dyn crate::top_white::predicates::registry::PredicateCasView,
+    pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+    predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
+    tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
+) -> Result<crate::state::q_state::QState, ReplayError> {
     use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
-    use crate::state::sequencer::dispatch_transition;
+    use crate::state::sequencer::{
+        dispatch_transition, event_resolve_signature_verifies_current_or_legacy, system_epoch_of,
+        system_message_for_verification, system_signature_of,
+    };
 
     let mut q = genesis.clone();
+    let replay_predicate_registry = pre_scan_predicate_binding_registry(
+        entries,
+        cas,
+        predicate_cas,
+        pinned_pubkeys,
+        predicate_registry,
+    )?
+    .unwrap_or_else(|| predicate_registry.clone());
 
     for (i, entry) in entries.iter().enumerate() {
         // Stage 1
@@ -582,10 +618,45 @@ pub fn replay_full_transition(
             });
         }
 
+        if let crate::state::typed_tx::TypedTx::PredicateBindingActivate(t) = &typed_tx {
+            if t.timestamp_logical != entry.logical_t {
+                return Err(ReplayError::Transition {
+                    at: i,
+                    inner: crate::state::typed_tx::TransitionError::PredicateBindingActivationLogicalTMismatch,
+                });
+            }
+        }
+
+        if let crate::state::typed_tx::TypedTx::EventResolve(t) = &typed_tx {
+            if !event_resolve_signature_verifies_current_or_legacy(t, pinned_pubkeys) {
+                return Err(ReplayError::Transition {
+                    at: i,
+                    inner: crate::state::typed_tx::TransitionError::InvalidSystemSignatureLive,
+                });
+            }
+        } else if let Some(msg) = system_message_for_verification(&typed_tx) {
+            let sig = system_signature_of(&typed_tx).ok_or_else(|| ReplayError::Transition {
+                at: i,
+                inner: crate::state::typed_tx::TransitionError::InvalidSystemSignatureLive,
+            })?;
+            let epoch = system_epoch_of(&typed_tx).unwrap_or(entry.epoch);
+            if !verify_system_signature(sig, &msg, epoch, pinned_pubkeys) {
+                return Err(ReplayError::Transition {
+                    at: i,
+                    inner: crate::state::typed_tx::TransitionError::InvalidSystemSignatureLive,
+                });
+            }
+        }
+
         // Stage 7: re-run pure dispatch_transition.
-        let (q_next, _signals) =
-            dispatch_transition(&q, &typed_tx, predicate_registry, tool_registry)
-                .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        let (q_next, _signals) = dispatch_transition(
+            &q,
+            &typed_tx,
+            &replay_predicate_registry,
+            tool_registry,
+            predicate_cas,
+        )
+        .map_err(|inner| ReplayError::Transition { at: i, inner })?;
 
         // Stage 8: state_root match.
         if q_next.state_root_t != entry.resulting_state_root {
@@ -604,6 +675,102 @@ pub fn replay_full_transition(
     }
 
     Ok(q)
+}
+
+fn pre_scan_predicate_binding_registry(
+    entries: &[LedgerEntry],
+    cas: &dyn LedgerCasView,
+    predicate_cas: &dyn crate::top_white::predicates::registry::PredicateCasView,
+    pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+    binary_catalog_source: &crate::top_white::predicates::registry::PredicateRegistry,
+) -> Result<Option<crate::top_white::predicates::registry::PredicateRegistry>, ReplayError> {
+    use crate::bottom_white::cas::schema::ObjectType;
+    use crate::bottom_white::ledger::system_keypair::verify_system_signature;
+    use crate::state::sequencer::{
+        system_epoch_of, system_message_for_verification, system_signature_of,
+    };
+    use crate::state::typed_tx::{TransitionError, TypedTx};
+    use crate::top_white::predicates::registry::PredicateRegistrySnapshotCapsule;
+
+    for (i, entry) in entries.iter().enumerate() {
+        let payload_bytes = cas
+            .get_typed_payload(&entry.tx_payload_cid)
+            .map_err(|_| ReplayError::CasMissing { at: i })?;
+        let typed_tx: TypedTx =
+            canonical_decode(&payload_bytes).map_err(|e| ReplayError::PayloadDecode {
+                at: i,
+                reason: e.to_string(),
+            })?;
+        if typed_tx.tx_kind() != entry.tx_kind {
+            return Err(ReplayError::TxKindMismatch {
+                at: i,
+                envelope_kind: entry.tx_kind,
+                decoded_kind: typed_tx.tx_kind(),
+            });
+        }
+        let TypedTx::PredicateBindingActivate(activate) = typed_tx else {
+            continue;
+        };
+        if activate.timestamp_logical != entry.logical_t {
+            return Err(ReplayError::Transition {
+                at: i,
+                inner: TransitionError::PredicateBindingActivationLogicalTMismatch,
+            });
+        }
+
+        // The activation payload chooses the registry snapshot used by replay,
+        // so verify its own system signature before reading/trusting snapshot
+        // fields. The surrounding LedgerEntry signature is not sufficient.
+        let activation_tx = TypedTx::PredicateBindingActivate(activate.clone());
+        let msg = system_message_for_verification(&activation_tx).ok_or_else(|| {
+            ReplayError::Transition {
+                at: i,
+                inner: TransitionError::InvalidSystemSignatureLive,
+            }
+        })?;
+        let sig = system_signature_of(&activation_tx).ok_or_else(|| ReplayError::Transition {
+            at: i,
+            inner: TransitionError::InvalidSystemSignatureLive,
+        })?;
+        let epoch = system_epoch_of(&activation_tx).unwrap_or(entry.epoch);
+        if !verify_system_signature(sig, &msg, epoch, pinned_pubkeys) {
+            return Err(ReplayError::Transition {
+                at: i,
+                inner: TransitionError::InvalidSystemSignatureLive,
+            });
+        }
+
+        let obj = predicate_cas
+            .get_object(&activate.registry_snapshot_cid)
+            .map_err(|_| ReplayError::Transition {
+                at: i,
+                inner: TransitionError::PredicateBindingActivationInvalid,
+            })?;
+        if obj.object_type != ObjectType::PredicateRegistrySnapshotCapsule
+            || obj.schema_id.as_deref() != Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID)
+        {
+            return Err(ReplayError::Transition {
+                at: i,
+                inner: TransitionError::PredicateBindingActivationInvalid,
+            });
+        }
+        let registry = crate::top_white::predicates::registry::PredicateRegistry::from_snapshot_and_binary_impls(
+            &obj.bytes,
+            binary_catalog_source.binary_impls(),
+        )
+        .map_err(|_| ReplayError::Transition {
+            at: i,
+            inner: TransitionError::PredicateBindingActivationInvalid,
+        })?;
+        if registry.merkle_root_hash() != activate.registry_merkle_root {
+            return Err(ReplayError::Transition {
+                at: i,
+                inner: TransitionError::PredicateRegistryRootMismatch,
+            });
+        }
+        return Ok(Some(registry));
+    }
+    Ok(None)
 }
 
 /// Skeleton-stage entry point (v1.1).
@@ -1660,7 +1827,10 @@ mod tests {
         let epoch = SystemEpoch::new(1);
         let mut pinned = PinnedSystemPubkeys::new();
         pinned.insert(epoch, kp.public_key());
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         (tmp, cas, kp, epoch, pinned, preds, tools)
     }
@@ -1744,7 +1914,10 @@ mod tests {
         let epoch = SystemEpoch::new(1);
         let mut pinned = PinnedSystemPubkeys::new();
         pinned.insert(epoch, kp.public_key());
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
 
         let entry;

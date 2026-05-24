@@ -724,7 +724,7 @@ fn replay_qstate(runtime_repo: &Path, cas_path: &Path) -> Result<(QState, u64), 
     let cas = CasStore::open(cas_path).map_err(|e| format!("open cas: {e}"))?;
 
     // Predicate + tool registries (empty — replay does not need them).
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest");
     let tool_registry = ToolRegistry::new();
 
     let q = replay_full_transition(

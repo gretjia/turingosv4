@@ -272,6 +272,10 @@ pub enum CanonicalMessage {
     /// TaskBankruptcy). System-only: emit via
     /// `Sequencer::emit_system_tx(SystemEmitCommand::EventResolve)`.
     EventResolveSigning([u8; 32]),
+    /// W3-2 PredicateRegistryBind: predicate-binding activation signing
+    /// payload digest. Opaque [u8; 32] from
+    /// `PredicateBindingActivateTx::to_signing_payload().canonical_digest()`.
+    PredicateBindingActivateSigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -527,6 +531,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"EventResolveSigning");
             h.update(digest);
         }
+        CanonicalMessage::PredicateBindingActivateSigning(digest) => {
+            h.update(b"PredicateBindingActivateSigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -688,6 +696,17 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::EventResolveSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC1-N11 + FC2-N19: sign the system-only predicate binding activation transaction.
+    pub(crate) fn sign_predicate_binding_activate(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(
+            keypair,
+            &CanonicalMessage::PredicateBindingActivateSigning(digest),
+        )
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

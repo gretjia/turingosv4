@@ -161,16 +161,20 @@ fn find_return_err_pos(block: &str, variant: &str) -> Option<usize> {
     block.find(&needle)
 }
 
+fn source_window(src: &str, start: usize, max_chars: usize) -> String {
+    src[start..].chars().take(max_chars).collect()
+}
+
 #[test]
 fn sg_g3_10_a_worktx_admission_arm_has_risk_cap_precondition() {
     let src = read(SEQUENCER_PATH);
     let arm_start = src
         .find("TypedTx::Work(work) => {")
         .expect("WorkTx admission arm must exist");
-    let arm_block = &src[arm_start..arm_start + 4000];
-    let cap_pos = find_return_err_pos(arm_block, "BankruptcyRiskCapExceeded")
+    let arm_block = source_window(&src, arm_start, 4000);
+    let cap_pos = find_return_err_pos(&arm_block, "BankruptcyRiskCapExceeded")
         .expect("WorkTx arm must return BankruptcyRiskCapExceeded (Atom C)");
-    let stake_balance_pos = find_return_err_pos(arm_block, "StakeBalanceExceeded")
+    let stake_balance_pos = find_return_err_pos(&arm_block, "StakeBalanceExceeded")
         .expect("WorkTx arm must still contain StakeBalanceExceeded emit");
     assert!(
         cap_pos < stake_balance_pos,
@@ -185,10 +189,10 @@ fn sg_g3_10_b_verifytx_admission_arm_has_risk_cap_precondition() {
     let arm_start = src
         .find("TypedTx::Verify(verify) => {")
         .expect("VerifyTx admission arm must exist");
-    let arm_block = &src[arm_start..arm_start + 4000];
-    let cap_pos = find_return_err_pos(arm_block, "BankruptcyRiskCapExceeded")
+    let arm_block = source_window(&src, arm_start, 4000);
+    let cap_pos = find_return_err_pos(&arm_block, "BankruptcyRiskCapExceeded")
         .expect("VerifyTx arm must return BankruptcyRiskCapExceeded");
-    let bond_pos = find_return_err_pos(arm_block, "VerifyBondOutOfBounds")
+    let bond_pos = find_return_err_pos(&arm_block, "VerifyBondOutOfBounds")
         .expect("VerifyTx arm must still contain VerifyBondOutOfBounds emit");
     assert!(
         cap_pos < bond_pos,
@@ -202,10 +206,10 @@ fn sg_g3_10_c_challengetx_admission_arm_has_risk_cap_precondition() {
     let arm_start = src
         .find("TypedTx::Challenge(challenge) => {")
         .expect("ChallengeTx admission arm must exist");
-    let arm_block = &src[arm_start..arm_start + 4000];
-    let cap_pos = find_return_err_pos(arm_block, "BankruptcyRiskCapExceeded")
+    let arm_block = source_window(&src, arm_start, 4000);
+    let cap_pos = find_return_err_pos(&arm_block, "BankruptcyRiskCapExceeded")
         .expect("ChallengeTx arm must return BankruptcyRiskCapExceeded");
-    let stake_pos = find_return_err_pos(arm_block, "StakeInsufficient")
+    let stake_pos = find_return_err_pos(&arm_block, "StakeInsufficient")
         .expect("ChallengeTx arm must still contain StakeInsufficient emit");
     assert!(
         cap_pos < stake_pos,
@@ -219,10 +223,10 @@ fn sg_g3_10_d_buyrouter_admission_arm_has_risk_cap_precondition() {
     let arm_start = src
         .find("TypedTx::BuyWithCoinRouter(router) => {")
         .expect("BuyWithCoinRouter admission arm must exist");
-    let arm_block = &src[arm_start..arm_start + 4000];
-    let cap_pos = find_return_err_pos(arm_block, "BankruptcyRiskCapExceeded")
+    let arm_block = source_window(&src, arm_start, 4000);
+    let cap_pos = find_return_err_pos(&arm_block, "BankruptcyRiskCapExceeded")
         .expect("BuyWithCoinRouter arm must return BankruptcyRiskCapExceeded");
-    let router_pos = find_return_err_pos(arm_block, "RouterInsufficientCoinBalance")
+    let router_pos = find_return_err_pos(&arm_block, "RouterInsufficientCoinBalance")
         .expect("BuyWithCoinRouter arm must still contain RouterInsufficientCoinBalance emit");
     assert!(
         cap_pos < router_pos,
@@ -305,8 +309,8 @@ fn sg_g3_x_a_reputation_plus_one_in_verifytx_arm() {
     let arm_start = src
         .find("TypedTx::Verify(verify) => {")
         .expect("VerifyTx arm must exist");
-    let arm_block = &src[arm_start..arm_start + 8000];
-    let compact = compact_ws(arm_block);
+    let arm_block = source_window(&src, arm_start, 8000);
+    let compact = compact_ws(&arm_block);
     assert!(
         compact.contains("reputations_t.0.entry(verify.verifier_agent.clone())")
             && compact.contains(".0+=1"),
@@ -323,7 +327,7 @@ fn sg_g3_x_a_uniform_plus_one_not_verdict_weighted() {
     let arm_start = src
         .find("Step 5c: TB-G G3.2 Gap-A reputation")
         .expect("Step 5c reputation comment must exist (architect Q2 traceability)");
-    let arm_block = &src[arm_start..arm_start + 800];
+    let arm_block = source_window(&src, arm_start, 800);
     assert!(
         arm_block.contains("uniform +1") || arm_block.contains("+= 1"),
         "Architect Q2 = uniform +1 must be documented + implemented"
@@ -342,7 +346,7 @@ fn sg_g3_x_b_bond_return_in_finalize_reward() {
     let arm_start = src
         .find("TypedTx::FinalizeReward(fr) => {")
         .expect("FinalizeRewardTx arm must exist");
-    let arm_block = &src[arm_start..arm_start + 12000];
+    let arm_block = source_window(&src, arm_start, 12000);
     assert!(
         arm_block.contains("verifier_entries"),
         "FinalizeRewardTx arm must iterate verifier_entries for bond return (Atom E)"
@@ -386,7 +390,7 @@ fn sg_g3_4_terminal_summary_dispatch_emits_capsules() {
     let arm_start = src
         .find("TypedTx::TerminalSummary(ts) => {")
         .expect("TerminalSummary dispatch arm must exist");
-    let arm_block = &src[arm_start..arm_start + 4000];
+    let arm_block = source_window(&src, arm_start, 4000);
     assert!(
         arm_block.contains("derive_g3_2_terminal_summary_bankrupt_autopsies"),
         "TerminalSummary dispatch must invoke the G3.2 autopsy derive helper"

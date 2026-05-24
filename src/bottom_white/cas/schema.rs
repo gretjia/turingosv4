@@ -121,6 +121,16 @@ pub enum ObjectType {
     /// separate Class-4 audit-only artifact requiring explicit
     /// ratification. See `src/runtime/prompt_capsule.rs`.
     PromptCapsule,
+    /// W3-2 PredicateRegistryBind: canonical-encoded
+    /// `PredicateRegistrySnapshotCapsule` bytes. A
+    /// `PredicateBindingActivateTx` points here so replay can reconstruct
+    /// exactly which registry was active when predicate admission binding
+    /// switched on.
+    PredicateRegistrySnapshotCapsule,
+    /// W3-2 PredicateRegistryBind: canonical-encoded `PredicateProofCapsule`
+    /// bytes. Proof predicates use this as the typed wrapper around proof
+    /// artifacts and registry/code-hash/work-context binding.
+    PredicateProofCapsule,
     /// Generic / unclassified blob.
     Generic,
 }
@@ -381,6 +391,15 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&ObjectType::TerminalAbortRecord).expect("serialize"),
             "\"TerminalAbortRecord\"",
+        );
+        assert_eq!(
+            serde_json::to_string(&ObjectType::PredicateRegistrySnapshotCapsule)
+                .expect("serialize"),
+            "\"PredicateRegistrySnapshotCapsule\"",
+        );
+        assert_eq!(
+            serde_json::to_string(&ObjectType::PredicateProofCapsule).expect("serialize"),
+            "\"PredicateProofCapsule\"",
         );
     }
 }

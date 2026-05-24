@@ -108,31 +108,31 @@ fn predicate_pass_required_for_l4() {
         "Predicate gate violation: bus.rs lacks Vetoed result variant — \
          pass-vs-fail routing un-distinguishable at append site."
     );
-    // PredicateRegistry surface lives in runtime/ and transition_ledger;
-    // post TB-7R the bus delegates to verify.rs / runtime / admit path.
-    use std::process::Command;
-    let pred_grep = Command::new("grep")
-        .args([
-            "-rEn",
-            "--include=*.rs",
-            "PredicateRegistry|evaluate_predicates",
-            "src/",
-        ])
-        .output()
-        .expect("grep available");
-    let pred_stdout = String::from_utf8_lossy(&pred_grep.stdout);
+    // PredicateRegistry must be consumed by the sequencer/replay admission
+    // path, not merely constructed as an empty documentation artifact.
+    let runtime_src =
+        std::fs::read_to_string("src/runtime/mod.rs").expect("runtime/mod.rs readable");
+    let loader_src = std::fs::read_to_string("src/runtime/predicate_registry_loader.rs")
+        .expect("predicate_registry_loader.rs readable");
+    let ledger_src = std::fs::read_to_string("src/bottom_white/ledger/transition_ledger.rs")
+        .expect("transition_ledger.rs readable");
+    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     assert!(
-        pred_stdout.contains("PredicateRegistry::new")
-            && (pred_stdout.contains("transition_ledger.rs") || pred_stdout.contains("verify.rs")),
+        runtime_src.contains("predicate_registry_loader::load_replay_registry()")
+            && loader_src.contains("PredicateRegistry::from_boot_manifest")
+            && ledger_src.contains("replay_full_transition_with_predicate_binding")
+            && ledger_src.contains("pre_scan_predicate_binding_registry")
+            && seq_src.contains("fn verify_work_predicates(")
+            && seq_src.contains(".verify_proof(ctx,")
+            && !seq_src.contains("_predicate_registry"),
         "Predicate gate violation: PredicateRegistry not threaded into \
          verify / transition_ledger admit path — pass-before-accept \
-         un-enforceable. Found:\n{pred_stdout}"
+         un-enforceable."
     );
     // Sequencer accept-state-root suite exists (12+ canonical typed-tx
     // accept fns: WorkTx, VerifyTx, ChallengeTx, ChallengeResolve,
     // FinalizeReward, TaskOpen, EscrowLock, TaskExpire, TerminalSummary,
     // TaskBankruptcy, CompleteSetMint, CompleteSetRedeem, MarketSeed).
-    let seq_src = std::fs::read_to_string("src/state/sequencer.rs").expect("sequencer.rs readable");
     let accept_count = seq_src.matches("_accept_state_root").count();
     assert!(
         accept_count >= 12,

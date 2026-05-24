@@ -60,8 +60,8 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | FC1-N8 (output = ⟨q_o, a_o⟩) | Agent output | `AgentOutput`, `parse_agent_output` | covered by existing fc_alignment_conformance | ✅ |
 | FC1-N9 (q_o) | proposed q-delta | `AgentOutput::q_delta` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (every q_o reaches tape under real-LLM load — count equality verified on 460 cycles) + M0 P01-P16 binding | ✅ |
 | FC1-N10 (a_o) | action | `AgentOutput::action` | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | ✅ |
-| FC1-N11 (∏p predicates) | predicate composition | `TuringBus::evaluate_predicates`, `Predicate` trait | `predicate_result_is_binary` + `predicate_pass_required_for_l4` | ✅ |
-| FC1-N12 (individual p) | individual predicates (Forbidden/Sorry/PayloadSize/Lean) | `{Forbidden,Sorry,PayloadSize}Predicate`, `Lean4Oracle::verify_*` | `lean_verified_required_for_verified_worktx` + `price_never_overrides_predicate` | ✅ |
+| FC1-N11 (∏p predicates) | predicate composition | `PredicateRegistry` executable entries + `dispatch_transition` registry-bound verification | `predicate_result_is_binary` + `predicate_pass_required_for_l4` + `constitution_predicate_registry_binding` | ✅ |
+| FC1-N12 (individual p) | individual predicates (Forbidden/Sorry/PayloadSize/Lean) | `Predicate` trait impls in `src/top_white/predicates/registry.rs`; Lean proof artifacts via CAS `PredicateProofCapsule` | `lean_verified_required_for_verified_worktx` + `price_never_overrides_predicate` + `constitution_predicate_result_wire_freeze` | ✅ |
 | FC1-N13 (wtool) | write tool | `WriteTool::write`, `TuringBus::append_oracle_accepted` | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) + Wave 3 50p binding `wave3_50p_chaintape_runtime_repo_present` (50/50 problems exercise sequencer-mediated wtool; runtime_repo/ git substrate present per problem; zero legacy bus.append authoritative writes across 460 cycles) | ✅ |
 | FC1-N14 (Q_{t+1} success) | accepted-branch advance | `append_internal`, `halt_with_reason` | `fc1_predicate_pass_goes_l4` | ✅ |
 | FC1-N15 (Q_t reject branch) | rejection branch (∏p = 0) | `PartialVerdict::Reject`, `BusResult::Vetoed`, sequencer reject arm | `fc1_predicate_fail_goes_l4e` (rejection lands in L4.E, not L4) | ✅ |
@@ -76,6 +76,7 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | **FC1-INV4** no legacy bypass | `fc1_no_legacy_authoritative_append` | in chaintape mode, `bus.append_*` direct path is fail-closed |
 | **FC1-INV5** dashboard not source | `fc1_dashboard_not_source_of_truth` | dropping dashboard and replaying from L4 + CAS produces same chain_derived_run_facts |
 | **FC1-INV6** no fake nodes | `fc1_no_fake_accepted_nodes` | tampering with WorkTx fields fails replay verify |
+| **FC1-INV9** predicate registry binding | `constitution_predicate_registry_binding` + `constitution_predicate_binding_activation` + `constitution_predicate_registry_replay` + `constitution_predicate_registry_immutability` | every admitted WorkTx predicate claim is recomputed by executable registry code under the active registry root; activation snapshot is L4/CAS-replayable; ad hoc empty registries are excluded from production replay paths |
 
 ---
 
@@ -88,7 +89,7 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | FC2-N16 (InitAI) | bootstrap entity | `run_swarm`, `run_oneshot` | `fc2_genesis_report_exists` + `fc2_on_init_only_mint` | ✅ |
 | FC2-N17 (human architect) | architect (manual) | `constitution.md` author | `fc3_architectai_proposal_not_direct_write` (FC3 binding) | 🚫 N/A runtime |
 | FC2-N18 (law / ground truth) | constitution.md | `constitution.md` | `fc3_constitution_hash_pinned` (existing fc_alignment_conformance) | 🚫 N/A runtime |
-| FC2-N19 (initAI →once predicates) | predicate registration at boot | `TuringBus::register_predicate` | `fc2_taskopen_escrowlock_are_chain_events` (boot-time admission gates) | ✅ |
+| FC2-N19 (initAI →once predicates) | predicate registration at boot | `BootPredicateManifest::v8_production` + `PredicateBindingActivate` system tx + CAS `PredicateRegistrySnapshotCapsule` | `constitution_predicate_binding_activation` + `constitution_predicate_registry_replay` | ✅ |
 | FC2-N20 (initAI →once mr) | mr-tick at boot | TICK_INTERVAL + emit_mr_tick_node | covered by `tests/six_axioms_alignment.rs::axiom_5` | ✅ |
 | FC2-N21 (initAI →once Q0) | Q_0 minted | `Kernel::new`, `TuringBus::init` | `fc2_on_init_only_mint` + `fc2_no_post_init_mint` | ✅ |
 | FC2-N22 (HALT) | halted state | `QState::Halted`, `halt_with_reason` | covered by `tests/six_axioms_alignment.rs::axiom_4` | ✅ |

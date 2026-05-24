@@ -2,15 +2,16 @@
 ///
 /// FC-trace: FC2 (derived state reconstruction), FC3 (CAS evidence)
 /// Risk class: Class 2.
-
-use std::path::Path;
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
-use crate::runtime::spec_capsule::{cas_path, CapsuleError, GrillSessionCapsuleBody};
-use crate::runtime::generation_attempt::{GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID};
 use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use crate::runtime::generation_attempt::{
+    GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
+use crate::runtime::spec_capsule::{cas_path, CapsuleError, GrillSessionCapsuleBody};
 use crate::runtime::test_run::{TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
+use std::path::Path;
 
 /// TRACE_MATRIX FC2-N16: error taxonomy for BuildSessionView derivation.
 ///
@@ -106,8 +107,8 @@ pub fn derive_build_session_view(
         });
     }
 
-    let mut store = CasStore::open(&cas_dir)
-        .map_err(|e| BuildSessionViewError::Open(e.to_string()))?;
+    let mut store =
+        CasStore::open(&cas_dir).map_err(|e| BuildSessionViewError::Open(e.to_string()))?;
 
     // Reload index from sidecar to get any changes written since store opened
     let _ = store.reload_index_from_sidecar();
@@ -135,47 +136,52 @@ pub fn derive_build_session_view(
         // S3: schema-id match implies this capsule should decode. Read/decode
         // failures here mean corruption, not "unrelated capsule" — surface them.
         if schema_id == "turingos-spec-grill-session-v1" {
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("spec_grill_session {}: {e}", cid.hex())))?;
-            let body: GrillSessionCapsuleBody = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("spec_grill_session {}: {e}", cid.hex())))?;
+            let bytes = store.get(&cid).map_err(|e| {
+                BuildSessionViewError::Read(format!("spec_grill_session {}: {e}", cid.hex()))
+            })?;
+            let body: GrillSessionCapsuleBody = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("spec_grill_session {}: {e}", cid.hex()))
+            })?;
             if body.session_id == session_id {
                 spec_grill_sessions.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID {
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("generation_attempt {}: {e}", cid.hex())))?;
-            let body: GenerationAttemptCapsule = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("generation_attempt {}: {e}", cid.hex())))?;
+            let bytes = store.get(&cid).map_err(|e| {
+                BuildSessionViewError::Read(format!("generation_attempt {}: {e}", cid.hex()))
+            })?;
+            let body: GenerationAttemptCapsule = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("generation_attempt {}: {e}", cid.hex()))
+            })?;
             if body.session_id == session_id {
                 generation_attempts.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == ARTIFACT_BUNDLE_SCHEMA_ID {
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("artifact_bundle {}: {e}", cid.hex())))?;
-            let body: ArtifactBundleManifest = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("artifact_bundle {}: {e}", cid.hex())))?;
+            let bytes = store.get(&cid).map_err(|e| {
+                BuildSessionViewError::Read(format!("artifact_bundle {}: {e}", cid.hex()))
+            })?;
+            let body: ArtifactBundleManifest = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("artifact_bundle {}: {e}", cid.hex()))
+            })?;
             if body.session_id == session_id {
                 artifact_bundles.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == PREVIEW_RUN_CAPSULE_SCHEMA_ID {
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("preview_run {}: {e}", cid.hex())))?;
-            let body: PreviewRunCapsule = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("preview_run {}: {e}", cid.hex())))?;
+            let bytes = store.get(&cid).map_err(|e| {
+                BuildSessionViewError::Read(format!("preview_run {}: {e}", cid.hex()))
+            })?;
+            let body: PreviewRunCapsule = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("preview_run {}: {e}", cid.hex()))
+            })?;
             if body.session_id == session_id {
                 preview_runs.push((meta.created_at_logical_t, cid));
             }
         } else if schema_id == "turingos-generate-rejection-v1" {
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("rejection_event {}: {e}", cid.hex())))?;
-            let body: serde_json::Value = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("rejection_event {}: {e}", cid.hex())))?;
+            let bytes = store.get(&cid).map_err(|e| {
+                BuildSessionViewError::Read(format!("rejection_event {}: {e}", cid.hex()))
+            })?;
+            let body: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("rejection_event {}: {e}", cid.hex()))
+            })?;
             if let Some(s_id) = body.get("session_id").and_then(|v| v.as_str()) {
                 if s_id == session_id {
                     rejection_events.push((meta.created_at_logical_t, cid));
@@ -183,11 +189,12 @@ pub fn derive_build_session_view(
             }
         } else if schema_id == TEST_RUN_CAPSULE_SCHEMA_ID {
             // C11: collect all TestRunCapsules for cross-referencing with artifact bundles.
-            let bytes = store.get(&cid).map_err(|e| BuildSessionViewError::Read(
-                format!("test_run {}: {e}", cid.hex())))?;
-            let cap: TestRunCapsule = serde_json::from_slice(&bytes)
-                .map_err(|e| BuildSessionViewError::Decode(
-                    format!("test_run {}: {e}", cid.hex())))?;
+            let bytes = store
+                .get(&cid)
+                .map_err(|e| BuildSessionViewError::Read(format!("test_run {}: {e}", cid.hex())))?;
+            let cap: TestRunCapsule = serde_json::from_slice(&bytes).map_err(|e| {
+                BuildSessionViewError::Decode(format!("test_run {}: {e}", cid.hex()))
+            })?;
             test_run_capsules.push(cap);
         }
     }
@@ -199,10 +206,15 @@ pub fn derive_build_session_view(
     preview_runs.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
     rejection_events.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
-    let generation_attempts_hex: Vec<String> = generation_attempts.iter().map(|(_, cid)| cid.hex()).collect();
-    let artifact_versions_hex: Vec<String> = artifact_bundles.iter().map(|(_, cid)| cid.hex()).collect();
+    let generation_attempts_hex: Vec<String> = generation_attempts
+        .iter()
+        .map(|(_, cid)| cid.hex())
+        .collect();
+    let artifact_versions_hex: Vec<String> =
+        artifact_bundles.iter().map(|(_, cid)| cid.hex()).collect();
     let preview_runs_hex: Vec<String> = preview_runs.iter().map(|(_, cid)| cid.hex()).collect();
-    let rejection_events_hex: Vec<String> = rejection_events.iter().map(|(_, cid)| cid.hex()).collect();
+    let rejection_events_hex: Vec<String> =
+        rejection_events.iter().map(|(_, cid)| cid.hex()).collect();
 
     let mut spec_capsule_cid: Option<String> = None;
 

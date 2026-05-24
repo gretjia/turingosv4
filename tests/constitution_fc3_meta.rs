@@ -176,20 +176,44 @@ fn fc3_deep_history_requires_override() {
 }
 
 /// FC3-INV6 — No automatic predicate mutation. Predicates are registered
-/// at boot (via PredicateRegistry); they are NOT mutated at runtime by
-/// agents, by economic events, or by capsule context. We verify the
-/// registry surface exposes register but no mutate-after-boot path.
+/// during boot construction (via PredicateRegistry boot manifests); they are
+/// NOT mutated at runtime by agents, by economic events, or by capsule context.
+/// The mutation helper may exist only at crate scope for boot/replay internals.
 #[test]
 fn fc3_no_automatic_predicate_mutation() {
     let reg_src = std::fs::read_to_string("src/top_white/predicates/registry.rs")
         .expect("predicates/registry.rs readable");
+    let registry_impl = reg_src
+        .split("impl PredicateRegistry {")
+        .nth(1)
+        .and_then(|rest| rest.split("pub struct BootPredicateManifest").next())
+        .expect("PredicateRegistry impl block readable");
 
-    // The registry must expose register; it must NOT expose
-    // remove / replace / mutate / overwrite at agent-callable scope.
+    // The registry must keep mutation module-private/crate-private; public
+    // construction goes through boot manifest or replay snapshot loaders.
     assert!(
-        reg_src.contains("pub fn register"),
-        "FC3-INV6 violation: PredicateRegistry::register missing — \
-         predicates cannot be added at boot."
+        reg_src.contains("pub(crate) fn register(")
+            || reg_src.contains("pub(super) fn register(")
+            || reg_src.contains("\n    fn register("),
+        "FC3-INV6 violation: PredicateRegistry::register must exist only as a \
+         non-public boot/replay helper."
+    );
+    assert!(
+        !reg_src.contains("pub fn register("),
+        "FC3-INV6 violation: PredicateRegistry::register is public — \
+         predicate mutation would be agent-callable outside the registry module."
+    );
+    assert!(
+        reg_src.contains("pub fn from_boot_manifest(")
+            && reg_src.contains("pub fn from_snapshot_and_binary_impls("),
+        "FC3-INV6 violation: PredicateRegistry public constructors must be \
+         boot-manifest and replay-snapshot based."
+    );
+    assert!(
+        !registry_impl.contains("pub fn new(")
+            && !reg_src.contains("derive(Default)]\npub struct PredicateRegistry"),
+        "FC3-INV6 violation: PredicateRegistry exposes an ad hoc public empty \
+         constructor/default instead of boot-manifest construction."
     );
     for forbidden in [
         "pub fn remove",

@@ -5,8 +5,7 @@
 ///
 /// FC-trace: FC1 (test loop), FC3 (test evidence)
 /// Risk class: Class 3
-
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// TRACE_MATRIX FC3: Schema ID for TestScenarioSet.
 pub const TEST_SCENARIO_SET_SCHEMA_ID: &str = "turingos-test-scenario-set-v1";
@@ -34,7 +33,7 @@ pub enum TestScenario {
 /// appear inside any generation prompt.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TestScenarioSet {
-    pub schema_id: String,         // = TEST_SCENARIO_SET_SCHEMA_ID
+    pub schema_id: String, // = TEST_SCENARIO_SET_SCHEMA_ID
     pub spec_capsule_cid: String,
     pub scenarios: Vec<TestScenario>,
     pub logical_t: u64,
@@ -53,13 +52,13 @@ pub fn derive_scenario_set_from_spec(
     logical_t: u64,
 ) -> TestScenarioSet {
     let spec_lower = String::from_utf8_lossy(spec_bytes).to_ascii_lowercase();
-    let mut scenarios = vec![
-        TestScenario::EntrypointExists,
-        TestScenario::HtmlParses,
-    ];
+    let mut scenarios = vec![TestScenario::EntrypointExists, TestScenario::HtmlParses];
 
     // Add sandbox scenario if spec mentions content security / sandbox
-    if spec_lower.contains("sandbox") || spec_lower.contains("csp") || spec_lower.contains("content-security") {
+    if spec_lower.contains("sandbox")
+        || spec_lower.contains("csp")
+        || spec_lower.contains("content-security")
+    {
         scenarios.push(TestScenario::SandboxPolicyPreserved {
             policy: "sandbox".to_string(),
         });
@@ -89,11 +88,18 @@ mod tests {
     fn test_sandbox_scenario_only_when_spec_mentions_sandbox() {
         let no_sandbox = derive_scenario_set_from_spec(b"Build a todo list", "cid1", 1000);
         assert_eq!(no_sandbox.scenarios.len(), 2);
-        assert!(!no_sandbox.scenarios.iter().any(|s| matches!(s, TestScenario::SandboxPolicyPreserved { .. })));
+        assert!(!no_sandbox
+            .scenarios
+            .iter()
+            .any(|s| matches!(s, TestScenario::SandboxPolicyPreserved { .. })));
 
-        let with_sandbox = derive_scenario_set_from_spec(b"Build a todo list with sandbox policy", "cid2", 1001);
+        let with_sandbox =
+            derive_scenario_set_from_spec(b"Build a todo list with sandbox policy", "cid2", 1001);
         assert_eq!(with_sandbox.scenarios.len(), 3);
-        assert!(with_sandbox.scenarios.iter().any(|s| matches!(s, TestScenario::SandboxPolicyPreserved { .. })));
+        assert!(with_sandbox
+            .scenarios
+            .iter()
+            .any(|s| matches!(s, TestScenario::SandboxPolicyPreserved { .. })));
     }
 
     #[test]

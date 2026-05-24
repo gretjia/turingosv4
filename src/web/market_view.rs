@@ -35,14 +35,14 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind,
+    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry,
+    LedgerWriter, TxKind,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::cid_hex::cid_from_hex_str;
 use turingosv4::runtime::PinnedPubkeyManifest;
 use turingosv4::state::q_state::{AgentId, EconomicState, QState, TaskId, TaskMarketState, TxId};
 use turingosv4::state::typed_tx::{EventId, TypedTx};
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 use super::ws::AppState;
 
@@ -253,11 +253,18 @@ fn build_market_view(
     // canonical primitive `verify_chaintape` uses.
     let initial_q = read_initial_q_state(&runtime_repo_path)?;
     let pinned = read_pinned_pubkeys(&runtime_repo_path)?;
-    let predicates = PredicateRegistry::new();
+    let predicates = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tools = ToolRegistry::new();
-    let replayed_q: QState =
-        replay_full_transition(&initial_q, &entries, &cas, &pinned, &predicates, &tools)
-            .map_err(|e| format!("replay_full_transition: {e:?}"))?;
+    let replayed_q: QState = replay_full_transition_with_predicate_binding(
+        &initial_q,
+        &entries,
+        &cas,
+        &cas,
+        &pinned,
+        &predicates,
+        &tools,
+    )
+    .map_err(|e| format!("replay_full_transition: {e:?}"))?;
 
     // ── Derive market_state from chain — predicates only (price_never_overrides_predicate matrix gate).
     let market_state_str = derive_market_state(

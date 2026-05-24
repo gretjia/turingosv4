@@ -337,10 +337,9 @@ impl ReplayInputs {
         }
 
         use crate::bottom_white::ledger::transition_ledger::{
-            replay_full_transition, LedgerCasView, ReplayError,
+            replay_full_transition_with_predicate_binding, LedgerCasView, ReplayError,
         };
         use crate::bottom_white::tools::registry::ToolRegistry;
-        use crate::top_white::predicates::registry::PredicateRegistry;
 
         struct CasRef<'a>(&'a crate::bottom_white::cas::store::CasStore);
         impl<'a> LedgerCasView for CasRef<'a> {
@@ -354,12 +353,13 @@ impl ReplayInputs {
             }
         }
 
-        replay_full_transition(
+        replay_full_transition_with_predicate_binding(
             &self.initial_q,
             &self.entries[..pos],
             &CasRef(cas),
+            cas,
             &self.pinned,
-            &PredicateRegistry::new(),
+            &crate::runtime::predicate_registry_loader::load_replay_registry(),
             &ToolRegistry::new(),
         )
         .map_err(|e| RiskCapImpactReportError::Replay(format!("{e:?}")))

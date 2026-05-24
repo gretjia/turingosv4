@@ -909,11 +909,13 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
                                                                                           // on lean-verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
                                                                                           // EXTERNAL forward-bound and can wrap this without breaking B2 invariants.
 const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1"; // TB-N2 B2
-                                                                                      // TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
-                                                                                      // All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
-                                                                                      // auto-seed; redeem requires system-resolution-reference + outcome match,
-                                                                                      // gated sequencer-side at admission). Domain prefixes mirror existing
-                                                                                      // agent-domain naming conventions (`turingosv4.agent_sig.<purpose>.v1`).
+const DOMAIN_SYSTEM_PREDICATE_BINDING_ACTIVATE: &[u8] =
+    b"turingosv4.system_sig.predicate_binding_activate.v1";
+// TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
+// All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
+// auto-seed; redeem requires system-resolution-reference + outcome match,
+// gated sequencer-side at admission). Domain prefixes mirror existing
+// agent-domain naming conventions (`turingosv4.agent_sig.<purpose>.v1`).
 const DOMAIN_AGENT_COMPLETE_SET_MINT: &[u8] = b"turingosv4.agent_sig.complete_set_mint.v1";
 const DOMAIN_AGENT_COMPLETE_SET_REDEEM: &[u8] = b"turingosv4.agent_sig.complete_set_redeem.v1";
 const DOMAIN_AGENT_MARKET_SEED: &[u8] = b"turingosv4.agent_sig.market_seed.v1";
@@ -1789,6 +1791,22 @@ impl<'de> Deserialize<'de> for EventResolveTx {
     }
 }
 
+/// TRACE_MATRIX FC1-N11 + FC1-N12 + FC2-N19: system-emitted predicate registry activation transaction.
+///
+/// This does not change the WorkTx predicate-result wire schema. It anchors
+/// the predicate registry snapshot CID/root on L4 and flips
+/// `QState.predicate_registry_root_t` from ZERO to the activated root.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PredicateBindingActivateTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub registry_snapshot_cid: Cid,
+    pub registry_merkle_root: Hash,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -2013,6 +2031,24 @@ impl EventResolveLegacySigningPayload {
     }
 }
 
+/// TRACE_MATRIX FC1-N11 + FC2-N19: canonical payload signed by the system key for predicate binding activation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct PredicateBindingActivateSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub registry_snapshot_cid: Cid,
+    pub registry_merkle_root: Hash,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl PredicateBindingActivateSigningPayload {
+    /// TRACE_MATRIX FC1-N11 + FC2-N19: domain-prefixed digest for the predicate binding activation system signature.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_PREDICATE_BINDING_ACTIVATE, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -2146,6 +2182,20 @@ impl EventResolveTx {
             tx_id: self.tx_id.clone(),
             parent_state_root: self.parent_state_root,
             task_id: self.task_id.clone(),
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl PredicateBindingActivateTx {
+    /// TRACE_MATRIX FC1-N11 + FC2-N19: project the activation tx into its signed canonical payload.
+    pub fn to_signing_payload(&self) -> PredicateBindingActivateSigningPayload {
+        PredicateBindingActivateSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            registry_snapshot_cid: self.registry_snapshot_cid,
+            registry_merkle_root: self.registry_merkle_root,
             epoch: self.epoch,
             timestamp_logical: self.timestamp_logical,
         }
@@ -2377,6 +2427,10 @@ pub enum TypedTx {
     /// (no `economic_state_t` ledger movement; downstream redeem is the
     /// agent-signed Coin-credit transition).
     EventResolve(EventResolveTx),
+    /// W3-2 PredicateRegistryBind — system-emitted activation of bound
+    /// predicate admission. Anchors the registry snapshot and advances
+    /// `QState.predicate_registry_root_t` from ZERO to the activated root.
+    PredicateBindingActivate(PredicateBindingActivateTx),
 }
 
 impl TypedTx {
@@ -2403,6 +2457,7 @@ impl TypedTx {
             Self::CpmmSwap(_) => TxKind::CpmmSwap,
             Self::BuyWithCoinRouter(_) => TxKind::BuyWithCoinRouter,
             Self::EventResolve(_) => TxKind::EventResolve,
+            Self::PredicateBindingActivate(_) => TxKind::PredicateBindingActivate,
         }
     }
 }
@@ -2490,6 +2545,12 @@ impl HasSubmitter for EventResolveTx {
     }
 }
 
+impl HasSubmitter for PredicateBindingActivateTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
 // TB-13 — agent-signed conditional-share variants. Submitter is the
 // owner / provider on the wire (mirrors WorkTx → agent_id pattern).
 
@@ -2565,6 +2626,7 @@ impl HasSubmitter for TypedTx {
             Self::CpmmSwap(t) => t.submitter_id(),
             Self::BuyWithCoinRouter(t) => t.submitter_id(),
             Self::EventResolve(t) => t.submitter_id(),
+            Self::PredicateBindingActivate(t) => t.submitter_id(),
         }
     }
 }
@@ -2618,6 +2680,17 @@ pub enum TransitionError {
     VerificationPredicateFailed(PredicateId),
     /// finalize_reward / step_transition stage 5 — settlement predicate denied.
     SettlementPredicateFailed(PredicateId),
+    PredicateRegistryRootMismatch,
+    AcceptancePredicateMissing(PredicateId),
+    AcceptancePredicateUnexpected(PredicateId),
+    AcceptancePredicateCodeHashMismatch(PredicateId),
+    AcceptancePredicateProofMissing(PredicateId),
+    AcceptancePredicateProofMismatch(PredicateId),
+    SettlementPredicateMissing(PredicateId),
+    SettlementPredicateUnexpected(PredicateId),
+    SettlementPredicateCodeHashMismatch(PredicateId),
+    SettlementPredicateProofMissing(PredicateId),
+    SettlementPredicateProofMismatch(PredicateId),
 
     // ── Challenge ──────────────────────────────────────────────────────────
     /// challenge_transition stage 1 — challenge filed after window closed.
@@ -2970,6 +3043,14 @@ pub enum TransitionError {
     /// Finalized for proof-accepted paths.) Maps to
     /// `L4ERejectionClass::PolicyViolation`.
     EventAlreadyResolved,
+    /// Predicate binding activation may only happen once on a chain.
+    PredicateBindingAlreadyActivated,
+    /// Predicate binding activation referenced a missing, wrong-typed, or
+    /// root-mismatched registry snapshot capsule.
+    PredicateBindingActivationInvalid,
+    /// PredicateBindingActivateTx.timestamp_logical did not match the L4
+    /// logical_t assigned to the accepted ledger entry.
+    PredicateBindingActivationLogicalTMismatch,
 
     // ── TB-G G3.2 bankruptcy risk-cap admission (charter §1 Module G3; 2026-05-12) ─
     /// 4 admission arms (WorkTx + BuyWithCoinRouter + Challenge + Verify):
@@ -3006,6 +3087,42 @@ impl std::fmt::Display for TransitionError {
             Self::AcceptancePredicateFailed(p) => write!(f, "acceptance predicate failed: {p:?}"),
             Self::VerificationPredicateFailed(p) => write!(f, "verification predicate failed: {p:?}"),
             Self::SettlementPredicateFailed(p) => write!(f, "settlement predicate failed: {p:?}"),
+            Self::PredicateRegistryRootMismatch => write!(
+                f,
+                "predicate registry root mismatch between QState and active registry"
+            ),
+            Self::AcceptancePredicateMissing(p) => {
+                write!(f, "acceptance predicate missing from WorkTx bundle: {p:?}")
+            }
+            Self::AcceptancePredicateUnexpected(p) => {
+                write!(f, "unexpected acceptance predicate in WorkTx bundle: {p:?}")
+            }
+            Self::AcceptancePredicateCodeHashMismatch(p) => write!(
+                f,
+                "acceptance predicate binary code hash mismatch: {p:?}"
+            ),
+            Self::AcceptancePredicateProofMissing(p) => {
+                write!(f, "acceptance predicate proof missing: {p:?}")
+            }
+            Self::AcceptancePredicateProofMismatch(p) => {
+                write!(f, "acceptance predicate proof mismatch: {p:?}")
+            }
+            Self::SettlementPredicateMissing(p) => {
+                write!(f, "settlement predicate missing from WorkTx bundle: {p:?}")
+            }
+            Self::SettlementPredicateUnexpected(p) => {
+                write!(f, "unexpected settlement predicate in WorkTx bundle: {p:?}")
+            }
+            Self::SettlementPredicateCodeHashMismatch(p) => write!(
+                f,
+                "settlement predicate binary code hash mismatch: {p:?}"
+            ),
+            Self::SettlementPredicateProofMissing(p) => {
+                write!(f, "settlement predicate proof missing: {p:?}")
+            }
+            Self::SettlementPredicateProofMismatch(p) => {
+                write!(f, "settlement predicate proof mismatch: {p:?}")
+            }
             Self::ChallengeWindowClosed => write!(f, "challenge window closed"),
             Self::ChallengeWindowStillOpen => write!(f, "challenge window still open"),
             Self::AlreadySlashed => write!(f, "already slashed"),
@@ -3161,6 +3278,17 @@ impl std::fmt::Display for TransitionError {
             Self::EventAlreadyResolved => write!(
                 f,
                 "EventResolveTx: task_markets_t[task_id].state is not Open (TB-N2 B2 admission step-2 — idempotent re-resolve / post-Bankrupt / post-Expired path; resolution is monotonic)"
+            ),
+            Self::PredicateBindingAlreadyActivated => {
+                write!(f, "PredicateBindingActivateTx: predicate binding already activated")
+            }
+            Self::PredicateBindingActivationInvalid => write!(
+                f,
+                "PredicateBindingActivateTx: registry snapshot capsule missing, malformed, or root-mismatched"
+            ),
+            Self::PredicateBindingActivationLogicalTMismatch => write!(
+                f,
+                "PredicateBindingActivateTx: timestamp_logical does not match ledger logical_t"
             ),
             // TB-G G3.2 (2026-05-12): SG-G3.12 budget ≤ 64 bytes. Below = 37 bytes.
             Self::BankruptcyRiskCapExceeded => write!(f, "bankruptcy risk-cap exceeded"),

@@ -1,3 +1,7 @@
+use crate::bottom_white::cas::schema::ObjectType;
+use crate::bottom_white::cas::store::CasStore;
+use crate::runtime::spec_capsule::cas_path;
+use serde::{Deserialize, Serialize};
 /// TRACE_MATRIX FC2 + FC3: Prompt promotion receipt schema and runtime guard.
 ///
 /// C10: Promote v1 → v2 prompts ONLY via a CAS-anchored `PromptPromotionReceipt`.
@@ -8,12 +12,7 @@
 ///
 /// FC-trace: FC2 (prompt boot), FC3 (eval evidence binding)
 /// Risk class: Class 3
-
 use std::path::Path;
-use serde::{Serialize, Deserialize};
-use crate::bottom_white::cas::schema::ObjectType;
-use crate::bottom_white::cas::store::CasStore;
-use crate::runtime::spec_capsule::cas_path;
 
 /// TRACE_MATRIX FC3: Schema ID for prompt promotion receipts.
 pub const PROMPT_PROMOTION_RECEIPT_SCHEMA_ID: &str = "turingos-prompt-promotion-v1";
@@ -34,12 +33,12 @@ pub enum PromotionDecision {
 /// `eval_set_cid` is REQUIRED — receipt without it is invalid.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PromptPromotionReceipt {
-    pub schema_id: String,           // = PROMPT_PROMOTION_RECEIPT_SCHEMA_ID
-    pub from_prompt_cid: String,     // SHA-256 hex of the baseline prompt bytes in CAS
-    pub to_prompt_cid: String,       // SHA-256 hex of the candidate prompt bytes in CAS
-    pub eval_set_cid: String,        // anchors which eval set was used — required
-    pub eval_before_cid: String,     // CAS CID of eval transcript for from_prompt
-    pub eval_after_cid: String,      // CAS CID of eval transcript for to_prompt
+    pub schema_id: String,       // = PROMPT_PROMOTION_RECEIPT_SCHEMA_ID
+    pub from_prompt_cid: String, // SHA-256 hex of the baseline prompt bytes in CAS
+    pub to_prompt_cid: String,   // SHA-256 hex of the candidate prompt bytes in CAS
+    pub eval_set_cid: String,    // anchors which eval set was used — required
+    pub eval_before_cid: String, // CAS CID of eval transcript for from_prompt
+    pub eval_after_cid: String,  // CAS CID of eval transcript for to_prompt
     pub promotion_decision: PromotionDecision,
     pub logical_t: u64,
 }
@@ -94,12 +93,13 @@ pub fn check_promotion_guard(
 
     let cas_dir = cas_path(workspace);
     if !cas_dir.exists() {
-        return Err(PromotionGuardError::NoCasStore(
-            format!("CAS dir does not exist: {:?}", cas_dir)
-        ));
+        return Err(PromotionGuardError::NoCasStore(format!(
+            "CAS dir does not exist: {:?}",
+            cas_dir
+        )));
     }
-    let mut store = CasStore::open(&cas_dir)
-        .map_err(|e| PromotionGuardError::NoCasStore(e.to_string()))?;
+    let mut store =
+        CasStore::open(&cas_dir).map_err(|e| PromotionGuardError::NoCasStore(e.to_string()))?;
     let _ = store.reload_index_from_sidecar();
 
     // Search all EvidenceCapsules for a matching receipt.
@@ -127,7 +127,7 @@ pub fn check_promotion_guard(
         // Receipt must have eval_set_cid (non-empty — no anonymous eval).
         if receipt.eval_set_cid.is_empty() {
             return Err(PromotionGuardError::InvalidReceipt(
-                "eval_set_cid is empty — anonymous eval not accepted".to_string()
+                "eval_set_cid is empty — anonymous eval not accepted".to_string(),
             ));
         }
         // Check decision.
@@ -150,7 +150,7 @@ pub fn write_promotion_receipt(
 ) -> Result<String, crate::runtime::spec_capsule::CapsuleError> {
     if receipt.eval_set_cid.is_empty() {
         return Err(crate::runtime::spec_capsule::CapsuleError::Open(
-            "eval_set_cid must not be empty".to_string()
+            "eval_set_cid must not be empty".to_string(),
         ));
     }
 
@@ -163,13 +163,15 @@ pub fn write_promotion_receipt(
     let bytes = serde_json::to_vec(receipt)
         .map_err(|e| crate::runtime::spec_capsule::CapsuleError::Open(e.to_string()))?;
 
-    let cid = store.put(
-        &bytes,
-        ObjectType::EvidenceCapsule,
-        "promotion_guard",
-        logical_t,
-        Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID.to_string()),
-    ).map_err(|e| crate::runtime::spec_capsule::CapsuleError::Open(e.to_string()))?;
+    let cid = store
+        .put(
+            &bytes,
+            ObjectType::EvidenceCapsule,
+            "promotion_guard",
+            logical_t,
+            Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID.to_string()),
+        )
+        .map_err(|e| crate::runtime::spec_capsule::CapsuleError::Open(e.to_string()))?;
 
     Ok(cid.hex())
 }

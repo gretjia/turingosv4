@@ -209,17 +209,12 @@ pub fn synthesise_spec_md_no_llm_by_slot(
                 .get("mirror")
                 .map(|s| s.as_str())
                 .unwrap_or("");
-            if mirror_text.is_empty()
-                || mirror_text == "（用户未在本轮访谈中提供该信息）"
+            if mirror_text.is_empty() || mirror_text == "（用户未在本轮访谈中提供该信息）"
             {
-                s.push_str(
-                    "访谈范围保持在最初目标之内，没有发现明显更深的潜在需求。",
-                );
+                s.push_str("访谈范围保持在最初目标之内，没有发现明显更深的潜在需求。");
             } else {
                 s.push_str(mirror_text);
-                s.push_str(
-                    "\n\n这是更大的可能，留待将来。本次构建不需要解决这个。",
-                );
+                s.push_str("\n\n这是更大的可能，留待将来。本次构建不需要解决这个。");
             }
         }
         Lang::En => {
@@ -527,15 +522,9 @@ mod tests {
             "job".into(),
             "想做一個影片轉檔工具, 支援拖曳上傳, 輸出 mp4".into(),
         );
-        slots.insert(
-            "anchor".into(),
-            "錨點就是每個檔案的 SHA256 + 原檔名".into(),
-        );
+        slots.insert("anchor".into(), "錨點就是每個檔案的 SHA256 + 原檔名".into());
         slots.insert("memory".into(), "記憶用 Redis 存任務狀態".into());
-        slots.insert(
-            "first_run".into(),
-            "直接拖檔到網頁, 不需註冊登入".into(),
-        );
+        slots.insert("first_run".into(), "直接拖檔到網頁, 不需註冊登入".into());
         slots.insert("robustness".into(), "穩健性: 上傳失敗自動重試三次".into());
         slots.insert("scope".into(), "範圍: 個人創作者用".into());
         slots.insert("acceptance".into(), "下載完就走".into());

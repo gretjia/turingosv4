@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 
-use turingosv4::bottom_white::cas::{schema::Cid, store::CasStore};
+use turingosv4::bottom_white::cas::{schema::ObjectType, store::CasStore};
 use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::kernel::Kernel;
@@ -69,12 +69,17 @@ fn fresh_bundle_with_preseed(cfg: &RuntimeChaintapeConfig, agent_count: usize) -
 /// Submit on-chain TaskOpen + EscrowLock and return the post-EscrowLock state_root.
 async fn seed_task_and_escrow(bus: &TuringBus, bundle: &ChaintapeBundle, task_id: &str) -> Hash {
     // TaskOpen
-    let task_open = make_synthetic_task_open(task_id, "test-sponsor", Hash::ZERO, "test-seed");
+    let boot_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
+    let task_open = make_synthetic_task_open(task_id, "test-sponsor", boot_root, "test-seed");
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
     // Wait state_root advance
-    let parent_root = wait_state_root_advance(bundle, Hash::ZERO).await;
+    let parent_root = wait_state_root_advance(bundle, boot_root).await;
     // EscrowLock
     let escrow_lock =
         make_synthetic_escrow_lock(task_id, "test-sponsor", 100_000, parent_root, "test-escrow");
@@ -114,7 +119,15 @@ async fn submit_worktx(
     parent_state_root: Hash,
 ) -> (TxId, Hash) {
     // Build telemetry root (without VR yet — we may attach below).
-    let proposal_artifact_cid = Cid([0x42; 32]); // dummy; tests don't dereference payload
+    let proposal_artifact_cid = cas
+        .put(
+            format!("theorem {task_id}_{suffix} : True := by trivial").as_bytes(),
+            ObjectType::ProposalPayload,
+            agent_id,
+            1,
+            Some("tb7r.parent_tx.proposal.v1".into()),
+        )
+        .expect("write proposal artifact");
     let tel_root = ProposalTelemetry::new_root(
         AgentId(agent_id.into()),
         Hash([0xaa; 32]),

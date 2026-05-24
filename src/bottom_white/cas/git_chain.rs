@@ -112,7 +112,7 @@ pub fn append_cas_commit(
     legacy_prefix_metadata: Vec<CasObjectMetadata>,
 ) -> Result<git2::Oid, CasError> {
     #[cfg(test)]
-    if FORCE_REF_UPDATE_FAILURE.load(std::sync::atomic::Ordering::SeqCst) {
+    if FORCE_REF_UPDATE_FAILURE.with(|flag| flag.get()) {
         return Err(chain_error("forced test CAS ref update failure"));
     }
 
@@ -628,7 +628,7 @@ fn validate_metadata_backend_blob(
     metadata: &CasObjectMetadata,
 ) -> Result<(), CasError> {
     #[cfg(test)]
-    if FORCE_BACKEND_VALIDATE_TIMEOUT.load(std::sync::atomic::Ordering::SeqCst) {
+    if FORCE_BACKEND_VALIDATE_TIMEOUT.with(|flag| flag.get()) {
         return Err(chain_error(format!(
             "CAS chain backend validation timed out after 0s for {} (forced test hook)",
             metadata.cid
@@ -674,6 +674,10 @@ fn cas_chain_validate_timeout_secs() -> u64 {
 }
 
 fn cas_chain_backend_blob_max_bytes() -> u64 {
+    #[cfg(test)]
+    if let Some(max_bytes) = BACKEND_BLOB_MAX_BYTES_OVERRIDE.with(|value| value.get()) {
+        return max_bytes;
+    }
     std::env::var("TURINGOS_CAS_CHAIN_MAX_BACKEND_BLOB_BYTES")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -752,19 +756,23 @@ fn legacy_prefix_blob_name(idx: usize) -> String {
 }
 
 #[cfg(test)]
-static FORCE_REF_UPDATE_FAILURE: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-#[cfg(test)]
-static FORCE_BACKEND_VALIDATE_TIMEOUT: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    static FORCE_REF_UPDATE_FAILURE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static FORCE_BACKEND_VALIDATE_TIMEOUT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static BACKEND_BLOB_MAX_BYTES_OVERRIDE: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
 
 #[cfg(test)]
 pub fn set_force_ref_update_failure_for_test(value: bool) {
-    FORCE_REF_UPDATE_FAILURE.store(value, std::sync::atomic::Ordering::SeqCst);
+    FORCE_REF_UPDATE_FAILURE.with(|flag| flag.set(value));
 }
 
 #[cfg(test)]
 pub fn set_force_backend_validate_timeout_for_test(value: bool) {
-    FORCE_BACKEND_VALIDATE_TIMEOUT.store(value, std::sync::atomic::Ordering::SeqCst);
+    FORCE_BACKEND_VALIDATE_TIMEOUT.with(|flag| flag.set(value));
+}
+
+#[cfg(test)]
+pub fn set_backend_blob_max_bytes_override_for_test(value: Option<u64>) {
+    BACKEND_BLOB_MAX_BYTES_OVERRIDE.with(|slot| slot.set(value));
 }

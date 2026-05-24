@@ -38,9 +38,14 @@ use crate::economy::monetary_invariant::{
     assert_claim_amount_backed_by_escrow, assert_no_post_init_mint, assert_read_is_free,
     assert_task_market_total_escrow_matches_locks, assert_total_ctf_conserved,
 };
-use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
-use crate::state::typed_tx::{HasSubmitter, SignalBundle, TransitionError, TypedTx};
-use crate::top_white::predicates::registry::PredicateRegistry;
+use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry};
+use crate::state::typed_tx::{
+    BoolWithProof, HasSubmitter, PredicateId, SignalBundle, TransitionError, TypedTx, WorkTx,
+};
+use crate::top_white::predicates::registry::{
+    PredicateBundleMap, PredicateCasView, PredicateRegistry, PredicateRegistrySnapshotCapsule,
+    PredicateVerifyError, PredicateWorkView,
+};
 use std::collections::BTreeSet;
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -267,6 +272,20 @@ pub fn event_resolve_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX FC1-N11 + FC2-N19: state-root domain separator for predicate binding activation accepts.
+pub(crate) const PREDICATE_BINDING_ACTIVATE_DOMAIN_V1: &[u8] =
+    b"turingosv4.predicate_binding_activate.accept.v1";
+
+/// TRACE_MATRIX FC1-N11 + FC2-N19: state-root mutator for accepting the predicate binding activation system transaction.
+pub fn predicate_binding_activate_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(PREDICATE_BINDING_ACTIVATE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
 /// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
 /// §4.3): CompleteSetMint-accept state-root domain.
 pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] = b"turingosv4.complete_set_mint.accept.v1";
@@ -453,7 +472,18 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
     match e {
         TE::AcceptancePredicateFailed(_)
         | TE::VerificationPredicateFailed(_)
-        | TE::SettlementPredicateFailed(_) => RC::PredicateFailed,
+        | TE::SettlementPredicateFailed(_)
+        | TE::PredicateRegistryRootMismatch
+        | TE::AcceptancePredicateMissing(_)
+        | TE::AcceptancePredicateUnexpected(_)
+        | TE::AcceptancePredicateCodeHashMismatch(_)
+        | TE::AcceptancePredicateProofMissing(_)
+        | TE::AcceptancePredicateProofMismatch(_)
+        | TE::SettlementPredicateMissing(_)
+        | TE::SettlementPredicateUnexpected(_)
+        | TE::SettlementPredicateCodeHashMismatch(_)
+        | TE::SettlementPredicateProofMissing(_)
+        | TE::SettlementPredicateProofMismatch(_) => RC::PredicateFailed,
         TE::EscrowMissing => RC::EscrowMissing,
         TE::MonetaryInvariantViolation => RC::InvariantViolation,
         // TB-3 RSP-1 formal-tx-surface mapping (charter § 4.5):
@@ -507,6 +537,9 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         // TaskBankruptcy-arm classes (all → PolicyViolation).
         TE::EventResolveTaskNotFound => RC::PolicyViolation,
         TE::EventAlreadyResolved => RC::PolicyViolation,
+        TE::PredicateBindingAlreadyActivated
+        | TE::PredicateBindingActivationInvalid
+        | TE::PredicateBindingActivationLogicalTMismatch => RC::PolicyViolation,
         // TB-G G3.2 (2026-05-12): bankruptcy risk-cap admission rejection.
         // → PolicyViolation per CLAUDE.md §15 shielding low-pollution class
         // (architect §1.5 + packet §2.1). Distinct from
@@ -535,7 +568,18 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         TransitionError::EscrowMissing => Some("escrow_missing".into()),
         TransitionError::MonetaryInvariantViolation => Some("monetary_invariant".into()),
         TransitionError::AcceptancePredicateFailed(_)
-        | TransitionError::SettlementPredicateFailed(_) => Some("predicate_failed".into()),
+        | TransitionError::SettlementPredicateFailed(_)
+        | TransitionError::PredicateRegistryRootMismatch
+        | TransitionError::AcceptancePredicateMissing(_)
+        | TransitionError::AcceptancePredicateUnexpected(_)
+        | TransitionError::AcceptancePredicateCodeHashMismatch(_)
+        | TransitionError::AcceptancePredicateProofMissing(_)
+        | TransitionError::AcceptancePredicateProofMismatch(_)
+        | TransitionError::SettlementPredicateMissing(_)
+        | TransitionError::SettlementPredicateUnexpected(_)
+        | TransitionError::SettlementPredicateCodeHashMismatch(_)
+        | TransitionError::SettlementPredicateProofMissing(_)
+        | TransitionError::SettlementPredicateProofMismatch(_) => Some("predicate_failed".into()),
         // TB-3 RSP-1 formal-tx-surface (charter § 4.5).
         TransitionError::TaskAlreadyOpen => Some("task_already_open".into()),
         TransitionError::TaskNotOpen => Some("task_not_open".into()),
@@ -573,6 +617,15 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         // Information Loom signal.
         TransitionError::EventResolveTaskNotFound => Some("event_resolve_task_not_found".into()),
         TransitionError::EventAlreadyResolved => Some("event_already_resolved".into()),
+        TransitionError::PredicateBindingAlreadyActivated => {
+            Some("predicate_binding_already_activated".into())
+        }
+        TransitionError::PredicateBindingActivationInvalid => {
+            Some("predicate_binding_activation_invalid".into())
+        }
+        TransitionError::PredicateBindingActivationLogicalTMismatch => {
+            Some("predicate_binding_activation_logical_t_mismatch".into())
+        }
         // TB-G G3.2 (2026-05-12): per-tx-class public summary tag (32 bytes
         // ≤ 64-byte SG-G3.12 budget) — distinct from `stake_balance_exceeded`
         // / `verify_bond_out_of_bounds` / `policy_violation` so Information
@@ -766,7 +819,7 @@ pub fn refine_rejection_class_via_attempt_telemetry_checked(
 /// verification at apply_one stage 1.5. Returns `None` for agent variants
 /// (their signatures are agent-domain `AgentSignature`, verified separately
 /// at predicate-runner / admission gates).
-fn system_message_for_verification(
+pub(crate) fn system_message_for_verification(
     tx: &TypedTx,
 ) -> Option<crate::bottom_white::ledger::system_keypair::CanonicalMessage> {
     use crate::bottom_white::ledger::system_keypair::CanonicalMessage;
@@ -802,6 +855,10 @@ fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::EventResolveSigning(digest))
         }
+        TypedTx::PredicateBindingActivate(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::PredicateBindingActivateSigning(digest))
+        }
         // Agent-submitted variants: stage 1.5 is system-only. TB-13
         // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
         // (verified separately at admission via the agent-signature path).
@@ -827,7 +884,8 @@ fn system_message_for_verification(
     }
 }
 
-fn event_resolve_signature_verifies_current_or_legacy(
+/// TRACE_MATRIX TB-N2 B2 + FC2-N19: verify event-resolve system signatures during replay without trusting runner-controlled tx fields.
+pub(crate) fn event_resolve_signature_verifies_current_or_legacy(
     t: &crate::state::typed_tx::EventResolveTx,
     pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
 ) -> bool {
@@ -847,7 +905,7 @@ fn event_resolve_signature_verifies_current_or_legacy(
 
 /// TRACE_MATRIX TB-5 Atom 4: extract `&SystemSignature` from a system-emitted
 /// TypedTx variant. Agent variants → `None`.
-fn system_signature_of(
+pub(crate) fn system_signature_of(
     tx: &TypedTx,
 ) -> Option<&crate::bottom_white::ledger::system_keypair::SystemSignature> {
     match tx {
@@ -858,6 +916,7 @@ fn system_signature_of(
         TypedTx::TaskBankruptcy(t) => Some(&t.system_signature),
         // TB-N2 B2 (2026-05-11) — system-emitted; mirror TaskBankruptcy.
         TypedTx::EventResolve(t) => Some(&t.system_signature),
+        TypedTx::PredicateBindingActivate(t) => Some(&t.system_signature),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -879,7 +938,7 @@ fn system_signature_of(
 
 /// TRACE_MATRIX TB-5 Atom 4: extract `SystemEpoch` from a system-emitted
 /// TypedTx variant for pinned-pubkey lookup. Agent variants → `None`.
-fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
+pub(crate) fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
     match tx {
         TypedTx::FinalizeReward(t) => Some(t.epoch),
         TypedTx::TaskExpire(t) => Some(t.epoch),
@@ -896,6 +955,7 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         // TB-N2 B2 (2026-05-11) — system-emitted; pin epoch for pinned-pubkey
         // lookup at apply_one stage 1.5.
         TypedTx::EventResolve(t) => Some(t.epoch),
+        TypedTx::PredicateBindingActivate(t) => Some(t.epoch),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -919,6 +979,155 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
 // § 8 dispatch_transition — exhaustive enum match (K5: NO Slash)
 // ────────────────────────────────────────────────────────────────────────────
 
+fn verify_work_predicates(
+    q: &QState,
+    work: &WorkTx,
+    registry: &PredicateRegistry,
+    predicate_cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if q.predicate_registry_root_t == Hash::ZERO {
+        for (pid, bwp) in work.predicate_results.acceptance.iter() {
+            if !bwp.value {
+                return Err(TransitionError::AcceptancePredicateFailed(pid.clone()));
+            }
+        }
+        for (pid, bwp) in work.predicate_results.settlement.iter() {
+            if !bwp.value {
+                return Err(TransitionError::SettlementPredicateFailed(pid.clone()));
+            }
+        }
+        return Ok(());
+    }
+
+    if registry.merkle_root_hash() != q.predicate_registry_root_t {
+        return Err(TransitionError::PredicateRegistryRootMismatch);
+    }
+
+    verify_predicate_key_set(
+        work.predicate_results.acceptance.keys().cloned().collect(),
+        registry.required_predicates(PredicateBundleMap::Acceptance),
+        PredicateBundleMap::Acceptance,
+    )?;
+    verify_predicate_key_set(
+        work.predicate_results.settlement.keys().cloned().collect(),
+        registry.required_predicates(PredicateBundleMap::Settlement),
+        PredicateBundleMap::Settlement,
+    )?;
+
+    let ctx = crate::top_white::predicates::registry::PredicateContext {
+        registry_root: q.predicate_registry_root_t,
+        work: PredicateWorkView::from_work_tx(work),
+        proof_store: predicate_cas,
+    };
+
+    for (pid, claim) in &work.predicate_results.acceptance {
+        verify_predicate_claim(registry, &ctx, pid, claim, PredicateBundleMap::Acceptance)?;
+        if !claim.value {
+            return Err(TransitionError::AcceptancePredicateFailed(pid.clone()));
+        }
+    }
+    for (pid, claim) in &work.predicate_results.settlement {
+        verify_predicate_claim(registry, &ctx, pid, claim, PredicateBundleMap::Settlement)?;
+        if !claim.value {
+            return Err(TransitionError::SettlementPredicateFailed(pid.clone()));
+        }
+    }
+
+    Ok(())
+}
+
+fn verify_predicate_key_set(
+    got: BTreeSet<PredicateId>,
+    expected: &BTreeSet<PredicateId>,
+    map: PredicateBundleMap,
+) -> Result<(), TransitionError> {
+    for pid in expected.difference(&got) {
+        return Err(match map {
+            PredicateBundleMap::Acceptance => {
+                TransitionError::AcceptancePredicateMissing(pid.clone())
+            }
+            PredicateBundleMap::Settlement => {
+                TransitionError::SettlementPredicateMissing(pid.clone())
+            }
+        });
+    }
+    for pid in got.difference(expected) {
+        return Err(match map {
+            PredicateBundleMap::Acceptance => {
+                TransitionError::AcceptancePredicateUnexpected(pid.clone())
+            }
+            PredicateBundleMap::Settlement => {
+                TransitionError::SettlementPredicateUnexpected(pid.clone())
+            }
+        });
+    }
+    Ok(())
+}
+
+fn verify_predicate_claim(
+    registry: &PredicateRegistry,
+    ctx: &crate::top_white::predicates::registry::PredicateContext<'_>,
+    pid: &PredicateId,
+    claim: &BoolWithProof,
+    map: PredicateBundleMap,
+) -> Result<(), TransitionError> {
+    let entry = registry.entry(pid).ok_or_else(|| match map {
+        PredicateBundleMap::Acceptance => {
+            TransitionError::AcceptancePredicateUnexpected(pid.clone())
+        }
+        PredicateBundleMap::Settlement => {
+            TransitionError::SettlementPredicateUnexpected(pid.clone())
+        }
+    })?;
+    if entry.impl_arc.code_hash() != entry.metadata.code_hash {
+        return Err(match map {
+            PredicateBundleMap::Acceptance => {
+                TransitionError::AcceptancePredicateCodeHashMismatch(pid.clone())
+            }
+            PredicateBundleMap::Settlement => {
+                TransitionError::SettlementPredicateCodeHashMismatch(pid.clone())
+            }
+        });
+    }
+    let recomputed = entry
+        .impl_arc
+        .verify_proof(ctx, claim)
+        .map_err(|err| predicate_verify_error_to_transition(map, pid, err))?;
+    if recomputed != claim.value {
+        return Err(match map {
+            PredicateBundleMap::Acceptance => {
+                TransitionError::AcceptancePredicateProofMismatch(pid.clone())
+            }
+            PredicateBundleMap::Settlement => {
+                TransitionError::SettlementPredicateProofMismatch(pid.clone())
+            }
+        });
+    }
+    Ok(())
+}
+
+fn predicate_verify_error_to_transition(
+    map: PredicateBundleMap,
+    pid: &PredicateId,
+    err: PredicateVerifyError,
+) -> TransitionError {
+    let missing = matches!(err, PredicateVerifyError::MissingProofCid);
+    match (map, missing) {
+        (PredicateBundleMap::Acceptance, true) => {
+            TransitionError::AcceptancePredicateProofMissing(pid.clone())
+        }
+        (PredicateBundleMap::Acceptance, false) => {
+            TransitionError::AcceptancePredicateProofMismatch(pid.clone())
+        }
+        (PredicateBundleMap::Settlement, true) => {
+            TransitionError::SettlementPredicateProofMissing(pid.clone())
+        }
+        (PredicateBundleMap::Settlement, false) => {
+            TransitionError::SettlementPredicateProofMismatch(pid.clone())
+        }
+    }
+}
+
 /// TRACE_MATRIX § 8 — exhaustive dispatch over `TypedTx` variants.
 ///
 /// **Stub state (CO1.7-impl A3)**: every variant returns
@@ -929,8 +1138,9 @@ fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
 pub(crate) fn dispatch_transition(
     q: &QState,
     tx: &TypedTx,
-    _predicate_registry: &PredicateRegistry,
+    predicate_registry: &PredicateRegistry,
     _tool_registry: &ToolRegistry,
+    predicate_cas: &dyn PredicateCasView,
 ) -> Result<(QState, SignalBundle), TransitionError> {
     match tx {
         TypedTx::Work(work) => {
@@ -943,19 +1153,7 @@ pub(crate) fn dispatch_transition(
                 return Err(TransitionError::StaleParent);
             }
 
-            // Step 2: acceptance predicate bundle — every entry must be true.
-            for (pid, bwp) in work.predicate_results.acceptance.iter() {
-                if !bwp.value {
-                    return Err(TransitionError::AcceptancePredicateFailed(pid.clone()));
-                }
-            }
-
-            // Step 3: settlement predicate bundle (if applicable to RSP-1).
-            for (pid, bwp) in work.predicate_results.settlement.iter() {
-                if !bwp.value {
-                    return Err(TransitionError::SettlementPredicateFailed(pid.clone()));
-                }
-            }
+            verify_work_predicates(q, work, predicate_registry, predicate_cas)?;
 
             // Step 3.5: TB-G G3.2 (charter §1 Module G3; 2026-05-12) — agent
             // bankruptcy risk-cap admission gate. Fires BEFORE per-arm
@@ -2095,6 +2293,36 @@ pub(crate) fn dispatch_transition(
                 .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
             // Step 5: state_root advance.
             q_next.state_root_t = event_resolve_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::PredicateBindingActivate(activate) => {
+            if activate.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            if q.predicate_registry_root_t != Hash::ZERO {
+                return Err(TransitionError::PredicateBindingAlreadyActivated);
+            }
+            let obj = predicate_cas
+                .get_object(&activate.registry_snapshot_cid)
+                .map_err(|_| TransitionError::PredicateBindingActivationInvalid)?;
+            if obj.object_type != ObjectType::PredicateRegistrySnapshotCapsule {
+                return Err(TransitionError::PredicateBindingActivationInvalid);
+            }
+            if obj.schema_id.as_deref() != Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID) {
+                return Err(TransitionError::PredicateBindingActivationInvalid);
+            }
+            let snapshot: PredicateRegistrySnapshotCapsule =
+                crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+                    .map_err(|_| TransitionError::PredicateBindingActivationInvalid)?;
+            if snapshot.schema_id != PredicateRegistrySnapshotCapsule::SCHEMA_ID
+                || snapshot.merkle_root != activate.registry_merkle_root
+                || predicate_registry.merkle_root_hash() != activate.registry_merkle_root
+            {
+                return Err(TransitionError::PredicateBindingActivationInvalid);
+            }
+            let mut q_next = q.clone();
+            q_next.predicate_registry_root_t = activate.registry_merkle_root;
+            q_next.state_root_t = predicate_binding_activate_state_root(&q.state_root_t, tx);
             Ok((q_next, SignalBundle::empty()))
         }
         // ──────────────────────────────────────────────────────────────────
@@ -3701,6 +3929,12 @@ pub enum SystemEmitCommand {
         task_id: crate::state::q_state::TaskId,
         outcome: crate::state::typed_tx::OutcomeSide,
     },
+    /// W3-2 PredicateRegistryBind — activate bound predicate admission by
+    /// anchoring the registry snapshot CID and root on L4.
+    PredicateBindingActivate {
+        registry_snapshot_cid: crate::bottom_white::cas::schema::Cid,
+        registry_merkle_root: crate::state::q_state::Hash,
+    },
     // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
 }
@@ -3743,6 +3977,10 @@ pub enum EmitSystemError {
     /// `tb_n2_emit_event_resolve_after_finalize` derives `task_id` from the
     /// just-accepted FinalizeReward's claim.
     EventResolveTaskNotFound,
+    /// PredicateBindingActivate referenced a snapshot that is not present in
+    /// CAS, is not typed as PredicateRegistrySnapshotCapsule, or does not
+    /// match the active registry root.
+    PredicateRegistrySnapshotInvalid,
 }
 
 impl std::fmt::Display for EmitSystemError {
@@ -3765,6 +4003,10 @@ impl std::fmt::Display for EmitSystemError {
             Self::EventResolveTaskNotFound => write!(
                 f,
                 "SystemEmitCommand::EventResolve referenced a task_id not present in task_markets_t (TB-N2 B2; 2026-05-11)"
+            ),
+            Self::PredicateRegistrySnapshotInvalid => write!(
+                f,
+                "SystemEmitCommand::PredicateBindingActivate referenced an invalid predicate registry snapshot capsule"
             ),
         }
     }
@@ -4095,7 +4337,8 @@ impl Sequencer {
             // system-emitted only; agent ingress must reject pre-queue per
             // Anti-Oreo. Construction goes through
             // `emit_system_tx(SystemEmitCommand::EventResolve)`.
-            | TypedTx::EventResolve(_) => {
+            | TypedTx::EventResolve(_)
+            | TypedTx::PredicateBindingActivate(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
@@ -4278,6 +4521,63 @@ impl Sequencer {
         }
     }
 
+    /// TRACE_MATRIX FC1-N11 + FC1-N12 + FC2-N19: fresh ChainTape boot must enter bound
+    /// predicate mode before ordinary agent ingress can commit WorkTxs. This
+    /// synchronous helper writes the active registry snapshot to CAS, builds the
+    /// normal signed `PredicateBindingActivate` system tx, and applies it
+    /// through the same `apply_one` path used by queued system txs.
+    pub(crate) fn activate_predicate_binding_for_boot(
+        &self,
+    ) -> Result<Option<LedgerEntry>, String> {
+        if self.predicate_registry.is_empty() {
+            return Ok(None);
+        }
+        {
+            let q = self
+                .q
+                .read()
+                .map_err(|_| "predicate boot activation q lock poisoned".to_string())?;
+            if q.predicate_registry_root_t != Hash::ZERO {
+                return Ok(None);
+            }
+        }
+
+        let snapshot = self.predicate_registry.snapshot_capsule();
+        let snapshot_bytes =
+            crate::bottom_white::ledger::transition_ledger::canonical_encode(&snapshot)
+                .map_err(|e| format!("encode predicate registry snapshot: {e}"))?;
+        let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
+        let snapshot_cid = {
+            let mut cas = self
+                .cas
+                .write()
+                .map_err(|_| "predicate boot activation cas lock poisoned".to_string())?;
+            cas.put(
+                &snapshot_bytes,
+                ObjectType::PredicateRegistrySnapshotCapsule,
+                "system-predicate-binding",
+                logical_t,
+                Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID.to_string()),
+            )
+            .map_err(|e| format!("write predicate registry snapshot: {e}"))?
+        };
+        let tx = self
+            .build_signed_system_tx(SystemEmitCommand::PredicateBindingActivate {
+                registry_snapshot_cid: snapshot_cid,
+                registry_merkle_root: snapshot.merkle_root,
+            })
+            .map_err(|e| format!("build predicate binding activation tx: {e}"))?;
+        self.verify_emitted_system_tx_signature(&tx)
+            .map_err(|e| format!("verify predicate binding activation tx: {e}"))?;
+        let emit_id = self.next_emit_id.fetch_add(1, Ordering::SeqCst);
+        self.apply_one(SubmissionEnvelope {
+            submit_id: emit_id,
+            tx,
+        })
+        .map(Some)
+        .map_err(|e| format!("apply predicate binding activation tx: {e}"))
+    }
+
     /// TRACE_MATRIX TB-5 Atom 4 (preflight § 4.4): construct + sign a system
     /// tx from a high-level `SystemEmitCommand`. Internal-only; called by
     /// `emit_system_tx`. Each command variant constructs its corresponding
@@ -4288,7 +4588,7 @@ impl Sequencer {
         command: SystemEmitCommand,
     ) -> Result<TypedTx, EmitSystemError> {
         use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::{
-            sign_challenge_resolve, sign_finalize_reward,
+            sign_challenge_resolve, sign_finalize_reward, sign_predicate_binding_activate,
         };
         use crate::bottom_white::ledger::system_keypair::SystemSignature;
         use crate::state::typed_tx::{ChallengeResolveTx, FinalizeRewardTx};
@@ -4569,6 +4869,62 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::EventResolve(tx))
             }
+            SystemEmitCommand::PredicateBindingActivate {
+                registry_snapshot_cid,
+                registry_merkle_root,
+            } => {
+                use crate::state::typed_tx::PredicateBindingActivateTx;
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    let obj = cas_r
+                        .get_object(&registry_snapshot_cid)
+                        .map_err(|_| EmitSystemError::PredicateRegistrySnapshotInvalid)?;
+                    if obj.object_type != ObjectType::PredicateRegistrySnapshotCapsule
+                        || obj.schema_id.as_deref()
+                            != Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID)
+                    {
+                        return Err(EmitSystemError::PredicateRegistrySnapshotInvalid);
+                    }
+                    let snapshot: PredicateRegistrySnapshotCapsule =
+                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
+                            &obj.bytes,
+                        )
+                        .map_err(|_| EmitSystemError::PredicateRegistrySnapshotInvalid)?;
+                    if snapshot.merkle_root != registry_merkle_root
+                        || registry_merkle_root != self.predicate_registry.merkle_root_hash()
+                    {
+                        return Err(EmitSystemError::PredicateRegistrySnapshotInvalid);
+                    }
+                }
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = PredicateBindingActivateTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-predicate-binding-activate-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    registry_snapshot_cid,
+                    registry_merkle_root,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_predicate_binding_activate(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::PredicateBindingActivate(tx))
+            }
         }
     }
 
@@ -4657,6 +5013,19 @@ impl Sequencer {
             TypedTx::EventResolve(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::EventResolveSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::PredicateBindingActivate(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::PredicateBindingActivateSigning(digest);
                 if !verify_system_signature(
                     &t.system_signature,
                     &msg,
@@ -4877,26 +5246,50 @@ impl Sequencer {
             }
         }
 
+        // TENTATIVE logical_t (do NOT fetch_add yet). Needed before dispatch
+        // for PredicateBindingActivateTx because the activation transaction's
+        // timestamp must bind to the ledger logical_t, not runner-controlled
+        // time.
+        let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
+        if let TypedTx::PredicateBindingActivate(t) = &tx {
+            if t.timestamp_logical != logical_t {
+                let err = TransitionError::PredicateBindingActivationLogicalTMismatch;
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+
         // Stage 2: dispatch (pure). On reject, route to L4.E rejection-evidence
         // ledger and return early. K1: no logical_t consumed; Inv 7: no
         // state_root_t / ledger_root_t advance.
+        let mut cas_r = self
+            .cas
+            .write()
+            .map_err(|_| ApplyError::QStateLockPoisoned)?;
+        if matches!(tx, TypedTx::Work(_)) && q_snapshot.predicate_registry_root_t != Hash::ZERO {
+            // WorkTx predicate verification may depend on proposal/proof CAS
+            // objects written by runner-side handles after the long-lived
+            // sequencer CAS handle was opened. Refresh just before the bound
+            // predicate gate so admission sees the same CAS chain replay will.
+            cas_r.reload_index_from_sidecar()?;
+        }
         let (q_next, _signals) = match dispatch_transition(
             &q_snapshot,
             &tx,
             &self.predicate_registry,
             &self.tool_registry,
+            &*cas_r,
         ) {
             Ok(ok) => ok,
             Err(transition_err) => {
+                drop(cas_r);
                 self.record_rejection(submit_id, &tx, &q_snapshot, &transition_err)?;
                 // No logical_t advance, no state_root advance, no ledger_root
                 // advance. Caller observes ApplyError::Transition.
                 return Err(ApplyError::Transition(transition_err));
             }
         };
-
-        // v1.1 C-2: TENTATIVE logical_t (do NOT fetch_add yet).
-        let logical_t = self.next_logical_t.load(Ordering::SeqCst) + 1;
+        drop(cas_r);
 
         // Stage 3: put payload to CAS. DIV-5 5-param put signature.
         let payload_bytes =
@@ -5214,7 +5607,12 @@ mod tests {
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
         let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-        let preds = Arc::new(PredicateRegistry::new());
+        let preds = Arc::new(
+            PredicateRegistry::from_boot_manifest(
+                crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+            )
+            .expect("empty predicate manifest"),
+        );
         let tools = Arc::new(ToolRegistry::new());
         let mut q = QState::genesis();
         // TB-N1-AGENT-ECONOMY Phase 2 A3 (2026-05-10): seed `alice` with
@@ -5343,7 +5741,10 @@ mod tests {
     #[test]
     fn dispatch_transition_stubs_reuse_only() {
         let q = QState::genesis();
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
 
         // Reuse remains the only NotYetImplemented dispatch arm (RSP-5).
@@ -5354,7 +5755,13 @@ mod tests {
             reused_tool_creator: AgentId("a".into()),
             timestamp_logical: 1,
         });
-        let result = dispatch_transition(&q, &tx, &preds, &tools);
+        let result = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(matches!(result, Err(TransitionError::NotYetImplemented)));
     }
 
@@ -5541,7 +5948,12 @@ mod tests {
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
         let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-        let preds = Arc::new(PredicateRegistry::new());
+        let preds = Arc::new(
+            PredicateRegistry::from_boot_manifest(
+                crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+            )
+            .expect("empty predicate manifest"),
+        );
         let tools = Arc::new(ToolRegistry::new());
         let mut q = QState::genesis();
         q.economic_state_t.balances_t.0.insert(
@@ -5605,7 +6017,10 @@ mod tests {
     // Locks the interim hash so any future change is loud.
     #[test]
     fn dispatch_transition_worktx_returns_state_root_via_domain_v1() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let work_tx = fixture_work_tx();
         let task_id = work_tx.task_id.clone();
@@ -5639,8 +6054,14 @@ mod tests {
             signature: AgentSignature::from_bytes([0u8; 64]),
             timestamp_logical: 0,
         });
-        let (q_after_open, _) =
-            dispatch_transition(&q, &open_tx, &preds, &tools).expect("seed TaskOpen accepts");
+        let (q_after_open, _) = dispatch_transition(
+            &q,
+            &open_tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("seed TaskOpen accepts");
         // EscrowLock via formal surface.
         let lock_tx = TypedTx::EscrowLock(crate::state::typed_tx::EscrowLockTx {
             tx_id: TxId(format!("seed-lock-{}", task_id.0)),
@@ -5651,15 +6072,27 @@ mod tests {
             signature: AgentSignature::from_bytes([0u8; 64]),
             timestamp_logical: 0,
         });
-        let (q_funded, _) = dispatch_transition(&q_after_open, &lock_tx, &preds, &tools)
-            .expect("seed EscrowLock accepts");
+        let (q_funded, _) = dispatch_transition(
+            &q_after_open,
+            &lock_tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("seed EscrowLock accepts");
 
         // Now construct WorkTx with parent matching the funded state's state_root.
         let mut work_tx = work_tx;
         work_tx.parent_state_root = q_funded.state_root_t;
         let tx = TypedTx::Work(work_tx);
-        let (q_next, _signals) = dispatch_transition(&q_funded, &tx, &preds, &tools)
-            .expect("predicate-passing WorkTx with funded task + solvent solver must accept");
+        let (q_next, _signals) = dispatch_transition(
+            &q_funded,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("predicate-passing WorkTx with funded task + solvent solver must accept");
 
         // Expected state_root_t per the interim domain-separated hash.
         let expected = {
@@ -5709,7 +6142,12 @@ mod tests {
         let writer: Arc<RwLock<dyn LedgerWriter>> =
             Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
         let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-        let preds = Arc::new(PredicateRegistry::new());
+        let preds = Arc::new(
+            PredicateRegistry::from_boot_manifest(
+                crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+            )
+            .expect("empty predicate manifest"),
+        );
         let tools = Arc::new(ToolRegistry::new());
         let epoch = SystemEpoch::new(1);
         // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
@@ -5779,12 +6217,21 @@ mod tests {
     /// total_escrow=0; state_root advances via TASK_OPEN_DOMAIN_V1.
     #[test]
     fn dispatch_task_open_inserts_task_market_entry() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let q = QState::genesis();
         let tx = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u4", "sponsor-alice"));
-        let (q_next, _signals) =
-            dispatch_transition(&q, &tx, &preds, &tools).expect("TaskOpen on genesis must accept");
+        let (q_next, _signals) = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("TaskOpen on genesis must accept");
 
         let entry = q_next
             .economic_state_t
@@ -5814,19 +6261,35 @@ mod tests {
     /// TaskAlreadyOpen.
     #[test]
     fn dispatch_task_open_rejects_when_already_open() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let mut q = QState::genesis();
         // First open: q ← q_next (in test we manually compose).
         let first = TypedTx::TaskOpen(fixture_task_open_tx_v("task-u5", "sponsor"));
-        let (q_after_first, _) = dispatch_transition(&q, &first, &preds, &tools).expect("first");
+        let (q_after_first, _) = dispatch_transition(
+            &q,
+            &first,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("first");
         q = q_after_first;
 
         // Second open for the SAME task_id but with refreshed parent_root.
         let mut second = fixture_task_open_tx_v("task-u5", "sponsor");
         second.tx_id = TxId("taskopen-task-u5-second".into());
         second.parent_state_root = q.state_root_t;
-        let r = dispatch_transition(&q, &TypedTx::TaskOpen(second), &preds, &tools);
+        let r = dispatch_transition(
+            &q,
+            &TypedTx::TaskOpen(second),
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(
             matches!(r, Err(TransitionError::TaskAlreadyOpen)),
             "second open for same task_id must reject TaskAlreadyOpen; got {:?}",
@@ -5860,7 +6323,10 @@ mod tests {
 
     /// Helper: open task + seed sponsor balance, return q.
     fn q_with_open_task_and_balance(task: &str, sponsor: &str, balance_coin: i64) -> QState {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let mut q = QState::genesis();
         // Seed sponsor balance.
@@ -5870,15 +6336,24 @@ mod tests {
         );
         // Open task.
         let open = TypedTx::TaskOpen(fixture_task_open_tx_v(task, sponsor));
-        let (q_next, _) = dispatch_transition(&q, &open, &preds, &tools)
-            .expect("TaskOpen on seeded balance must accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &open,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("TaskOpen on seeded balance must accept");
         q_next
     }
 
     /// U6 — EscrowLock dispatch debits balance, credits escrow, updates total_escrow + escrow_lock_tx_ids.
     #[test]
     fn dispatch_escrow_lock_debits_balance_credits_escrow_updates_total() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let q = q_with_open_task_and_balance("task-u6", "sponsor-u6", 100);
         let parent = q.state_root_t;
@@ -5891,8 +6366,14 @@ mod tests {
             "u6",
         ));
 
-        let (q_next, _signals) = dispatch_transition(&q, &lock, &preds, &tools)
-            .expect("EscrowLock with sufficient balance must accept");
+        let (q_next, _signals) = dispatch_transition(
+            &q,
+            &lock,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("EscrowLock with sufficient balance must accept");
 
         // Balance debited.
         let new_bal = q_next
@@ -5937,7 +6418,10 @@ mod tests {
     /// U7 — EscrowLock to a task that is NOT open rejects with TaskNotOpen.
     #[test]
     fn dispatch_escrow_lock_rejects_when_task_not_open() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         // Sponsor has balance but no TaskOpen has been submitted.
         let mut q = QState::genesis();
@@ -5952,7 +6436,13 @@ mod tests {
             Hash::ZERO,
             "u7",
         ));
-        let r = dispatch_transition(&q, &lock, &preds, &tools);
+        let r = dispatch_transition(
+            &q,
+            &lock,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(
             matches!(r, Err(TransitionError::TaskNotOpen)),
             "EscrowLock to unknown task must reject TaskNotOpen; got {:?}",
@@ -5963,7 +6453,10 @@ mod tests {
     /// U8 — EscrowLock with sponsor balance < amount rejects with InsufficientBalance.
     #[test]
     fn dispatch_escrow_lock_rejects_when_insufficient_balance() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         // Open task first, but sponsor has only 5 coin.
         let q = q_with_open_task_and_balance("task-u8", "sponsor-u8", 5);
@@ -5975,7 +6468,13 @@ mod tests {
             parent,
             "u8",
         ));
-        let r = dispatch_transition(&q, &lock, &preds, &tools);
+        let r = dispatch_transition(
+            &q,
+            &lock,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(
             matches!(r, Err(TransitionError::InsufficientBalance)),
             "EscrowLock amount > balance must reject InsufficientBalance; got {:?}",
@@ -5996,7 +6495,10 @@ mod tests {
         solver: &str,
         solver_balance_coin: i64,
     ) -> QState {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let mut q = q_with_open_task_and_balance(task, sponsor, sponsor_balance_coin);
         // Seed solver balance directly (genesis-equivalent; state_root != ZERO at this
@@ -6016,8 +6518,14 @@ mod tests {
             parent,
             "funded",
         ));
-        let (q_next, _) =
-            dispatch_transition(&q, &lock, &preds, &tools).expect("EscrowLock seed must accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &lock,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("EscrowLock seed must accept");
         q_next
     }
 
@@ -6060,7 +6568,10 @@ mod tests {
     /// WorkTx after open + lock + balance setup is accepted; state_root advances.
     #[test]
     fn dispatch_worktx_admission_via_formal_surface_no_bridge() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let q = q_with_funded_task_and_solver_balance(
             "task-u9",
@@ -6079,7 +6590,13 @@ mod tests {
             "u9",
             true,
         ));
-        let result = dispatch_transition(&q, &work, &preds, &tools);
+        let result = dispatch_transition(
+            &q,
+            &work,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(
             result.is_ok(),
             "WorkTx with funded task + solvent solver must accept via formal surface; got {:?}",
@@ -6106,7 +6623,10 @@ mod tests {
     /// preserved; the rejection class is now the more specific A3 variant.
     #[test]
     fn dispatch_worktx_rejects_when_solver_balance_lt_stake() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         // Solver has only 0 coin (no balance entry — defaults to zero).
         let q = q_with_funded_task_and_solver_balance(
@@ -6126,7 +6646,13 @@ mod tests {
             "u10",
             true,
         ));
-        let result = dispatch_transition(&q, &work, &preds, &tools);
+        let result = dispatch_transition(
+            &q,
+            &work,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        );
         assert!(matches!(result, Err(TransitionError::StakeBalanceExceeded)),
             "post-A3: solver lacks balance for stake → Step-4 StakeBalanceExceeded (subsumes pre-A3 Step-6 InsufficientBalance for this case); got {:?}", result);
     }
@@ -6134,7 +6660,10 @@ mod tests {
     /// U11 — Accepted WorkTx debits balance + credits stakes_t with task_id binding.
     #[test]
     fn dispatch_worktx_accept_debits_balance_credits_stakes() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let q = q_with_funded_task_and_solver_balance(
             "task-u11",
@@ -6160,7 +6689,14 @@ mod tests {
             "u11",
             true,
         ));
-        let (q_next, _) = dispatch_transition(&q, &work, &preds, &tools).expect("accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &work,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("accept");
 
         // Balance debited by stake.
         let post_solver_bal = q_next
@@ -6290,14 +6826,23 @@ mod tests {
     /// task_id binding inherited from target's stakes_t entry.
     #[test]
     fn dispatch_verify_locks_bond_in_stakes_t_at_verify_tx_id() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _target, task_id) = seed_q_with_live_target("verifier-bob", 10, "wt-u12");
         let verify_tx =
             fixture_verify_tx_for_target("vt-u12", "wt-u12", "verifier-bob", 3, q.state_root_t);
         let tx = TypedTx::Verify(verify_tx);
-        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect("Verify with positive bond + live target + solvent verifier must accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("Verify with positive bond + live target + solvent verifier must accept");
 
         // bond locked into stakes_t at verify.tx_id
         let entry = q_next
@@ -6339,14 +6884,24 @@ mod tests {
     /// U13 — VerifyTx with bond.micro_units() == 0 rejects with BondInsufficient.
     #[test]
     fn dispatch_verify_rejects_when_bond_zero() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u13");
         let mut verify_tx =
             fixture_verify_tx_for_target("vt-u13", "wt-u13", "v", 5, q.state_root_t);
         verify_tx.bond = StakeMicroCoin::from_micro_units(0);
         let tx = TypedTx::Verify(verify_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::BondInsufficient));
     }
 
@@ -6357,7 +6912,10 @@ mod tests {
     /// distinct per-tx telemetry; same semantic).
     #[test]
     fn dispatch_verify_rejects_when_target_not_in_stakes_t() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         // Q has no stakes_t entries.
         let mut q = QState::genesis();
@@ -6368,7 +6926,14 @@ mod tests {
         let verify_tx =
             fixture_verify_tx_for_target("vt-u14", "wt-not-existent", "v", 3, q.state_root_t);
         let tx = TypedTx::Verify(verify_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::VerifyTargetNotAccepted),
                 "post-A4: expected VerifyTargetNotAccepted (Step-3 agent-side refined class; renamed from TargetWorkInactive); got {err:?}");
     }
@@ -6377,7 +6942,10 @@ mod tests {
     /// (Charter § 3.4 step 1.)
     #[test]
     fn dispatch_verify_rejects_when_parent_stale() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_with_live_target("v", 10, "wt-u15");
         let mut verify_tx = fixture_verify_tx_for_target(
@@ -6392,7 +6960,14 @@ mod tests {
             verify_tx.parent_state_root = Hash([0xFFu8; 32]);
         }
         let tx = TypedTx::Verify(verify_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::StaleParent));
     }
 
@@ -6409,7 +6984,10 @@ mod tests {
     /// identical inequality). Test intent preserved.
     #[test]
     fn dispatch_verify_rejects_when_verifier_balance_lt_bond() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_with_live_target("v", 1, "wt-u16"); // only 1 coin
         let verify_tx = fixture_verify_tx_for_target(
@@ -6420,7 +6998,14 @@ mod tests {
             q.state_root_t, // requires 5 coin
         );
         let tx = TypedTx::Verify(verify_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::VerifyBondOutOfBounds),
             "post-A4: verifier balance < bond → Step-2.5 VerifyBondOutOfBounds (subsumes pre-A4 Step-4 InsufficientBalance for this case); got {err:?}");
     }
@@ -6481,7 +7066,10 @@ mod tests {
     /// and `opened_at_round = q.logical_t` anchor (charter § 3.5 + § 3.9).
     #[test]
     fn dispatch_challenge_opens_case_with_target_back_ref_and_logical_t_anchor() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _target, _task) = seed_q_for_challenge("challenger-u17", 10, "wt-u17", 42);
         let chal_tx = fixture_challenge_tx_for_target(
@@ -6493,7 +7081,7 @@ mod tests {
             q.state_root_t,
         );
         let tx = TypedTx::Challenge(chal_tx);
-        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
+        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools, &crate::top_white::predicates::registry::EmptyPredicateCasView)
             .expect("Challenge with positive stake + live target + solvent challenger + non-zero counterex must accept");
 
         // ChallengeCase opened at challenge.tx_id with target back-ref + logical_t anchor.
@@ -6539,14 +7127,24 @@ mod tests {
     /// U18 — ChallengeTx with stake.micro_units() == 0 rejects with StakeInsufficient.
     #[test]
     fn dispatch_challenge_rejects_when_stake_zero() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u18", 0);
         let mut chal_tx =
             fixture_challenge_tx_for_target("ct-u18", "wt-u18", "c", 5, 0x01, q.state_root_t);
         chal_tx.stake = StakeMicroCoin::from_micro_units(0);
         let tx = TypedTx::Challenge(chal_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::StakeInsufficient));
     }
 
@@ -6554,7 +7152,10 @@ mod tests {
     /// TargetWorkInactive (charter § 3.5 step 3).
     #[test]
     fn dispatch_challenge_rejects_when_target_not_in_stakes_t() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let mut q = QState::genesis();
         q.economic_state_t
@@ -6570,7 +7171,14 @@ mod tests {
             q.state_root_t,
         );
         let tx = TypedTx::Challenge(chal_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, TransitionError::TargetWorkInactive),
             "expected TargetWorkInactive, got {err:?}"
@@ -6581,7 +7189,10 @@ mod tests {
     /// EmptyCounterexample (charter § 3.5 step 6 + directive Q7).
     #[test]
     fn dispatch_challenge_rejects_when_counterexample_cid_zero() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _t, _task) = seed_q_for_challenge("c", 10, "wt-u20", 0);
         let chal_tx = fixture_challenge_tx_for_target(
@@ -6593,7 +7204,14 @@ mod tests {
             q.state_root_t, // ZERO counterex
         );
         let tx = TypedTx::Challenge(chal_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::EmptyCounterexample));
     }
 
@@ -6601,7 +7219,10 @@ mod tests {
     /// InsufficientBalance.
     #[test]
     fn dispatch_challenge_rejects_when_challenger_balance_lt_stake() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, _t, _task) = seed_q_for_challenge("c", 1, "wt-u21", 0); // only 1 coin
         let chal_tx = fixture_challenge_tx_for_target(
@@ -6613,7 +7234,14 @@ mod tests {
             q.state_root_t, // requires 5 coin
         );
         let tx = TypedTx::Challenge(chal_tx);
-        let err = dispatch_transition(&q, &tx, &preds, &tools).unwrap_err();
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .unwrap_err();
         assert!(matches!(err, TransitionError::InsufficientBalance));
     }
 
@@ -7094,7 +7722,10 @@ mod tests {
     /// + dispatch_challenge_resolve_released_refunds_balance.
     #[test]
     fn dispatch_challenge_resolve_released_zeros_bond_refunds_balance_and_sets_status() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         // Pre: challenger had 100 micro pre-challenge; on challenge accept
         // (in TB-4) bond was already debited from balances_t and credited
@@ -7111,8 +7742,14 @@ mod tests {
             .unwrap();
 
         let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
-        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect("Released path with valid Open case must accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("Released path with valid Open case must accept");
 
         // Refund: challenger balance += bond.
         let post_balance = q_next
@@ -7159,21 +7796,36 @@ mod tests {
     /// U31: AlreadyResolved gate — second resolve with same target rejects.
     #[test]
     fn dispatch_challenge_resolve_released_cannot_run_twice() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, target_id, _challenger, _bond) =
             seed_q_with_open_challenge_case("challenger-u31", 96, "ct-u31", 4, "wt-u31");
 
         // First resolve succeeds.
         let tx1 = make_resolve_tx(&target_id, ChallengeResolution::Released, q.state_root_t);
-        let (q1, _) =
-            dispatch_transition(&q, &tx1, &preds, &tools).expect("first Released accepts");
+        let (q1, _) = dispatch_transition(
+            &q,
+            &tx1,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("first Released accepts");
 
         // Second resolve on the same case (now status=Released) MUST reject
         // with AlreadyResolved.
         let tx2 = make_resolve_tx(&target_id, ChallengeResolution::Released, q1.state_root_t);
-        let err =
-            dispatch_transition(&q1, &tx2, &preds, &tools).expect_err("second resolve must reject");
+        let err = dispatch_transition(
+            &q1,
+            &tx2,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect_err("second resolve must reject");
         match err {
             TransitionError::AlreadyResolved => {}
             other => panic!("expected AlreadyResolved, got {other:?}"),
@@ -7183,7 +7835,10 @@ mod tests {
     /// U32: ChallengeNotFound — target not in challenge_cases_t.
     #[test]
     fn dispatch_challenge_resolve_unknown_target_rejects() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let q = QState::genesis(); // empty challenge_cases_t.
         let tx = make_resolve_tx(
@@ -7191,8 +7846,14 @@ mod tests {
             ChallengeResolution::Released,
             q.state_root_t,
         );
-        let err =
-            dispatch_transition(&q, &tx, &preds, &tools).expect_err("unknown target must reject");
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect_err("unknown target must reject");
         match err {
             TransitionError::ChallengeNotFound => {}
             other => panic!("expected ChallengeNotFound, got {other:?}"),
@@ -7202,7 +7863,10 @@ mod tests {
     /// U33: UpheldDeferred — marker only; bond preserved.
     #[test]
     fn dispatch_challenge_resolve_upheld_deferred_marker_only() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, target_id, challenger, bond) =
             seed_q_with_open_challenge_case("challenger-u33", 96, "ct-u33", 4, "wt-u33");
@@ -7219,8 +7883,14 @@ mod tests {
             ChallengeResolution::UpheldDeferred,
             q.state_root_t,
         );
-        let (q_next, _) = dispatch_transition(&q, &tx, &preds, &tools)
-            .expect("UpheldDeferred path with valid Open case must accept");
+        let (q_next, _) = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect("UpheldDeferred path with valid Open case must accept");
 
         // No balance mutation.
         let post_balance = q_next
@@ -7258,15 +7928,24 @@ mod tests {
     /// U34: StaleParent — parent_state_root mismatch.
     #[test]
     fn dispatch_challenge_resolve_rejects_stale_parent() {
-        let preds = PredicateRegistry::new();
+        let preds = PredicateRegistry::from_boot_manifest(
+            crate::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest");
         let tools = ToolRegistry::new();
         let (q, target_id, _challenger, _bond) =
             seed_q_with_open_challenge_case("challenger-u34", 96, "ct-u34", 4, "wt-u34");
         // Forge a wrong parent root.
         let stale_root = Hash::from_bytes([0xde; 32]);
         let tx = make_resolve_tx(&target_id, ChallengeResolution::Released, stale_root);
-        let err =
-            dispatch_transition(&q, &tx, &preds, &tools).expect_err("stale parent must reject");
+        let err = dispatch_transition(
+            &q,
+            &tx,
+            &preds,
+            &tools,
+            &crate::top_white::predicates::registry::EmptyPredicateCasView,
+        )
+        .expect_err("stale parent must reject");
         match err {
             TransitionError::StaleParent => {}
             other => panic!("expected StaleParent, got {other:?}"),

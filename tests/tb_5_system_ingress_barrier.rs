@@ -58,7 +58,7 @@ fn fresh_harness() -> Harness {
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
+    let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest"));
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
     // TB-5 Atom 4: pin keypair pubkey under epoch (preflight § 4.2).
@@ -379,7 +379,7 @@ async fn emit_system_tx_queue_full_returns_emit_system_error_queue_full() {
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::new());
+    let preds = Arc::new(turingosv4::top_white::predicates::registry::PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest"));
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
     let mut pinned = PinnedSystemPubkeys::new();

@@ -548,11 +548,10 @@ pub fn compute_pnl_trajectory_from_paths(
         PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
     };
     use crate::bottom_white::ledger::transition_ledger::{
-        replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry, LedgerWriter,
-        ReplayError,
+        replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerCasView,
+        LedgerEntry, LedgerWriter, ReplayError,
     };
     use crate::bottom_white::tools::registry::ToolRegistry;
-    use crate::top_white::predicates::registry::PredicateRegistry;
 
     let pinned_path = runtime_repo_path.join("pinned_pubkeys.json");
     let pinned_text = std::fs::read_to_string(&pinned_path)
@@ -603,12 +602,13 @@ pub fn compute_pnl_trajectory_from_paths(
         }
     }
     let cas_view = CasRef(&cas);
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let final_q = replay_full_transition(
+    let final_q = replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
         &cas_view,
+        &cas,
         &pinned,
         &predicate_registry,
         &tool_registry,

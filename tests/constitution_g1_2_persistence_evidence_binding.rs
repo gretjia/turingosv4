@@ -42,7 +42,7 @@ use turingosv4::runtime::persistence_evidence::{
     bind_persistence, FieldVerdict, PersistenceBindingReport,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId};
+use turingosv4::state::q_state::{AgentId, QState, TaskId};
 use turingosv4::state::typed_tx::EventId;
 
 fn cfg(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConfig {
@@ -117,9 +117,17 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
     let bundle =
         build_chaintape_sequencer_with_initial_q(&cfg_fresh, initial_q.clone()).expect("fresh");
     let seq0 = bundle.sequencer.clone();
+    let q_after_activation = seq0
+        .q_snapshot()
+        .expect("q_snapshot after predicate activation");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let open0 = make_synthetic_task_open("g1_2_5-shared-task", &sponsor.0, Hash::ZERO, "t0-open");
+    let open0 = make_synthetic_task_open(
+        "g1_2_5-shared-task",
+        &sponsor.0,
+        q_after_activation.state_root_t,
+        "t0-open",
+    );
     bus.submit_typed_tx(open0)
         .await
         .expect("submit TaskOpen t0");

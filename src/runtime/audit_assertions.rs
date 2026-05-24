@@ -64,8 +64,8 @@ use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    canonical_decode, replay_full_transition, Git2LedgerWriter, LedgerCasView, LedgerEntry,
-    LedgerWriter, ReplayError, TxKind,
+    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter,
+    LedgerCasView, LedgerEntry, LedgerWriter, ReplayError, TxKind,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::runtime::agent_keypairs::AgentPubkeyManifest;
@@ -81,7 +81,6 @@ use crate::runtime::verification_result::VerificationResult;
 use crate::runtime::PinnedPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
 use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
-use crate::top_white::predicates::registry::PredicateRegistry;
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types
@@ -471,6 +470,7 @@ pub struct TxKindCounts {
     pub task_expire: u64,
     pub task_bankruptcy: u64,
     pub event_resolve: u64, // TB-N2 B2 (2026-05-11) — Open → Finalized system-emit
+    pub predicate_binding_activate: u64,
 }
 
 impl TxKindCounts {
@@ -498,6 +498,7 @@ impl TxKindCounts {
                 TxKind::TaskExpire => c.task_expire += 1,
                 TxKind::TaskBankruptcy => c.task_bankruptcy += 1,
                 TxKind::EventResolve => c.event_resolve += 1, // TB-N2 B2 (2026-05-11)
+                TxKind::PredicateBindingActivate => c.predicate_binding_activate += 1,
             }
         }
         c
@@ -687,13 +688,14 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
     };
 
     // replay (best-effort; result captured for assertions)
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
     let cas_view = CasStoreRef(&cas);
-    let (replayed_q, replay_error) = match replay_full_transition(
+    let (replayed_q, replay_error) = match replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
         &cas_view,
+        &cas,
         &pinned,
         &predicate_registry,
         &tool_registry,
@@ -1111,7 +1113,10 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         TypedTx::EscrowLock(t) => {
             out.push(("EscrowLockTx.sponsor_agent", t.sponsor_agent.0.clone()))
         }
-        TypedTx::ChallengeResolve(_) | TypedTx::TaskBankruptcy(_) | TypedTx::EventResolve(_) => {
+        TypedTx::ChallengeResolve(_)
+        | TypedTx::TaskBankruptcy(_)
+        | TypedTx::EventResolve(_)
+        | TypedTx::PredicateBindingActivate(_) => {
             // No direct AgentId fields; refer to other tx by id only.
             // REAL-6A EventResolveTx: 7 wire fields (tx_id + parent_state_root +
             // task_id + outcome + epoch + timestamp_logical + system_signature); none
@@ -1492,13 +1497,14 @@ pub fn assert_15_canonical_edges_replay_deterministic(t: &LoadedTape) -> Asserti
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_16_replay_idempotent_across_calls(t: &LoadedTape) -> AssertionResult {
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
     let cas_view = CasStoreRef(&t.cas);
-    let q1 = match replay_full_transition(
+    let q1 = match replay_full_transition_with_predicate_binding(
         &t.initial_q,
         &t.entries,
         &cas_view,
+        &t.cas,
         &t.pinned,
         &predicate_registry,
         &tool_registry,
@@ -1513,10 +1519,11 @@ pub fn assert_16_replay_idempotent_across_calls(t: &LoadedTape) -> AssertionResu
             );
         }
     };
-    let q2 = match replay_full_transition(
+    let q2 = match replay_full_transition_with_predicate_binding(
         &t.initial_q,
         &t.entries,
         &cas_view,
+        &t.cas,
         &t.pinned,
         &predicate_registry,
         &tool_registry,
@@ -1643,15 +1650,16 @@ pub fn assert_d_total_supply_conserved_per_block(t: &LoadedTape) -> AssertionRes
             "empty L4 chain".into(),
         );
     }
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
     let cas_view = CasStoreRef(&t.cas);
     for i in 0..t.entries.len() {
         let prefix = &t.entries[..=i];
-        let q_at_i = match crate::bottom_white::ledger::transition_ledger::replay_full_transition(
+        let q_at_i = match crate::bottom_white::ledger::transition_ledger::replay_full_transition_with_predicate_binding(
             &t.initial_q,
             prefix,
             &cas_view,
+            &t.cas,
             &t.pinned,
             &predicate_registry,
             &tool_registry,

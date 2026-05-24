@@ -55,7 +55,7 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
@@ -73,7 +73,7 @@ use turingosv4::state::typed_tx::{
     AgentSignature, CompleteSetMintTx, CompleteSetRedeemTx, EventId, OutcomeSide, ShareAmount,
     TypedTx,
 };
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
+use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
 fn build_smoke_initial_q(
     alice: &str,
@@ -159,11 +159,20 @@ fn manual_replay_from_disk(
     }
 
     let cas = CasStore::open(cas_path).expect("open cas");
-    let predicates = PredicateRegistry::new();
+    let predicates = PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
+        .expect("v8 predicate manifest");
     let tools = ToolRegistry::new();
 
-    replay_full_transition(&initial_q, &entries, &cas, &pinned, &predicates, &tools)
-        .expect("replay_full_transition")
+    replay_full_transition_with_predicate_binding(
+        &initial_q,
+        &entries,
+        &cas,
+        &cas,
+        &pinned,
+        &predicates,
+        &tools,
+    )
+    .expect("replay_full_transition_with_predicate_binding")
 }
 
 #[tokio::test]
