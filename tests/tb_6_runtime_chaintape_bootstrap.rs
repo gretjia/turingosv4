@@ -85,15 +85,18 @@ async fn t2_build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo
 
 #[tokio::test]
 async fn t3_build_chaintape_sequencer_succeeds_on_idempotent_empty_repo_reopen() {
-    // Atom 1.1 inherits this test name; Atom 1.3 re-asserts with same shape.
-    // True "fail-closed on existing chain" requires committing an actual L4
-    // entry first (apply_one of a real WorkTx); deferred to Atom 3 smoke.
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t3");
     let b1 = build_chaintape_sequencer(&cfg).expect("first bootstrap");
     b1.shutdown().await.expect("first shutdown");
-    let b2 = build_chaintape_sequencer(&cfg).expect("second bootstrap on empty refs");
-    b2.shutdown().await.expect("second shutdown");
+    let err = match build_chaintape_sequencer(&cfg) {
+        Ok(bundle) => {
+            let _ = bundle.shutdown().await;
+            panic!("second fresh bootstrap must fail on activation-populated repo");
+        }
+        Err(err) => err,
+    };
+    assert!(matches!(err, BootstrapError::NonEmptyRuntimeRepo { .. }));
 }
 
 #[tokio::test]
@@ -194,15 +197,20 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     assert!(bus.sequencer.is_some());
 
-    // Pre-state: empty git repo (no head commit, no entries).
+    // Pre-state: fresh boot has already committed PredicateBindingActivate.
     {
         let writer = bundle.transition_writer.read().expect("writer read");
-        assert_eq!(writer.head_commit_oid_hex(), None);
-        assert_eq!(writer.len(), 0);
+        assert!(writer.head_commit_oid_hex().is_some());
+        assert_eq!(writer.len(), 1);
     }
 
     // Submit one synthetic TaskOpen via the production path.
-    let task_open = make_synthetic_task_open("task-t10", "sponsor-t10", Hash::ZERO, "t10-1");
+    let parent_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
+    let task_open = make_synthetic_task_open("task-t10", "sponsor-t10", parent_root, "t10-1");
     bus.submit_typed_tx(task_open)
         .await
         .expect("submit TaskOpen via bus.submit_typed_tx");
@@ -215,7 +223,7 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
     )
     .expect("reopen");
     assert!(
-        reopened.len() >= 1,
+        reopened.len() >= 2,
         "≥1 LedgerEntry must exist on disk after TaskOpen submit + shutdown drain"
     );
     assert!(

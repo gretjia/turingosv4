@@ -160,8 +160,8 @@ impl std::error::Error for PreseedTomlError {}
 pub fn parse_treasury_and_worker_preseed(
     text: &str,
 ) -> Result<Vec<(AgentId, MicroCoin)>, PreseedTomlError> {
-    let doc: toml::Value = toml::from_str(text)
-        .map_err(|e| PreseedTomlError::Parse(format!("toml: {e}")))?;
+    let doc: toml::Value =
+        toml::from_str(text).map_err(|e| PreseedTomlError::Parse(format!("toml: {e}")))?;
 
     let treasury = parse_treasury_section(&doc)?;
     let workers = parse_worker_wallets_section(&doc)?;
@@ -182,9 +182,7 @@ fn parse_treasury_section(doc: &toml::Value) -> Result<(AgentId, MicroCoin), Pre
         .get("agent_id")
         .ok_or_else(|| PreseedTomlError::Parse("[treasury].agent_id missing".to_string()))?
         .as_str()
-        .ok_or_else(|| {
-            PreseedTomlError::Parse("[treasury].agent_id must be a string".to_string())
-        })?
+        .ok_or_else(|| PreseedTomlError::Parse("[treasury].agent_id must be a string".to_string()))?
         .to_string();
 
     let balance_value = tbl.get("initial_balance_micro").ok_or_else(|| {
@@ -196,7 +194,10 @@ fn parse_treasury_section(doc: &toml::Value) -> Result<(AgentId, MicroCoin), Pre
         ))
     })?;
 
-    Ok((AgentId(agent_id), MicroCoin::from_micro_units(balance_micro)))
+    Ok((
+        AgentId(agent_id),
+        MicroCoin::from_micro_units(balance_micro),
+    ))
 }
 
 fn parse_worker_wallets_section(

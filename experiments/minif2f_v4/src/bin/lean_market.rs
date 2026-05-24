@@ -16,10 +16,10 @@
 //! durable keystore) instead of the legacy `tb7-7-sponsor` zero-signature
 //! path, then runs its existing solver loop on the user-specified problem.
 //!
-//! The `view-*` subcommands open the post-run chaintape READ-ONLY via
-//! `replay_full_transition` and report back to the user: task status,
-//! sponsor balance, solver payout, replay verification. No live Sequencer
-//! is bootstrapped during view operations (Sequencer fail-closes on
+//! The `view-*` subcommands open the post-run chaintape READ-ONLY via bound
+//! predicate-registry replay and report back to the user: task status, sponsor
+//! balance, solver payout, replay verification. No live Sequencer is
+//! bootstrapped during view operations (Sequencer fail-closes on
 //! non-empty chaintape per TB-6 NonEmptyRuntimeRepo gate; replay is the
 //! supported read-only path).
 //!
@@ -32,12 +32,11 @@ use std::process::Command;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::system_keypair::PinnedSystemPubkeys;
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerWriter,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerWriter,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::state::q_state::{AgentId, ClaimStatus, QState};
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
 const DEFAULT_BOUNTY_MICRO: i64 = 100_000;
 const MIN_BOUNTY_MICRO: i64 = 100_000;
@@ -723,13 +722,17 @@ fn replay_qstate(runtime_repo: &Path, cas_path: &Path) -> Result<(QState, u64), 
     // Open CAS (read-only).
     let cas = CasStore::open(cas_path).map_err(|e| format!("open cas: {e}"))?;
 
-    // Predicate + tool registries (empty — replay does not need them).
-    let predicate_registry = PredicateRegistry::new();
+    // Predicate + tool registries. Bound replay pre-scans the ChainTape for
+    // PredicateBindingActivate and reconstructs the active registry snapshot
+    // from CAS; pre-activation chains naturally replay with this boot registry
+    // unused.
+    let predicate_registry = turingosv4::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
 
-    let q = replay_full_transition(
+    let q = replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
+        &cas,
         &cas,
         &pinned,
         &predicate_registry,

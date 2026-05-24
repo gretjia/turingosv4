@@ -708,7 +708,7 @@ impl std::error::Error for AttemptCountInvariantViolation {}
 /// `verify_chain_quiescent_post_drain`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DrainBarrierViolation {
-    /// `next_submit_id - 1 != l4_count + l4e_count`. Means there are
+    /// `next_submit_id - 1 > l4_count + l4e_count`. Means there are
     /// submitted typed-tx that have not reached terminal state on chain
     /// or L4.E — the sequencer was not drained before the invariant
     /// check ran.
@@ -729,7 +729,7 @@ impl std::fmt::Display for DrainBarrierViolation {
             } => write!(
                 f,
                 "TB-18R FR-18R.3 drain barrier violation: \
-                 next_submit_id-1={next_submit_id_minus_one} != \
+                 next_submit_id-1={next_submit_id_minus_one} > \
                  l4={l4_count} + l4e={l4e_count} — sequencer not drained"
             ),
         }
@@ -826,12 +826,14 @@ pub fn attempt_count_invariant(
 /// TRACE_MATRIX FC1-N43 (TB-18R R4 charter v2 §1.2 FR-18R.3 v2 drain barrier
 /// witness): assert chain quiescence post-shutdown.
 ///
-/// Returns `Ok(())` iff `seq.next_submit_id_peek() - 1 == l4_count + l4e_count`.
+/// Returns `Ok(())` iff `seq.next_submit_id_peek() - 1 <= l4_count + l4e_count`.
+/// System-emitted rows such as `PredicateBindingActivate` are not submit IDs,
+/// so they may make the chain-side count larger than the submission count.
 ///
 /// Should be called AFTER `ChaintapeBundle::shutdown().await` — the
 /// `JoinHandle` returned by the driver task only resolves once every
 /// submitted envelope has been `apply_one`-processed. This function
-/// re-asserts that count equality at the chain-derivation boundary as a
+/// re-asserts that submitted txs are fully accounted at the chain-derivation boundary as a
 /// defense-in-depth witness for ship-gate evidence.
 pub fn verify_chain_quiescent_post_drain(
     seq: &Sequencer,
@@ -852,7 +854,7 @@ pub fn verify_chain_quiescent_post_drain(
         0
     };
 
-    if next_submit_id_minus_one != l4_count.saturating_add(l4e_count) {
+    if next_submit_id_minus_one > l4_count.saturating_add(l4e_count) {
         return Err(ChainDerivedError::DrainBarrier(
             DrainBarrierViolation::QuiescenceCountMismatch {
                 next_submit_id_minus_one,
@@ -1073,7 +1075,7 @@ pub fn compute_run_facts_from_chain_with_invariant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::runtime::adapter::{make_real_verifytx_signed_by, make_real_worktx_signed_by};
+    use crate::runtime::adapter::make_real_worktx_signed_by;
     use crate::runtime::agent_keypairs::AgentKeypairRegistry;
     use crate::runtime::proposal_telemetry::{write_to_cas, ProposalTelemetry, TokenCounts};
     use crate::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
@@ -1090,8 +1092,8 @@ mod tests {
         }
     }
 
-    /// U-A5.a — empty chain (no L4 entries, no L4.E entries) yields a
-    /// ChainDerivedRunFacts with all-zero / all-default fields.
+    /// U-A5.a — fresh boot emits only the predicate-binding activation L4 row.
+    /// User/business proposal fields remain all-zero / all-default.
     #[tokio::test]
     async fn empty_chain_yields_default_run_facts() {
         let tmp = TempDir::new().expect("tempdir");
@@ -1103,7 +1105,7 @@ mod tests {
             .expect("compute facts");
         assert!(!facts.solved);
         assert!(!facts.verified);
-        assert_eq!(facts.tx_count, 0);
+        assert_eq!(facts.tx_count, 1);
         assert_eq!(facts.proposal_count, 0);
         assert_eq!(facts.golden_path_token_count, 0);
         assert!(facts.gp_payload.is_none());
@@ -1152,11 +1154,16 @@ mod tests {
         let tel_cid = write_to_cas(&mut cas, &telemetry, "test", 1).expect("write telemetry");
 
         // Build + submit zero-stake WorkTx.
+        let parent_root = bundle
+            .sequencer
+            .q_snapshot()
+            .expect("post-activation q")
+            .state_root_t;
         let worktx = make_real_worktx_signed_by(
             &mut reg,
             "task-ua5b",
             "n1",
-            Hash::ZERO,
+            parent_root,
             0,
             "u1",
             tel_cid,
@@ -1169,10 +1176,10 @@ mod tests {
 
         let facts = compute_run_facts_from_chain(&cfg.runtime_repo_path, &cfg.cas_path)
             .expect("compute facts");
-        // tx_count = L4 entries + L4.E entries; with zero stake the WorkTx
-        // routes to L4.E only.
-        assert!(facts.tx_count >= 1);
-        assert_eq!(facts.failed_branch_count, facts.tx_count); // all in L4.E
+        // tx_count = activation L4 row + L4.E entries; with zero stake the
+        // WorkTx routes to L4.E only.
+        assert!(facts.tx_count >= 2);
+        assert_eq!(facts.failed_branch_count, 1);
         assert!(!facts.solved);
         assert!(!facts.verified);
         // TB-7.5 fix #2 (Codex audit 492e86c action #2 BLOCKING):

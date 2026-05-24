@@ -44,7 +44,8 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    TxKind,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::artifact_bundle::{
@@ -56,7 +57,7 @@ use turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID
 use turingosv4::runtime::PinnedPubkeyManifest;
 use turingosv4::state::q_state::{AgentId, QState, TaskId, TaskMarketState, TxId};
 use turingosv4::state::typed_tx::{AgentSignature, EventId, TypedTx};
-use turingosv4::top_white::predicates::registry::PredicateRegistry;
+use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -200,11 +201,20 @@ fn replay_from_disk(runtime_repo_path: &std::path::Path, cas_path: &std::path::P
     }
 
     let cas = CasStore::open(cas_path).expect("open cas");
-    let predicates = PredicateRegistry::new();
+    let predicates = PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
+        .expect("v8 predicate manifest");
     let tools = ToolRegistry::new();
 
-    replay_full_transition(&initial_q, &entries, &cas, &pinned, &predicates, &tools)
-        .expect("replay_full_transition")
+    replay_full_transition_with_predicate_binding(
+        &initial_q,
+        &entries,
+        &cas,
+        &cas,
+        &pinned,
+        &predicates,
+        &tools,
+    )
+    .expect("replay_full_transition_with_predicate_binding")
 }
 
 #[test]
@@ -770,8 +780,12 @@ fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
     let kinds: Vec<TxKind> = chain.iter().map(|(entry, _)| entry.tx_kind).collect();
     assert_eq!(
         kinds,
-        vec![TxKind::TaskOpen, TxKind::EscrowLock],
-        "all-rejected market must only advance TaskOpen/EscrowLock on L4; WorkTx rejection belongs to L4.E"
+        vec![
+            TxKind::PredicateBindingActivate,
+            TxKind::TaskOpen,
+            TxKind::EscrowLock
+        ],
+        "all-rejected market must advance activation + TaskOpen/EscrowLock on L4; WorkTx rejection belongs to L4.E"
     );
 
     let rejection_path = runtime_repo.join("rejections.jsonl");

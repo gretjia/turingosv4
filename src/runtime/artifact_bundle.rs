@@ -1,7 +1,7 @@
-use std::path::Path;
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
 use crate::runtime::spec_capsule::{cas_path, CapsuleError};
+use std::path::Path;
 
 /// TRACE_MATRIX FC1: artifact bundle schema identifier
 pub const ARTIFACT_BUNDLE_SCHEMA_ID: &str = "turingos-artifact-bundle-v1";
@@ -21,8 +21,8 @@ pub enum ArtifactFileRole {
 /// TRACE_MATRIX FC1: Single file entry within the artifact bundle.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ArtifactFileEntry {
-    pub path: String,        // must match ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+
-    pub cid: String,         // hex cid of file bytes in CAS
+    pub path: String, // must match ^(?!/)(?!.*(?:^|/)\.\.(?:/|$)).+
+    pub cid: String,  // hex cid of file bytes in CAS
     pub mime: String,
     pub sha256: String,
     pub size_bytes: u64,
@@ -32,14 +32,14 @@ pub struct ArtifactFileEntry {
 /// TRACE_MATRIX FC1 + FC3-N4: Bundle manifest containing metadata for all generated artifacts.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ArtifactBundleManifest {
-    pub schema_id: String,                       // = "turingos-artifact-bundle-v1"
+    pub schema_id: String, // = "turingos-artifact-bundle-v1"
     pub session_id: String,
     pub spec_capsule_cid: Option<String>,
-    pub generation_attempt_cid: String,          // references C2 capsule
-    pub previous_bundle_cid: Option<String>,     // provenance chain across regenerations
+    pub generation_attempt_cid: String, // references C2 capsule
+    pub previous_bundle_cid: Option<String>, // provenance chain across regenerations
     pub files: Vec<ArtifactFileEntry>,
-    pub entrypoint: String,                      // MUST equal one of files[].path
-    pub bundle_size_bytes_total: u64,            // sum of files[].size_bytes
+    pub entrypoint: String,           // MUST equal one of files[].path
+    pub bundle_size_bytes_total: u64, // sum of files[].size_bytes
     pub created_at_logical_t: u64,
 }
 

@@ -1469,14 +1469,21 @@ mod tests {
 
     #[test]
     fn forced_cas_ref_update_failure_fails_put_closed() {
+        struct ForceRefUpdateFailureGuard;
+        impl Drop for ForceRefUpdateFailureGuard {
+            fn drop(&mut self) {
+                crate::bottom_white::cas::git_chain::set_force_ref_update_failure_for_test(false);
+            }
+        }
+
         let tmp = TempDir::new().expect("tempdir");
         let mut s = CasStore::open(tmp.path()).expect("open");
 
         crate::bottom_white::cas::git_chain::set_force_ref_update_failure_for_test(true);
+        let _guard = ForceRefUpdateFailureGuard;
         let err = s
             .put(b"must-not-commit", ObjectType::Generic, "alice", 1, None)
             .expect_err("forced CAS ref failure must fail put");
-        crate::bottom_white::cas::git_chain::set_force_ref_update_failure_for_test(false);
 
         assert!(err
             .to_string()
@@ -1609,25 +1616,17 @@ mod tests {
 
     #[test]
     fn cas_chain_rejects_backend_blob_above_hard_validation_cap() {
-        struct EnvGuard {
-            key: &'static str,
-            prev: Option<String>,
-        }
-        impl Drop for EnvGuard {
+        struct BackendBlobMaxBytesGuard;
+        impl Drop for BackendBlobMaxBytesGuard {
             fn drop(&mut self) {
-                match &self.prev {
-                    Some(value) => std::env::set_var(self.key, value),
-                    None => std::env::remove_var(self.key),
-                }
+                crate::bottom_white::cas::git_chain::set_backend_blob_max_bytes_override_for_test(
+                    None,
+                );
             }
         }
 
-        let key = "TURINGOS_CAS_CHAIN_MAX_BACKEND_BLOB_BYTES";
-        let _guard = EnvGuard {
-            key,
-            prev: std::env::var(key).ok(),
-        };
-        std::env::set_var(key, "4");
+        crate::bottom_white::cas::git_chain::set_backend_blob_max_bytes_override_for_test(Some(4));
+        let _guard = BackendBlobMaxBytesGuard;
 
         let tmp = TempDir::new().expect("tempdir");
         let _s = CasStore::open(tmp.path()).expect("init repo");
@@ -1664,14 +1663,23 @@ mod tests {
 
     #[test]
     fn forced_backend_validation_timeout_fails_put_closed() {
+        struct ForceBackendTimeoutGuard;
+        impl Drop for ForceBackendTimeoutGuard {
+            fn drop(&mut self) {
+                crate::bottom_white::cas::git_chain::set_force_backend_validate_timeout_for_test(
+                    false,
+                );
+            }
+        }
+
         let tmp = TempDir::new().expect("tempdir");
         let mut s = CasStore::open(tmp.path()).expect("open");
 
         crate::bottom_white::cas::git_chain::set_force_backend_validate_timeout_for_test(true);
+        let _guard = ForceBackendTimeoutGuard;
         let err = s
             .put(b"timeout-me", ObjectType::Generic, "alice", 1, None)
             .expect_err("forced backend validation timeout must fail put");
-        crate::bottom_white::cas::git_chain::set_force_backend_validate_timeout_for_test(false);
 
         assert!(
             err.to_string()

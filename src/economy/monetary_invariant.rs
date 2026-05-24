@@ -449,7 +449,10 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // UNCHANGED. Trivially does not mint. CTF conservation enforced
         // by assert_total_ctf_conserved with empty exempt list at the
         // dispatch site (sequencer.rs B2 dispatch arm Step 4).
-        | TypedTx::EventResolve(_) => Ok(()),
+        | TypedTx::EventResolve(_)
+        // W3-2 PredicateRegistryBind: activation mutates only
+        // q.predicate_registry_root_t and state_root_t.
+        | TypedTx::PredicateBindingActivate(_) => Ok(()),
     }
 }
 

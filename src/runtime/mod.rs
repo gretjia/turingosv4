@@ -70,6 +70,9 @@ pub mod audit_assertions;
 /// TRACE_MATRIX FC1-N41 + FC1-N42 + FC1-N43 NEW (TB-18R R1 charter v2 §1 + Codex Gate 1 ratified 2026-05-06): per-LLM-Lean-cycle `AttemptTelemetry` + `LeanResult` + `TerminalAbortRecord` CAS object schemas. Closes failure-path asymmetry (omega ✅ / step_reject + parse_fail + llm_err + step_partial_ok ❌) documented in 2026-05-06 external-audit VETO. R2 wires evaluator hot path; R3 extends sequencer L4.E admission with `RejectionClass::LeanFailed=6 / ParseFailed=7 / SorryBlocked=8 / LlmError=9` tail-append.
 pub mod attempt_telemetry;
 
+/// TRACE_MATRIX FC1-N11 + FC1-N12 + FC2-N19: shared replay loader for the executable predicate registry activated on ChainTape.
+pub mod predicate_registry_loader;
+
 /// TRACE_MATRIX FC1-N44 NEW (Constitution Landing First 2026-05-07; HARNESS.md §3 G-016/G-019/G-021/G-028; architect ruling §4.3): Class-3 `PromptCapsule` CAS schema — tape-resident proof that the agent's prompt context was derivable from a fixed read-set + redaction policy + system-prompt template hash, without storing verbatim prompt bytes. Closes Art. III selective shielding / prompt persistence gap (0% LANDED → first LANDED row).
 pub mod prompt_capsule;
 
@@ -399,12 +402,11 @@ use crate::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::state::q_state::QState;
 use crate::state::sequencer::{Sequencer, SubmissionEnvelope};
-use crate::top_white::predicates::registry::PredicateRegistry;
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
@@ -823,7 +825,8 @@ pub fn build_chaintape_sequencer_with_initial_q(
 
     // Step 5: predicate + tool registries (default empty registries — production-binary
     // is responsible for registering predicates / tools before submitting txs).
-    let predicate_registry = Arc::new(PredicateRegistry::new());
+    let predicate_registry =
+        Arc::new(crate::runtime::predicate_registry_loader::load_replay_registry());
     let tool_registry = Arc::new(ToolRegistry::new());
 
     // Step 6: persist `initial_q_state.json` so `verify_chaintape` can
@@ -871,6 +874,11 @@ pub fn build_chaintape_sequencer_with_initial_q(
             config.queue_capacity,
         )
     };
+    if !resume_active {
+        sequencer
+            .activate_predicate_binding_for_boot()
+            .map_err(BootstrapError::LedgerWriter)?;
+    }
     let sequencer = Arc::new(sequencer);
 
     // Step 8: spawn driver wrapper + shutdown channel.
@@ -978,11 +986,12 @@ fn bootstrap_resume_state(
     // mirror `verify_chaintape`'s replay envelope. Replay is
     // deterministic regardless of registry contents because
     // `dispatch_transition` is a pure function over inputs.
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let replayed_q = replay_full_transition(
+    let replayed_q = replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
+        cas_store,
         cas_store,
         &pinned,
         &predicate_registry,
@@ -1145,22 +1154,18 @@ mod tests {
     async fn build_chaintape_sequencer_fails_on_non_empty_repo() {
         let tmp = TempDir::new().expect("tempdir");
         let cfg = cfg_for(&tmp, "t3-run");
-        // First bootstrap on empty repo — succeeds.
+        // First bootstrap on empty repo succeeds and emits the v8 predicate
+        // binding activation system tx, making the repo non-empty.
         let bundle = build_chaintape_sequencer(&cfg).expect("first bootstrap");
         bundle.shutdown().await.expect("shutdown");
-        // Manually create a synthetic head commit so head_commit_oid().is_some()
-        // We can do this by appending a fake LedgerEntry — but that requires a
-        // signed entry. Cheaper: just open the same path again and check that
-        // the FRESH bootstrap on an EMPTY but git-init'd repo still succeeds
-        // (head_commit_oid is None for an init'd-but-no-commits repo). To
-        // actually trigger NonEmptyRuntimeRepo, we'd need to commit a real
-        // entry; that requires a full sequencer.apply_one path which is
-        // cleaner to exercise in tb_6_runtime_chaintape_bootstrap.rs (Atom 1.3).
-        //
-        // For Atom 1.1 in-crate coverage: confirm the second bootstrap (with
-        // empty git refs) still succeeds — exercises the head_commit_oid().is_none() branch.
-        let bundle2 = build_chaintape_sequencer(&cfg).expect("second bootstrap on empty refs");
-        bundle2.shutdown().await.expect("second shutdown");
+        let err = match build_chaintape_sequencer(&cfg) {
+            Ok(bundle) => {
+                let _ = bundle.shutdown().await;
+                panic!("fresh bootstrap must fail on activation-populated repo");
+            }
+            Err(err) => err,
+        };
+        assert!(matches!(err, BootstrapError::NonEmptyRuntimeRepo { .. }));
     }
 
     #[tokio::test]

@@ -22,6 +22,7 @@ use turingosv4::runtime::adapter::{make_synthetic_task_open, make_synthetic_work
 use turingosv4::runtime::verify::{verify_chaintape, VerifyOptions};
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::Hash;
+use turingosv4::state::sequencer::task_open_accept_state_root;
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
@@ -42,13 +43,26 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
     // Submit a synthetic TaskOpen → expected to land as ≥1 L4 entry.
-    let task_open = make_synthetic_task_open("task-i90", "sponsor-i90", Hash::ZERO, "i90-1");
+    let boot_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
+    let task_open = make_synthetic_task_open("task-i90", "sponsor-i90", boot_root, "i90-1");
+    let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
     bus.submit_typed_tx(task_open)
         .await
         .expect("submit TaskOpen");
 
     // Submit a zero-stake WorkTx → expected to land as ≥1 L4.E rejection.
-    let bad_worktx = make_synthetic_worktx("task-i90", "agent-i90", Hash::ZERO, 0, "i90-rej", true);
+    let bad_worktx = make_synthetic_worktx(
+        "task-i90",
+        "agent-i90",
+        post_task_open_root,
+        0,
+        "i90-rej",
+        true,
+    );
     bus.submit_typed_tx(bad_worktx)
         .await
         .expect("submit zero-stake WorkTx");
@@ -115,11 +129,11 @@ async fn i90b_empty_chain_replay_reports_zero_entries_and_all_indicators_pass() 
     )
     .expect("verify");
 
-    assert_eq!(report.l4_entries, 0);
+    assert_eq!(report.l4_entries, 1);
     assert_eq!(report.l4e_entries, 0);
-    // Vacuous chain integrity: zero entries → no divergence possible.
+    // Fresh boot integrity: the activation row replays and no user tx exists.
     assert!(report.all_indicators_pass());
-    assert!(report.detail.head_commit_oid_hex.is_none());
+    assert!(report.detail.head_commit_oid_hex.is_some());
 }
 
 #[tokio::test]
@@ -130,7 +144,12 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
-    let task_open = make_synthetic_task_open("task-i90c", "sponsor-i90c", Hash::ZERO, "i90c-1");
+    let boot_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
+    let task_open = make_synthetic_task_open("task-i90c", "sponsor-i90c", boot_root, "i90c-1");
     bus.submit_typed_tx(task_open)
         .await
         .expect("submit TaskOpen");
@@ -178,8 +197,11 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
     )
     .expect("verify with tampered pubkey");
     assert!(
-        !post.system_signatures_verified,
-        "tampered pubkey must break signature verification (got {:?})",
+        post.detail
+            .replay_failure
+            .as_deref()
+            .is_some_and(|failure| failure.contains("system_signature failed")),
+        "tampered pubkey must break live system signature verification (got {:?})",
         post.detail.replay_failure
     );
     assert!(!post.all_indicators_pass());

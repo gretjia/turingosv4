@@ -276,6 +276,31 @@ authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_predicate_binding_activation"
+authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
+added = "2026-05-24"
+
+[[gate]]
+name = "constitution_predicate_registry_binding"
+authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
+added = "2026-05-24"
+
+[[gate]]
+name = "constitution_predicate_registry_immutability"
+authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
+added = "2026-05-24"
+
+[[gate]]
+name = "constitution_predicate_registry_replay"
+authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
+added = "2026-05-24"
+
+[[gate]]
+name = "constitution_predicate_result_wire_freeze"
+authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
+added = "2026-05-24"
+
+[[gate]]
 name = "constitution_prompt_capsule"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"

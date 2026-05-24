@@ -5,36 +5,52 @@
 ///
 /// FC-trace: FC1 (replay loop), FC2 (boot reconstruction)
 /// Risk class: Class 2 (evaluator adapter / replay verifier)
-
-use std::path::Path;
-use serde::{Serialize, Deserialize};
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
-use crate::runtime::spec_capsule::{
-    cas_path, CapsuleError,
-    SPEC_CAPSULE_SCHEMA_ID, GrillTurnCapsuleBody, GrillSessionCapsuleBody,
-};
+use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use crate::runtime::build_session_view::BuildSessionView;
 use crate::runtime::generation_attempt::{
     GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
+use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
 use crate::runtime::rejection_capsule::{
     GenerateRejectionCapsule, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
-use crate::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
-use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
-use crate::runtime::build_session_view::BuildSessionView;
+use crate::runtime::spec_capsule::{
+    cas_path, CapsuleError, GrillSessionCapsuleBody, GrillTurnCapsuleBody, SPEC_CAPSULE_SCHEMA_ID,
+};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// TRACE_MATRIX FC1: A single step in the offline replay transcript.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplayStep {
-    SpecCapsule { cid: String },
-    GrillTurn { cid: String },
-    GrillSession { cid: String },
-    GenerationAttempt { cid: String, outcome: String },
-    ArtifactBundle { cid: String, file_count: usize },
-    PreviewRun { cid: String },
-    GenerateRejection { cid: String, reject_class: String, retryable: bool },
+    SpecCapsule {
+        cid: String,
+    },
+    GrillTurn {
+        cid: String,
+    },
+    GrillSession {
+        cid: String,
+    },
+    GenerationAttempt {
+        cid: String,
+        outcome: String,
+    },
+    ArtifactBundle {
+        cid: String,
+        file_count: usize,
+    },
+    PreviewRun {
+        cid: String,
+    },
+    GenerateRejection {
+        cid: String,
+        reject_class: String,
+        retryable: bool,
+    },
 }
 
 /// TRACE_MATRIX FC2: Full offline replay result for a build session.
@@ -60,13 +76,14 @@ pub fn reconstruct_session(
         return Ok(ReplayResult {
             session_id: session_id.to_string(),
             steps: Vec::new(),
-            view: crate::runtime::build_session_view::derive_build_session_view(workspace, session_id)?,
+            view: crate::runtime::build_session_view::derive_build_session_view(
+                workspace, session_id,
+            )?,
             dangling_cid_errors: Vec::new(),
         });
     }
 
-    let mut store = CasStore::open(&cas_dir)
-        .map_err(|e| CapsuleError::Open(e.to_string()))?;
+    let mut store = CasStore::open(&cas_dir).map_err(|e| CapsuleError::Open(e.to_string()))?;
     let _ = store.reload_index_from_sidecar();
 
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
@@ -92,9 +109,11 @@ pub fn reconstruct_session(
                     // spec capsule: body is raw spec.md bytes; no session_id field
                     // We include it in the replay if it's linked from any generation attempt
                     // for this session, or if it's the latest spec capsule.
-                    step_candidates.push((logical_t, cid.clone(), ReplayStep::SpecCapsule {
-                        cid: cid.hex(),
-                    }));
+                    step_candidates.push((
+                        logical_t,
+                        cid.clone(),
+                        ReplayStep::SpecCapsule { cid: cid.hex() },
+                    ));
                     let _ = bytes; // body not needed for step
                 }
             }
@@ -102,9 +121,11 @@ pub fn reconstruct_session(
                 if let Ok(bytes) = store.get(cid) {
                     if let Ok(body) = serde_json::from_slice::<GrillTurnCapsuleBody>(&bytes) {
                         if body.session_id == session_id {
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::GrillTurn {
-                                cid: cid.hex(),
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::GrillTurn { cid: cid.hex() },
+                            ));
                         }
                     }
                 }
@@ -113,34 +134,45 @@ pub fn reconstruct_session(
                 if let Ok(bytes) = store.get(cid) {
                     if let Ok(body) = serde_json::from_slice::<GrillSessionCapsuleBody>(&bytes) {
                         if body.session_id == session_id {
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::GrillSession {
-                                cid: cid.hex(),
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::GrillSession { cid: cid.hex() },
+                            ));
                         }
                     }
                 }
             }
             id if id == GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID => {
                 if let Ok(bytes) = store.get(cid) {
-                    if let Ok(capsule) = serde_json::from_slice::<GenerationAttemptCapsule>(&bytes) {
+                    if let Ok(capsule) = serde_json::from_slice::<GenerationAttemptCapsule>(&bytes)
+                    {
                         if capsule.session_id == session_id {
                             // Verify cross-CID references: spec_capsule_cid, raw_output_cid, parent_attempt_cid
                             for ref_cid_hex in [
                                 capsule.spec_capsule_cid.as_deref(),
                                 capsule.raw_output_cid.as_deref(),
                                 capsule.parent_attempt_cid.as_deref(),
-                            ].into_iter().flatten() {
+                            ]
+                            .into_iter()
+                            .flatten()
+                            {
                                 if !verify_cid_resolves(&store, ref_cid_hex) {
                                     dangling_cid_errors.push(format!(
                                         "GenerationAttemptCapsule {} references dangling CID: {}",
-                                        cid.hex(), ref_cid_hex
+                                        cid.hex(),
+                                        ref_cid_hex
                                     ));
                                 }
                             }
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::GenerationAttempt {
-                                cid: cid.hex(),
-                                outcome: format!("{:?}", capsule.outcome),
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::GenerationAttempt {
+                                    cid: cid.hex(),
+                                    outcome: format!("{:?}", capsule.outcome),
+                                },
+                            ));
                         }
                     }
                 }
@@ -153,11 +185,15 @@ pub fn reconstruct_session(
                             for ref_cid_hex in [
                                 manifest.spec_capsule_cid.as_deref(),
                                 manifest.previous_bundle_cid.as_deref(),
-                            ].into_iter().flatten() {
+                            ]
+                            .into_iter()
+                            .flatten()
+                            {
                                 if !verify_cid_resolves(&store, ref_cid_hex) {
                                     dangling_cid_errors.push(format!(
                                         "ArtifactBundleManifest {} references dangling CID: {}",
-                                        cid.hex(), ref_cid_hex
+                                        cid.hex(),
+                                        ref_cid_hex
                                     ));
                                 }
                             }
@@ -178,10 +214,14 @@ pub fn reconstruct_session(
                                 }
                             }
                             let file_count = manifest.files.len();
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::ArtifactBundle {
-                                cid: cid.hex(),
-                                file_count,
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::ArtifactBundle {
+                                    cid: cid.hex(),
+                                    file_count,
+                                },
+                            ));
                         }
                     }
                 }
@@ -196,34 +236,45 @@ pub fn reconstruct_session(
                                     cid.hex(), capsule.artifact_bundle_cid
                                 ));
                             }
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::PreviewRun {
-                                cid: cid.hex(),
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::PreviewRun { cid: cid.hex() },
+                            ));
                         }
                     }
                 }
             }
             id if id == GENERATE_REJECTION_CAPSULE_SCHEMA_ID => {
                 if let Ok(bytes) = store.get(cid) {
-                    if let Ok(capsule) = serde_json::from_slice::<GenerateRejectionCapsule>(&bytes) {
+                    if let Ok(capsule) = serde_json::from_slice::<GenerateRejectionCapsule>(&bytes)
+                    {
                         if capsule.session_id == session_id {
                             // Verify cross-CID references (but NOT private_diagnostic_cid — shielded)
                             for ref_cid_hex in [
                                 capsule.spec_capsule_cid.as_deref(),
                                 capsule.generation_attempt_cid.as_deref(),
-                            ].into_iter().flatten() {
+                            ]
+                            .into_iter()
+                            .flatten()
+                            {
                                 if !verify_cid_resolves(&store, ref_cid_hex) {
                                     dangling_cid_errors.push(format!(
                                         "GenerateRejectionCapsule {} references dangling CID: {}",
-                                        cid.hex(), ref_cid_hex
+                                        cid.hex(),
+                                        ref_cid_hex
                                     ));
                                 }
                             }
-                            step_candidates.push((logical_t, cid.clone(), ReplayStep::GenerateRejection {
-                                cid: cid.hex(),
-                                reject_class: format!("{:?}", capsule.reject_class),
-                                retryable: capsule.retryable,
-                            }));
+                            step_candidates.push((
+                                logical_t,
+                                cid.clone(),
+                                ReplayStep::GenerateRejection {
+                                    cid: cid.hex(),
+                                    reject_class: format!("{:?}", capsule.reject_class),
+                                    retryable: capsule.retryable,
+                                },
+                            ));
                         }
                     }
                 }
@@ -236,7 +287,8 @@ pub fn reconstruct_session(
     step_candidates.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
     let steps: Vec<ReplayStep> = step_candidates.into_iter().map(|(_, _, s)| s).collect();
 
-    let view = crate::runtime::build_session_view::derive_build_session_view(workspace, session_id)?;
+    let view =
+        crate::runtime::build_session_view::derive_build_session_view(workspace, session_id)?;
 
     Ok(ReplayResult {
         session_id: session_id.to_string(),
@@ -277,7 +329,9 @@ mod tests {
 
         // Invalid format
         assert!(!verify_cid_resolves_format("short"));
-        assert!(!verify_cid_resolves_format("gg000000000000000000000000000000000000000000000000000000000000000")); // non-hex
+        assert!(!verify_cid_resolves_format(
+            "gg000000000000000000000000000000000000000000000000000000000000000"
+        )); // non-hex
     }
 
     fn verify_cid_resolves_format(hex: &str) -> bool {

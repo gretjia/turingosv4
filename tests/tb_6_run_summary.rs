@@ -20,7 +20,8 @@ use turingosv4::runtime::adapter::{
 };
 use turingosv4::runtime::run_summary::RunSummary;
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::state::q_state::{AgentId, Hash, TxId};
+use turingosv4::state::q_state::{AgentId, TxId};
+use turingosv4::state::sequencer::task_open_accept_state_root;
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
@@ -46,18 +47,20 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
     // ≥1 accepted (TaskOpen) + ≥1 rejected (zero-stake WorkTx).
-    bus.submit_typed_tx(make_synthetic_task_open(
-        "task-i92",
-        "sponsor-i92",
-        Hash::ZERO,
-        "i92-1",
-    ))
-    .await
-    .expect("submit TaskOpen");
+    let boot_root = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("post-activation q")
+        .state_root_t;
+    let task_open = make_synthetic_task_open("task-i92", "sponsor-i92", boot_root, "i92-1");
+    let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("submit TaskOpen");
     bus.submit_typed_tx(make_synthetic_worktx(
         "task-i92",
         "agent-i92",
-        Hash::ZERO,
+        post_task_open_root,
         0,
         "i92-rej",
         true,
@@ -120,12 +123,12 @@ async fn i92b_empty_chain_produces_zero_run_summary() {
     let summary = RunSummary::from_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, "i92b", 0, 0)
         .expect("build summary");
 
-    assert_eq!(summary.l4_entries, 0);
+    assert_eq!(summary.l4_entries, 1);
     assert_eq!(summary.l4e_entries, 0);
-    assert_eq!(summary.tx_count, 0);
-    assert!(summary.accepted_tx_ids.is_empty());
+    assert_eq!(summary.tx_count, 1);
+    assert_eq!(summary.accepted_tx_ids.len(), 1);
     assert!(summary.rejected_tx_ids.is_empty());
-    assert!(summary.candidate_proposal_cids.is_empty());
+    assert_eq!(summary.candidate_proposal_cids.len(), 1);
 }
 
 #[test]

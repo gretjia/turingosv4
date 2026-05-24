@@ -24,6 +24,7 @@
 //! pinned-pubkey continuity on top.
 
 use tempfile::TempDir;
+use turingosv4::bottom_white::ledger::transition_ledger::LedgerWriter;
 use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::kernel::Kernel;
@@ -47,11 +48,10 @@ fn cfg_resume(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConf
 
 // ── SG-G1.1 ─────────────────────────────────────────────────────────────────
 //
-// Resume on empty repo == legacy genesis. With `resume_existing_chain=true`
-// but no existing chain, the resume short-circuit (`resume_active = false`
-// when `head_commit_oid().is_none()`) falls through to the fresh-genesis
-// path. Result: byte-equal `QState` to the legacy
-// `build_chaintape_sequencer` call.
+// Resume on empty repo follows the fresh boot path. W3-2 adds a mandatory
+// predicate-binding activation entry during fresh boot, so the invariant is no
+// longer byte-equality to bare genesis; it is that both resume=true/empty and
+// resume=false/empty enter the same non-zero predicate-bound mode.
 #[tokio::test]
 async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
     // Fresh-genesis path with resume=true on an empty repo.
@@ -61,6 +61,13 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
         .expect("resume=true on empty repo bootstraps fresh (G1.1 SG-G1.1)");
     let q_a = bundle_a.sequencer.q_snapshot().expect("q_snapshot a");
     bundle_a.shutdown().await.expect("shutdown a");
+    let n_a = {
+        let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(
+            &cfg_a.runtime_repo_path,
+        )
+        .expect("reopen writer a");
+        reopened.len()
+    };
 
     // Same fresh-genesis path with resume=false.
     let tmp_b = TempDir::new().expect("tempdir_b");
@@ -68,17 +75,30 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
     let bundle_b = build_chaintape_sequencer(&cfg_b).expect("legacy bootstrap b");
     let q_b = bundle_b.sequencer.q_snapshot().expect("q_snapshot b");
     bundle_b.shutdown().await.expect("shutdown b");
+    let n_b = {
+        let reopened = turingosv4::bottom_white::ledger::transition_ledger::Git2LedgerWriter::open(
+            &cfg_b.runtime_repo_path,
+        )
+        .expect("reopen writer b");
+        reopened.len()
+    };
 
-    // Both QStates derive from `QState::genesis()` (same seed, no
-    // submitted txs, no economic mutation). Compare canonical roots —
-    // bit-exact equality across both branches.
     assert_eq!(
-        q_a.state_root_t, q_b.state_root_t,
-        "SG-G1.1: state_root_t must match between resume=true/empty and resume=false/empty"
+        n_a, 1,
+        "resume=true/empty fresh boot must emit one activation L4"
     );
     assert_eq!(
-        q_a.ledger_root_t, q_b.ledger_root_t,
-        "SG-G1.1: ledger_root_t must match"
+        n_b, 1,
+        "resume=false/empty fresh boot must emit one activation L4"
+    );
+    assert_ne!(
+        q_a.predicate_registry_root_t,
+        Hash::ZERO,
+        "SG-G1.1: resume=true/empty fresh boot must enter predicate-bound mode"
+    );
+    assert_eq!(
+        q_a.predicate_registry_root_t, q_b.predicate_registry_root_t,
+        "SG-G1.1: both empty fresh paths must activate the same predicate registry root"
     );
     assert_eq!(
         q_a.economic_state_t, q_b.economic_state_t,
@@ -93,25 +113,33 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
 // holds — proved by submitting one extra TaskOpen after resume and
 // observing the chain length advances from N → N+1.
 //
-// The test uses N=1 because making each subsequent `make_synthetic_task_open`
+// The test uses N=2 (activation + one TaskOpen) because making each subsequent
+// `make_synthetic_task_open`
 // accept requires threading `parent_state_root` through the latest
 // `q_snapshot()` between submits, which races the async driver. N=1
-// fully proves the SG-G1.2 constitutional invariant
-// (`next_logical_t == chain_length`); the post-resume commit advances
-// 1 → 2 and pins the `Git2LedgerWriter` `len + 1` constraint.
+// pre-W3-2 has become N=2 after the mandatory predicate activation entry.
+// The post-resume commit advances 2 → 3 and pins the `Git2LedgerWriter`
+// `len + 1` constraint.
 #[tokio::test]
 async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
-    use turingosv4::bottom_white::ledger::transition_ledger::LedgerWriter;
-
     let tmp = TempDir::new().expect("tempdir");
     let cfg_fresh = cfg_resume(&tmp, "g1_2-fresh", false);
 
-    // Phase 1: fresh bootstrap, submit 1 TaskOpen (parent matches
-    // QState::genesis state_root = Hash::ZERO so it accepts).
+    // Phase 1: fresh bootstrap emits activation, then submit 1 TaskOpen
+    // against the post-activation state root so it really accepts.
     let bundle = build_chaintape_sequencer(&cfg_fresh).expect("fresh bootstrap");
+    let q_after_activation = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("q_snapshot after activation");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let tx = make_synthetic_task_open("task-g1_2", "sponsor-g1_2", Hash::ZERO, "g1_2-1");
+    let tx = make_synthetic_task_open(
+        "task-g1_2",
+        "sponsor-g1_2",
+        q_after_activation.state_root_t,
+        "g1_2-1",
+    );
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);
@@ -125,22 +153,22 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         reopened.len()
     };
     assert_eq!(
-        n_on_disk, 1,
-        "phase 1: chain should hold 1 accepted L4 entry before resume"
+        n_on_disk, 2,
+        "phase 1: chain should hold activation + 1 accepted TaskOpen before resume"
     );
 
-    // Phase 2: resume bootstrap. next_logical_t must equal 1.
+    // Phase 2: resume bootstrap. next_logical_t must equal chain length.
     let cfg_r = cfg_resume(&tmp, "g1_2-resume", true);
     let bundle_r = build_chaintape_sequencer(&cfg_r).expect("resume bootstrap");
     assert_eq!(
         bundle_r.sequencer.next_logical_t_peek(),
-        1,
+        2,
         "SG-G1.2: Sequencer.next_logical_t must equal chain_length on resume \
-         (chain has 1 entry → next_logical_t must be 1; the next commit signs as logical_t=2)"
+         (chain has 2 entries → next_logical_t must be 2; the next commit signs as logical_t=3)"
     );
 
     // Phase 3: submit one more TaskOpen with parent = post-replay
-    // state_root. Chain advances 1 → 2 without
+    // state_root. Chain advances 2 → 3 without
     // `Git2LedgerWriter::append`'s strict `len + 1` invariant tripping.
     let q_after_replay = bundle_r
         .sequencer
@@ -168,8 +196,8 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         reopened.len()
     };
     assert_eq!(
-        n_after, 2,
-        "SG-G1.2: chain length must advance from 1 → 2 after one post-resume commit"
+        n_after, 3,
+        "SG-G1.2: chain length must advance from 2 → 3 after one post-resume commit"
     );
 }
 
@@ -200,9 +228,17 @@ async fn sg_g1_3_resume_balances_reconstruction_matches_forward_replay() {
     let bundle =
         build_chaintape_sequencer_with_initial_q(&cfg_fresh, initial_q.clone()).expect("fresh");
     let seq_forward = bundle.sequencer.clone();
+    let q_after_activation = seq_forward
+        .q_snapshot()
+        .expect("q_snapshot after predicate activation");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let tx = make_synthetic_task_open("task-g1_3-1", "sponsor-g1_3", Hash::ZERO, "g1_3-1");
+    let tx = make_synthetic_task_open(
+        "task-g1_3-1",
+        "sponsor-g1_3",
+        q_after_activation.state_root_t,
+        "g1_3-1",
+    );
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown forward");
     drop(bus);
@@ -279,9 +315,18 @@ async fn sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false() {
 
     // Phase 1: fresh bootstrap, submit one TaskOpen to make the chain non-empty.
     let bundle = build_chaintape_sequencer(&cfg).expect("fresh bootstrap");
+    let q_after_activation = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("q_snapshot after predicate activation");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let tx = make_synthetic_task_open("task-g1_4", "sponsor-g1_4", Hash::ZERO, "g1_4");
+    let tx = make_synthetic_task_open(
+        "task-g1_4",
+        "sponsor-g1_4",
+        q_after_activation.state_root_t,
+        "g1_4",
+    );
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
@@ -350,9 +395,18 @@ async fn sg_g1_5_pinned_pubkeys_preserved_across_resume() {
         .to_string();
 
     // Submit one TaskOpen so the chain is non-empty (resume admission requires it).
+    let q_after_activation = bundle
+        .sequencer
+        .q_snapshot()
+        .expect("q_snapshot after predicate activation");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
-    let tx = make_synthetic_task_open("task-g1_5", "sponsor-g1_5", Hash::ZERO, "g1_5");
+    let tx = make_synthetic_task_open(
+        "task-g1_5",
+        "sponsor-g1_5",
+        q_after_activation.state_root_t,
+        "g1_5",
+    );
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);

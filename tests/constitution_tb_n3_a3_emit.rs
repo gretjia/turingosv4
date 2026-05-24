@@ -55,7 +55,7 @@ fn fresh_harness(work_agent_balance: i64, mmb_balance: i64) -> Harness {
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("kp"));
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(PredicateRegistry::new());
+    let preds = Arc::new(PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest"));
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
     let mut pinned = PinnedSystemPubkeys::new();

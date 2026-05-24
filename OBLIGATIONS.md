@@ -35,15 +35,16 @@ Current overall status: **PARTIAL** — OBL-001 open, OBL-004 in-progress.
 - Source: "你马上要进行的任务是一个非常严肃且重要的，就是修复本项目所有的违宪代码，要求非常细致的排查和修正，需要最高思考深度的模型来完成。不能有任何失误。我的原则是严格守宪法，尽可能保留本项目已经实现的优秀工程开发，在确定不违反宪法的情况下，给你自主裁决权力。如果你发现不守宪法，不需要问我意见，直接千万kill那个方案" + "我无论你是什么方案，我要的是全量修复，不留任何违宪。我提供给你的 GPT 方案也是他做了大量的研究的，我希望你认真参考、综合全部的意见" + "让 Turing OS v4 这个项目完全守宪法，在这个原则上尽可能保留已经开发的工程实践"
 - Level: must
 - Status: in_progress
-- Scope: R1+R2+R3 audit 共 30 finding 去重至 24 atom，分 3 wave 实施 (Wave 1 自主 = PR-A/B/C；Wave 2 §6 batch 预授权 = PR-D；Wave 3 W3-1 retire legacy Node 折入 PR-D；W3-2 PredicateRegistry 起草 Class 4 charter)
+- Scope: R1+R2+R3 audit 共 30 finding 去重至 24 atom；user 2026-05-24 second-round directive "完全修复，不要凑合" 触发重审，扩至 **28 atom 跨 5 PR + 1 Class 4 charter**（补回 4 个 defer 的 finding：R2-NEW#3 `bus.snapshot()` 3-axis 签名 / R3 FC3-INV6 registry immutability 结构守卫 / R3-B4+W1-2 `build_agent_prompt` 删除+G3/G5/REAL-12 测试 port / R3-B3 `SanitizedErrorTag` newtype + Karpathy F6 V3L-09 legacy sweep）。Wave 结构：Wave 1 自主 = PR-A/B/C；PR-E 新增（W1-2 死表面清理+测试 port）；Wave 2 §6 batch 预授权 = PR-D 扩 9 atoms；W3-1 retire legacy Node 折入 PR-D；W3-2 PredicateRegistry charter 含 FC3-INV6 enforcement
 - User-decisions (plan-grill 2026-05-24): Wave 1 拆 3 PR / Wave 2 批量预授权 / W3-1 retire Node / W3-2 起草 charter + per-atom §8
 - Evidence: TBD — expected
   - `handover/audits/CONSTITUTION_REPAIR_R1R2R3_SYNTHESIS_2026-05-24.md` (synthesis report)
-  - PR-A: `constitution-repair/wave1-pr-a-orphan-delete` branch + merged PR
+  - PR-A: **PR #139 MERGED 2026-05-24T11:22:55Z** (`constitution-repair/wave1-pr-a-orphan-delete`; W1-1+W1-3+W1-6; Class 1+2; Witness NO-VIOLATION)
   - PR-B: `constitution-repair/wave1-pr-b-shielding-judge` branch + merged PR
   - PR-C: `constitution-repair/wave1-pr-c-librarian-disjointness` branch + merged PR
-  - PR-D: `constitution-repair/wave2-bus-cleanup-node-retire` branch + merged PR (Wave 2 5 atoms + W1-4 + W3-1)
-  - Charter: `handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-2X.md` + §8 ratification
+  - PR-D: `constitution-repair/wave2-pr-d-bus-cleanup-node-retire` branch + merged PR (Wave 2 5 atoms + W1-4 + W3-1 + R2-NEW#3 bus.snapshot 3-axis + V3L-09 sweep = **9 atoms**)
+  - PR-E (NEW for 完全修复): `constitution-repair/wave1-pr-e-build-agent-prompt-retire` branch + merged PR (W1-2 delete build_agent_prompt + port G3/G5/REAL-12 测试 to production surfaces `src/sdk/your_position.rs` + action menu source + `route_role_action` ; +R3-B3 SanitizedErrorTag moot if removed)
+  - Charter: `handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md` — **v8 user/architect ratified 2026-05-24 as APPROVED v8 ALL-IN-ONE** after PR #139 merged. Implemented on `codex/w3-predicate-registry-bind`: W3-2A snapshot/activation/replay loader + W3-2B sequencer binding + W3-2C fixture migration + W3-2D predicate trait/verify_proof. Fresh evidence: `cargo check --workspace` exit 0; `cargo test --workspace --no-fail-fast` exit 0; `bash scripts/run_constitution_gates.sh` exit 0 `[k-1-5] total=138 failed=0`; W3-2 predicate tests (`constitution_predicate_registry_binding`, `constitution_predicate_binding_activation`, `constitution_predicate_registry_replay`, `constitution_predicate_registry_immutability`, `constitution_predicate_result_wire_freeze`) all GREEN; `constitution_matrix_drift` GREEN; clean-context Codex shipping witness `NO-VIOLATION`.
   - cargo check + cargo test --workspace 全程 GREEN
 - GPT-plan disposition: KILLED as TS prototype, NOT v4 — content was for `gretjia/turingos` (deprecated TS register kernel `delta(q,s)→(q',s',d')` with `.reg_q/.reg_d/MAIN_TAPE.md/FileChronos`)；仅 CanonicalEvent 14 种 + Gate 测试 15 条作为对照清单复用，余皆弃
 - Last-touched: 2026-05-24

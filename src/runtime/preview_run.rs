@@ -1,3 +1,6 @@
+use crate::bottom_white::cas::schema::{Cid, ObjectType};
+use crate::bottom_white::cas::store::CasStore;
+use crate::runtime::spec_capsule::{cas_path, CapsuleError};
 /// TRACE_MATRIX FC3: Phase 7 W5 — CAS-anchored read-only preview run capsule
 ///
 /// Each preview run produces exactly one `PreviewRunCapsule` recording
@@ -5,11 +8,7 @@
 ///
 /// FC-trace: FC3 (CAS evidence binding)
 /// Risk class: Class 2.
-
 use std::path::Path;
-use crate::bottom_white::cas::schema::{Cid, ObjectType};
-use crate::bottom_white::cas::store::CasStore;
-use crate::runtime::spec_capsule::{cas_path, CapsuleError};
 
 /// TRACE_MATRIX FC3: preview run capsule schema identifier
 pub const PREVIEW_RUN_CAPSULE_SCHEMA_ID: &str = "turingos-preview-run-v1";
@@ -26,10 +25,10 @@ pub enum SandboxPolicy {
 /// TRACE_MATRIX FC3: Preview run capsule containing preview attempt metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct PreviewRunCapsule {
-    pub schema_id: String,                       // = "turingos-preview-run-v1"
+    pub schema_id: String, // = "turingos-preview-run-v1"
     pub artifact_bundle_cid: String,
     pub session_id: String,
-    pub entrypoint_path: String,                 // matches path regex
+    pub entrypoint_path: String, // matches path regex
     pub sandbox_policy: SandboxPolicy,
     pub serve_success: bool,
     pub logical_t: u64,

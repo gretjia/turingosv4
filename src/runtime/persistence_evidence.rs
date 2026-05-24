@@ -62,11 +62,10 @@ use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    replay_full_transition, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::state::q_state::QState;
-use crate::top_white::predicates::registry::PredicateRegistry;
 
 use super::batch_continuation_manifest::BatchContinuationManifest;
 
@@ -538,7 +537,7 @@ pub fn replay_task_end_snapshots_from_disk(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| ReplaySnapshotError::Io(format!("read entries: {e}")))?;
 
-    let predicate_registry = PredicateRegistry::new();
+    let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
 
     let mut per_task: Vec<QState> = Vec::with_capacity(manifest.tasks.len());
@@ -552,9 +551,10 @@ pub fn replay_task_end_snapshots_from_disk(
             });
         }
         let prefix = &entries[..end_idx];
-        let q = replay_full_transition(
+        let q = replay_full_transition_with_predicate_binding(
             &initial_q,
             prefix,
+            &cas_store,
             &cas_store,
             &pinned,
             &predicate_registry,

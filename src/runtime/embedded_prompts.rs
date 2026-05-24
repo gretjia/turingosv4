@@ -24,9 +24,8 @@ use crate::runtime::prompt_promotion::{
     PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
 };
 
-/// Meta-prompt asset bytes (driven grill turn-by-turn LLM-as-runtime prompt).
-pub const GRILL_META_V1_BYTES: &[u8] =
-    include_bytes!("../../assets/prompts/grill_meta_v1.md");
+/// TRACE_MATRIX FC2 + FC3: Meta-prompt asset bytes for binary-baked grill prompt attestation.
+pub const GRILL_META_V1_BYTES: &[u8] = include_bytes!("../../assets/prompts/grill_meta_v1.md");
 
 /// Triage prompt asset bytes (Blackbox classifier for off_topic / abusive /
 /// gibberish detection on each user answer).
@@ -105,10 +104,7 @@ fn extract_system_prompt_block(asset: &str) -> Option<String> {
 pub fn materialize_grill_prompts(workspace: &Path) -> io::Result<()> {
     let prompts_dir = workspace.join("assets").join("prompts");
     fs::create_dir_all(&prompts_dir)?;
-    fs::write(
-        prompts_dir.join("grill_meta_v1.md"),
-        GRILL_META_V1_BYTES,
-    )?;
+    fs::write(prompts_dir.join("grill_meta_v1.md"), GRILL_META_V1_BYTES)?;
     fs::write(
         prompts_dir.join("grill_triage_blackbox_v1.md"),
         GRILL_TRIAGE_BLACKBOX_V1_BYTES,
@@ -142,8 +138,7 @@ pub fn seed_embedded_promotion_receipts(
     workspace: &Path,
     logical_t: u64,
 ) -> Result<Vec<String>, crate::runtime::spec_capsule::CapsuleError> {
-    let sentinel_hash =
-        sha256_hex_of_prompt(BINARY_BAKED_EVAL_SET_SENTINEL.as_bytes());
+    let sentinel_hash = sha256_hex_of_prompt(BINARY_BAKED_EVAL_SET_SENTINEL.as_bytes());
 
     // Synthesis prompt is NOT seeded: the A6 spec-synthesis path is LLM-less
     // (in-process slot-keyed string building); no LLM call -> no C10 check on
@@ -203,7 +198,8 @@ mod tests {
 
         let prompts_dir = tmp.path().join("assets/prompts");
         let meta = fs::read(prompts_dir.join("grill_meta_v1.md")).expect("read meta");
-        let triage = fs::read(prompts_dir.join("grill_triage_blackbox_v1.md")).expect("read triage");
+        let triage =
+            fs::read(prompts_dir.join("grill_triage_blackbox_v1.md")).expect("read triage");
         let synthesis =
             fs::read(prompts_dir.join("grill_synthesis_zh.md")).expect("read synthesis");
 
@@ -217,8 +213,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         materialize_grill_prompts(tmp.path()).expect("first");
         materialize_grill_prompts(tmp.path()).expect("second (overwrites)");
-        let meta =
-            fs::read(tmp.path().join("assets/prompts/grill_meta_v1.md")).expect("read meta");
+        let meta = fs::read(tmp.path().join("assets/prompts/grill_meta_v1.md")).expect("read meta");
         assert_eq!(meta, GRILL_META_V1_BYTES);
     }
 
