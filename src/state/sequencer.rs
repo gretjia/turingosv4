@@ -2311,11 +2311,12 @@ pub(crate) fn dispatch_transition(
             if obj.schema_id.as_deref() != Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID) {
                 return Err(TransitionError::PredicateBindingActivationInvalid);
             }
-            let snapshot: PredicateRegistrySnapshotCapsule =
-                crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
-                    .map_err(|_| TransitionError::PredicateBindingActivationInvalid)?;
-            if snapshot.schema_id != PredicateRegistrySnapshotCapsule::SCHEMA_ID
-                || snapshot.merkle_root != activate.registry_merkle_root
+            let reconstructed = PredicateRegistry::from_snapshot_and_binary_impls(
+                &obj.bytes,
+                predicate_registry.binary_impls(),
+            )
+            .map_err(|_| TransitionError::PredicateBindingActivationInvalid)?;
+            if reconstructed.merkle_root_hash() != activate.registry_merkle_root
                 || predicate_registry.merkle_root_hash() != activate.registry_merkle_root
             {
                 return Err(TransitionError::PredicateBindingActivationInvalid);
@@ -4888,12 +4889,12 @@ impl Sequencer {
                     {
                         return Err(EmitSystemError::PredicateRegistrySnapshotInvalid);
                     }
-                    let snapshot: PredicateRegistrySnapshotCapsule =
-                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
-                            &obj.bytes,
-                        )
-                        .map_err(|_| EmitSystemError::PredicateRegistrySnapshotInvalid)?;
-                    if snapshot.merkle_root != registry_merkle_root
+                    let reconstructed = PredicateRegistry::from_snapshot_and_binary_impls(
+                        &obj.bytes,
+                        self.predicate_registry.binary_impls(),
+                    )
+                    .map_err(|_| EmitSystemError::PredicateRegistrySnapshotInvalid)?;
+                    if reconstructed.merkle_root_hash() != registry_merkle_root
                         || registry_merkle_root != self.predicate_registry.merkle_root_hash()
                     {
                         return Err(EmitSystemError::PredicateRegistrySnapshotInvalid);

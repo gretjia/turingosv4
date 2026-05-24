@@ -16,9 +16,12 @@ use turingosv4::state::sequencer::{
     ApplyError, EmitSystemError, Sequencer, SubmissionEnvelope, SubmitError, SystemEmitCommand,
 };
 use turingosv4::state::typed_tx::{PredicateBindingActivateTx, TransitionError, TypedTx};
+use turingosv4::top_white::predicates::registry::SafetyOrCreation;
 use turingosv4::top_white::predicates::registry::{
-    BootPredicateManifest, PredicateRegistry, PredicateRegistrySnapshotCapsule,
+    BootPredicateManifest, PredicateBundleMap, PredicateMetadata, PredicateRegistry,
+    PredicateRegistrySnapshotCapsule, PredicateSnapshotEntry,
 };
+use turingosv4::top_white::predicates::visibility::Visibility;
 
 struct Harness {
     _tmp: TempDir,
@@ -75,6 +78,37 @@ fn put_snapshot(h: &Harness) -> Cid {
         .expect("put snapshot")
 }
 
+fn put_snapshot_with_lied_root(h: &Harness) -> Cid {
+    let mut snapshot = h.registry.snapshot_capsule();
+    snapshot.entries.push(PredicateSnapshotEntry {
+        metadata: PredicateMetadata {
+            predicate_id: "ghost_predicate_not_in_binary".to_string(),
+            version: 1,
+            code_hash: [7u8; 32],
+            input_schema: "PredicateContext.v1".to_string(),
+            output_schema: "BoolWithProof.v1".to_string(),
+            visibility: Visibility::Public,
+            owner: "system".to_string(),
+            test_suite_hash: [8u8; 32],
+            safety_class: SafetyOrCreation::Safety,
+        },
+        required_in: [PredicateBundleMap::Acceptance].into_iter().collect(),
+    });
+    snapshot.merkle_root = h.registry.merkle_root_hash();
+    let bytes = canonical_encode(&snapshot).expect("encode malformed snapshot");
+    h.cas
+        .write()
+        .expect("cas")
+        .put(
+            &bytes,
+            ObjectType::PredicateRegistrySnapshotCapsule,
+            "system",
+            0,
+            Some(PredicateRegistrySnapshotCapsule::SCHEMA_ID.to_string()),
+        )
+        .expect("put malformed snapshot")
+}
+
 #[tokio::test]
 async fn agent_ingress_rejects_predicate_binding_activate_tx() {
     let mut h = harness();
@@ -103,6 +137,24 @@ async fn emit_rejects_missing_registry_snapshot() {
         })
         .await
         .expect_err("missing snapshot");
+    assert!(matches!(
+        err,
+        EmitSystemError::PredicateRegistrySnapshotInvalid
+    ));
+}
+
+#[tokio::test]
+async fn emit_rejects_registry_snapshot_with_lied_root() {
+    let h = harness();
+    let snapshot_cid = put_snapshot_with_lied_root(&h);
+    let err = h
+        .seq
+        .emit_system_tx(SystemEmitCommand::PredicateBindingActivate {
+            registry_snapshot_cid: snapshot_cid,
+            registry_merkle_root: h.registry.merkle_root_hash(),
+        })
+        .await
+        .expect_err("malformed snapshot with lied root");
     assert!(matches!(
         err,
         EmitSystemError::PredicateRegistrySnapshotInvalid
