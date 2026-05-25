@@ -269,6 +269,12 @@ fn flowchart_liveness_status_matches_class4_closures() {
     assert_line_contains_all(
         &LIVENESS_INVENTORY,
         &inventory,
+        "`rtool -> input`",
+        &["LIVE"],
+    );
+    assert_line_contains_all(
+        &LIVENESS_INVENTORY,
+        &inventory,
         "map-reduce tick",
         &["LIVE"],
     );
@@ -297,6 +303,12 @@ fn flowchart_liveness_status_matches_class4_closures() {
         &["EXTERNAL_ONLY"],
     );
 
+    assert_line_contains_all(
+        &ARCHITECTURE_MAP,
+        &architecture,
+        "`rtool -> input`",
+        &["LIVE"],
+    );
     assert_line_contains_all(
         &ARCHITECTURE_MAP,
         &architecture,
