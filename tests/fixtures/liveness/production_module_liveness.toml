@@ -269,8 +269,8 @@ smoke_gates = [
 ]
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
-  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T221946Z/fc3/governance_capsule_index.json",
-  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T221946Z/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/fc3_replay_report.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
