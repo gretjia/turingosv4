@@ -1,0 +1,8 @@
+{"logical_t":1,"tx_kind":"MapReduceTick","tx_id":"system-map-reduce-tick-1-1","tx_payload_cid":"d63191ed1f5c194da0f3c66446fc6c3f92ca7f151ca7b76d62941215b513426c"}
+{"logical_t":2,"tx_kind":"LogFeedbackArchive","tx_id":"system-log-feedback-archive-1-2","tx_payload_cid":"060e400603f1f9589d2fc0e8b98f0708bc7cb551def3241045fab8a801a74e53"}
+{"logical_t":3,"tx_kind":"ArchitectProposal","tx_id":"system-architect-proposal-1-3","tx_payload_cid":"afce36312d85e6327d16dd4846d063fbe5ea15723c76e622613625ad9227e8e9"}
+{"logical_t":4,"tx_kind":"VetoDecision","tx_id":"system-veto-decision-1-4","tx_payload_cid":"e9244c61f21af05763ce2446acdb94789c46515f8e0b946b024e0dcc99a734e9"}
+{"logical_t":5,"tx_kind":"ArchitectCommit","tx_id":"system-architect-commit-1-5","tx_payload_cid":"1d353f40414da626e7ed1e6a1e764f43feb8fcdbdc6e2d6172a720ae2a56c678"}
+{"logical_t":6,"tx_kind":"TerminalSummary","tx_id":"system-terminal-summary-1-6","tx_payload_cid":"b168e791805340dfd7deb05899ec0e081062a53898c6faab0230a7d2ddff0c9a"}
+{"logical_t":7,"tx_kind":"ReinitRequest","tx_id":"system-reinit-request-1-7","tx_payload_cid":"3b85840f4a695316dbdac982db1ac73e9f07b3c223b4b393774feaa3f2f74e54"}
+{"logical_t":8,"tx_kind":"ReinitBoot","tx_id":"system-reinit-boot-1-8","tx_payload_cid":"88015c4c99b1d1b38b4c481987293315cddbf35869332b54242fa88dde23253d"}

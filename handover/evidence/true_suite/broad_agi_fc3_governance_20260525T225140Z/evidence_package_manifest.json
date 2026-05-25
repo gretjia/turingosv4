@@ -1,0 +1,30 @@
+{
+  "package_count": 2,
+  "packages": [
+    {
+      "archive_bytes": 33863,
+      "archive_path": "fc3/cas.dotgit.tar.gz",
+      "archive_sha256": "740a729b603f5da6dbb3beabe4453cf4728132a3357c770c0e73c0163a7ee49e",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/cas",
+      "source_path": "fc3/cas/.git"
+    },
+    {
+      "archive_bytes": 17297,
+      "archive_path": "fc3/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "d7ecf48ba49ac09d6067f66792ef49843ef842b9ecf6f6e51c5da29528d283ec",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/runtime_repo",
+      "source_path": "fc3/runtime_repo/.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-broad-agi-suite/handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
