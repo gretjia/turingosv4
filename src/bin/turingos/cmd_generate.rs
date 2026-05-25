@@ -44,6 +44,7 @@ use turingosv4::runtime::generation_attempt::{
     write_generation_attempt_capsule, AttemptOutcome, GenerationAttemptCapsule,
     GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
+use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
@@ -2255,6 +2256,35 @@ fn emit_polymarket_market_for_session(
         };
         let bundle: ChaintapeBundle = build_chaintape_sequencer_with_initial_q(&config, initial_q)
             .map_err(|e| format!("open canonical chaintape: {e}"))?;
+        let genesis_report_path = config.runtime_repo_path.join("genesis_report.json");
+        if !genesis_report_path.exists() {
+            let constitution_path = std::env::current_dir()
+                .unwrap_or_else(|_| PathBuf::from("."))
+                .join("constitution.md");
+            let report = GenesisReport {
+                constitution_hash: GenesisReport::hash_constitution_md(&constitution_path),
+                runtime_repo: config.runtime_repo_path.display().to_string(),
+                cas_path: config.cas_path.display().to_string(),
+                system_pubkey_hash: GenesisReport::hash_system_pubkey_manifest(
+                    &config.runtime_repo_path,
+                ),
+                agent_pubkeys_path: "agent_pubkeys.json".to_string(),
+                initial_balances: preseed
+                    .iter()
+                    .map(|(agent, balance)| (agent.0.clone(), balance.micro_units()))
+                    .collect(),
+                task_id: None,
+                task_open_tx: None,
+                escrow_lock_tx: None,
+                agent_model_assignment: vec![],
+                model_assignment_manifest_cid: None,
+                agent_role_assignment: vec![],
+                role_assignment_manifest_cid: None,
+            };
+            report
+                .write_to_runtime_repo(&config.runtime_repo_path)
+                .map_err(|e| format!("write genesis_report.json: {e}"))?;
+        }
         let seq = bundle.sequencer.clone();
         let rejection_writer = bundle.rejection_writer.clone();
         let mut keypairs =
