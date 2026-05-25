@@ -757,6 +757,11 @@ authority = "OBL-005 true-suite replay/CAS integrity execution layer: current-ke
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_true_suite_evidence_packaging"
+authority = "OBL-005 true-suite evidence packaging layer: nested current-kernel evidence git stores must be exported as deterministic tarballs with a restore manifest before broad real-world evidence can be committed as reconstructable ChainTape/CAS proof"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_true_suite_broad_agi_batch_runner"
 authority = "OBL-005 broad true-problem batch control plane: aggregate current-kernel true-suite runners and broad AGI family contracts without counting pending adapters, old-15 evidence, leaderboard scores, raw provider payloads, or TDMA domain tape as final no-zombie closure"
 added = "2026-05-25"
