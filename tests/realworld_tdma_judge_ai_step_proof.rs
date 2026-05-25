@@ -3,7 +3,7 @@
 //!
 //! Drives the full TDMA-Bounded kernel through the user-supplied math problem
 //! ("证明所有自然数之和 = -1/12 via m·exp(-m/N)·cos(m/N)") with a deterministic
-//! JudgeAI predicate. Captures the ChainTape that results, then asserts the
+//! offline math-step predicate. Captures the ChainTape that results, then asserts the
 //! five real-tape invariants from the orchestrator plan §5 Atom 7.5:
 //!
 //!   I1. every node reachable via verified_head ancestry (if accepted) or
@@ -13,23 +13,20 @@
 //!   I4. every retry prompt fits B_PROMPT_MAX
 //!   I5. verified_head moves monotonically (only StateAccepted advances it)
 //!
-//! Constitution allows JudgeAI as a verdict authority for FC1 predicates;
+//! Constitution allows executable verdict predicates for FC1;
 //! Lean is NOT required for this problem (per user 2026-05-22 instruction).
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
 
 use turingosv4::charter_core::compile_charter_core;
-use turingosv4::judges::math_step_judge::{
-    JudgeVerdict, MathStepJudge, OfflineHeuristicJudge,
-};
-use turingosv4::ledger::{
-    AttemptScope, ImmutableTapeLedger, MemoryTapeLedger, NodeKind,
-};
+use turingosv4::judges::math_step_judge::{JudgeVerdict, MathStepJudge, OfflineHeuristicJudge};
+use turingosv4::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger, NodeKind};
 use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use turingosv4::token_budget::B_PROMPT_MAX;
 use turingosv4::tokenizer::Tokenizer;
 
-const PROBLEM: &str = "证明所有自然数之和 = -1/12，想办法利用已知提示的公式 m·exp(-m/N)·cos(m/N).\n\
+const PROBLEM: &str =
+    "证明所有自然数之和 = -1/12，想办法利用已知提示的公式 m·exp(-m/N)·cos(m/N).\n\
                        RULES:\n\
                        - Write exactly ONE mathematical reasoning step per submission\n\
                        - Your step must logically follow from the previous steps\n\
@@ -42,7 +39,11 @@ fn header_for(status: &str, step_idx: usize, predicate: &str, reject: &str) -> S
         r#"{{"schema_version":"tdma-state-update/v1","status":"{}","task_id":"step-{}","action":"{}","failed_predicate":"{}","reject_class":"{}"}}"#,
         status,
         step_idx,
-        if status == "Proceed" { "PROCEED" } else { "RETRY" },
+        if status == "Proceed" {
+            "PROCEED"
+        } else {
+            "RETRY"
+        },
         predicate,
         reject,
     )
@@ -90,12 +91,20 @@ fn realworld_tdma_judge_ai_step_proof_happy_path() {
     for (i, step_text) in proof_steps.iter().enumerate() {
         let task = Task {
             id: format!("step-{}", i + 1),
-            prompt: format!("{}\nAccepted so far:\n{}\n", PROBLEM, accepted_steps.join("\n")),
+            prompt: format!(
+                "{}\nAccepted so far:\n{}\n",
+                PROBLEM,
+                accepted_steps.join("\n")
+            ),
         };
         let verdict = judge.verdict(&accepted_steps, step_text);
         let success = verdict.is_pass();
         let env = EnvironmentResult {
-            raw_output: worker_response(i + 1, step_text, if success { "Proceed" } else { "Retry" }),
+            raw_output: worker_response(
+                i + 1,
+                step_text,
+                if success { "Proceed" } else { "Retry" },
+            ),
             // Synthetic stderr representing what the judge would have replied
             // if it rejected (with sentinel for leak detection).
             raw_stderr: if success {
@@ -146,7 +155,10 @@ fn realworld_tdma_judge_ai_step_proof_happy_path() {
     for nodes in scope_index.values() {
         for h in nodes {
             let node = &kernel.tape.indexes.by_hash[h];
-            assert!(node.scope.is_some(), "I1: scope must be set on indexed nodes");
+            assert!(
+                node.scope.is_some(),
+                "I1: scope must be set on indexed nodes"
+            );
         }
     }
 
@@ -191,7 +203,11 @@ fn realworld_tdma_judge_ai_step_proof_rejection_replay() {
     let initial_head = kernel.tape.get_verified_head();
     let step1 = kernel.step_forward(&task1, env1);
     match step1 {
-        KernelStep::Retry { prompt, bbs_hash, evidence_hash } => {
+        KernelStep::Retry {
+            prompt,
+            bbs_hash,
+            evidence_hash,
+        } => {
             // I3: raw stderr substring must not leak into the next prompt
             assert!(
                 !prompt.contains("JUDGE_SENTINEL_LEAK_CANARY"),
@@ -239,5 +255,8 @@ fn realworld_tdma_judge_ai_step_proof_rejection_replay() {
     let derived = rebuilt
         .derive_latest_belief_state_from_tape(&scope)
         .expect("BBS derivable from frozen tape");
-    assert_eq!(derived, original, "I2: BBS must reconstruct exactly from tape");
+    assert_eq!(
+        derived, original,
+        "I2: BBS must reconstruct exactly from tape"
+    );
 }

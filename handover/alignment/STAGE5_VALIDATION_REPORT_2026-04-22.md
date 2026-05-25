@@ -1,5 +1,7 @@
 # Stage 5 — Medium-Difficulty Real-Problem Validation (Phase Z')
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Date**: 2026-04-22
 **Problem**: `mathd_numbertheory_99.lean`
 **Binary**: exp worktree, post Phase Z+Z' merge (SHA `8e457db` + backlinks)

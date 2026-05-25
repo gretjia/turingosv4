@@ -1,5 +1,7 @@
 # TRACE_MATRIX v0 — Constitutional Flowchart ↔ Rust Code (2026-04-22)
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Source extracts**:
 - Flowchart raw: `FC_ELEMENTS_2026-04-22.md` (134 elements: 48 nodes + 63 edges + 23 subgraphs)
 - Code candidates: `CODE_CANDIDATES_2026-04-22.md` (43 core items audited)

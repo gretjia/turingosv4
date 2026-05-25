@@ -1,5 +1,7 @@
 # FC-Witness Catalog — real existing problems → FC nodes (TB-C0, 2026-05-06; **REVISED 2026-05-07** per Codex Q8 VETO)
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Status (2026-05-07)**: Per Codex audit verdict §9 #1 + Q8 VETO, this catalog has been REVISED to:
 1. Strictly separate **3 witness-classes**: chain-resident / structural / tamper-probe (security)
 2. Fix the FC1-INV3 arithmetic error (was: "12=0+10+2 with step_partial_ok=3"; now uses post-fix invariant figures from round-5/6 binaries)

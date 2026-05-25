@@ -1,7 +1,7 @@
 //! TB-C0 Constitution Landing Gate — FC3 Meta / anti-oreo
 //!
 //! Constitutional invariants on Flowchart 3:
-//!   `boot → constitution / logs (read-only) → JudgeAI ← ArchitectAI →
+//!   `boot → constitution / logs (read-only) → Veto-AI ← ArchitectAI →
 //!    tools / logs / Q update`
 //!
 //! Test list (per TB-C0 directive §4.3):
@@ -12,7 +12,7 @@
 //!   - fc3_deep_history_requires_override
 //!   - fc3_no_automatic_predicate_mutation
 //!   - fc3_architectai_proposal_not_direct_write
-//!   - fc3_judgeai_veto_only
+//!   - fc3_veto_ai_veto_only
 //!
 //! All tests are real assertions — no `assert!(true)` per CR-C0.1.
 
@@ -268,48 +268,32 @@ fn fc3_architectai_proposal_not_direct_write() {
     );
 }
 
-/// FC3-INV8 — JudgeAI is veto-only. The Codex / Gemini external-audit
-/// flow produces verdict (PASS / CHALLENGE / VETO) without committing
+/// FC3-INV8 — Veto-AI is veto-only. The external clean-context audit
+/// flow produces verdict (PASS / VETO) without committing
 /// code. We verify by structural artifact: handover/audits/ contains
 /// audit reports but no audit-authored src/ commits.
 #[test]
-fn fc3_judgeai_veto_only() {
+fn fc3_veto_ai_veto_only() {
     let audits_dir = "handover/audits";
     assert!(
         Path::new(audits_dir).exists(),
-        "FC3-INV8 violation: handover/audits/ missing — JudgeAI \
-         (Codex+Gemini) verdict trail un-anchored."
+        "FC3-INV8 violation: handover/audits/ missing — Veto-AI \
+         verdict trail un-anchored."
     );
-    // The dual_audit feedback memory codifies the rule.
-    let feedback_path = std::env::var("HOME").map(|h| {
-        format!(
-            "{h}/.claude/projects/-home-zephryj-projects-turingosv4/memory/feedback_dual_audit.md"
-        )
-    });
-    if let Ok(p) = feedback_path {
-        if Path::new(&p).exists() {
-            // Feedback file exists; content is a memory artifact, not gating
-            // here. The presence of the file is the structural witness.
-        }
-    }
-
-    // Audit reports follow the canonical naming pattern (CODEX_*_AUDIT or
-    // GEMINI_*_AUDIT or *_DUAL_AUDIT). At least 3 such reports must exist
-    // post-TB-13.
+    // Audit reports follow the current single clean-context Codex witness
+    // doctrine. Historical dual-audit artifacts may remain on disk, but they
+    // are not counted as current Veto-AI evidence.
     let entries = std::fs::read_dir(audits_dir).expect("dir readable");
     let audit_count = entries
         .flatten()
         .filter(|e| {
-            let name = e.file_name().to_string_lossy().to_string();
-            name.contains("CODEX")
-                || name.contains("GEMINI")
-                || name.contains("DUAL_AUDIT")
-                || name.contains("dual_audit")
+            let name = e.file_name().to_string_lossy().to_ascii_uppercase();
+            name.contains("CODEX") && name.contains("AUDIT")
         })
         .count();
     assert!(
         audit_count >= 3,
         "FC3-INV8 violation: <3 audit reports in handover/audits/ — \
-         JudgeAI verdict trail too sparse to demonstrate veto-only role."
+         Veto-AI verdict trail too sparse to demonstrate veto-only role."
     );
 }

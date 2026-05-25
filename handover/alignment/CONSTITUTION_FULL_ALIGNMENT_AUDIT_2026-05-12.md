@@ -1,5 +1,7 @@
 # Constitution + 3-Flowchart + Economy Full-Landing Alignment Audit
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 > **Auditor**: Claude (orchestrator role)
 > **Audit timestamp**: 2026-05-12 session #46
 > **Repo HEAD**: `4c56ab7` (post-G3.2 packet commit on `main`)

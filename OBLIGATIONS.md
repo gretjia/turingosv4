@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **PARTIAL** — OBL-001 open, OBL-004 in-progress.
+Current overall status: **PARTIAL** — OBL-001 open, OBL-004 in-progress, OBL-005 blocked on the remaining FC2 map-reduce tick and FC3 feedback/reinit production gaps.
 
 ---
 
@@ -48,3 +48,12 @@ Current overall status: **PARTIAL** — OBL-001 open, OBL-004 in-progress.
   - cargo check + cargo test --workspace 全程 GREEN
 - GPT-plan disposition: KILLED as TS prototype, NOT v4 — content was for `gretjia/turingos` (deprecated TS register kernel `delta(q,s)→(q',s',d')` with `.reg_q/.reg_d/MAIN_TAPE.md/FileChronos`)；仅 CanonicalEvent 14 种 + Gate 测试 15 条作为对照清单复用，余皆弃
 - Last-touched: 2026-05-24
+
+## OBL-005: 三 Flowchart 全链路覆盖测试集设计与落地
+- Source: "设计测试集，验证turingos 可以按照宪法要求全部跑通，宪法的三个flowchat全部参与工作，没有僵尸模块（有代码但是没有接通），也没有flowchat中有，但是目前代码中缺失的部分。"
+- Level: must
+- Status: blocked
+- Scope: Design and, where feasible without Class 4 runtime changes, implement an executable constitution/flowchart coverage harness proving FC1 runtime loop, FC2 boot/replay, and FC3 meta-architecture are all connected; detect zombie code surfaces and flowchart nodes missing code/test bindings.
+- Evidence: `handover/tracer_bullets/TB-FLOWCHART-COVERAGE-TESTSET_2026-05-24.md` (test-set contract + current blockers) + `handover/audits/FLOWCHART_LIVENESS_INVENTORY_2026-05-25.md` (constitution-only liveness inventory; no closure claim) + `handover/audits/TURINGOSV4_ARCHITECTURE_LIVENESS_MAP_2026-05-25.md` (complete architecture liveness map separating constitutional elements from required substrate / support invariants / product workload / legacy candidates) + `handover/tracer_bullets/TB-FLOWCHART-FC2-FC3-CLOSURE_charter_2026-05-25.md` (draft Class 4 closure design for FC2 tick + FC3 feedback/reinit; constitution/source-of-truth critic `CHARTER-CONSTITUTION-PROCEED`; replay/data-shape critic `CHARTER-REPLAY-PROCEED`; not §8-ratified and not implemented). 2026-05-25 source-of-truth cleanup updated active matrices/tests to treat only `constitution.md` FC blocks + pinned hashes as current flowchart topology authority. Old extracted element files and old trace matrices are archival derived views only. FC1 real WorkTx provenance now binds `cas.proposal_telemetry:<cid>` and task-output keys instead of `k.read`/`k.write`; FC2 map-reduce tick is still marked `MISSING`; FC3 logs feedback to ArchitectAI and re-init semantics are still marked `MISSING`/`EXTERNAL_ONLY` instead of being covered by deep-history support invariants. Full certification remains blocked until missing production paths are implemented or constitutionally superseded.
+- Verification: 2026-05-25 PASS — `cargo test --test constitution_flowchart_source_alignment` (7 passed), `cargo test --test constitution_flowchart_livenow` (4 passed), `cargo test --test tb_7_authoritative_routing` (5 passed), `cargo test --test generate_emits_work_tx_smoke` (4 passed), `cargo test --test fc_alignment_conformance` (27 passed, 6 ignored), `cargo test --test constitution_matrix_drift` (3 passed), `bash scripts/run_constitution_gates.sh` (`[k-1-5] total=140 failed=0`), and `cargo test --workspace --no-fail-fast` (exit 0).
+- Last-touched: 2026-05-25

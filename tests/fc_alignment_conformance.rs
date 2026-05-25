@@ -5,15 +5,18 @@
 // audit-trail artifact CLAUDE.md "Alignment Standard" demands:
 //
 //     "Conformance tests: tests/fc_alignment_conformance.rs — 每个 ✅ 行 ≥1
-//      witness test；#[ignore] stub 覆盖 📅 deferred rows"
+//      witness test"
+//
+// Ignored tests in this file are explicit red placeholders for missing or
+// deferred runtime paths. They are not counted as green flowchart coverage.
 //
 // FC-trace: FC1 (basic cycle) + FC2 (init/halt/tick) + FC3 (system topology).
-// Source of mappings: handover/alignment/TRACE_MATRIX_v1_2026-04-25.md.
+// Mapping authority: constitution.md FC blocks + pinned canonical hashes.
 //
 // Witness semantics: each test imports the FC-anchored symbol and references
 // it. If the symbol is renamed, removed, or its public API breaks, this test
 // fails to compile or panics — surfacing constitutional drift at `cargo test`
-// time rather than at next dual audit.
+// time rather than at the next external audit.
 
 #![allow(dead_code)]
 
@@ -32,7 +35,7 @@ use turingosv4::wal::Wal;
 fn fc1_n1_q_state_carrier_constructible_with_default_config() {
     // FC1-N1 Q_t = ⟨q_t, HEAD_t, tape_t⟩ — TuringBus is the constitutional
     // Q_t carrier. A0e-fix 2026-04-25: strengthened from type_name witness
-    // (Codex Q2 + Gemini Q2.a — weak compile-only witness doesn't catch
+    // (audit Q2 found weak compile-only witness didn't catch
     // behavioral regression). Now actually constructs the carrier.
     let kernel = Kernel::new();
     let bus = TuringBus::new(kernel, BusConfig::default());
@@ -69,7 +72,7 @@ fn fc1_n6_input_universe_snapshot_via_bus() {
     // FC1-N6 input = ⟨q_i, s_i⟩ realized as UniverseSnapshot.
     // TB-14 Atom 6 (2026-05-03): post-CPMM-excision, the snapshot's signal
     // surface is `price_index` + `mask_set` — derived integer-rational
-    // views over canonical EconomicState (FC2-N28 + FC3-N42). Witness:
+    // views over canonical EconomicState. Witness:
     // bus.snapshot() returns a UniverseSnapshot whose new fields are
     // structurally present and empty in legacy ledger-only mode (no
     // sequencer wired).
@@ -78,7 +81,7 @@ fn fc1_n6_input_universe_snapshot_via_bus() {
     let snap: UniverseSnapshot = bus.snapshot();
     assert!(
         snap.price_index.is_empty(),
-        "FC1-N6 / FC3-N42: price_index empty when bus is sequencer-less"
+        "FC1-N6: price_index empty when bus is sequencer-less"
     );
     assert!(
         snap.mask_set.is_empty(),
@@ -89,25 +92,31 @@ fn fc1_n6_input_universe_snapshot_via_bus() {
 #[test]
 fn fc1_n8_n9_n10_output_agent_output_parseable() {
     // FC1-N8 output = ⟨q_o, a_o⟩ realized as AgentAction (the v4 name;
-    // TRACE_MATRIX_v0 used the v3 label "AgentOutput" — same role).
+    // The retired v3 label was "AgentOutput"; current v4 role is AgentAction.
     // FC1-N9 q_o + FC1-N10 a_o folded into AgentAction fields.
     let _: fn(&str) -> Result<AgentAction, _> = parse_agent_output;
 }
 
 #[test]
-fn fc1_n13_wtool_bus_append_present() {
-    // FC1-N13 wtool = TuringBus::append (Law-1 free path) +
-    // append_oracle_accepted (oracle-blessed path).
-    let kernel = Kernel::new();
-    let mut bus = TuringBus::new(kernel, BusConfig::default());
-    let _ = bus.append("Agent_Test", "test_payload", None);
-    // Witness: append API present + returns Result<BusResult, ...>.
+fn fc1_n13_wtool_typed_submit_surface_present() {
+    // FC1-N13 current wtool ingress is the typed submission path. Full
+    // accept/reject liveness is covered by constitution_flowchart_livenow.
+    let _method = TuringBus::submit_typed_tx;
 }
 
 #[test]
-fn fc1_n11_n15_e18_pi_p_zero_preserves_q_t_via_forbidden_pattern() {
-    // FC1-N11 ∏p (forbidden_patterns inline check) +
-    // FC1-N15 Q_t branch (∏p=0) + FC1-E18 (∏p=0 → Q_t preserve) —
+fn legacy_bus_append_surface_present_but_not_current_wtool_authority() {
+    // Legacy append remains constructible for compatibility, but this test is
+    // not current FC1 wtool coverage.
+    let kernel = Kernel::new();
+    let mut bus = TuringBus::new(kernel, BusConfig::default());
+    let _ = bus.append("Agent_Test", "test_payload", None);
+}
+
+#[test]
+fn fc1_n11_n15_predicate_zero_preserves_q_t_via_forbidden_pattern() {
+    // FC1 ∏p (forbidden_patterns inline check) +
+    // Q_t branch (∏p=0 preserves current state) —
     // production-path ground-truth-feedback claim (thesis claim 7).
     let kernel = Kernel::new();
     let config = BusConfig {
@@ -122,7 +131,7 @@ fn fc1_n11_n15_e18_pi_p_zero_preserves_q_t_via_forbidden_pattern() {
     );
     assert!(
         matches!(result, Ok(BusResult::Vetoed { .. })),
-        "FC1-E18: ∏p=0 must veto and preserve Q_t"
+        "FC1 predicate failure must veto and preserve Q_t"
     );
 }
 
@@ -140,14 +149,13 @@ fn fc2_n22_halt_via_halt_and_settle() {
     let _ = result;
 }
 
-
 #[test]
-fn fc2_n20_n27_tick_mr_present() {
-    // FC2-N20 + N27 — map-reduce tick exists at evaluator level
-    // (TICK_INTERVAL env var); bus exposes emit_mr_tick_node.
-    // Witness: bus type carries the tick capability via construction.
-    let kernel = Kernel::new();
-    let _bus = TuringBus::new(kernel, BusConfig::default());
+#[ignore = "🔴 FC2 map-reduce tick production surface is not \
+            present on the current ChainTape path. The old evaluator clock \
+            helpers belonged to a retired runtime shape. See \
+            handover/tracer_bullets/TB-FLOWCHART-COVERAGE-TESTSET_2026-05-24.md."]
+fn fc2_map_reduce_tick_tape_visible_pending() {
+    panic!("FC2 map-reduce tick must be implemented or constitutionally superseded");
 }
 
 // ─── FC3: system topology, readonly subgraph, boot, logs archive ───
@@ -212,20 +220,17 @@ fn fc3_n39_log_ledger_present_and_appendable() {
 
 #[test]
 fn fc3_e14_boot_panic_immediate_abort_documented() {
-    // FC3-E14 (error → re-init → boot) — the immediate-abort variant
+    // FC3 error → re-init → boot — the immediate-abort variant
     // is implemented in src/main.rs as panic on TrustRootError. The
-    // OBS file documents why this is FC3-E14 not FC2-N22.
+    // OBS file documents why this is the FC3 immediate-abort leaf, not halt.
     let obs_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("handover/alignment/OBS_BOOT_FAIL_NOT_HALT_2026-04-25.md");
-    assert!(
-        obs_path.exists(),
-        "FC3-E14: OBS_BOOT_FAIL_NOT_HALT_2026-04-25.md must exist"
-    );
+    assert!(obs_path.exists(), "FC3 boot-failure OBS must exist");
 }
 
 #[test]
 fn fc3_s3_readonly_subgraph_manifest_size() {
-    // FC3-S3 readonly subgraph — TRACE_MATRIX_v1 records manifest size as
+    // FC3 readonly subgraph — the historical trace recorded manifest size as
     // 20 files (8 PREREG base + 6 audit-add + 1 B6 + 1 B7-extra + 4 round-1
     // audit-fix). Witness: parse the live manifest, assert it has >= 20
     // entries.
@@ -237,28 +242,68 @@ fn fc3_s3_readonly_subgraph_manifest_size() {
     let entries = parse_trust_root_section(&genesis).expect("trust_root parses");
     assert!(
         entries.len() >= 20,
-        "FC3-S3: manifest must have >= 20 entries (current: {}). \
-         If this assertion fires, TRACE_MATRIX_v? § 3 needs an update.",
+        "FC3 readonly manifest must have >= 20 entries (current: {}). \
+         If this assertion fires, refresh the derived matrix from constitution.md.",
         entries.len()
     );
 }
 
 // ─── ⚠️ partial / 📅 deferred rows (Phase 11+ scope) ───
-// Per TRACE_MATRIX_v0 § 4 + v1 amendment notes. Stubs reserve the row.
+// Deferred stubs reserve known constitution obligations without counting as green coverage.
 
 #[test]
-#[ignore = "📅 Not yet typed as Rust enum — HaltReason variants \
-            {MaxTxExhausted, WallClockCap, ComputeCapViolated, ErrorHalt} \
-            per CLAUDE.md report standard live as jsonl strings in \
-            extra map. Type promotion is Phase C+ work."]
-fn fc2_n23_haltreason_full_taxonomy_typed() {
-    panic!("HaltReason full taxonomy not yet a Rust enum");
+fn fc2_n23_terminal_run_outcome_taxonomy_typed() {
+    // FC2-N22/N23 — the current terminal anchor is not the retired
+    // enum-based halted-state shape. It is TerminalSummaryTx.run_outcome,
+    // backed by the typed RunOutcome enum and ExhaustionReason projection.
+    use turingosv4::state::typed_tx::{ExhaustionReason, RunOutcome, TerminalSummaryTx};
+
+    let variants = [
+        RunOutcome::OmegaAccepted,
+        RunOutcome::MaxTxExhausted,
+        RunOutcome::WallClockCap,
+        RunOutcome::ComputeCap,
+        RunOutcome::ErrorHalt,
+        RunOutcome::DegradedLLM,
+    ];
+    assert_eq!(variants.len(), 6, "FC2-N23: RunOutcome taxonomy size");
+
+    assert_eq!(
+        ExhaustionReason::MaxTxExhausted.to_run_outcome(),
+        RunOutcome::MaxTxExhausted
+    );
+    assert_eq!(
+        ExhaustionReason::WallClockCap.to_run_outcome(),
+        RunOutcome::WallClockCap
+    );
+    assert_eq!(
+        ExhaustionReason::ComputeCap.to_run_outcome(),
+        RunOutcome::ComputeCap
+    );
+    assert_eq!(
+        ExhaustionReason::ProtocolCollapse.to_run_outcome(),
+        RunOutcome::ErrorHalt
+    );
+    assert_eq!(
+        ExhaustionReason::SolverGiveUp.to_run_outcome(),
+        RunOutcome::ErrorHalt
+    );
+    assert_eq!(
+        ExhaustionReason::DegradedLLM.to_run_outcome(),
+        RunOutcome::DegradedLLM
+    );
+
+    let tx = TerminalSummaryTx {
+        run_outcome: RunOutcome::MaxTxExhausted,
+        ..TerminalSummaryTx::default()
+    };
+    assert_eq!(tx.run_outcome, RunOutcome::MaxTxExhausted);
 }
 
 #[test]
-#[ignore = "📅 Phase 11+ — Veto-AI runtime not implemented (manual Codex/Gemini dual-audit covers role today; Art. V.1.3 amendment 2026-04-25 narrowed scope to {PASS, VETO})"]
+#[ignore = "📅 Phase 11+ — Veto-AI runtime not implemented; external clean-context witness covers role today; Art. V.1.3 amendment 2026-04-25 narrowed scope to {PASS, VETO})"]
 fn fc3_n32_veto_ai_runtime() {
-    panic!("FC3-N32 deferred — see TRACE_MATRIX § 1 row FC3-N32");
+    panic!("Veto-AI runtime deferred");
 }
 
 #[test]
@@ -268,13 +313,22 @@ fn fc3_n33_architect_ai_runtime() {
 }
 
 #[test]
-#[ignore = "📅 Phase 11+ — automated logs → ArchitectAI feedback loop not implemented. Phase D consumer reads jsonl + WAL + stderr (per THESIS_V2_GROUND_TRUTH_AUDIT findings C+D)"]
-fn fc3_n40_logs_to_architect_feedback() {
-    panic!("FC3-N40 deferred");
+fn fc3_support_deep_history_default_deny_runtime_witness() {
+    // Deep-history reads are support-invariant gated behavior, not the
+    // constitutional logs→ArchitectAI feedback edge.
+    use turingosv4::runtime::markov_capsule::{
+        try_deep_history_read_with_override_check, MarkovGenError,
+    };
+
+    assert!(matches!(
+        try_deep_history_read_with_override_check(false),
+        Err(MarkovGenError::DeepHistoryReadDenied)
+    ));
+    assert!(try_deep_history_read_with_override_check(true).is_ok());
 }
 
 #[test]
-#[ignore = "📅 Phase 11+ — in-process re-init not implemented (external batch runner retry covers today). FC3-E14 immediate-abort leaf is what we have."]
+#[ignore = "📅 Phase 11+ — in-process re-init not implemented (external batch runner retry covers today). FC3 immediate-abort leaf is what we have."]
 fn fc3_n41_in_process_reinit_loop() {
     panic!("FC3-N41 deferred");
 }
@@ -286,15 +340,45 @@ fn fc3_e15_e16_e17_constitutional_signaling() {
 }
 
 #[test]
-#[ignore = "🔨 Stage 3 unmerged — bus.register_predicate API + Predicate trait live on phase-z-wtool-tools branch only; not on main. Production path uses inline forbidden_patterns check in append_internal as the ∏p surface."]
-fn fc1_n11_predicate_trait_register_api() {
-    panic!("FC1-N11 actionable — Predicate trait + bus.register_predicate not on main");
+fn fc1_n11_predicate_trait_registry_binding_live() {
+    // W3-2 landed the Predicate trait + executable registry binding. The old
+    // phase-z-wtool-tools ignored stub is no longer true.
+    use turingosv4::state::typed_tx::PredicateId;
+    use turingosv4::top_white::predicates::registry::{
+        BootPredicateManifest, PredicateBundleMap, PredicateRegistry,
+    };
+
+    let registry = PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
+        .expect("v8 production predicate registry");
+    let acc1 = PredicateId("acc1".to_string());
+    let entry = registry
+        .entry(&acc1)
+        .expect("acc1 executable predicate entry");
+    assert_eq!(entry.impl_arc.predicate_id(), "acc1");
+    assert_eq!(
+        registry.code_hash_for(&acc1),
+        Some(entry.impl_arc.code_hash())
+    );
+    assert!(registry
+        .required_predicates(PredicateBundleMap::Acceptance)
+        .contains(&acc1));
 }
 
 #[test]
-#[ignore = "Binary-only — run_swarm/run_oneshot are in evaluator binary, not lib; refactor needed to expose for direct integration testing"]
-fn fc2_n16_init_ai_orchestrator_swarm_oneshot() {
-    panic!("FC2-N16 binary-only");
+fn fc2_n16_chaintape_boot_factory_is_current_initai_surface() {
+    // FC2-N16 current executable surface is the ChainTape bootstrap factory,
+    // not the retired evaluator-binary orchestration shape.
+    let _: fn(
+        &turingosv4::runtime::RuntimeChaintapeConfig,
+    )
+        -> Result<turingosv4::runtime::ChaintapeBundle, turingosv4::runtime::BootstrapError> =
+        turingosv4::runtime::build_chaintape_sequencer;
+    let _: fn(
+        &turingosv4::runtime::RuntimeChaintapeConfig,
+        turingosv4::state::q_state::QState,
+    )
+        -> Result<turingosv4::runtime::ChaintapeBundle, turingosv4::runtime::BootstrapError> =
+        turingosv4::runtime::build_chaintape_sequencer_with_initial_q;
 }
 
 #[test]
@@ -304,14 +388,14 @@ fn fc1_n12_lean4_oracle_ground_truth_predicate() {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// TB-14 Atom 2 — FC3-N42 (compute_price_index) witness.
-// TRACE_MATRIX FC3-N42 maps to src/state/price_index.rs:compute_price_index
+// TB-14 Atom 2 — price-index support witness.
+// Derived matrix maps this to src/state/price_index.rs:compute_price_index
 // (architect 2026-05-03 ruling §5.1 + charter §3 Atom 2). Pure deterministic
 // fn over canonical EconomicState; no env / clock / RNG; replay-identical.
 // ───────────────────────────────────────────────────────────────────────
 
 #[test]
-fn fc3_n42_compute_price_index_pure_fn_witness() {
+fn support_price_index_pure_fn_witness() {
     use turingosv4::economy::money::MicroCoin;
     use turingosv4::state::q_state::AgentId;
     use turingosv4::state::typed_tx::{NodePosition, PositionKind, PositionSide};
@@ -337,7 +421,7 @@ fn fc3_n42_compute_price_index_pure_fn_witness() {
     let idx = compute_price_index(&econ);
     let entry = idx
         .get(&TxId("witness_node".into()))
-        .expect("FC3-N42: witness_node must appear in PriceIndex");
+        .expect("price-index witness_node must appear in PriceIndex");
 
     // FR-14.1: price_yes derived from long_interest only.
     assert_eq!(
@@ -346,14 +430,14 @@ fn fc3_n42_compute_price_index_pure_fn_witness() {
             numerator: 500_000,
             denominator: 500_000,
         }),
-        "FC3-N42: price_yes must follow FR-14.1"
+        "price-index witness: price_yes must follow FR-14.1"
     );
 
     // Replay determinism (Art.0.2): repeated calls return identical output.
     assert_eq!(
         compute_price_index(&econ),
         idx,
-        "FC3-N42: compute_price_index must be replay-deterministic"
+        "price-index witness: compute_price_index must be replay-deterministic"
     );
 }
 
@@ -457,21 +541,21 @@ fn fc2_n28_mask_set_publication_witness() {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// TB-14 Atom 5 — FC2-N29 (boltzmann_select_parent_v2) witness.
-// TRACE_MATRIX FC2-N29 maps to src/sdk/actor.rs::boltzmann_select_parent_v2
+// TB-14 Atom 5 — boltzmann_select_parent_v2 support witness.
+// Derived matrix maps this to src/sdk/actor.rs::boltzmann_select_parent_v2
 // (architect §5.5 SG-14.4 + SG-14.5 + charter §3 Atom 5). Integer-rational
 // argmax + epsilon-greedy; mask_set read-view filter; predicate-blind by
 // type signature (Option<TxId>, no acceptance verdict).
 // ───────────────────────────────────────────────────────────────────────
 
 #[test]
-fn fc2_n29_boltzmann_select_parent_v2_witness() {
+fn support_boltzmann_select_parent_v2_witness() {
     use rand::SeedableRng;
     use std::collections::{BTreeMap, BTreeSet};
     use turingosv4::sdk::actor::boltzmann_select_parent_v2;
     use turingosv4::state::{BoltzmannMaskPolicy, NodeMarketEntry, RationalPrice, TxId};
 
-    // FC2-N29 (a): with epsilon=0, v2 picks the argmax candidate.
+    // Support witness (a): with epsilon=0, v2 picks the argmax candidate.
     let mut price_index: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
     price_index.insert(
         TxId("low_node".into()),
@@ -504,10 +588,10 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
     assert_eq!(
         pick,
         Some(TxId("high_node".into())),
-        "FC2-N29: argmax selection picks highest price_yes"
+        "boltzmann_select_parent_v2: argmax selection picks highest price_yes"
     );
 
-    // FC2-N29 (b): mask_set filters out candidates.
+    // Support witness (b): mask_set filters out candidates.
     let mut mask_high: BTreeSet<TxId> = BTreeSet::new();
     mask_high.insert(TxId("high_node".into()));
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
@@ -515,10 +599,10 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
     assert_eq!(
         pick,
         Some(TxId("low_node".into())),
-        "FC2-N29: mask_set filter removes high_node from candidates"
+        "boltzmann_select_parent_v2: mask_set filter removes high_node from candidates"
     );
 
-    // FC2-N29 (c): determinism under fixed seed.
+    // Support witness (c): determinism under fixed seed.
     let run1: Vec<Option<TxId>> = {
         let mut rng = rand::rngs::StdRng::seed_from_u64(99);
         (0..30)
@@ -547,21 +631,21 @@ fn fc2_n29_boltzmann_select_parent_v2_witness() {
     };
     assert_eq!(
         run1, run2,
-        "FC2-N29: boltzmann_select_parent_v2 deterministic under fixed seed"
+        "boltzmann_select_parent_v2 deterministic under fixed seed"
     );
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// TB-15 — FC1-N32 + FC1-N33 + FC2-N30 + FC3-N43 witnesses.
+// TB-15 — autopsy, clustering, and Markov support witnesses.
 // Architect §6.2 ruling 2026-05-02 + 2026-05-03. Lamarckian Autopsy +
 // Markov EvidenceCapsule.
 // ───────────────────────────────────────────────────────────────────────
 
-/// FC1-N32 (TB-15 Atom 2): write_autopsy_capsule writer surface exists +
+/// TB-15 Atom 2: write_autopsy_capsule writer surface exists +
 /// is callable; capsule.capsule_id is sha256-derived (deterministic);
 /// privacy default = AuditOnly. Witness for src/runtime/autopsy_capsule.rs.
 #[test]
-fn fc1_n32_write_autopsy_capsule_witness() {
+fn support_write_autopsy_capsule_witness() {
     use std::sync::{Arc, RwLock};
     use tempfile::TempDir;
     use turingosv4::bottom_white::cas::schema::Cid;
@@ -588,17 +672,17 @@ fn fc1_n32_write_autopsy_capsule_witness() {
         1,
         0,
     )
-    .expect("FC1-N32: writer must succeed");
+    .expect("autopsy capsule writer must succeed");
     assert_ne!(cap.capsule_id, Cid::default());
     assert_eq!(cap.capsule_id.0, cap.sha256.0);
     assert_eq!(cap.privacy_policy, CapsulePrivacyPolicy::AuditOnly);
 }
 
-/// FC1-N33 (TB-15 Atom 3): derive_autopsies_for_bankruptcy is a pure
+/// TB-15 Atom 3: derive_autopsies_for_bankruptcy is a pure
 /// deterministic helper consumed by both the dispatch arm + apply_one
 /// hook. Witness: same inputs → same Cids.
 #[test]
-fn fc1_n33_derive_autopsies_witness() {
+fn support_derive_autopsies_witness() {
     use turingosv4::economy::money::MicroCoin;
     use turingosv4::runtime::autopsy_capsule::derive_autopsies_for_bankruptcy;
     use turingosv4::state::q_state::{AgentId, EconomicState, StakeEntry, TaskId, TxId};
@@ -623,15 +707,15 @@ fn fc1_n33_derive_autopsies_witness() {
     assert_eq!(a.len(), 1);
     assert_eq!(
         a[0].capsule.capsule_id, b[0].capsule.capsule_id,
-        "FC1-N33: deterministic Cid"
+        "derive_autopsies_for_bankruptcy: deterministic Cid"
     );
 }
 
-/// FC2-N30 (TB-15 Atom 4): cluster_autopsies pure aggregator. Witness:
+/// TB-15 Atom 4: cluster_autopsies pure aggregator. Witness:
 /// 3 same-class autopsies → 1 TypicalErrorSummary (architect §3.2.3
 /// threshold). Output uses public_summary text + capsule_id Cids only.
 #[test]
-fn fc2_n30_cluster_autopsies_witness() {
+fn support_cluster_autopsies_witness() {
     use turingosv4::bottom_white::cas::schema::Cid;
     use turingosv4::economy::money::MicroCoin;
     use turingosv4::runtime::autopsy_capsule::{
@@ -658,15 +742,19 @@ fn fc2_n30_cluster_autopsies_witness() {
     };
     let autopsies = vec![mk("A"), mk("B"), mk("C")];
     let summaries = cluster_autopsies(&autopsies, 3);
-    assert_eq!(summaries.len(), 1, "FC2-N30: 3 same-class → 1 broadcast");
+    assert_eq!(
+        summaries.len(),
+        1,
+        "cluster_autopsies: 3 same-class -> 1 broadcast"
+    );
     assert_eq!(summaries[0].count, 3);
 }
 
-/// FC3-N43 (TB-15 Atom 5): MarkovEvidenceCapsule + writer + default-deny
+/// TB-15 Atom 5: MarkovEvidenceCapsule + writer + default-deny
 /// gate witness. Capsule references constitution_hash (SG-15.7);
 /// deep-history default-deny without override (FR-15.5 + halt-trigger #6).
 #[test]
-fn fc3_n43_markov_capsule_witness() {
+fn support_markov_capsule_witness() {
     use turingosv4::runtime::markov_capsule::{
         try_deep_history_read_with_override_check, MarkovEvidenceCapsule, MarkovGenError,
     };
@@ -678,7 +766,7 @@ fn fc3_n43_markov_capsule_witness() {
     // FR-15.5 + halt-trigger #6: default-deny without override.
     match try_deep_history_read_with_override_check(false) {
         Err(MarkovGenError::DeepHistoryReadDenied) => {}
-        other => panic!("FC3-N43: expected DeepHistoryReadDenied; got {other:?}"),
+        other => panic!("Markov deep-history gate: expected DeepHistoryReadDenied; got {other:?}"),
     }
     assert!(try_deep_history_read_with_override_check(true).is_ok());
 }

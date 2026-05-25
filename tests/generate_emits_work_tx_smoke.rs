@@ -418,6 +418,33 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         "each N=3 worker must have its own ProposalTelemetry CID; got {proposal_cids:?}"
     );
     let mut artifact_cids = Vec::new();
+    for (_, tx) in &work_pairs {
+        let TypedTx::Work(work) = tx else {
+            panic!("Work ledger entry did not decode as TypedTx::Work");
+        };
+        assert!(
+            work.read_set
+                .iter()
+                .any(|key| key.0 == format!("cas.proposal_telemetry:{}", work.proposal_cid.hex())),
+            "real generate WorkTx.read_set must bind its ProposalTelemetry CAS object, got {:?}",
+            work.read_set
+        );
+        assert!(
+            work.write_set.iter().any(|key| {
+                key.0.starts_with(&format!(
+                    "task_output:{}:{}:",
+                    work.task_id.0, work.agent_id.0
+                ))
+            }),
+            "real generate WorkTx.write_set must name the task/agent output target, got {:?}",
+            work.write_set
+        );
+        assert!(
+            work.read_set.iter().all(|key| key.0 != "k.read")
+                && work.write_set.iter().all(|key| key.0 != "k.write"),
+            "real generate WorkTx must not carry synthetic fixture read/write placeholders"
+        );
+    }
     for cid_hex in &proposal_cids {
         let mut bytes = [0u8; 32];
         for (i, byte_pair) in cid_hex.as_bytes().chunks(2).enumerate() {
@@ -823,6 +850,28 @@ fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
     };
     assert_eq!(work.agent_id, AgentId("worker-alpha".into()));
     assert_eq!(work.task_id, TaskId("pr1-default".into()));
+    assert!(
+        work.read_set
+            .iter()
+            .any(|key| key.0 == format!("cas.proposal_telemetry:{}", work.proposal_cid.hex())),
+        "rejected real WorkTx.read_set must bind its ProposalTelemetry CAS object, got {:?}",
+        work.read_set
+    );
+    assert!(
+        work.write_set.iter().any(|key| {
+            key.0.starts_with(&format!(
+                "task_output:{}:{}:",
+                work.task_id.0, work.agent_id.0
+            ))
+        }),
+        "rejected real WorkTx.write_set must name the task/agent output target, got {:?}",
+        work.write_set
+    );
+    assert!(
+        work.read_set.iter().all(|key| key.0 != "k.read")
+            && work.write_set.iter().all(|key| key.0 != "k.write"),
+        "rejected real WorkTx must not carry synthetic fixture read/write placeholders"
+    );
     assert_nonzero_agent_signature(work.signature, "rejected WorkTx.signature");
 
     let telemetry = read_proposal_telemetry(&cas, &work.proposal_cid)
