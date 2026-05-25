@@ -712,6 +712,11 @@ authority = "OBL-005 LiveNow probes: typed FC1 L4/L4.E path, FC2 boot/replay/res
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_fc3_closure"
+authority = "TB-FLOWCHART-FC3-CLOSURE v2 APPROVED-FC3-v2-ALL-IN-ONE: FC3 feedback/re-init typed L4 + CAS + replay closure"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"

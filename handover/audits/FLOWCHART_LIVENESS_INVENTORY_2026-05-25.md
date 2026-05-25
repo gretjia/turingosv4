@@ -5,10 +5,10 @@ Authority:
 - FC2: `constitution.md:571-660`
 - FC3: `constitution.md:826-870`
 
-This is an audit artifact, not a closure certificate. `OBL-005` remains
-blocked until missing production paths are implemented or constitutionally
-superseded. Status values used here are only:
-`LIVE`, `PARTIAL`, `MISSING`, `EXTERNAL_ONLY`, `STRUCTURAL_ONLY`.
+This is an audit artifact, not a replacement constitution. `OBL-005` closes
+only when the listed production paths are implemented, replay-verified, and
+kept green by constitution gates. Status values used here are only:
+`LIVE`, `PARTIAL`, `MISSING`, `STRUCTURAL_ONLY`.
 
 ## FC1 Runtime Loop
 
@@ -36,11 +36,11 @@ superseded. Status values used here are only:
 | Anchor | Status | Current production evidence | Missing path |
 |---|---:|---|---|
 | constitution and logs read-only boundary | PARTIAL | Trust-root verification, raw-log shielding tests, CAS-backed capsules | typed runtime boundary for all tool/log interactions still needs stronger live proof |
-| Veto-AI role | EXTERNAL_ONLY | clean-context audit artifacts in `handover/audits` | no in-process Veto-AI runtime role |
-| ArchitectAI role | EXTERNAL_ONLY | directives and charters in `handover/directives` / `handover/tracer_bullets` | no in-process ArchitectAI runtime role |
+| Veto-AI role | LIVE | `VetoDecisionTx` / `TxKind::VetoDecision = 25`, `VetoDecisionCapsule` schema `fc3.veto_decision.v1`, deterministic runtime verdict `{PASS,VETO}`, constitution mutation veto and commit-block test | none for typed runtime Veto-AI verdict path |
+| ArchitectAI role | LIVE | `ArchitectProposalTx` / `TxKind::ArchitectProposal = 24` + `ArchitectCommitTx` / `TxKind::ArchitectCommit = 26`, proposal/commit CAS capsules, PASS-only commit path, replay verification | none for typed runtime proposal/veto/commit path |
 | tools-to-log typed boundary | PARTIAL | typed tx admission and L4/L4.E writers | need direct liveness probe proving tools cannot mutate outside tape/log path |
-| logs feedback to ArchitectAI | MISSING | external human/orchestrator loop only | implement runtime feedback loop or explicitly externalize in constitution |
-| error to re-init semantics | MISSING | immediate-abort and resume paths exist separately | no production in-process re-init loop |
+| logs feedback to ArchitectAI | LIVE | `LogFeedbackArchiveTx` / `TxKind::LogFeedbackArchive = 21` is system-emitted to L4, binds L4/L4.E/CAS/constitution roots, stores `ArchitectFeedbackCapsule` in CAS under schema `fc3.architect_feedback.v1`, rejects agent ingress, replays, and feeds runtime `ArchitectProposalTx` in `tests/constitution_fc3_closure.rs` | none for the typed tape-visible feedback-to-proposal edge |
+| error to re-init semantics | LIVE | `ReinitRequestTx` / `ReinitBootTx` are system-emitted to L4, bind an ErrorHalt `TerminalSummaryTx` trigger, store `ReinitReasonCapsule` in CAS under schema `fc3.reinit_reason.v1`, recompute replayed boot state root, and never rewrite old evidence | none for the typed tape-visible re-init edge |
 
 ## Extra Functionality Classification
 
@@ -60,11 +60,20 @@ superseded. Status values used here are only:
 Expected current green path:
 
 ```bash
+cargo test --test constitution_fc3_closure
 cargo test --test constitution_flowchart_source_alignment
 cargo test --test constitution_flowchart_livenow
 cargo test --test constitution_matrix_drift
 cargo test --test fc_alignment_conformance
 ```
+
+The FC3 closure probe currently contains 12 tests:
+- FC3 typed tx discriminants are tail-only
+- FC3 feedback is system-only, L4/CAS-bound, shielded, and replay-verified
+- FC3 runtime ArchitectAI/Veto-AI proposal, PASS, commit, veto, and commit
+  retarget rejection are typed, CAS-bound, and replay-visible
+- FC3 re-init links ErrorHalt to request and boot acknowledgement without
+  evidence rewrite
 
 The LiveNow probe currently contains 7 tests:
 - FC1 typed WorkTx routes to L4 or L4.E

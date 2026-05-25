@@ -454,7 +454,14 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         // q.predicate_registry_root_t and state_root_t.
         | TypedTx::PredicateBindingActivate(_)
         // FC2 map-reduce tick mutates only q_t.current_round and state_root_t.
-        | TypedTx::MapReduceTick(_) => Ok(()),
+        | TypedTx::MapReduceTick(_)
+        // FC3 feedback/re-init txs mutate only state_root_t; no economic holdings move.
+        | TypedTx::LogFeedbackArchive(_)
+        | TypedTx::ArchitectProposal(_)
+        | TypedTx::VetoDecision(_)
+        | TypedTx::ArchitectCommit(_)
+        | TypedTx::ReinitRequest(_)
+        | TypedTx::ReinitBoot(_) => Ok(()),
     }
 }
 

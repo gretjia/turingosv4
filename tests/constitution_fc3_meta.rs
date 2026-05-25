@@ -231,69 +231,32 @@ fn fc3_no_automatic_predicate_mutation() {
     }
 }
 
-/// FC3-INV7 — ArchitectAI proposes; does NOT directly write. Architect
-/// changes land via `handover/directives/*.md` + TB charters; direct
-/// `git commit` to src/ from the architect role is forbidden. We
-/// enforce by structural artifact: directives must accompany src/
-/// changes during a TB.
+/// FC3-INV7 — ArchitectAI proposes and commits only through typed runtime
+/// meta transactions guarded by Veto-AI. Direct handover/directive trails may
+/// still exist for development, but they no longer count as FC3 node coverage.
 #[test]
 fn fc3_architectai_proposal_not_direct_write() {
-    // Verify directives/ exists and contains TB-anchored architect rulings.
-    let dir_path = "handover/directives";
-    assert!(
-        Path::new(dir_path).exists(),
-        "FC3-INV7 violation: handover/directives/ missing — architect \
-         proposal trail un-anchored."
-    );
-    let entries = std::fs::read_dir(dir_path).expect("dir readable");
-    let directive_count = entries
-        .flatten()
-        .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
-        .count();
-    // We expect ≥10 architect directives by mid-2026 (TB-1..TB-18R + TBC0).
-    assert!(
-        directive_count >= 10,
-        "FC3-INV7 violation: directives count is {directive_count}; \
-         expected ≥10 (TB-1..TB-18R + TBC0). Architect-proposal trail \
-         is shrinking unexpectedly."
-    );
-
-    // The TB-C0 directive specifically must exist.
-    let tbc0_directive =
-        "handover/directives/2026-05-06_TBC0_CONSTITUTION_LANDING_RESET_DIRECTIVE.md";
-    assert!(
-        Path::new(tbc0_directive).exists(),
-        "FC3-INV7 violation: {tbc0_directive} missing — TB-C0 architect \
-         directive un-anchored."
-    );
+    let typed_tx = include_str!("../src/state/typed_tx.rs");
+    let sequencer = include_str!("../src/state/sequencer.rs");
+    assert!(typed_tx.contains("pub struct ArchitectProposalTx"));
+    assert!(typed_tx.contains("pub struct ArchitectCommitTx"));
+    assert!(sequencer.contains("SystemEmitCommand::ArchitectProposal"));
+    assert!(sequencer.contains("SystemEmitCommand::ArchitectCommit"));
+    assert!(sequencer.contains("ArchitectCommitBlockedByVeto"));
+    assert!(!typed_tx.contains("ExternalOnly"));
 }
 
-/// FC3-INV8 — Veto-AI is veto-only. The external clean-context audit
-/// flow produces verdict (PASS / VETO) without committing
-/// code. We verify by structural artifact: handover/audits/ contains
-/// audit reports but no audit-authored src/ commits.
+/// FC3-INV8 — Veto-AI is veto-only. The runtime tx surface carries the
+/// two-valued verdict and deterministic reason code, but no patch/code body.
 #[test]
 fn fc3_veto_ai_veto_only() {
-    let audits_dir = "handover/audits";
-    assert!(
-        Path::new(audits_dir).exists(),
-        "FC3-INV8 violation: handover/audits/ missing — Veto-AI \
-         verdict trail un-anchored."
-    );
-    // Audit reports follow the current single clean-context Codex witness
-    // doctrine. Historical dual-audit artifacts may remain on disk, but they
-    // are not counted as current Veto-AI evidence.
-    let entries = std::fs::read_dir(audits_dir).expect("dir readable");
-    let audit_count = entries
-        .flatten()
-        .filter(|e| {
-            let name = e.file_name().to_string_lossy().to_ascii_uppercase();
-            name.contains("CODEX") && name.contains("AUDIT")
-        })
-        .count();
-    assert!(
-        audit_count >= 3,
-        "FC3-INV8 violation: <3 audit reports in handover/audits/ — \
-         Veto-AI verdict trail too sparse to demonstrate veto-only role."
-    );
+    let typed_tx = include_str!("../src/state/typed_tx.rs");
+    let sequencer = include_str!("../src/state/sequencer.rs");
+    assert!(typed_tx.contains("pub struct VetoDecisionTx"));
+    assert!(typed_tx.contains("pub enum VetoVerdict"));
+    assert!(typed_tx.contains("Pass = 0"));
+    assert!(typed_tx.contains("Veto = 1"));
+    assert!(!typed_tx.contains("quality_score"));
+    assert!(!typed_tx.contains("performance_score"));
+    assert!(sequencer.contains("deterministic_veto_ai_verdict"));
 }

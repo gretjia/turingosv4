@@ -1,18 +1,21 @@
-# TB-FLOWCHART-FC3-CLOSURE — Class 4 Charter v2
+# TB-FLOWCHART-FC3-CLOSURE — Class 4 Charter v3
 
 Date: 2026-05-25
 Risk class: Class 4
-Status: DRAFT — FC3-only follow-up, not yet §8-ratified
+Status: §8 RATIFIED — user selected `APPROVED-FC3-v2-ALL-IN-ONE` on 2026-05-25, then explicitly amended the atom to require runtime ArchitectAI/Veto-AI closure
 Source of truth: `constitution.md` only
 User obligation: OBL-005
 Baseline: `origin/main` after PR #142 FC2 tick and PR #143 FC1 rtool/input
 
-This v2 supersedes the v1 FC2+FC3 combined draft. FC2 map-reduce tick is now
+This v3 supersedes the v1 FC2+FC3 combined draft. FC2 map-reduce tick is now
 LIVE on main through `MapReduceTickTx`, boot emission, and replay prefix
-verification. The only remaining constitutional flowchart liveness blockers
-are FC3:
+verification. v3 preserves the v2 feedback/re-init contract and adds the
+runtime meta-role closure required by the user after reviewing the
+constitution's FC3 subgraph:
 
 - `logs -> feedback -> architectAI`
+- `constitution -->|abide| vetoAI & architectAI`
+- `vetoAI -->|veto| architectAI`
 - `init -> error -> re-init -> boot`
 
 This charter does not change `constitution.md`, does not change canonical
@@ -47,12 +50,14 @@ The current mainline has strong substrate:
 - agent ingress rejection for system txs
 - FC2 boot-visible `PredicateBindingActivate + MapReduceTick`
 
-The current mainline does not have FC3 typed transitions:
+The pre-v3 mainline did not have FC3 typed transitions:
 
 - no `LogFeedbackArchiveTx` / `MetaFeedbackTx` / equivalent typed tx
 - no `ReinitRequestTx` / `ReinitBootTx`
-- no `TxKind` discriminants after `MapReduceTick = 20`
+- no runtime `ArchitectProposalTx` / `VetoDecisionTx` / `ArchitectCommitTx`
+- no FC3 `TxKind` discriminants after `MapReduceTick = 20`
 - no `SystemEmitCommand` for FC3 feedback or re-init
+- no `SystemEmitCommand` for ArchitectAI/Veto-AI proposal, veto, or commit
 - no replay validation of FC3 feedback/re-init prefix roots
 - ignored tests still reserve ArchitectAI/Veto-AI runtime and in-process
   re-init as deferred placeholders
@@ -75,11 +80,17 @@ The closure is tape-first and minimal:
 - ArchitectAI feedback is proposal/input evidence, not direct authority to
   mutate constitution, QState, predicate registry, or tools.
 
-The atom should add exactly the typed surfaces needed for two edges:
+The atom should add exactly the typed surfaces needed for the live FC3
+subgraph:
 
 1. **FC3-FEEDBACK** — log archive feedback becomes a typed, replayable input
    to ArchitectAI.
-2. **FC3-REINIT** — error-triggered re-init request and boot acknowledgement
+2. **FC3-RUNTIME-META-ROLES** — ArchitectAI proposals, Veto-AI decisions, and
+   ArchitectAI commits become system-only typed L4 transitions. Veto-AI is not
+   an external audit session; it is deterministic runtime logic that checks the
+   proposal capsule against the constitution boundary and records PASS/VETO on
+   ChainTape.
+3. **FC3-REINIT** — error-triggered re-init request and boot acknowledgement
    become typed, replayable facts.
 
 If implementation needs a new `QState` top-level field or a new CAS
@@ -106,8 +117,7 @@ pub enum TxKind {
 
 #[repr(u8)]
 pub enum MetaRoleMode {
-    ExternalOnly = 0,
-    Runtime = 1,
+    Runtime = 0,
 }
 
 #[repr(u8)]
@@ -174,11 +184,46 @@ Rules:
   pre-candidate L4/L4.E/CAS/constitution roots.
 - The prefix boundary excludes the candidate `LogFeedbackArchiveTx` payload
   itself.
-- `role_mode = ExternalOnly` is allowed for this atom, but it must be honest:
-  it means the tx makes the FC3 edge tape-visible while the actual language
-  model role remains outside the Rust runtime.
+- `role_mode` is runtime-only. The atom must not encode ArchitectAI/Veto-AI as
+  an external governance process, clean-context audit, PR review, handover
+  note, or human operator ceremony.
 
-### 4.2 FC3 Re-init
+### 4.2 FC3 Runtime Meta-Roles
+
+```rust
+pub enum TypedTx {
+    // Existing variants unchanged.
+    ArchitectProposal(ArchitectProposalTx),
+    VetoDecision(VetoDecisionTx),
+    ArchitectCommit(ArchitectCommitTx),
+}
+
+#[repr(u8)]
+pub enum TxKind {
+    // Existing discriminants unchanged.
+    ArchitectProposal = 24,
+    VetoDecision = 25,
+    ArchitectCommit = 26,
+}
+```
+
+Rules:
+
+- `ArchitectProposalTx` must point to a prior accepted
+  `LogFeedbackArchiveTx`.
+- `VetoDecisionTx` must point to a prior accepted `ArchitectProposalTx` and
+  replay must recompute the same deterministic Veto-AI verdict.
+- `ArchitectCommitTx` must point to a prior accepted `VetoDecisionTx` and must
+  be rejected if the verdict is VETO.
+- `ArchitectCommitTx` must also reload the Veto-AI-approved proposal capsule
+  and require the commit capsule's `target_path` and `applied_artifact_cid` to
+  match the approved proposal's `target_path` and `proposed_artifact_cid`.
+  A passed benign proposal must not authorize a retargeted commit.
+- The runtime Veto-AI path may be conservative and deterministic; it must not
+  call an external LLM, shell command, wall clock, env var, or PR/audit
+  process.
+
+### 4.3 FC3 Re-init
 
 ```rust
 pub enum TypedTx {
@@ -258,7 +303,7 @@ Rules:
 - Re-init never rewrites old genesis, old L4, old L4.E, old CAS, or old
   trust-root history.
 
-### 4.3 System Emit Contract
+### 4.4 System Emit Contract
 
 ```rust
 pub enum SystemEmitCommand {
@@ -266,6 +311,18 @@ pub enum SystemEmitCommand {
         feedback_capsule_cid: Cid,
         role_mode: MetaRoleMode,
         veto_verdict: VetoVerdict,
+    },
+    ArchitectProposal {
+        feedback_tx_id: TxId,
+        proposal_capsule_cid: Cid,
+    },
+    VetoDecision {
+        proposal_tx_id: TxId,
+        decision_capsule_cid: Cid,
+    },
+    ArchitectCommit {
+        veto_tx_id: TxId,
+        commit_capsule_cid: Cid,
     },
     ReinitRequest {
         trigger_entry: u64,
@@ -306,16 +363,19 @@ Non-restricted or lower-risk surfaces likely touched:
 
 Implementation must add:
 
-- tail `TxKind` discriminants 21, 22, 23 only
+- tail `TxKind` discriminants 21, 22, 23, 24, 25, 26 only
 - `TypedTx` variants and `tx_kind()` projections
 - signing payloads and canonical digest tests
 - `CanonicalMessage` variants and system signer helpers
 - `TransitionError` variants for invalid capsule/schema, prefix mismatch,
-  logical-time mismatch, request lookup failure, and replayed-root mismatch
+  logical-time mismatch, request lookup failure, replayed-root mismatch,
+  proposal/veto/commit lookup failure, and veto-blocked commit
 - `submit_agent_tx` forbidden-system-tx coverage
 - `SystemEmitCommand` construction and signature verification
 - live `apply_one` prefix/CAS verification
 - replay verification using the same prefix/CAS formulas
+- runtime deterministic Veto-AI verification for `VetoDecisionTx`
+- runtime ArchitectAI proposal/commit ChainTape/CAS binding
 
 ## 6. Required Tests
 
@@ -341,6 +401,9 @@ Required scenarios:
 - `fc3_agent_ingress_rejects_meta_txs`
 - `fc3_architect_feedback_is_not_plain_handover_or_latest`
 - `fc3_architect_feedback_read_view_is_shielded`
+- `fc3_runtime_architect_veto_pass_allows_approved_commit`
+- `fc3_runtime_passed_proposal_cannot_be_retargeted_at_commit`
+- `fc3_runtime_veto_blocks_constitution_mutation_commit`
 - `fc3_error_reinit_request_links_errorhalt_to_next_boot`
 - `fc3_reinit_boot_recomputes_replayed_state_root`
 - `fc3_reinit_no_rewrite_old_evidence`
@@ -360,6 +423,9 @@ Abort and revise if any of these become necessary:
 - adding a `QState` top-level field without a revised §8
 - adding a CAS `ObjectType` without a revised §8
 - claiming pre-trust-root boot failure is on tape
+- claiming ArchitectAI or Veto-AI closure through an external agent session,
+  PR review, handover document, or human governance ceremony instead of typed
+  runtime ChainTape/CAS facts
 - rewriting old genesis, L4, L4.E, CAS, or trust-root history
 
 ## 8. Old Session Practice Ingestion Rule
@@ -380,28 +446,33 @@ Any useful practice from that thread must pass through the same filter:
 The previous user selection `APPROVED-SPLIT-FC2-FIRST` is fully consumed by
 PR #142. It does not authorize this FC3 atom.
 
-The user/architect must sign exactly one option before implementation:
+The user/architect first selected FC3-v2 all-in-one, then explicitly corrected
+the scope: ArchitectAI and Veto-AI are drawn inside the InitAI/FC3 subgraph and
+must be implemented inside TuringOS runtime, not delegated to external agents,
+audit sessions, or PR process.
 
 ```text
-[ ] APPROVED-FC3-v2-ALL-IN-ONE — implement FC3-FEEDBACK + FC3-REINIT in one Class 4 PR.
+[x] APPROVED-FC3-v3-ALL-IN-ONE — implement FC3-FEEDBACK + FC3-RUNTIME-META-ROLES + FC3-REINIT in one Class 4 PR.
+[x] APPROVED-FC3-v2-ALL-IN-ONE — superseded by the user's runtime ArchitectAI/Veto-AI amendment.
 [ ] APPROVED-FC3-v2-FEEDBACK-FIRST — implement LogFeedbackArchive first; re-init remains blocked.
 [ ] APPROVED-FC3-v2-REINIT-FIRST — implement ReinitRequest/ReinitBoot first; feedback remains blocked.
 [ ] DEFER — keep OBL-005 blocked; no FC3 implementation.
-[ ] REVISE-v3 — return with modifications before §8.
+[ ] REVISE-v4 — return with modifications before §8.
 ```
 
-Recommended option: `APPROVED-FC3-v2-ALL-IN-ONE`.
+Selected option: `APPROVED-FC3-v3-ALL-IN-ONE`.
 
-Rationale: FC3 feedback and re-init share the same roots, CAS capsule checks,
-system-only signing, and replay validation pattern. Splitting them creates two
-rounds of restricted-surface churn while leaving OBL-005 blocked between PRs.
+Rationale: FC3 feedback, runtime ArchitectAI/Veto-AI, and re-init share the
+same roots, CAS capsule checks, system-only signing, and replay validation
+pattern. Splitting them creates repeated restricted-surface churn while leaving
+OBL-005 blocked between PRs.
 
 Sign-off line:
 
 ```text
-Option selected: ______________________________
-Signed by: ____________________________________
-Date signed: __________________________________
+Option selected: APPROVED-FC3-v3-ALL-IN-ONE
+Signed by: user / architect in Codex thread
+Date signed: 2026-05-25
 ```
 
 ## 10. Read-Only Research Witnesses

@@ -279,6 +279,18 @@ pub enum CanonicalMessage {
     /// FC2 map-reduce tick signing payload digest. Opaque [u8; 32] from
     /// `MapReduceTickTx::to_signing_payload().canonical_digest()`.
     MapReduceTickSigning([u8; 32]),
+    /// FC3 feedback archive signing payload digest. Opaque [u8; 32].
+    LogFeedbackArchiveSigning([u8; 32]),
+    /// FC3 runtime ArchitectAI proposal signing payload digest. Opaque [u8; 32].
+    ArchitectProposalSigning([u8; 32]),
+    /// FC3 runtime Veto-AI decision signing payload digest. Opaque [u8; 32].
+    VetoDecisionSigning([u8; 32]),
+    /// FC3 runtime ArchitectAI commit signing payload digest. Opaque [u8; 32].
+    ArchitectCommitSigning([u8; 32]),
+    /// FC3 re-init request signing payload digest. Opaque [u8; 32].
+    ReinitRequestSigning([u8; 32]),
+    /// FC3 re-init boot acknowledgement signing payload digest. Opaque [u8; 32].
+    ReinitBootSigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -542,6 +554,30 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"MapReduceTickSigning");
             h.update(digest);
         }
+        CanonicalMessage::LogFeedbackArchiveSigning(digest) => {
+            h.update(b"LogFeedbackArchiveSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::ArchitectProposalSigning(digest) => {
+            h.update(b"ArchitectProposalSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::VetoDecisionSigning(digest) => {
+            h.update(b"VetoDecisionSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::ArchitectCommitSigning(digest) => {
+            h.update(b"ArchitectCommitSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::ReinitRequestSigning(digest) => {
+            h.update(b"ReinitRequestSigning");
+            h.update(digest);
+        }
+        CanonicalMessage::ReinitBootSigning(digest) => {
+            h.update(b"ReinitBootSigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -722,6 +758,57 @@ pub(crate) mod terminal_summary_emitter {
         digest: [u8; 32],
     ) -> Result<SystemSignature, KeypairError> {
         sign_system_message_inner(keypair, &CanonicalMessage::MapReduceTickSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC3-N41 + FC3-N43: sign the system-only feedback archive transaction.
+    pub(crate) fn sign_log_feedback_archive(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(
+            keypair,
+            &CanonicalMessage::LogFeedbackArchiveSigning(digest),
+        )
+    }
+
+    /// TRACE_MATRIX FC3-N33: sign the system-only runtime ArchitectAI proposal transaction.
+    pub(crate) fn sign_architect_proposal(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::ArchitectProposalSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC3-N32/FC3-N43: sign the system-only runtime Veto-AI decision transaction.
+    pub(crate) fn sign_veto_decision(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::VetoDecisionSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC3-N33 + Art. V.1.2: sign the system-only approved ArchitectAI commit transaction.
+    pub(crate) fn sign_architect_commit(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::ArchitectCommitSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC3-N44: sign the system-only re-init request transaction.
+    pub(crate) fn sign_reinit_request(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::ReinitRequestSigning(digest))
+    }
+
+    /// TRACE_MATRIX FC3-N45: sign the system-only re-init boot acknowledgement transaction.
+    pub(crate) fn sign_reinit_boot(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::ReinitBootSigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

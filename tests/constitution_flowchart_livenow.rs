@@ -1,7 +1,8 @@
 //! Narrow LiveNow flowchart probes.
 //!
-//! These tests intentionally do not claim full FC1/FC2/FC3 liveness. They
-//! exercise only the production paths that are live today:
+//! These tests intentionally stay narrow. They exercise the FC1/FC2
+//! production paths that are live today; FC3 feedback/re-init closure lives in
+//! `tests/constitution_fc3_closure.rs`.
 //! - FC1 typed sequencer wtool to L4 and L4.E
 //! - FC1 real WorkTx provenance is CAS-bound, not synthetic fixture placeholders
 //! - FC1 rtool/input snapshot is derived from ChainTape + CAS-backed telemetry

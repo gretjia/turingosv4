@@ -168,6 +168,24 @@ pub enum TxKind {
     /// FC2 map-reduce tick — system-emitted, tape-visible clock advance.
     /// Tail-added so all existing discriminants remain byte-stable.
     MapReduceTick = 20,
+    /// FC3 feedback archive — system-emitted, tape-visible feedback edge from
+    /// logs/CAS to ArchitectAI/Veto-AI. Tail-added only.
+    LogFeedbackArchive = 21,
+    /// FC3 re-init request — system-emitted link from an ErrorHalt trigger to
+    /// a new boot profile. Tail-added only.
+    ReinitRequest = 22,
+    /// FC3 re-init boot acknowledgement — system-emitted proof of boot from an
+    /// accepted re-init request. Tail-added only.
+    ReinitBoot = 23,
+    /// FC3 runtime ArchitectAI proposal — system-emitted from an accepted
+    /// feedback archive. Tail-added only.
+    ArchitectProposal = 24,
+    /// FC3 runtime Veto-AI decision — system-emitted verdict on an
+    /// ArchitectAI proposal. Tail-added only.
+    VetoDecision = 25,
+    /// FC3 runtime ArchitectAI commit — system-emitted only after Veto-AI PASS.
+    /// Tail-added only.
+    ArchitectCommit = 26,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
@@ -318,6 +336,129 @@ pub fn map_reduce_tick_reduce_root(
     h.update(clock_t.to_be_bytes());
     h.update((tick_kind as u8).to_be_bytes());
     Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N39..N45: compile-time hash of the constitutional source
+/// text, used as FC3's axiom anchor. This reads `constitution.md` only as a
+/// Tier-1 axiom file; no handover, dashboard, stdout, or derived matrix is
+/// used as canonical input.
+pub fn constitution_source_hash() -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.constitution.md.v1");
+    h.update(include_bytes!("../../../constitution.md"));
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N41: root binding a feedback capsule to the pre-candidate
+/// L4/L4.E/CAS/constitution snapshot.
+pub fn fc3_feedback_root(
+    capsule_bytes: &[u8],
+    source_ledger_root: Hash,
+    source_l4_len: u64,
+    source_l4e_root: Hash,
+    source_l4e_len: u64,
+    cas_metadata_root: Hash,
+    constitution_hash: Hash,
+) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc3.feedback_root.v1");
+    h.update((capsule_bytes.len() as u64).to_be_bytes());
+    h.update(capsule_bytes);
+    h.update(source_ledger_root.0);
+    h.update(source_l4_len.to_be_bytes());
+    h.update(source_l4e_root.0);
+    h.update(source_l4e_len.to_be_bytes());
+    h.update(cas_metadata_root.0);
+    h.update(constitution_hash.0);
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N33: root binding an ArchitectAI proposal capsule to the
+/// feedback row, constitution, and active tool-registry root it observed.
+pub fn fc3_architect_proposal_root(
+    capsule_bytes: &[u8],
+    feedback_tx_id: &crate::state::q_state::TxId,
+    feedback_root: Hash,
+    constitution_hash: Hash,
+    tool_registry_root: Hash,
+) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc3.architect_proposal_root.v1");
+    h.update((capsule_bytes.len() as u64).to_be_bytes());
+    h.update(capsule_bytes);
+    h.update(feedback_tx_id.0.as_bytes());
+    h.update(feedback_root.0);
+    h.update(constitution_hash.0);
+    h.update(tool_registry_root.0);
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: root binding a Veto-AI decision capsule to
+/// the exact ArchitectAI proposal and constitution hash it evaluated.
+pub fn fc3_veto_decision_root(
+    capsule_bytes: &[u8],
+    proposal_tx_id: &crate::state::q_state::TxId,
+    proposal_root: Hash,
+    constitution_hash: Hash,
+) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc3.veto_decision_root.v1");
+    h.update((capsule_bytes.len() as u64).to_be_bytes());
+    h.update(capsule_bytes);
+    h.update(proposal_tx_id.0.as_bytes());
+    h.update(proposal_root.0);
+    h.update(constitution_hash.0);
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: root binding an approved ArchitectAI
+/// commit capsule to the prior proposal and Veto-AI decision.
+pub fn fc3_architect_commit_root(
+    capsule_bytes: &[u8],
+    proposal_tx_id: &crate::state::q_state::TxId,
+    veto_tx_id: &crate::state::q_state::TxId,
+    decision_root: Hash,
+    constitution_hash: Hash,
+) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc3.architect_commit_root.v1");
+    h.update((capsule_bytes.len() as u64).to_be_bytes());
+    h.update(capsule_bytes);
+    h.update(proposal_tx_id.0.as_bytes());
+    h.update(veto_tx_id.0.as_bytes());
+    h.update(decision_root.0);
+    h.update(constitution_hash.0);
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N41 + FC3-N44: deterministic CAS metadata root before a
+/// candidate logical_t. Candidate typed payloads are written at their ledger
+/// logical_t, so `< logical_t` excludes the candidate while preserving prior
+/// capsules/proofs.
+pub fn cas_metadata_root_before_logical_t(
+    cas: &crate::bottom_white::cas::store::CasStore,
+    logical_t: u64,
+) -> Result<Hash, crate::bottom_white::cas::store::CasError> {
+    cas_metadata_root_before_logical_t_excluding(cas, logical_t, &[])
+}
+
+/// TRACE_MATRIX FC3-N41: same as `cas_metadata_root_before_logical_t`, with
+/// explicit exclusions for a just-created capsule whose bytes themselves carry
+/// the source CAS root. This avoids a fixed-point payload/CID/root cycle.
+pub fn cas_metadata_root_before_logical_t_excluding(
+    cas: &crate::bottom_white::cas::store::CasStore,
+    logical_t: u64,
+    exclude: &[Cid],
+) -> Result<Hash, crate::bottom_white::cas::store::CasError> {
+    let mut index = BTreeMap::new();
+    for meta in cas.list()? {
+        if meta.created_at_logical_t < logical_t && !exclude.contains(&meta.cid) {
+            index.insert(meta.cid, meta);
+        }
+    }
+    Ok(Hash(
+        crate::bottom_white::cas::git_chain::merkle_root_for_index(&index),
+    ))
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -517,6 +658,22 @@ pub trait LedgerCasView {
         &self,
         cid: &crate::bottom_white::cas::schema::Cid,
     ) -> Result<Vec<u8>, ReplayError>;
+
+    fn cas_metadata_root_before_logical_t(&self, _logical_t: u64) -> Result<Hash, ReplayError> {
+        Err(ReplayError::CasMissing { at: 0 })
+    }
+
+    fn cas_metadata_root_before_logical_t_excluding(
+        &self,
+        logical_t: u64,
+        exclude: &[Cid],
+    ) -> Result<Hash, ReplayError> {
+        if exclude.is_empty() {
+            self.cas_metadata_root_before_logical_t(logical_t)
+        } else {
+            Err(ReplayError::CasMissing { at: 0 })
+        }
+    }
 }
 
 impl LedgerCasView for crate::bottom_white::cas::store::CasStore {
@@ -525,6 +682,61 @@ impl LedgerCasView for crate::bottom_white::cas::store::CasStore {
         cid: &crate::bottom_white::cas::schema::Cid,
     ) -> Result<Vec<u8>, ReplayError> {
         self.get(cid).map_err(|_| ReplayError::CasMissing { at: 0 })
+    }
+
+    fn cas_metadata_root_before_logical_t(&self, logical_t: u64) -> Result<Hash, ReplayError> {
+        cas_metadata_root_before_logical_t(self, logical_t)
+            .map_err(|_| ReplayError::CasMissing { at: 0 })
+    }
+
+    fn cas_metadata_root_before_logical_t_excluding(
+        &self,
+        logical_t: u64,
+        exclude: &[Cid],
+    ) -> Result<Hash, ReplayError> {
+        cas_metadata_root_before_logical_t_excluding(self, logical_t, exclude)
+            .map_err(|_| ReplayError::CasMissing { at: 0 })
+    }
+}
+
+/// TRACE_MATRIX FC3-N41 + FC3-N44: replay view for L4.E prefix roots.
+pub trait L4eReplayView {
+    fn prefix_root(&self, len: u64) -> Result<Hash, ReplayError>;
+    fn len(&self) -> u64;
+}
+
+#[derive(Debug, Default)]
+/// TRACE_MATRIX FC3-N41 + FC3-N44: empty L4.E replay view for legacy callers.
+pub struct EmptyL4eReplayView;
+
+impl L4eReplayView for EmptyL4eReplayView {
+    fn prefix_root(&self, len: u64) -> Result<Hash, ReplayError> {
+        if len == 0 {
+            Ok(Hash::ZERO)
+        } else {
+            Err(ReplayError::CasMissing { at: 0 })
+        }
+    }
+
+    fn len(&self) -> u64 {
+        0
+    }
+}
+
+impl L4eReplayView for crate::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter {
+    fn prefix_root(&self, len: u64) -> Result<Hash, ReplayError> {
+        if len == 0 {
+            return Ok(Hash::ZERO);
+        }
+        let idx = usize::try_from(len - 1).map_err(|_| ReplayError::CasMissing { at: 0 })?;
+        self.records()
+            .get(idx)
+            .map(|r| r.hash)
+            .ok_or(ReplayError::CasMissing { at: 0 })
+    }
+
+    fn len(&self) -> u64 {
+        self.len() as u64
     }
 }
 
@@ -581,10 +793,37 @@ pub fn replay_full_transition_with_predicate_binding(
     predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
     tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
 ) -> Result<crate::state::q_state::QState, ReplayError> {
+    replay_full_transition_with_predicate_binding_and_l4e(
+        genesis,
+        entries,
+        cas,
+        predicate_cas,
+        &EmptyL4eReplayView,
+        pinned_pubkeys,
+        predicate_registry,
+        tool_registry,
+    )
+}
+
+/// TRACE_MATRIX FC3-N41 + FC3-N44: replay L4 with both predicate registry and
+/// L4.E prefix view so FC3 feedback/re-init roots are checked against the
+/// actual rejection-evidence chain.
+#[allow(clippy::too_many_arguments)]
+pub fn replay_full_transition_with_predicate_binding_and_l4e(
+    genesis: &crate::state::q_state::QState,
+    entries: &[LedgerEntry],
+    cas: &dyn LedgerCasView,
+    predicate_cas: &dyn crate::top_white::predicates::registry::PredicateCasView,
+    l4e: &dyn L4eReplayView,
+    pinned_pubkeys: &crate::bottom_white::ledger::system_keypair::PinnedSystemPubkeys,
+    predicate_registry: &crate::top_white::predicates::registry::PredicateRegistry,
+    tool_registry: &crate::bottom_white::tools::registry::ToolRegistry,
+) -> Result<crate::state::q_state::QState, ReplayError> {
     use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
     use crate::state::sequencer::{
         dispatch_transition, event_resolve_signature_verifies_current_or_legacy, system_epoch_of,
-        system_message_for_verification, system_signature_of,
+        system_message_for_verification, system_signature_of, verify_fc3_feedback_prefix_context,
+        verify_fc3_reinit_boot_prefix_context, verify_fc3_reinit_request_prefix_context,
         verify_map_reduce_tick_prefix_context,
     };
 
@@ -667,6 +906,101 @@ pub fn replay_full_transition_with_predicate_binding(
         if let crate::state::typed_tx::TypedTx::MapReduceTick(t) = &typed_tx {
             verify_map_reduce_tick_prefix_context(&q, t, &entries[..i], entry.logical_t)
                 .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::LogFeedbackArchive(t) = &typed_tx {
+            let l4e_root =
+                l4e.prefix_root(t.source_l4e_len)
+                    .map_err(|_| {
+                        ReplayError::Transition {
+                    at: i,
+                    inner:
+                        crate::state::typed_tx::TransitionError::LogFeedbackArchivePrefixMismatch,
+                }
+                    })?;
+            let cas_root = cas
+                .cas_metadata_root_before_logical_t_excluding(
+                    entry.logical_t,
+                    &[t.feedback_capsule_cid],
+                )
+                .map_err(|_| ReplayError::Transition {
+                    at: i,
+                    inner:
+                        crate::state::typed_tx::TransitionError::LogFeedbackArchivePrefixMismatch,
+                })?;
+            verify_fc3_feedback_prefix_context(
+                &q,
+                t,
+                &entries[..i],
+                entry.logical_t,
+                l4e_root,
+                t.source_l4e_len,
+                cas_root,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::ArchitectProposal(t) = &typed_tx {
+            crate::state::sequencer::verify_fc3_architect_proposal_context(
+                &q,
+                t,
+                &entries[..i],
+                entry.logical_t,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::VetoDecision(t) = &typed_tx {
+            crate::state::sequencer::verify_fc3_veto_decision_context(
+                t,
+                &entries[..i],
+                entry.logical_t,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::ArchitectCommit(t) = &typed_tx {
+            crate::state::sequencer::verify_fc3_architect_commit_context(
+                t,
+                &entries[..i],
+                entry.logical_t,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::ReinitRequest(t) = &typed_tx {
+            let l4e_root =
+                l4e.prefix_root(t.source_l4e_len)
+                    .map_err(|_| ReplayError::Transition {
+                        at: i,
+                        inner: crate::state::typed_tx::TransitionError::ReinitRequestPrefixMismatch,
+                    })?;
+            let cas_root = cas
+                .cas_metadata_root_before_logical_t(entry.logical_t)
+                .map_err(|_| ReplayError::Transition {
+                    at: i,
+                    inner: crate::state::typed_tx::TransitionError::ReinitRequestPrefixMismatch,
+                })?;
+            verify_fc3_reinit_request_prefix_context(
+                &q,
+                t,
+                &entries[..i],
+                entry.logical_t,
+                l4e_root,
+                t.source_l4e_len,
+                cas_root,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
+        }
+        if let crate::state::typed_tx::TypedTx::ReinitBoot(t) = &typed_tx {
+            verify_fc3_reinit_boot_prefix_context(
+                &q,
+                t,
+                &entries[..i],
+                entry.logical_t,
+                predicate_cas,
+            )
+            .map_err(|inner| ReplayError::Transition { at: i, inner })?;
         }
 
         if let crate::state::typed_tx::TypedTx::EventResolve(t) = &typed_tx {

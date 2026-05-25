@@ -30,7 +30,10 @@ use crate::bottom_white::ledger::system_keypair::{
     transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    append, canonical_encode, map_reduce_tick_map_root, map_reduce_tick_reduce_root, LedgerEntry,
+    append, canonical_encode, cas_metadata_root_before_logical_t,
+    cas_metadata_root_before_logical_t_excluding, constitution_source_hash,
+    fc3_architect_commit_root, fc3_architect_proposal_root, fc3_feedback_root,
+    fc3_veto_decision_root, map_reduce_tick_map_root, map_reduce_tick_reduce_root, LedgerEntry,
     LedgerEntrySigningPayload, LedgerWriter, LedgerWriterError,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
@@ -38,10 +41,15 @@ use crate::economy::monetary_invariant::{
     assert_claim_amount_backed_by_escrow, assert_no_post_init_mint, assert_read_is_free,
     assert_task_market_total_escrow_matches_locks, assert_total_ctf_conserved,
 };
-use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry};
+use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry, TxId};
 use crate::state::typed_tx::{
-    BoolWithProof, HasSubmitter, MapReduceTickTx, PredicateId, SignalBundle, TransitionError,
-    TypedTx, WorkTx,
+    ArchitectCommitCapsule, ArchitectCommitTx, ArchitectFeedbackCapsule, ArchitectProposalCapsule,
+    ArchitectProposalKind, ArchitectProposalTx, BoolWithProof, BootProfileId, HasSubmitter,
+    LogFeedbackArchiveTx, MapReduceTickTx, MetaRoleMode, PredicateId, ReinitBootTx, ReinitReason,
+    ReinitReasonCapsule, ReinitRequestTx, SignalBundle, TransitionError, TypedTx,
+    VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict, WorkTx,
+    ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
+    REINIT_REASON_SCHEMA_ID, VETO_DECISION_SCHEMA_ID,
 };
 use crate::top_white::predicates::registry::{
     PredicateBundleMap, PredicateCasView, PredicateRegistry, PredicateRegistrySnapshotCapsule,
@@ -300,6 +308,79 @@ pub fn map_reduce_tick_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     Hash::from_bytes(digest)
 }
 
+/// TRACE_MATRIX FC3-N41 + FC3-N43: accept-state domain for feedback archive txs.
+pub(crate) const LOG_FEEDBACK_ARCHIVE_DOMAIN_V1: &[u8] =
+    b"turingosv4.log_feedback_archive.accept.v1";
+
+/// TRACE_MATRIX FC3-N41 + FC3-N43: compute accepted feedback archive state root.
+pub fn log_feedback_archive_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(LOG_FEEDBACK_ARCHIVE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N33: accept-state domain for runtime ArchitectAI proposals.
+pub(crate) const ARCHITECT_PROPOSAL_DOMAIN_V1: &[u8] = b"turingosv4.architect_proposal.accept.v1";
+
+/// TRACE_MATRIX FC3-N33: compute accepted ArchitectAI proposal state root.
+pub fn architect_proposal_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(ARCHITECT_PROPOSAL_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: accept-state domain for runtime Veto-AI decisions.
+pub(crate) const VETO_DECISION_DOMAIN_V1: &[u8] = b"turingosv4.veto_decision.accept.v1";
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: compute accepted Veto-AI decision state root.
+pub fn veto_decision_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(VETO_DECISION_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: accept-state domain for approved ArchitectAI commits.
+pub(crate) const ARCHITECT_COMMIT_DOMAIN_V1: &[u8] = b"turingosv4.architect_commit.accept.v1";
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: compute accepted ArchitectAI commit state root.
+pub fn architect_commit_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(ARCHITECT_COMMIT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N44: accept-state domain for re-init requests.
+pub(crate) const REINIT_REQUEST_DOMAIN_V1: &[u8] = b"turingosv4.reinit_request.accept.v1";
+
+/// TRACE_MATRIX FC3-N44: compute accepted re-init request state root.
+pub fn reinit_request_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(REINIT_REQUEST_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC3-N45: accept-state domain for re-init boot acknowledgements.
+pub(crate) const REINIT_BOOT_DOMAIN_V1: &[u8] = b"turingosv4.reinit_boot.accept.v1";
+
+/// TRACE_MATRIX FC3-N45: compute accepted re-init boot acknowledgement state root.
+pub fn reinit_boot_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(REINIT_BOOT_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    Hash::from_bytes(h.finalize().into())
+}
+
 /// TRACE_MATRIX TB-13 Atom 2 (architect 2026-05-03 post-TB-12 ruling Part A
 /// §4.3): CompleteSetMint-accept state-root domain.
 pub(crate) const COMPLETE_SET_MINT_DOMAIN_V1: &[u8] = b"turingosv4.complete_set_mint.accept.v1";
@@ -556,7 +637,33 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         | TE::PredicateBindingActivationLogicalTMismatch
         | TE::MapReduceTickLogicalTMismatch
         | TE::MapReduceTickPrefixMismatch
-        | TE::MapReduceTickClockMismatch => RC::PolicyViolation,
+        | TE::MapReduceTickClockMismatch
+        | TE::LogFeedbackArchiveLogicalTMismatch
+        | TE::LogFeedbackArchivePrefixMismatch
+        | TE::LogFeedbackArchiveCapsuleInvalid
+        | TE::LogFeedbackArchiveRootMismatch
+        | TE::ArchitectProposalLogicalTMismatch
+        | TE::ArchitectProposalFeedbackMissing
+        | TE::ArchitectProposalCapsuleInvalid
+        | TE::ArchitectProposalRootMismatch
+        | TE::VetoDecisionLogicalTMismatch
+        | TE::VetoDecisionProposalMissing
+        | TE::VetoDecisionCapsuleInvalid
+        | TE::VetoDecisionRootMismatch
+        | TE::VetoDecisionMismatch
+        | TE::ArchitectCommitLogicalTMismatch
+        | TE::ArchitectCommitVetoMissing
+        | TE::ArchitectCommitBlockedByVeto
+        | TE::ArchitectCommitCapsuleInvalid
+        | TE::ArchitectCommitRootMismatch
+        | TE::ReinitRequestLogicalTMismatch
+        | TE::ReinitRequestPrefixMismatch
+        | TE::ReinitRequestCapsuleInvalid
+        | TE::ReinitRequestTriggerMissing
+        | TE::ReinitRequestTriggerNotErrorHalt
+        | TE::ReinitBootRequestMissing
+        | TE::ReinitBootLogicalTMismatch
+        | TE::ReinitBootReplayedRootMismatch => RC::PolicyViolation,
         // TB-G G3.2 (2026-05-12): bankruptcy risk-cap admission rejection.
         // → PolicyViolation per CLAUDE.md §15 shielding low-pollution class
         // (architect §1.5 + packet §2.1). Distinct from
@@ -651,6 +758,74 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         }
         TransitionError::MapReduceTickClockMismatch => {
             Some("map_reduce_tick_clock_mismatch".into())
+        }
+        TransitionError::LogFeedbackArchiveLogicalTMismatch => {
+            Some("log_feedback_archive_logical_t_mismatch".into())
+        }
+        TransitionError::LogFeedbackArchivePrefixMismatch => {
+            Some("log_feedback_archive_prefix_mismatch".into())
+        }
+        TransitionError::LogFeedbackArchiveCapsuleInvalid => {
+            Some("log_feedback_archive_capsule_invalid".into())
+        }
+        TransitionError::LogFeedbackArchiveRootMismatch => {
+            Some("log_feedback_archive_root_mismatch".into())
+        }
+        TransitionError::ArchitectProposalLogicalTMismatch => {
+            Some("architect_proposal_logical_t_mismatch".into())
+        }
+        TransitionError::ArchitectProposalFeedbackMissing => {
+            Some("architect_proposal_feedback_missing".into())
+        }
+        TransitionError::ArchitectProposalCapsuleInvalid => {
+            Some("architect_proposal_capsule_invalid".into())
+        }
+        TransitionError::ArchitectProposalRootMismatch => {
+            Some("architect_proposal_root_mismatch".into())
+        }
+        TransitionError::VetoDecisionLogicalTMismatch => {
+            Some("veto_decision_logical_t_mismatch".into())
+        }
+        TransitionError::VetoDecisionProposalMissing => {
+            Some("veto_decision_proposal_missing".into())
+        }
+        TransitionError::VetoDecisionCapsuleInvalid => Some("veto_decision_capsule_invalid".into()),
+        TransitionError::VetoDecisionRootMismatch => Some("veto_decision_root_mismatch".into()),
+        TransitionError::VetoDecisionMismatch => Some("veto_decision_mismatch".into()),
+        TransitionError::ArchitectCommitLogicalTMismatch => {
+            Some("architect_commit_logical_t_mismatch".into())
+        }
+        TransitionError::ArchitectCommitVetoMissing => Some("architect_commit_veto_missing".into()),
+        TransitionError::ArchitectCommitBlockedByVeto => {
+            Some("architect_commit_blocked_by_veto".into())
+        }
+        TransitionError::ArchitectCommitCapsuleInvalid => {
+            Some("architect_commit_capsule_invalid".into())
+        }
+        TransitionError::ArchitectCommitRootMismatch => {
+            Some("architect_commit_root_mismatch".into())
+        }
+        TransitionError::ReinitRequestLogicalTMismatch => {
+            Some("reinit_request_logical_t_mismatch".into())
+        }
+        TransitionError::ReinitRequestPrefixMismatch => {
+            Some("reinit_request_prefix_mismatch".into())
+        }
+        TransitionError::ReinitRequestCapsuleInvalid => {
+            Some("reinit_request_capsule_invalid".into())
+        }
+        TransitionError::ReinitRequestTriggerMissing => {
+            Some("reinit_request_trigger_missing".into())
+        }
+        TransitionError::ReinitRequestTriggerNotErrorHalt => {
+            Some("reinit_request_trigger_not_error_halt".into())
+        }
+        TransitionError::ReinitBootRequestMissing => Some("reinit_boot_request_missing".into()),
+        TransitionError::ReinitBootLogicalTMismatch => {
+            Some("reinit_boot_logical_t_mismatch".into())
+        }
+        TransitionError::ReinitBootReplayedRootMismatch => {
+            Some("reinit_boot_replayed_root_mismatch".into())
         }
         // TB-G G3.2 (2026-05-12): per-tx-class public summary tag (32 bytes
         // ≤ 64-byte SG-G3.12 budget) — distinct from `stake_balance_exceeded`
@@ -889,6 +1064,30 @@ pub(crate) fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::MapReduceTickSigning(digest))
         }
+        TypedTx::LogFeedbackArchive(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::LogFeedbackArchiveSigning(digest))
+        }
+        TypedTx::ArchitectProposal(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::ArchitectProposalSigning(digest))
+        }
+        TypedTx::VetoDecision(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::VetoDecisionSigning(digest))
+        }
+        TypedTx::ArchitectCommit(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::ArchitectCommitSigning(digest))
+        }
+        TypedTx::ReinitRequest(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::ReinitRequestSigning(digest))
+        }
+        TypedTx::ReinitBoot(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::ReinitBootSigning(digest))
+        }
         // Agent-submitted variants: stage 1.5 is system-only. TB-13
         // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
         // (verified separately at admission via the agent-signature path).
@@ -948,6 +1147,12 @@ pub(crate) fn system_signature_of(
         TypedTx::EventResolve(t) => Some(&t.system_signature),
         TypedTx::PredicateBindingActivate(t) => Some(&t.system_signature),
         TypedTx::MapReduceTick(t) => Some(&t.system_signature),
+        TypedTx::LogFeedbackArchive(t) => Some(&t.system_signature),
+        TypedTx::ArchitectProposal(t) => Some(&t.system_signature),
+        TypedTx::VetoDecision(t) => Some(&t.system_signature),
+        TypedTx::ArchitectCommit(t) => Some(&t.system_signature),
+        TypedTx::ReinitRequest(t) => Some(&t.system_signature),
+        TypedTx::ReinitBoot(t) => Some(&t.system_signature),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -988,6 +1193,12 @@ pub(crate) fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         TypedTx::EventResolve(t) => Some(t.epoch),
         TypedTx::PredicateBindingActivate(t) => Some(t.epoch),
         TypedTx::MapReduceTick(t) => Some(t.epoch),
+        TypedTx::LogFeedbackArchive(t) => Some(t.epoch),
+        TypedTx::ArchitectProposal(t) => Some(t.epoch),
+        TypedTx::VetoDecision(t) => Some(t.epoch),
+        TypedTx::ArchitectCommit(t) => Some(t.epoch),
+        TypedTx::ReinitRequest(t) => Some(t.epoch),
+        TypedTx::ReinitBoot(t) => Some(t.epoch),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -1189,6 +1400,442 @@ pub(crate) fn verify_map_reduce_tick_prefix_context(
         return Err(TransitionError::MapReduceTickPrefixMismatch);
     }
     Ok(())
+}
+
+/// TRACE_MATRIX FC3-N41 + FC3-N43: verify feedback archive roots against the
+/// pre-candidate L4/L4.E/CAS/constitution prefix and the typed CAS capsule.
+pub(crate) fn verify_fc3_feedback_prefix_context(
+    q: &QState,
+    feedback: &LogFeedbackArchiveTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    l4e_root: Hash,
+    l4e_len: u64,
+    cas_metadata_root: Hash,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if feedback.timestamp_logical != logical_t {
+        return Err(TransitionError::LogFeedbackArchiveLogicalTMismatch);
+    }
+    if feedback.source_l4_len != prefix.len() as u64
+        || feedback.source_ledger_root != q.ledger_root_t
+        || feedback.source_l4e_root != l4e_root
+        || feedback.source_l4e_len != l4e_len
+        || feedback.cas_metadata_root != cas_metadata_root
+        || feedback.constitution_hash != constitution_source_hash()
+    {
+        return Err(TransitionError::LogFeedbackArchivePrefixMismatch);
+    }
+    let obj = cas
+        .get_object(&feedback.feedback_capsule_cid)
+        .map_err(|_| TransitionError::LogFeedbackArchiveCapsuleInvalid)?;
+    if obj.object_type != ObjectType::Generic
+        || obj.schema_id.as_deref() != Some(ARCHITECT_FEEDBACK_SCHEMA_ID)
+    {
+        return Err(TransitionError::LogFeedbackArchiveCapsuleInvalid);
+    }
+    let capsule: ArchitectFeedbackCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+            .map_err(|_| TransitionError::LogFeedbackArchiveCapsuleInvalid)?;
+    if capsule.schema_version != ARCHITECT_FEEDBACK_SCHEMA_ID
+        || capsule.source_ledger_root != feedback.source_ledger_root
+        || capsule.source_l4e_root != feedback.source_l4e_root
+        || capsule.cas_metadata_root != feedback.cas_metadata_root
+        || capsule.constitution_hash != feedback.constitution_hash
+    {
+        return Err(TransitionError::LogFeedbackArchiveCapsuleInvalid);
+    }
+    let expected_root = fc3_feedback_root(
+        &obj.bytes,
+        feedback.source_ledger_root,
+        feedback.source_l4_len,
+        feedback.source_l4e_root,
+        feedback.source_l4e_len,
+        feedback.cas_metadata_root,
+        feedback.constitution_hash,
+    );
+    if feedback.feedback_root != expected_root {
+        return Err(TransitionError::LogFeedbackArchiveRootMismatch);
+    }
+    Ok(())
+}
+
+fn decode_fc3_prefix_tx(
+    cas: &dyn PredicateCasView,
+    entry: &LedgerEntry,
+) -> Result<TypedTx, TransitionError> {
+    let obj = cas
+        .get_object(&entry.tx_payload_cid)
+        .map_err(|_| TransitionError::ArchitectProposalFeedbackMissing)?;
+    crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+        .map_err(|_| TransitionError::ArchitectProposalFeedbackMissing)
+}
+
+fn fc3_find_feedback_tx(
+    prefix: &[LedgerEntry],
+    cas: &dyn PredicateCasView,
+    tx_id: &TxId,
+) -> Result<LogFeedbackArchiveTx, TransitionError> {
+    for entry in prefix {
+        let tx = decode_fc3_prefix_tx(cas, entry)
+            .map_err(|_| TransitionError::ArchitectProposalFeedbackMissing)?;
+        if let TypedTx::LogFeedbackArchive(feedback) = tx {
+            if &feedback.tx_id == tx_id {
+                return Ok(feedback);
+            }
+        }
+    }
+    Err(TransitionError::ArchitectProposalFeedbackMissing)
+}
+
+fn fc3_find_proposal_tx(
+    prefix: &[LedgerEntry],
+    cas: &dyn PredicateCasView,
+    tx_id: &TxId,
+) -> Result<ArchitectProposalTx, TransitionError> {
+    for entry in prefix {
+        let tx = decode_fc3_prefix_tx(cas, entry)
+            .map_err(|_| TransitionError::VetoDecisionProposalMissing)?;
+        if let TypedTx::ArchitectProposal(proposal) = tx {
+            if &proposal.tx_id == tx_id {
+                return Ok(proposal);
+            }
+        }
+    }
+    Err(TransitionError::VetoDecisionProposalMissing)
+}
+
+fn fc3_find_veto_tx(
+    prefix: &[LedgerEntry],
+    cas: &dyn PredicateCasView,
+    tx_id: &TxId,
+) -> Result<VetoDecisionTx, TransitionError> {
+    for entry in prefix {
+        let tx = decode_fc3_prefix_tx(cas, entry)
+            .map_err(|_| TransitionError::ArchitectCommitVetoMissing)?;
+        if let TypedTx::VetoDecision(veto) = tx {
+            if &veto.tx_id == tx_id {
+                return Ok(veto);
+            }
+        }
+    }
+    Err(TransitionError::ArchitectCommitVetoMissing)
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: deterministic runtime Veto-AI PASS/VETO function.
+pub(crate) fn deterministic_veto_ai_verdict(
+    proposal: &ArchitectProposalCapsule,
+) -> (VetoVerdict, VetoReasonCode) {
+    if let Some(path) = proposal.target_path.as_deref() {
+        let normalized = path.trim().replace('\\', "/");
+        if normalized == "constitution.md" || normalized.ends_with("/constitution.md") {
+            return (
+                VetoVerdict::Veto,
+                VetoReasonCode::ConstitutionMutationForbidden,
+            );
+        }
+        if normalized.starts_with('/') || normalized.contains("../") {
+            return (VetoVerdict::Veto, VetoReasonCode::DirectWriteForbidden);
+        }
+    }
+    if proposal.proposal_kind != ArchitectProposalKind::Noop
+        && proposal.proposed_artifact_cid.is_none()
+    {
+        return (VetoVerdict::Veto, VetoReasonCode::MissingProposalEvidence);
+    }
+    if proposal.proposal_kind == ArchitectProposalKind::ToolRegistryPatch
+        && proposal.tools_used.is_empty()
+    {
+        return (VetoVerdict::Veto, VetoReasonCode::ToolMutationUnsafe);
+    }
+    (VetoVerdict::Pass, VetoReasonCode::ConstitutionCompliant)
+}
+
+/// TRACE_MATRIX FC3-N33: verify runtime ArchitectAI proposal against a prior
+/// feedback archive and the active constitution/tool-root snapshot.
+pub(crate) fn verify_fc3_architect_proposal_context(
+    q: &QState,
+    proposal: &ArchitectProposalTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if proposal.timestamp_logical != logical_t {
+        return Err(TransitionError::ArchitectProposalLogicalTMismatch);
+    }
+    if proposal.constitution_hash != constitution_source_hash()
+        || proposal.tool_registry_root != q.tool_registry_root_t
+    {
+        return Err(TransitionError::ArchitectProposalRootMismatch);
+    }
+    let feedback = fc3_find_feedback_tx(prefix, cas, &proposal.feedback_tx_id)?;
+    if feedback.feedback_root != proposal.feedback_root {
+        return Err(TransitionError::ArchitectProposalFeedbackMissing);
+    }
+    let obj = cas
+        .get_object(&proposal.proposal_capsule_cid)
+        .map_err(|_| TransitionError::ArchitectProposalCapsuleInvalid)?;
+    if obj.object_type != ObjectType::Generic
+        || obj.schema_id.as_deref() != Some(ARCHITECT_PROPOSAL_SCHEMA_ID)
+    {
+        return Err(TransitionError::ArchitectProposalCapsuleInvalid);
+    }
+    let capsule: ArchitectProposalCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+            .map_err(|_| TransitionError::ArchitectProposalCapsuleInvalid)?;
+    if capsule.schema_version != ARCHITECT_PROPOSAL_SCHEMA_ID
+        || capsule.feedback_tx_id != proposal.feedback_tx_id
+        || capsule.feedback_root != proposal.feedback_root
+        || capsule.constitution_hash != proposal.constitution_hash
+        || capsule.tool_registry_root != proposal.tool_registry_root
+    {
+        return Err(TransitionError::ArchitectProposalCapsuleInvalid);
+    }
+    let expected = fc3_architect_proposal_root(
+        &obj.bytes,
+        &proposal.feedback_tx_id,
+        proposal.feedback_root,
+        proposal.constitution_hash,
+        proposal.tool_registry_root,
+    );
+    if expected != proposal.proposal_root {
+        return Err(TransitionError::ArchitectProposalRootMismatch);
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: verify runtime Veto-AI decision. This is the
+/// constitutional boundary: the verdict must equal deterministic Veto-AI
+/// evaluation and the output domain is only `PASS` or `VETO`.
+pub(crate) fn verify_fc3_veto_decision_context(
+    veto: &VetoDecisionTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if veto.timestamp_logical != logical_t {
+        return Err(TransitionError::VetoDecisionLogicalTMismatch);
+    }
+    if veto.constitution_hash != constitution_source_hash() {
+        return Err(TransitionError::VetoDecisionRootMismatch);
+    }
+    let proposal = fc3_find_proposal_tx(prefix, cas, &veto.proposal_tx_id)?;
+    if proposal.proposal_root != veto.proposal_root {
+        return Err(TransitionError::VetoDecisionProposalMissing);
+    }
+    let proposal_obj = cas
+        .get_object(&proposal.proposal_capsule_cid)
+        .map_err(|_| TransitionError::VetoDecisionProposalMissing)?;
+    let proposal_capsule: ArchitectProposalCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&proposal_obj.bytes)
+            .map_err(|_| TransitionError::VetoDecisionProposalMissing)?;
+    let obj = cas
+        .get_object(&veto.decision_capsule_cid)
+        .map_err(|_| TransitionError::VetoDecisionCapsuleInvalid)?;
+    if obj.object_type != ObjectType::Generic
+        || obj.schema_id.as_deref() != Some(VETO_DECISION_SCHEMA_ID)
+    {
+        return Err(TransitionError::VetoDecisionCapsuleInvalid);
+    }
+    let capsule: VetoDecisionCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+            .map_err(|_| TransitionError::VetoDecisionCapsuleInvalid)?;
+    if capsule.schema_version != VETO_DECISION_SCHEMA_ID
+        || capsule.proposal_tx_id != veto.proposal_tx_id
+        || capsule.proposal_root != veto.proposal_root
+        || capsule.constitution_hash != veto.constitution_hash
+        || capsule.verdict != veto.verdict
+        || capsule.reason_code != veto.reason_code
+    {
+        return Err(TransitionError::VetoDecisionCapsuleInvalid);
+    }
+    let expected_root = fc3_veto_decision_root(
+        &obj.bytes,
+        &veto.proposal_tx_id,
+        veto.proposal_root,
+        veto.constitution_hash,
+    );
+    if expected_root != veto.decision_root {
+        return Err(TransitionError::VetoDecisionRootMismatch);
+    }
+    let (expected_verdict, expected_reason) = deterministic_veto_ai_verdict(&proposal_capsule);
+    if veto.verdict != expected_verdict || veto.reason_code != expected_reason {
+        return Err(TransitionError::VetoDecisionMismatch);
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: verify runtime ArchitectAI commit.
+/// Commits are accepted only when the referenced Veto-AI decision is PASS and
+/// the commit capsule exactly matches the proposal payload that Veto-AI
+/// evaluated. This closes the retargeting gap where a benign proposal could be
+/// approved and a later commit could silently point at a different path.
+pub(crate) fn verify_fc3_architect_commit_context(
+    commit: &ArchitectCommitTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if commit.timestamp_logical != logical_t {
+        return Err(TransitionError::ArchitectCommitLogicalTMismatch);
+    }
+    if commit.constitution_hash != constitution_source_hash() {
+        return Err(TransitionError::ArchitectCommitRootMismatch);
+    }
+    let veto = fc3_find_veto_tx(prefix, cas, &commit.veto_tx_id)?;
+    if veto.verdict != VetoVerdict::Pass {
+        return Err(TransitionError::ArchitectCommitBlockedByVeto);
+    }
+    if veto.proposal_tx_id != commit.proposal_tx_id || veto.decision_root != commit.decision_root {
+        return Err(TransitionError::ArchitectCommitVetoMissing);
+    }
+    let proposal = fc3_find_proposal_tx(prefix, cas, &commit.proposal_tx_id)?;
+    if proposal.proposal_root != veto.proposal_root {
+        return Err(TransitionError::ArchitectCommitVetoMissing);
+    }
+    let proposal_obj = cas
+        .get_object(&proposal.proposal_capsule_cid)
+        .map_err(|_| TransitionError::ArchitectCommitCapsuleInvalid)?;
+    if proposal_obj.object_type != ObjectType::Generic
+        || proposal_obj.schema_id.as_deref() != Some(ARCHITECT_PROPOSAL_SCHEMA_ID)
+    {
+        return Err(TransitionError::ArchitectCommitCapsuleInvalid);
+    }
+    let proposal_capsule: ArchitectProposalCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&proposal_obj.bytes)
+            .map_err(|_| TransitionError::ArchitectCommitCapsuleInvalid)?;
+    let obj = cas
+        .get_object(&commit.commit_capsule_cid)
+        .map_err(|_| TransitionError::ArchitectCommitCapsuleInvalid)?;
+    if obj.object_type != ObjectType::Generic
+        || obj.schema_id.as_deref() != Some(ARCHITECT_COMMIT_SCHEMA_ID)
+    {
+        return Err(TransitionError::ArchitectCommitCapsuleInvalid);
+    }
+    let capsule: ArchitectCommitCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+            .map_err(|_| TransitionError::ArchitectCommitCapsuleInvalid)?;
+    if capsule.schema_version != ARCHITECT_COMMIT_SCHEMA_ID
+        || capsule.proposal_tx_id != commit.proposal_tx_id
+        || capsule.veto_tx_id != commit.veto_tx_id
+        || capsule.decision_root != commit.decision_root
+        || capsule.constitution_hash != commit.constitution_hash
+    {
+        return Err(TransitionError::ArchitectCommitCapsuleInvalid);
+    }
+    if capsule.target_path != proposal_capsule.target_path
+        || capsule.applied_artifact_cid != proposal_capsule.proposed_artifact_cid
+    {
+        return Err(TransitionError::ArchitectCommitCapsuleInvalid);
+    }
+    let expected = fc3_architect_commit_root(
+        &obj.bytes,
+        &commit.proposal_tx_id,
+        &commit.veto_tx_id,
+        commit.decision_root,
+        commit.constitution_hash,
+    );
+    if expected != commit.commit_root {
+        return Err(TransitionError::ArchitectCommitRootMismatch);
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC3-N44: verify re-init request roots, reason capsule, and
+/// ErrorHalt trigger against the accepted L4 prefix.
+pub(crate) fn verify_fc3_reinit_request_prefix_context(
+    q: &QState,
+    request: &ReinitRequestTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    l4e_root: Hash,
+    l4e_len: u64,
+    cas_metadata_root: Hash,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if request.timestamp_logical != logical_t {
+        return Err(TransitionError::ReinitRequestLogicalTMismatch);
+    }
+    if request.source_l4_len != prefix.len() as u64
+        || request.source_ledger_root != q.ledger_root_t
+        || request.source_l4e_root != l4e_root
+        || request.source_l4e_len != l4e_len
+        || request.cas_metadata_root != cas_metadata_root
+    {
+        return Err(TransitionError::ReinitRequestPrefixMismatch);
+    }
+    let obj = cas
+        .get_object(&request.error_evidence_cid)
+        .map_err(|_| TransitionError::ReinitRequestCapsuleInvalid)?;
+    if obj.object_type != ObjectType::Generic
+        || obj.schema_id.as_deref() != Some(REINIT_REASON_SCHEMA_ID)
+    {
+        return Err(TransitionError::ReinitRequestCapsuleInvalid);
+    }
+    let capsule: ReinitReasonCapsule =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+            .map_err(|_| TransitionError::ReinitRequestCapsuleInvalid)?;
+    if capsule.schema_version != REINIT_REASON_SCHEMA_ID
+        || capsule.trigger_entry != request.trigger_entry
+        || capsule.reason != request.reason
+    {
+        return Err(TransitionError::ReinitRequestCapsuleInvalid);
+    }
+
+    let idx = request
+        .trigger_entry
+        .checked_sub(1)
+        .and_then(|n| usize::try_from(n).ok())
+        .ok_or(TransitionError::ReinitRequestTriggerMissing)?;
+    let trigger = prefix
+        .get(idx)
+        .ok_or(TransitionError::ReinitRequestTriggerMissing)?;
+    if trigger.logical_t != request.trigger_entry {
+        return Err(TransitionError::ReinitRequestTriggerMissing);
+    }
+    let trigger_obj = cas
+        .get_object(&trigger.tx_payload_cid)
+        .map_err(|_| TransitionError::ReinitRequestTriggerMissing)?;
+    let trigger_tx: TypedTx =
+        crate::bottom_white::ledger::transition_ledger::canonical_decode(&trigger_obj.bytes)
+            .map_err(|_| TransitionError::ReinitRequestTriggerMissing)?;
+    match trigger_tx {
+        TypedTx::TerminalSummary(ts)
+            if ts.run_outcome == crate::state::typed_tx::RunOutcome::ErrorHalt => {}
+        _ => return Err(TransitionError::ReinitRequestTriggerNotErrorHalt),
+    }
+    Ok(())
+}
+
+/// TRACE_MATRIX FC3-N45: verify a re-init boot acknowledgement against the
+/// current replayed prefix and a prior accepted re-init request.
+pub(crate) fn verify_fc3_reinit_boot_prefix_context(
+    q: &QState,
+    boot: &ReinitBootTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+    cas: &dyn PredicateCasView,
+) -> Result<(), TransitionError> {
+    if boot.timestamp_logical != logical_t {
+        return Err(TransitionError::ReinitBootLogicalTMismatch);
+    }
+    if boot.replayed_state_root != q.state_root_t {
+        return Err(TransitionError::ReinitBootReplayedRootMismatch);
+    }
+    for entry in prefix {
+        let obj = cas
+            .get_object(&entry.tx_payload_cid)
+            .map_err(|_| TransitionError::ReinitBootRequestMissing)?;
+        let tx: TypedTx =
+            crate::bottom_white::ledger::transition_ledger::canonical_decode(&obj.bytes)
+                .map_err(|_| TransitionError::ReinitBootRequestMissing)?;
+        if let TypedTx::ReinitRequest(req) = tx {
+            if req.tx_id == boot.request_tx_id && req.target_boot_profile == boot.boot_profile {
+                return Ok(());
+            }
+        }
+    }
+    Err(TransitionError::ReinitBootRequestMissing)
 }
 
 /// TRACE_MATRIX § 8 — exhaustive dispatch over `TypedTx` variants.
@@ -2404,6 +3051,75 @@ pub(crate) fn dispatch_transition(
             let mut q_next = q.clone();
             q_next.q_t.current_round = tick.clock_t;
             q_next.state_root_t = map_reduce_tick_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::LogFeedbackArchive(feedback) => {
+            if feedback.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = log_feedback_archive_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::ArchitectProposal(proposal) => {
+            if proposal.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            if proposal.role_mode != MetaRoleMode::Runtime {
+                return Err(TransitionError::ArchitectProposalRootMismatch);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = architect_proposal_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::VetoDecision(veto) => {
+            if veto.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            if veto.role_mode != MetaRoleMode::Runtime {
+                return Err(TransitionError::VetoDecisionRootMismatch);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = veto_decision_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::ArchitectCommit(commit) => {
+            if commit.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            if commit.role_mode != MetaRoleMode::Runtime {
+                return Err(TransitionError::ArchitectCommitRootMismatch);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = architect_commit_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::ReinitRequest(request) => {
+            if request.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = reinit_request_accept_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::ReinitBoot(boot) => {
+            if boot.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.state_root_t = reinit_boot_accept_state_root(&q.state_root_t, tx);
             Ok((q_next, SignalBundle::empty()))
         }
         // ──────────────────────────────────────────────────────────────────
@@ -4021,6 +4737,40 @@ pub enum SystemEmitCommand {
     MapReduceTick {
         tick_kind: crate::state::typed_tx::TickKind,
     },
+    /// FC3 feedback archive. Runtime derives source L4/L4.E/CAS roots,
+    /// constitution hash, feedback root, parent state, external-only role mode,
+    /// logical time, epoch, and signature internally.
+    LogFeedbackArchive {
+        feedback_capsule_cid: Cid,
+        veto_verdict: VetoVerdict,
+    },
+    /// FC3 runtime ArchitectAI proposal generated from an accepted feedback row.
+    ArchitectProposal {
+        feedback_tx_id: TxId,
+        proposal_capsule_cid: Cid,
+    },
+    /// FC3 runtime Veto-AI verdict generated from an accepted ArchitectAI proposal.
+    VetoDecision {
+        proposal_tx_id: TxId,
+        decision_capsule_cid: Cid,
+    },
+    /// FC3 runtime ArchitectAI commit generated only after Veto-AI PASS.
+    ArchitectCommit {
+        veto_tx_id: TxId,
+        commit_capsule_cid: Cid,
+    },
+    /// FC3 re-init request anchored to a prior ErrorHalt terminal summary.
+    ReinitRequest {
+        trigger_entry: u64,
+        error_evidence_cid: Cid,
+        reason: ReinitReason,
+        target_boot_profile: BootProfileId,
+    },
+    /// FC3 boot acknowledgement derived from a prior accepted re-init request.
+    ReinitBoot {
+        request_tx_id: crate::state::q_state::TxId,
+        boot_profile: BootProfileId,
+    },
     // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
 }
@@ -4069,6 +4819,12 @@ pub enum EmitSystemError {
     PredicateRegistrySnapshotInvalid,
     /// Ledger prefix could not be read while constructing a system tick.
     LedgerRead(LedgerWriterError),
+    /// FC3 feedback or re-init capsule was missing, malformed, or wrong-schema.
+    Fc3CapsuleInvalid,
+    /// FC3 re-init request trigger was absent or not an ErrorHalt terminal summary.
+    Fc3ReinitTriggerInvalid,
+    /// FC3 re-init boot referenced no prior accepted ReinitRequestTx.
+    Fc3ReinitRequestNotFound,
 }
 
 impl std::fmt::Display for EmitSystemError {
@@ -4097,6 +4853,18 @@ impl std::fmt::Display for EmitSystemError {
                 "SystemEmitCommand::PredicateBindingActivate referenced an invalid predicate registry snapshot capsule"
             ),
             Self::LedgerRead(e) => write!(f, "system emit ledger prefix read failed: {e}"),
+            Self::Fc3CapsuleInvalid => write!(
+                f,
+                "FC3 system emit referenced a missing, malformed, or wrong-schema capsule"
+            ),
+            Self::Fc3ReinitTriggerInvalid => write!(
+                f,
+                "FC3 ReinitRequest trigger_entry is not a prior ErrorHalt TerminalSummaryTx"
+            ),
+            Self::Fc3ReinitRequestNotFound => write!(
+                f,
+                "FC3 ReinitBoot request_tx_id is not a prior accepted ReinitRequestTx"
+            ),
         }
     }
 }
@@ -4428,7 +5196,13 @@ impl Sequencer {
             // `emit_system_tx(SystemEmitCommand::EventResolve)`.
             | TypedTx::EventResolve(_)
             | TypedTx::PredicateBindingActivate(_)
-            | TypedTx::MapReduceTick(_) => {
+            | TypedTx::MapReduceTick(_)
+            | TypedTx::LogFeedbackArchive(_)
+            | TypedTx::ArchitectProposal(_)
+            | TypedTx::VetoDecision(_)
+            | TypedTx::ArchitectCommit(_)
+            | TypedTx::ReinitRequest(_)
+            | TypedTx::ReinitBoot(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
@@ -4716,6 +5490,22 @@ impl Sequencer {
         Ok(prefix)
     }
 
+    fn l4e_snapshot(&self) -> Result<(Hash, u64), EmitSystemError> {
+        let writer = self
+            .rejection_writer
+            .read()
+            .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+        Ok((writer.last_hash(), writer.len() as u64))
+    }
+
+    fn l4e_snapshot_for_apply(&self) -> Result<(Hash, u64), ApplyError> {
+        let writer = self
+            .rejection_writer
+            .read()
+            .map_err(|_| ApplyError::QStateLockPoisoned)?;
+        Ok((writer.last_hash(), writer.len() as u64))
+    }
+
     /// TRACE_MATRIX TB-5 Atom 4 (preflight § 4.4): construct + sign a system
     /// tx from a high-level `SystemEmitCommand`. Internal-only; called by
     /// `emit_system_tx`. Each command variant constructs its corresponding
@@ -4726,8 +5516,10 @@ impl Sequencer {
         command: SystemEmitCommand,
     ) -> Result<TypedTx, EmitSystemError> {
         use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::{
-            sign_challenge_resolve, sign_finalize_reward, sign_map_reduce_tick,
-            sign_predicate_binding_activate,
+            sign_architect_commit, sign_architect_proposal, sign_challenge_resolve,
+            sign_finalize_reward, sign_log_feedback_archive, sign_map_reduce_tick,
+            sign_predicate_binding_activate, sign_reinit_boot, sign_reinit_request,
+            sign_veto_decision,
         };
         use crate::bottom_white::ledger::system_keypair::SystemSignature;
         use crate::state::typed_tx::{ChallengeResolveTx, FinalizeRewardTx};
@@ -5107,6 +5899,468 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::MapReduceTick(tx))
             }
+            SystemEmitCommand::LogFeedbackArchive {
+                feedback_capsule_cid,
+                veto_verdict,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let (source_l4e_root, source_l4e_len) = self.l4e_snapshot()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let (cas_metadata_root, constitution_hash, feedback_root, previous_feedback_cid) = {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    let obj = cas_r
+                        .get_object(&feedback_capsule_cid)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if obj.object_type != ObjectType::Generic
+                        || obj.schema_id.as_deref() != Some(ARCHITECT_FEEDBACK_SCHEMA_ID)
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let capsule: ArchitectFeedbackCapsule =
+                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
+                            &obj.bytes,
+                        )
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    let cas_metadata_root = cas_metadata_root_before_logical_t_excluding(
+                        &cas_r,
+                        logical_t_for_id,
+                        &[feedback_capsule_cid],
+                    )
+                    .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    let constitution_hash = constitution_source_hash();
+                    if capsule.schema_version != ARCHITECT_FEEDBACK_SCHEMA_ID
+                        || capsule.source_ledger_root != q_snap.ledger_root_t
+                        || capsule.source_l4e_root != source_l4e_root
+                        || capsule.cas_metadata_root != cas_metadata_root
+                        || capsule.constitution_hash != constitution_hash
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let previous_feedback_cid = cas_r
+                        .list_cids_by_schema_id(ARCHITECT_FEEDBACK_SCHEMA_ID)
+                        .into_iter()
+                        .filter(|cid| *cid != feedback_capsule_cid)
+                        .last();
+                    let feedback_root = fc3_feedback_root(
+                        &obj.bytes,
+                        q_snap.ledger_root_t,
+                        prefix.len() as u64,
+                        source_l4e_root,
+                        source_l4e_len,
+                        cas_metadata_root,
+                        constitution_hash,
+                    );
+                    (
+                        cas_metadata_root,
+                        constitution_hash,
+                        feedback_root,
+                        previous_feedback_cid,
+                    )
+                };
+                let mut tx = LogFeedbackArchiveTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-log-feedback-archive-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    source_ledger_root: q_snap.ledger_root_t,
+                    source_l4_len: prefix.len() as u64,
+                    source_l4e_root,
+                    source_l4e_len,
+                    cas_metadata_root,
+                    constitution_hash,
+                    feedback_capsule_cid,
+                    feedback_root,
+                    previous_feedback_cid,
+                    role_mode: MetaRoleMode::Runtime,
+                    veto_verdict,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_log_feedback_archive(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::LogFeedbackArchive(tx))
+            }
+            SystemEmitCommand::ArchitectProposal {
+                feedback_tx_id,
+                proposal_capsule_cid,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let (feedback_root, proposal_root) = {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    let feedback = fc3_find_feedback_tx(&prefix, &*cas_r, &feedback_tx_id)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    let obj = cas_r
+                        .get_object(&proposal_capsule_cid)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if obj.object_type != ObjectType::Generic
+                        || obj.schema_id.as_deref() != Some(ARCHITECT_PROPOSAL_SCHEMA_ID)
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let capsule: ArchitectProposalCapsule =
+                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
+                            &obj.bytes,
+                        )
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if capsule.schema_version != ARCHITECT_PROPOSAL_SCHEMA_ID
+                        || capsule.feedback_tx_id != feedback_tx_id
+                        || capsule.feedback_root != feedback.feedback_root
+                        || capsule.constitution_hash != constitution_source_hash()
+                        || capsule.tool_registry_root != q_snap.tool_registry_root_t
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let proposal_root = fc3_architect_proposal_root(
+                        &obj.bytes,
+                        &feedback_tx_id,
+                        feedback.feedback_root,
+                        capsule.constitution_hash,
+                        capsule.tool_registry_root,
+                    );
+                    (feedback.feedback_root, proposal_root)
+                };
+                let mut tx = ArchitectProposalTx {
+                    tx_id: TxId(format!(
+                        "system-architect-proposal-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    feedback_tx_id,
+                    feedback_root,
+                    proposal_capsule_cid,
+                    proposal_root,
+                    constitution_hash: constitution_source_hash(),
+                    tool_registry_root: q_snap.tool_registry_root_t,
+                    role_mode: MetaRoleMode::Runtime,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    verify_fc3_architect_proposal_context(
+                        &q_snap,
+                        &tx,
+                        &prefix,
+                        logical_t_for_id,
+                        &*cas_r,
+                    )
+                    .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                }
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_architect_proposal(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::ArchitectProposal(tx))
+            }
+            SystemEmitCommand::VetoDecision {
+                proposal_tx_id,
+                decision_capsule_cid,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let (proposal_root, decision_root, verdict, reason_code) = {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    let proposal = fc3_find_proposal_tx(&prefix, &*cas_r, &proposal_tx_id)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    let obj = cas_r
+                        .get_object(&decision_capsule_cid)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if obj.object_type != ObjectType::Generic
+                        || obj.schema_id.as_deref() != Some(VETO_DECISION_SCHEMA_ID)
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let capsule: VetoDecisionCapsule =
+                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
+                            &obj.bytes,
+                        )
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if capsule.schema_version != VETO_DECISION_SCHEMA_ID
+                        || capsule.proposal_tx_id != proposal_tx_id
+                        || capsule.proposal_root != proposal.proposal_root
+                        || capsule.constitution_hash != constitution_source_hash()
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let decision_root = fc3_veto_decision_root(
+                        &obj.bytes,
+                        &proposal_tx_id,
+                        proposal.proposal_root,
+                        capsule.constitution_hash,
+                    );
+                    (
+                        proposal.proposal_root,
+                        decision_root,
+                        capsule.verdict,
+                        capsule.reason_code,
+                    )
+                };
+                let mut tx = VetoDecisionTx {
+                    tx_id: TxId(format!(
+                        "system-veto-decision-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    proposal_tx_id,
+                    proposal_root,
+                    decision_capsule_cid,
+                    decision_root,
+                    constitution_hash: constitution_source_hash(),
+                    verdict,
+                    reason_code,
+                    role_mode: MetaRoleMode::Runtime,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    verify_fc3_veto_decision_context(&tx, &prefix, logical_t_for_id, &*cas_r)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                }
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_veto_decision(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::VetoDecision(tx))
+            }
+            SystemEmitCommand::ArchitectCommit {
+                veto_tx_id,
+                commit_capsule_cid,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let (proposal_tx_id, decision_root, commit_root) = {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    let veto = fc3_find_veto_tx(&prefix, &*cas_r, &veto_tx_id)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    let obj = cas_r
+                        .get_object(&commit_capsule_cid)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if obj.object_type != ObjectType::Generic
+                        || obj.schema_id.as_deref() != Some(ARCHITECT_COMMIT_SCHEMA_ID)
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let capsule: ArchitectCommitCapsule =
+                        crate::bottom_white::ledger::transition_ledger::canonical_decode(
+                            &obj.bytes,
+                        )
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                    if capsule.schema_version != ARCHITECT_COMMIT_SCHEMA_ID
+                        || capsule.proposal_tx_id != veto.proposal_tx_id
+                        || capsule.veto_tx_id != veto_tx_id
+                        || capsule.decision_root != veto.decision_root
+                        || capsule.constitution_hash != constitution_source_hash()
+                    {
+                        return Err(EmitSystemError::Fc3CapsuleInvalid);
+                    }
+                    let commit_root = fc3_architect_commit_root(
+                        &obj.bytes,
+                        &capsule.proposal_tx_id,
+                        &veto_tx_id,
+                        veto.decision_root,
+                        capsule.constitution_hash,
+                    );
+                    (veto.proposal_tx_id, veto.decision_root, commit_root)
+                };
+                let mut tx = ArchitectCommitTx {
+                    tx_id: TxId(format!(
+                        "system-architect-commit-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    proposal_tx_id,
+                    veto_tx_id,
+                    decision_root,
+                    commit_capsule_cid,
+                    commit_root,
+                    constitution_hash: constitution_source_hash(),
+                    role_mode: MetaRoleMode::Runtime,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    verify_fc3_architect_commit_context(&tx, &prefix, logical_t_for_id, &*cas_r)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?;
+                }
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_architect_commit(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::ArchitectCommit(tx))
+            }
+            SystemEmitCommand::ReinitRequest {
+                trigger_entry,
+                error_evidence_cid,
+                reason,
+                target_boot_profile,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let (source_l4e_root, source_l4e_len) = self.l4e_snapshot()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let cas_metadata_root = {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    cas_metadata_root_before_logical_t(&cas_r, logical_t_for_id)
+                        .map_err(|_| EmitSystemError::Fc3CapsuleInvalid)?
+                };
+                let mut tx = ReinitRequestTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-reinit-request-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    trigger_entry,
+                    error_evidence_cid,
+                    reason,
+                    source_ledger_root: q_snap.ledger_root_t,
+                    source_l4_len: prefix.len() as u64,
+                    source_l4e_root,
+                    source_l4e_len,
+                    cas_metadata_root,
+                    target_boot_profile,
+                    role_mode: MetaRoleMode::Runtime,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    verify_fc3_reinit_request_prefix_context(
+                        &q_snap,
+                        &tx,
+                        &prefix,
+                        logical_t_for_id,
+                        source_l4e_root,
+                        source_l4e_len,
+                        cas_metadata_root,
+                        &*cas_r,
+                    )
+                    .map_err(|_| EmitSystemError::Fc3ReinitTriggerInvalid)?;
+                }
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_reinit_request(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::ReinitRequest(tx))
+            }
+            SystemEmitCommand::ReinitBoot {
+                request_tx_id,
+                boot_profile,
+            } => {
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let mut tx = ReinitBootTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-reinit-boot-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    request_tx_id,
+                    replayed_state_root: q_snap.state_root_t,
+                    boot_profile,
+                    role_mode: MetaRoleMode::Runtime,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                {
+                    let cas_r = self
+                        .cas
+                        .read()
+                        .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                    verify_fc3_reinit_boot_prefix_context(
+                        &q_snap,
+                        &tx,
+                        &prefix,
+                        logical_t_for_id,
+                        &*cas_r,
+                    )
+                    .map_err(|_| EmitSystemError::Fc3ReinitRequestNotFound)?;
+                }
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_reinit_boot(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::ReinitBoot(tx))
+            }
         }
     }
 
@@ -5221,6 +6475,84 @@ impl Sequencer {
             TypedTx::MapReduceTick(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::MapReduceTickSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::LogFeedbackArchive(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::LogFeedbackArchiveSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::ArchitectProposal(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::ArchitectProposalSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::VetoDecision(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::VetoDecisionSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::ArchitectCommit(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::ArchitectCommitSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::ReinitRequest(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::ReinitRequestSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::ReinitBoot(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::ReinitBootSigning(digest);
                 if !verify_system_signature(
                     &t.system_signature,
                     &msg,
@@ -5458,6 +6790,108 @@ impl Sequencer {
             if let Err(err) =
                 verify_map_reduce_tick_prefix_context(&q_snapshot, t, &prefix, logical_t)
             {
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::LogFeedbackArchive(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let (l4e_root, l4e_len) = self.l4e_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            let cas_root = cas_metadata_root_before_logical_t_excluding(
+                &cas_r,
+                logical_t,
+                &[t.feedback_capsule_cid],
+            )?;
+            if let Err(err) = verify_fc3_feedback_prefix_context(
+                &q_snapshot,
+                t,
+                &prefix,
+                logical_t,
+                l4e_root,
+                l4e_len,
+                cas_root,
+                &*cas_r,
+            ) {
+                drop(cas_r);
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::ReinitRequest(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let (l4e_root, l4e_len) = self.l4e_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            let cas_root = cas_metadata_root_before_logical_t(&cas_r, logical_t)?;
+            if let Err(err) = verify_fc3_reinit_request_prefix_context(
+                &q_snapshot,
+                t,
+                &prefix,
+                logical_t,
+                l4e_root,
+                l4e_len,
+                cas_root,
+                &*cas_r,
+            ) {
+                drop(cas_r);
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::ArchitectProposal(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            if let Err(err) =
+                verify_fc3_architect_proposal_context(&q_snapshot, t, &prefix, logical_t, &*cas_r)
+            {
+                drop(cas_r);
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::VetoDecision(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            if let Err(err) = verify_fc3_veto_decision_context(t, &prefix, logical_t, &*cas_r) {
+                drop(cas_r);
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::ArchitectCommit(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            if let Err(err) = verify_fc3_architect_commit_context(t, &prefix, logical_t, &*cas_r) {
+                drop(cas_r);
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::ReinitBoot(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            let cas_r = self
+                .cas
+                .read()
+                .map_err(|_| ApplyError::QStateLockPoisoned)?;
+            if let Err(err) =
+                verify_fc3_reinit_boot_prefix_context(&q_snapshot, t, &prefix, logical_t, &*cas_r)
+            {
+                drop(cas_r);
                 self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
                 return Err(ApplyError::Transition(err));
             }
