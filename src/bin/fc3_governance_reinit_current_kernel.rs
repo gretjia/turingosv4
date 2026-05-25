@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::json;
@@ -30,6 +31,7 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::{PinnedPubkeyEntry, PinnedPubkeyManifest};
+use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 use turingosv4::state::q_state::{Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
@@ -679,7 +681,7 @@ fn write_capsule_index(
     let manifest = json!({
         "schema_version": "turingosv4.true_suite.fc3_governance_reinit_current_kernel.v1",
         "run_id": args.run_id,
-        "git_head": git_head().unwrap_or_else(|| "unknown".to_string()),
+        "git_head": git_head(args).unwrap_or_else(|| "unknown".to_string()),
         "runtime_repo": args.runtime_repo,
         "cas": args.cas,
         "constitutional_paths": [
@@ -738,13 +740,25 @@ fn write_genesis_report(args: &Args) -> Result<(), String> {
         .map_err(|e| format!("write genesis_report.json: {e}"))
 }
 
-fn git_head() -> Option<String> {
-    std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+fn git_head(args: &Args) -> Option<String> {
+    let cwd = args
+        .constitution
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let output = run_sanitized(SanitizedCommand {
+        program: PathBuf::from("git"),
+        args: vec!["rev-parse".to_string(), "HEAD".to_string()],
+        cwd,
+        env: BTreeMap::new(),
+        stdin: None,
+        timeout: Duration::from_secs(5),
+    })
+    .ok()?;
+    if !output.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 fn hex_hash(hash: Hash) -> String {
