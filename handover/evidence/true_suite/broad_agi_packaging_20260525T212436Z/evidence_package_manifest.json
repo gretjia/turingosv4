@@ -1,0 +1,102 @@
+{
+  "package_count": 10,
+  "packages": [
+    {
+      "archive_bytes": 17018,
+      "archive_path": "boot_cli/cas.dotgit.tar.gz",
+      "archive_sha256": "9d75ee2e6c58d56a1a07b03e28c19a69b76ce16baf2df8fefc3b2543633afc1c",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "boot_cli/cas",
+      "source_path": "boot_cli/cas/.git"
+    },
+    {
+      "archive_bytes": 12457,
+      "archive_path": "boot_cli/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "0e89b32424f96cb9537d179f71ee8cb5a721d42e24a1327d4a6be0483021f23a",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "boot_cli/runtime_repo",
+      "source_path": "boot_cli/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17012,
+      "archive_path": "replay_cas/cas.dotgit.tar.gz",
+      "archive_sha256": "f01c97ee518c36632cc2bd9c91c2ec74f8b918c3aa320eea068b839a5e46aac2",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/cas",
+      "source_path": "replay_cas/cas/.git"
+    },
+    {
+      "archive_bytes": 12487,
+      "archive_path": "replay_cas/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "9253bd4e72d3840859ccf43a8bc5ddccf642df325a4399c3213d3dcb151d3791",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/runtime_repo",
+      "source_path": "replay_cas/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 16663,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "a8e9f905eae737acfc94ff5a1d74361f93b99e660228c184df2f67ac036e148d",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 12487,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "9253bd4e72d3840859ccf43a8bc5ddccf642df325a4399c3213d3dcb151d3791",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17012,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "f01c97ee518c36632cc2bd9c91c2ec74f8b918c3aa320eea068b839a5e46aac2",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 12339,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "b636cd73d87387a6abbc09c5f3226bf567aa00a6e064d0102679cfecf2e37b77",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17012,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/cas.dotgit.tar.gz",
+      "archive_sha256": "f01c97ee518c36632cc2bd9c91c2ec74f8b918c3aa320eea068b839a5e46aac2",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/cas",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/cas/.git"
+    },
+    {
+      "archive_bytes": 12489,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "8b729aea49700fbda733c8d6d3e5c69acd29379d24b6716065952b25cc98f11e",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo/.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
