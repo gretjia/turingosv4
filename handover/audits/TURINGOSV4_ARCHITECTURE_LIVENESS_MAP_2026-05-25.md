@@ -120,7 +120,7 @@ flowchart TB
 | Flowchart | Element | Status | Production evidence | Closure if not live |
 |---|---|---:|---|---|
 | FC1 | `Q_t` / `Q_{t+1}` typed state | LIVE | `QState`, `Sequencer::q_snapshot`, L4 state roots | none |
-| FC1 | `rtool -> input` | PARTIAL | rtool and typed read views exist; retry prompt path uses rtool | first agent prompt still needs a stronger ChainTape/CAS read-context proof |
+| FC1 | `rtool -> input` | LIVE | `fc1_rtool_input_snapshot_is_chain_cas_derived` wires `TuringBus::snapshot` to the typed sequencer read path and verifies parent-child context from L4 + CAS `ProposalTelemetry` while legacy shadow `Tape` stays empty | none for the tested typed read-view path |
 | FC1 | agent output | PARTIAL | real generate path emits typed WorkTxs and CAS proposal evidence | real-world LLM workload is active but not itself a complete FC proof |
 | FC1 | predicates | LIVE | registry-backed predicate verification in sequencer | external proof-heavy predicates still need per-kind expansion |
 | FC1 | `wtool -> Q_{t+1}` | LIVE | accepted WorkTx enters L4; real WorkTx read/write sets bind ProposalTelemetry and task output | none |
@@ -166,9 +166,10 @@ flowchart TB
    runtime implementation would be Class 4.
 2. FC3 logs-feedback and re-init semantics are missing as in-process runtime
    paths. Resume and abort are not the same as the flowchart re-init edge.
-3. FC1 rtool/input is still partial: proposal evidence is now CAS-bound, but
-   the first agent prompt needs a stronger proof that read context is derived
-   from ChainTape/CAS rather than caller-local prompt closures.
+3. FC1 rtool/input is live for the tested typed read-view path:
+   `TuringBus::snapshot` reconstructs input context from ChainTape/CAS-backed
+   proposal telemetry rather than the legacy shadow `Tape`. Product-specific
+   prompt assembly remains workload coverage, not a separate flowchart gap.
 
 ## Verification Hooks
 

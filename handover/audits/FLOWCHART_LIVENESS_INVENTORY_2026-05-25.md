@@ -15,7 +15,7 @@ superseded. Status values used here are only:
 | Anchor | Status | Current production evidence | Missing path |
 |---|---:|---|---|
 | `Q_t` carrier and typed state root | LIVE | `QState`, `Sequencer::q_snapshot`, L4 `LedgerEntry.resulting_state_root` | none for typed sequencer path |
-| `rtool -> input` | PARTIAL | `TuringBus::snapshot`, `UniverseSnapshot`, typed audit views | true read context must be reconstructed from ChainTape/CAS for the production agent path |
+| `rtool -> input` | LIVE | `tests/constitution_flowchart_livenow.rs::fc1_rtool_input_snapshot_is_chain_cas_derived` proves `TuringBus::snapshot` / `UniverseSnapshot` reads typed sequencer state plus L4 WorkTx and CAS `ProposalTelemetry.parent_tx`; legacy shadow `Tape` is empty in the proof | none for the tested typed read-view path |
 | `delta / Agent output` | PARTIAL | `AgentAction`, `parse_agent_output`, typed tx adapters | real LLM path is product workload coverage, not flowchart proof by itself |
 | predicates | LIVE | executable `PredicateRegistry`, `BoolWithProof`, sequencer re-verification | per-kind proof expansion remains future work where a predicate needs external proof checking |
 | `wtool -> Q_{t+1}` accepted branch | LIVE | `Sequencer::apply_one` writes accepted typed tx to L4; real `WorkTx.read_set` binds `cas.proposal_telemetry:<cid>` and no longer uses `k.read` / `k.write` fixture placeholders | none for tested typed path |

@@ -4,6 +4,7 @@
 //! exercise only the production paths that are live today:
 //! - FC1 typed sequencer wtool to L4 and L4.E
 //! - FC1 real WorkTx provenance is CAS-bound, not synthetic fixture placeholders
+//! - FC1 rtool/input snapshot is derived from ChainTape + CAS-backed telemetry
 //! - FC2 boot, replay verification, and resume bootstrap
 //! - FC2 system-emitted map-reduce tick to ChainTape
 //! - FC2 terminal summary / halt-summary typing
@@ -30,6 +31,9 @@ use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::kernel::Kernel;
 use turingosv4::runtime::adapter::{make_real_worktx_signed_by, make_synthetic_task_open};
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
+use turingosv4::runtime::proposal_telemetry::{
+    write_to_cas as write_proposal_telemetry, ProposalTelemetry, TokenCounts,
+};
 use turingosv4::runtime::verify::{verify_chaintape, VerifyOptions};
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{
@@ -51,7 +55,8 @@ use turingosv4::top_white::predicates::visibility::Visibility;
 
 struct MemoryHarness {
     _tmp: TempDir,
-    seq: Sequencer,
+    cas: Arc<RwLock<CasStore>>,
+    seq: Arc<Sequencer>,
     rx: tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
     rejection_writer: Arc<RwLock<RejectionEvidenceWriter>>,
 }
@@ -112,6 +117,7 @@ fn q_for_bound_work(registry: &PredicateRegistry) -> QState {
 fn memory_harness(initial_q: QState, registry: PredicateRegistry) -> MemoryHarness {
     let tmp = TempDir::new().expect("tempdir");
     let cas = Arc::new(RwLock::new(CasStore::open(tmp.path()).expect("cas")));
+    let cas_for_harness = Arc::clone(&cas);
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
     let epoch = SystemEpoch::new(1);
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
@@ -132,13 +138,28 @@ fn memory_harness(initial_q: QState, registry: PredicateRegistry) -> MemoryHarne
     );
     MemoryHarness {
         _tmp: tmp,
-        seq,
+        cas: cas_for_harness,
+        seq: Arc::new(seq),
         rx,
         rejection_writer,
     }
 }
 
 fn work_tx(tx_id: &str, value: bool) -> TypedTx {
+    work_tx_with_parent_and_proposal(
+        tx_id,
+        value,
+        Hash::ZERO,
+        Cid::from_content(tx_id.as_bytes()),
+    )
+}
+
+fn work_tx_with_parent_and_proposal(
+    tx_id: &str,
+    value: bool,
+    parent_state_root: Hash,
+    proposal_cid: Cid,
+) -> TypedTx {
     let pid = PredicateId("flow.live.static".to_string());
     let mut acceptance = BTreeMap::new();
     acceptance.insert(
@@ -151,11 +172,11 @@ fn work_tx(tx_id: &str, value: bool) -> TypedTx {
     TypedTx::Work(WorkTx {
         tx_id: TxId(tx_id.to_string()),
         task_id: TaskId("flow-live-task".to_string()),
-        parent_state_root: Hash::ZERO,
+        parent_state_root,
         agent_id: AgentId("flow-live-agent".to_string()),
         read_set: BTreeSet::new(),
         write_set: BTreeSet::new(),
-        proposal_cid: Cid::from_content(tx_id.as_bytes()),
+        proposal_cid,
         predicate_results: PredicateResultsBundle {
             acceptance,
             settlement: BTreeMap::new(),
@@ -165,6 +186,39 @@ fn work_tx(tx_id: &str, value: bool) -> TypedTx {
         signature: AgentSignature::default(),
         timestamp_logical: 1,
     })
+}
+
+fn write_flow_proposal_telemetry(
+    h: &MemoryHarness,
+    label: &str,
+    logical_t: u64,
+    parent_tx: Option<TxId>,
+) -> Cid {
+    let mut cas = h.cas.write().expect("cas write");
+    let record = ProposalTelemetry::build_for_evaluator_append_with_parent(
+        &mut cas,
+        "flowchart-livenow",
+        "flow-live-agent",
+        logical_t,
+        format!("payload-{label}").as_bytes(),
+        label,
+        TokenCounts {
+            prompt_tokens: 10 + logical_t,
+            completion_tokens: 2,
+            tool_tokens: 1,
+        },
+        "constitution_flowchart_livenow",
+        logical_t,
+        parent_tx,
+    )
+    .expect("build ProposalTelemetry");
+    write_proposal_telemetry(
+        &mut cas,
+        &record,
+        "constitution_flowchart_livenow",
+        logical_t,
+    )
+    .expect("write ProposalTelemetry")
 }
 
 fn runtime_cfg(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConfig {
@@ -269,6 +323,75 @@ fn fc1_real_worktx_provenance_is_cas_bound_not_fixture_placeholder() {
         work.read_set.iter().all(|key| key.0 != "k.read")
             && work.write_set.iter().all(|key| key.0 != "k.write"),
         "real WorkTx must not reuse synthetic fixture placeholders"
+    );
+}
+
+#[tokio::test]
+async fn fc1_rtool_input_snapshot_is_chain_cas_derived() {
+    let registry = static_registry(true);
+    let mut h = memory_harness(q_for_bound_work(&registry), registry);
+
+    let parent_tx = TxId("flow-live-parent".to_string());
+    let parent_proposal_cid = write_flow_proposal_telemetry(&h, "parent", 1, None);
+    let parent_root = h.seq.q_snapshot().expect("parent q").state_root_t;
+    h.seq
+        .submit_agent_tx(work_tx_with_parent_and_proposal(
+            &parent_tx.0,
+            true,
+            parent_root,
+            parent_proposal_cid,
+        ))
+        .await
+        .expect("submit parent WorkTx");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("apply parent envelope")
+        .expect("parent WorkTx enters L4");
+
+    let child_tx = TxId("flow-live-child".to_string());
+    let child_proposal_cid = write_flow_proposal_telemetry(&h, "child", 2, Some(parent_tx.clone()));
+    let child_root = h.seq.q_snapshot().expect("child q").state_root_t;
+    h.seq
+        .submit_agent_tx(work_tx_with_parent_and_proposal(
+            &child_tx.0,
+            true,
+            child_root,
+            child_proposal_cid,
+        ))
+        .await
+        .expect("submit child WorkTx");
+    h.seq
+        .try_apply_one(&mut h.rx)
+        .expect("apply child envelope")
+        .expect("child WorkTx enters L4");
+
+    let canonical_edges = h.seq.compute_canonical_edges_at_head();
+    assert_eq!(
+        canonical_edges
+            .get(&parent_tx)
+            .expect("parent edge from CAS telemetry")
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>(),
+        vec![child_tx.clone()],
+        "FC1 rtool/input must reconstruct parent -> child edges from L4 WorkTx + ProposalTelemetry CAS"
+    );
+
+    let bus = TuringBus::with_sequencer(Kernel::new(), BusConfig::default(), Arc::clone(&h.seq));
+    let snapshot = bus.snapshot();
+    assert!(
+        snapshot.sequencer_wired,
+        "FC1 input snapshot must be wired to the typed sequencer read path"
+    );
+    assert!(
+        snapshot.tape.is_empty(),
+        "legacy shadow Tape is not the source of this FC1 read-view proof"
+    );
+    assert!(
+        snapshot.price_index.contains_key(&parent_tx)
+            && snapshot.price_index.contains_key(&child_tx),
+        "FC1 input snapshot must expose ChainTape-derived node market entries, got {:?}",
+        snapshot.price_index.keys().collect::<Vec<_>>()
     );
 }
 
