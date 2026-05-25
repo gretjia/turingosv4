@@ -191,7 +191,7 @@ final_evidence_artifacts = [
 id = "boot_cli_current_kernel_fresh"
 problem_type = "boot_cli"
 status = "fresh_required"
-entrypoint = "src/bin/turingos.rs"
+entrypoint = "scripts/run_true_suite_boot_cli_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
   "canonical_tape_cas_state",
