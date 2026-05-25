@@ -88,6 +88,17 @@ proof-work tape. The runner records `manifest.json`, `chaintape.jsonl`,
 the report verifies stage completion, prompt-budget safety, no raw-stderr
 prompt leakage, and the manifest hashes for the tape/probe files.
 
+The replay/CAS integrity execution layer adds
+`scripts/run_true_suite_replay_cas_tamper_current_kernel.sh` for
+`replay_cas_tamper_repair_current`. The runner creates a fresh workspace
+through public `turingos init`, uses the current runtime boot helper to emit
+ChainTape/CAS evidence, verifies the original tape through public
+`turingos verify chaintape`, runs `audit_tape_tamper` against temporary forks,
+and verifies the original tape again after tamper testing. The expected final
+evidence includes `replay_report.json`, `tamper_report.json`,
+`post_tamper_replay_report.json`, and a run manifest tying those reports to
+the current source head.
+
 The next implementation phase must produce the fresh evidence directory named
 by the contract. Each final task row must include ChainTape/CAS evidence, or an
 explicitly named domain tape for TDMA, plus replay/verifier output;

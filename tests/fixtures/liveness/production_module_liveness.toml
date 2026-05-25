@@ -231,6 +231,7 @@ smoke_gates = [
   "tests/constitution_true_suite_boot_cli_runner.rs",
   "tests/constitution_true_suite_market_external_agent_runner.rs",
   "tests/constitution_true_suite_generate_artifact_runner.rs",
+  "tests/constitution_true_suite_replay_cas_tamper_runner.rs",
   "tests/tb_6_verify_chaintape.rs",
   "tests/constitution_tape_canonical_gate.rs",
 ]
@@ -507,6 +508,7 @@ smoke_gates = [
   "tests/cli_init_smoke.rs",
   "tests/cli_task_open_smoke.rs",
   "tests/constitution_true_suite_generate_artifact_runner.rs",
+  "tests/constitution_true_suite_replay_cas_tamper_runner.rs",
   "tests/constitution_true_suite_tdma_runner.rs",
   "tests/generate_emits_work_tx_smoke.rs",
 ]

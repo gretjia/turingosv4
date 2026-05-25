@@ -168,7 +168,7 @@ final_evidence_artifacts = [
 id = "replay_cas_tamper_repair_current"
 problem_type = "replay_cas"
 status = "fresh_required"
-entrypoint = "tests/replay_verifies_all_cross_cid_references_resolve.rs"
+entrypoint = "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
   "canonical_tape_cas_state",
@@ -182,6 +182,7 @@ anti_contamination_guards = [
   "dashboard cannot pass without deterministic reconstruction",
   "tampered CAS/L4 must fail closed",
   "old evidence is annotated, never rewritten",
+  "fresh runner must generate current ChainTape/CAS before tamper forks",
 ]
 evidence_artifacts = [
   "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/aggregate_verdict.json",
@@ -190,8 +191,11 @@ evidence_artifacts = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/replay_cas/runtime_repo/",
   "handover/evidence/true_suite/<run>/replay_cas/cas/",
+  "handover/evidence/true_suite/<run>/replay_cas/genesis_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/replay_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/tamper_report.json",
+  "handover/evidence/true_suite/<run>/replay_cas/post_tamper_replay_report.json",
+  "handover/evidence/true_suite/<run>/replay_cas/replay_cas_run_manifest.json",
 ]
 
 [[task]]
