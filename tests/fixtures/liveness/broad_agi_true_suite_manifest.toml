@@ -1,0 +1,496 @@
+schema_version = "turingosv4.broad_agi_true_suite_manifest.v1"
+authority = "constitution.md + fresh current-kernel true-problem evidence"
+closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+old_15_is_not_sufficient = true
+leaderboard_score_is_not_liveness = true
+minimum_family_count = 10
+required_failure_classes = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+]
+required_fc_blocks = [
+  "FC1",
+  "FC2",
+  "FC3",
+]
+allowed_entry_boundaries = [
+  "public_cli",
+  "local_openai_proxy",
+  "browser_sandbox",
+  "container_sandbox",
+  "tdma_domain_tape",
+  "current_kernel_market_router",
+]
+
+[[family]]
+id = "gaia_general_assistant"
+source_family = "GAIA"
+public_source = "https://arxiv.org/abs/2311.12983"
+risk_class = "Class 2"
+entry_boundary = "local_openai_proxy"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:boot->Q0->replay",
+  "FC3:logs-archive->feedback",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "input_capsule_cid",
+  "prompt_context_cid",
+  "work_tx_or_l4e",
+  "replay_report",
+  "aggregate_fc_trace_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "tool_use_dead_end",
+]
+anti_contamination_guards = [
+  "do not use old 15-question transcript as source",
+  "score is capability signal only, not liveness proof",
+  "all task inputs must be hashed before model call",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/gaia/input_capsules/",
+  "handover/evidence/true_suite/<run>/gaia/runtime_repo/",
+  "handover/evidence/true_suite/<run>/gaia/cas/",
+  "handover/evidence/true_suite/<run>/gaia/replay_report.json",
+  "handover/evidence/true_suite/<run>/gaia/fc_trace_report.json",
+]
+
+[[family]]
+id = "gpqa_science_reasoning"
+source_family = "GPQA"
+public_source = "https://arxiv.org/abs/2311.12022"
+risk_class = "Class 2"
+entry_boundary = "local_openai_proxy"
+fc_trace = [
+  "FC1:input->agent-delta->output->predicates",
+  "FC2:pinned-benchmark-replay",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "predicate_registry_top_white",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "question_capsule_cid",
+  "answer_claim_capsule_cid",
+  "predicate_verdict",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "unjustified_science_claim",
+]
+anti_contamination_guards = [
+  "multiple-choice answer alone cannot pass without rationale capsule",
+  "web lookup may be a tool signal, never source of truth",
+  "leaderboard accuracy cannot close module liveness",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/gpqa/input_capsules/",
+  "handover/evidence/true_suite/<run>/gpqa/cas/",
+  "handover/evidence/true_suite/<run>/gpqa/replay_report.json",
+  "handover/evidence/true_suite/<run>/gpqa/failure_taxonomy.json",
+]
+
+[[family]]
+id = "math_formal_proof"
+source_family = "MATH plus current MiniF2F-style formalization"
+public_source = "https://arxiv.org/abs/2103.03874"
+risk_class = "Class 2"
+entry_boundary = "tdma_domain_tape"
+fc_trace = [
+  "FC1:rtool->agent-delta->predicates",
+  "FC2:boot->replay",
+  "FC3:logs-archive->feedback",
+]
+kernel_liveness_modules = [
+  "tdma_bounded_solver",
+  "predicate_registry_top_white",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "tdma_manifest",
+  "tdma_chaintape",
+  "per_attempt_probes",
+  "proof_verdict_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "invalid_formal_step",
+]
+anti_contamination_guards = [
+  "TDMA tape is domain evidence and must not be mislabeled as L4 ChainTape",
+  "proof judge stderr cannot enter ordinary prompts",
+  "zero-gain retry demos are smoke only",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/math_tdma/manifest.json",
+  "handover/evidence/true_suite/<run>/math_tdma/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/math_tdma/tdma_tape.git/",
+  "handover/evidence/true_suite/<run>/math_tdma/replay_report.json",
+]
+
+[[family]]
+id = "swebench_live_coding_repair"
+source_family = "SWE-bench family with live or freshly curated issues"
+public_source = "https://arxiv.org/abs/2505.23419"
+risk_class = "Class 2"
+entry_boundary = "container_sandbox"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:pinned-benchmark-replay",
+  "FC3:logs-archive->feedback",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "repo_snapshot_hash",
+  "patch_artifact_cid",
+  "test_result_capsule",
+  "work_tx_or_l4e",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "patch_regression",
+]
+anti_contamination_guards = [
+  "prefer fresh/live issue split over stale leaderboard rows",
+  "patch must be replayable from CAS artifacts",
+  "test pass is not enough without ChainTape/CAS binding",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/swebench/repo_snapshots/",
+  "handover/evidence/true_suite/<run>/swebench/cas/",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/swebench/replay_report.json",
+]
+
+[[family]]
+id = "webarena_web_agent"
+source_family = "WebArena"
+public_source = "https://arxiv.org/abs/2307.13854"
+risk_class = "Class 2"
+entry_boundary = "browser_sandbox"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates",
+  "FC2:replay",
+  "FC3:tools/logs->logs-archive",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "web_product_surface",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "browser_action_trace_hash",
+  "tool_log_capsule_cid",
+  "task_success_predicate",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "browser_state_drift",
+]
+anti_contamination_guards = [
+  "screenshots and DOM logs must be CAS-bound or quarantined",
+  "browser success cannot bypass predicates",
+  "no live account credentials or unscoped network side effects",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/webarena/browser_traces/",
+  "handover/evidence/true_suite/<run>/webarena/cas/",
+  "handover/evidence/true_suite/<run>/webarena/replay_report.json",
+]
+
+[[family]]
+id = "mind2web_open_web"
+source_family = "Mind2Web"
+public_source = "https://arxiv.org/abs/2306.06070"
+risk_class = "Class 2"
+entry_boundary = "browser_sandbox"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates",
+  "FC3:tools/logs->logs-archive",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "web_product_surface",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "instruction_capsule_cid",
+  "action_sequence_hash",
+  "predicate_verdict",
+  "fc_trace_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "website_schema_drift",
+]
+anti_contamination_guards = [
+  "open-web pages must be snapshotted or self-hosted before scoring",
+  "dynamic website drift is infrastructure failure, not model failure",
+  "action traces must be hash-bound",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/mind2web/page_snapshots/",
+  "handover/evidence/true_suite/<run>/mind2web/cas/",
+  "handover/evidence/true_suite/<run>/mind2web/fc_trace_report.json",
+]
+
+[[family]]
+id = "osworld_computer_use"
+source_family = "OSWorld"
+public_source = "https://arxiv.org/abs/2404.07972"
+risk_class = "Class 3"
+entry_boundary = "container_sandbox"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:replay",
+  "FC3:tools/logs->logs-archive",
+]
+kernel_liveness_modules = [
+  "agent_prompt_model_boundary",
+  "tool_registry_current",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "sandbox_snapshot_hash",
+  "tool_log_capsule_cid",
+  "file_state_diff_hash",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "sandbox_escape_attempt",
+]
+anti_contamination_guards = [
+  "all OS actions run in disposable sandbox",
+  "file diffs are evidence only if hash-bound",
+  "unsafe action attempts become L4.E or quarantine",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/osworld/sandbox_snapshots/",
+  "handover/evidence/true_suite/<run>/osworld/cas/",
+  "handover/evidence/true_suite/<run>/osworld/replay_report.json",
+]
+
+[[family]]
+id = "toolbench_api_tool_use"
+source_family = "ToolBench/ToolLLM"
+public_source = "https://arxiv.org/abs/2307.16789"
+risk_class = "Class 2"
+entry_boundary = "public_cli"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates",
+  "FC3:tools/logs->logs-archive",
+]
+kernel_liveness_modules = [
+  "tool_registry_current",
+  "agent_prompt_model_boundary",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "tool_call_capsule_cid",
+  "tool_result_capsule_cid",
+  "predicate_verdict",
+  "fc_trace_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "tool_schema_mismatch",
+]
+anti_contamination_guards = [
+  "tool outputs must be scoped read views, not raw private diagnostics",
+  "API failures are infrastructure failures unless predicate says otherwise",
+  "tool result must be CAS-bound before prompt reuse",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/toolbench/tool_capsules/",
+  "handover/evidence/true_suite/<run>/toolbench/cas/",
+  "handover/evidence/true_suite/<run>/toolbench/fc_trace_report.json",
+]
+
+[[family]]
+id = "cybench_security_sandbox"
+source_family = "Cybench"
+public_source = "https://arxiv.org/abs/2408.08926"
+risk_class = "Class 3"
+entry_boundary = "container_sandbox"
+fc_trace = [
+  "FC1:rtool->input->agent-delta->output->predicates",
+  "FC2:replay",
+  "FC3:tools/logs->logs-archive",
+]
+kernel_liveness_modules = [
+  "tool_registry_current",
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "challenge_snapshot_hash",
+  "sandbox_network_policy_hash",
+  "verdict_capsule_cid",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "unsafe_exploit_attempt",
+]
+anti_contamination_guards = [
+  "no live target systems",
+  "network egress must be disabled or allowlisted",
+  "exploit success is not allowed outside controlled challenge sandbox",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/cybench/challenge_snapshots/",
+  "handover/evidence/true_suite/<run>/cybench/cas/",
+  "handover/evidence/true_suite/<run>/cybench/replay_report.json",
+]
+
+[[family]]
+id = "market_economy_polymarket"
+source_family = "TuringOS prediction-market workload"
+public_source = "internal_current_kernel_market_suite"
+risk_class = "Class 3"
+entry_boundary = "current_kernel_market_router"
+fc_trace = [
+  "FC1:input->agent-delta->output->predicates->wtool->Q_t+1",
+  "FC2:replay",
+  "FC3:logs-archive->feedback",
+]
+kernel_liveness_modules = [
+  "economy_market_settlement",
+  "role_economic_learning_sidecars",
+  "runtime_replay_evidence_audit",
+]
+evidence_shape = [
+  "market_snapshot_capsule_cid",
+  "signed_market_tx",
+  "integer_balance_delta",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "money_conservation_failure",
+]
+anti_contamination_guards = [
+  "paper or simulated exchange only until live custody is explicitly authorized",
+  "market price is signal, never predicate truth",
+  "all money and share math uses integer units",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/market_action/runtime_repo/",
+  "handover/evidence/true_suite/<run>/market_action/cas/",
+  "handover/evidence/true_suite/<run>/market_action/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
+]
+
+[[family]]
+id = "memory_feedback_reinit"
+source_family = "NIAH-style long-context retrieval plus TuringOS FC3 reinit"
+public_source = "https://arxiv.org/abs/2406.11230"
+risk_class = "Class 2"
+entry_boundary = "public_cli"
+fc_trace = [
+  "FC1:rtool->input",
+  "FC2:resume->replay",
+  "FC3:logs-archive->feedback->architectAI->vetoAI->re-init",
+]
+kernel_liveness_modules = [
+  "fc3_runtime_meta_roles",
+  "runtime_replay_evidence_audit",
+  "canonical_tape_cas_state",
+]
+evidence_shape = [
+  "log_feedback_capsule_cid",
+  "architect_proposal_cid",
+  "veto_decision_tx",
+  "reinit_boot_tx",
+  "replay_report",
+]
+failure_taxonomy = [
+  "kernel_invariant_failure",
+  "model_task_failure",
+  "infrastructure_failure",
+  "benchmark_adapter_failure",
+  "provider_policy_failure",
+  "constitutional_rejection",
+  "reinit_state_drift",
+]
+anti_contamination_guards = [
+  "external PR ceremony cannot substitute for runtime ArchitectAI/Veto-AI",
+  "old genesis reports are not rewritten",
+  "reinit must be tape-visible and replayable",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/fc3/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/fc3/cas/",
+  "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
+]
