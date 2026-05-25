@@ -116,6 +116,19 @@ evidence includes `replay_report.json`, `tamper_report.json`,
 `post_tamper_replay_report.json`, and a run manifest tying those reports to
 the current source head.
 
+The broad AGI batch control plane adds
+`scripts/run_true_suite_broad_agi_batch.sh` for cross-family evidence
+accounting. The runner writes `broad_agi_batch_manifest.json`,
+`family_results.jsonl`, and `aggregate_fc_trace_report.json`. In `--plan-only`
+mode it is non-closing by construction: no result may be counted as passed.
+In `--execute-installed` mode it invokes only installed current-kernel
+runners, and every unimplemented benchmark adapter remains visible as pending
+rather than disappearing from the denominator. The coverage manifest now marks
+each task with a `tape_kind`: `canonical_l4` for ChainTape/CAS evidence and
+`tdma_domain` for TDMA GitTapeLedger evidence. Fresh-required rows no longer
+carry historical candidate artifacts, which keeps old real-world demos useful
+as background without letting them pollute final closure.
+
 The next implementation phase must produce the fresh evidence directory named
 by the contract. Each final task row must include ChainTape/CAS evidence, or an
 explicitly named domain tape for TDMA, plus replay/verifier output;
