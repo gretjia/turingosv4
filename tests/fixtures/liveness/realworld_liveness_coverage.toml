@@ -6,10 +6,10 @@ historical_evidence_is_final = false
 smoke_is_not_final_evidence = true
 
 [[task]]
-id = "market_action_minif2f_fresh"
+id = "market_external_agent_fresh"
 problem_type = "market_economy"
 status = "fresh_required"
-entrypoint = "scripts/run_real12_task_market_probe.sh"
+entrypoint = "scripts/run_true_suite_market_external_agent.sh"
 module_groups = [
   "canonical_tape_cas_state",
   "predicate_registry_top_white",
@@ -24,15 +24,17 @@ constitutional_paths = [
   "FC2:replay",
 ]
 anti_contamination_guards = [
-  "reject scripted AttemptPrediction and scripted TaskOutcome buys",
-  "require live_non_scripted_router_tx_count from ChainTape/CAS, not stdout",
-  "enforce no price-as-truth and no ghost liquidity",
+  "DeepSeek/SiliconFlow external agent enters only through local OpenAI-compatible proxy, never kernel hardcoding",
+  "parsed provider decision must become signed BuyWithCoinRouterTx on ChainTape/CAS",
+  "reject old scripted REAL fixtures, raw provider-response evidence, price-as-truth, and ghost liquidity",
 ]
 evidence_artifacts = []
 final_evidence_artifacts = [
-  "handover/evidence/true_suite/<run>/market_action/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/market_action/runtime_repo/",
   "handover/evidence/true_suite/<run>/market_action/cas/",
-  "handover/evidence/true_suite/<run>/market_action/aggregate_verdict.json",
+  "handover/evidence/true_suite/<run>/market_action/genesis_report.json",
+  "handover/evidence/true_suite/<run>/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
   "handover/evidence/true_suite/<run>/market_action/replay_report.json",
 ]
 

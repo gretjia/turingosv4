@@ -33,7 +33,7 @@ historical evidence, real-task tests, and runner scripts.
 
 | Task | Domain | Required Fresh Evidence |
 | --- | --- | --- |
-| `market_action_minif2f_fresh` | market/economy | non-scripted ChainTape/CAS market action, conservation, replay |
+| `market_external_agent_fresh` | market/economy | provider-backed external agent decision, signed ChainTape/CAS market action, conservation, replay |
 | `market_ab_performance_fresh` | market/economy benchmark | pinned arm configs, CAS/replay, no causal overclaim |
 | `generate_artifact_chain_fresh` | user spec to artifact | ChainTape/CAS anchored spec/generate + artifact bundle CID |
 | `tdma_real_proof_fresh` | TDMA/proof | real task attempts, bounded prompts, judge verdicts, replay |
@@ -54,6 +54,18 @@ runtime boot surfaces: `turingos init`, the small
 `boot_cli_current_kernel_fresh` helper around `build_chaintape_sequencer`, and
 `turingos verify chaintape`. It does not use the historical evaluator,
 `lean_market`, scripted market buys, or old TDMA `MemoryTapeLedger` evidence.
+
+The market/economy execution layer adds
+`scripts/run_true_suite_market_external_agent.sh` for
+`market_external_agent_fresh`. The runner uses a real DeepSeek/SiliconFlow
+provider only through the local OpenAI-compatible proxy
+(`src/drivers/llm_proxy.py`). The provider-backed agent stays outside the
+kernel: its JSON decision is parsed by the runner helper, signed through
+`AgentKeypairRegistry`, submitted as `BuyWithCoinRouterTx`, and verified by
+public `turingos verify chaintape`. Evidence records only hashes plus parsed
+decision/tx metadata, not raw provider prompt or response bytes. This lights
+the market/economy domain without importing external-agent simulation into the
+kernel or resurrecting old scripted REAL fixtures.
 
 The next implementation phase must produce the fresh evidence directory named
 by the contract. Each final task row must include ChainTape or CAS evidence plus
