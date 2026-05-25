@@ -83,6 +83,7 @@ if [[ "$MODE" == "execute-installed" ]]; then
                 ;;
         esac
     done
+    "$PROJECT_ROOT/scripts/package_true_suite_evidence.sh" --run-root "$RUN_ROOT"
 elif [[ "$MODE" != "plan-only" ]]; then
     echo "ERROR: mode must be --plan-only or --execute-installed" >&2
     exit 5
@@ -255,6 +256,7 @@ batch_manifest = {
     "outputs": {
         "family_results_jsonl": str(run_dir / "family_results.jsonl"),
         "aggregate_fc_trace_report": str(run_dir / "aggregate_fc_trace_report.json"),
+        "evidence_package_manifest": str(run_root / "evidence_package_manifest.json"),
     },
     "no_overclaim_guards": [
         "plan-only mode cannot emit passed coverage",

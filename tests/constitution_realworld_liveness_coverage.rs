@@ -123,6 +123,8 @@ fn has_canonical_l4_or_cas_artifact(paths: &[String]) -> bool {
         let lower = path.to_ascii_lowercase();
         lower.contains("/cas/")
             || lower.ends_with("/cas")
+            || lower.ends_with("cas.dotgit.tar.gz")
+            || lower.ends_with("runtime_repo.dotgit.tar.gz")
             || lower.contains("chaintape")
             || lower.contains("/l4/")
             || lower.ends_with("/l4.jsonl")
@@ -130,7 +132,9 @@ fn has_canonical_l4_or_cas_artifact(paths: &[String]) -> bool {
 }
 
 fn has_tdma_domain_artifact(paths: &[String]) -> bool {
-    paths.iter().any(|path| path.contains("/tdma_tape.git/"))
+    paths
+        .iter()
+        .any(|path| path.contains("/tdma_tape.git/") || path.ends_with("/tdma_tape.git.tar.gz"))
         && paths
             .iter()
             .any(|path| path.contains("/per_attempt_probes.jsonl"))
