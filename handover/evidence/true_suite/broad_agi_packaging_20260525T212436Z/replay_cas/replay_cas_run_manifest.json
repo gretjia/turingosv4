@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingosv4.true_suite.replay_cas_tamper_current.v1",
+  "run_id": "broad_agi_packaging_20260525T212436Z",
+  "git_head": "b38c09583b88b54e6379ee28e70f4dffeddc324e",
+  "entrypoint": "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+  "runtime_repo": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/runtime_repo",
+  "cas": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/cas",
+  "genesis_report": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/genesis_report.json",
+  "replay_report": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/replay_report.json",
+  "tamper_report": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/tamper_report.json",
+  "post_tamper_replay_report": "/tmp/turingosv4-realworld-coverage/handover/evidence/true_suite/broad_agi_packaging_20260525T212436Z/replay_cas/post_tamper_replay_report.json",
+  "notes": [
+    "fresh evidence is generated through public turingos init",
+    "current runtime ChainTape boot helper emits boot/resume L4 rows",
+    "public turingos verify chaintape reconstructs the original tape before and after tamper forks",
+    "audit_tape_tamper corrupts only temporary forks and must detect 3/3 corruptions"
+  ]
+}

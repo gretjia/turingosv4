@@ -66,7 +66,9 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gaia/input_capsules/",
   "handover/evidence/true_suite/<run>/gaia/runtime_repo/",
+  "handover/evidence/true_suite/<run>/gaia/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/gaia/cas/",
+  "handover/evidence/true_suite/<run>/gaia/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/gaia/replay_report.json",
   "handover/evidence/true_suite/<run>/gaia/fc_trace_report.json",
 ]
@@ -109,6 +111,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gpqa/input_capsules/",
   "handover/evidence/true_suite/<run>/gpqa/cas/",
+  "handover/evidence/true_suite/<run>/gpqa/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/gpqa/replay_report.json",
   "handover/evidence/true_suite/<run>/gpqa/failure_taxonomy.json",
 ]
@@ -152,7 +155,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/math_tdma/manifest.json",
   "handover/evidence/true_suite/<run>/math_tdma/chaintape.jsonl",
-  "handover/evidence/true_suite/<run>/math_tdma/tdma_tape.git/",
+  "handover/evidence/true_suite/<run>/math_tdma/tdma_tape.git.tar.gz",
   "handover/evidence/true_suite/<run>/math_tdma/replay_report.json",
 ]
 
@@ -196,7 +199,9 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/swebench/repo_snapshots/",
   "handover/evidence/true_suite/<run>/swebench/cas/",
+  "handover/evidence/true_suite/<run>/swebench/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/swebench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/swebench/replay_report.json",
 ]
 
@@ -239,6 +244,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/webarena/browser_traces/",
   "handover/evidence/true_suite/<run>/webarena/cas/",
+  "handover/evidence/true_suite/<run>/webarena/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/webarena/replay_report.json",
 ]
 
@@ -280,6 +286,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/mind2web/page_snapshots/",
   "handover/evidence/true_suite/<run>/mind2web/cas/",
+  "handover/evidence/true_suite/<run>/mind2web/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/mind2web/fc_trace_report.json",
 ]
 
@@ -322,6 +329,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/osworld/sandbox_snapshots/",
   "handover/evidence/true_suite/<run>/osworld/cas/",
+  "handover/evidence/true_suite/<run>/osworld/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/osworld/replay_report.json",
 ]
 
@@ -363,6 +371,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/toolbench/tool_capsules/",
   "handover/evidence/true_suite/<run>/toolbench/cas/",
+  "handover/evidence/true_suite/<run>/toolbench/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/toolbench/fc_trace_report.json",
 ]
 
@@ -405,6 +414,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/cybench/challenge_snapshots/",
   "handover/evidence/true_suite/<run>/cybench/cas/",
+  "handover/evidence/true_suite/<run>/cybench/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/cybench/replay_report.json",
 ]
 
@@ -446,7 +456,9 @@ anti_contamination_guards = [
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_action/runtime_repo/",
+  "handover/evidence/true_suite/<run>/market_action/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/cas/",
+  "handover/evidence/true_suite/<run>/market_action/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/replay_report.json",
   "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
 ]
@@ -491,6 +503,7 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/fc3/chaintape.jsonl",
   "handover/evidence/true_suite/<run>/fc3/cas/",
+  "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
 ]

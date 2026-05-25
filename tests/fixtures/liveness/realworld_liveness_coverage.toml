@@ -33,7 +33,9 @@ anti_contamination_guards = [
 evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_action/runtime_repo/",
+  "handover/evidence/true_suite/<run>/market_action/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/cas/",
+  "handover/evidence/true_suite/<run>/market_action/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/genesis_report.json",
   "handover/evidence/true_suite/<run>/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
@@ -66,6 +68,7 @@ evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_ab/arm_config_manifests/",
   "handover/evidence/true_suite/<run>/market_ab/cas/",
+  "handover/evidence/true_suite/<run>/market_ab/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "handover/evidence/true_suite/<run>/market_ab/replay_report.json",
 ]
@@ -97,7 +100,9 @@ anti_contamination_guards = [
 evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/generate_artifact/runtime_repo/",
+  "handover/evidence/true_suite/<run>/generate_artifact/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/generate_artifact/cas/",
+  "handover/evidence/true_suite/<run>/generate_artifact/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/generate_artifact/genesis_report.json",
   "handover/evidence/true_suite/<run>/generate_artifact/artifact_bundle_cid.json",
   "handover/evidence/true_suite/<run>/generate_artifact/generate_artifact_run_manifest.json",
@@ -130,7 +135,7 @@ evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/tdma/manifest.json",
   "handover/evidence/true_suite/<run>/tdma/chaintape.jsonl",
-  "handover/evidence/true_suite/<run>/tdma/tdma_tape.git/",
+  "handover/evidence/true_suite/<run>/tdma/tdma_tape.git.tar.gz",
   "handover/evidence/true_suite/<run>/tdma/per_attempt_probes.jsonl",
   "handover/evidence/true_suite/<run>/tdma/replay_report.json",
   "handover/evidence/true_suite/<run>/tdma/tdma_run_manifest.json",
@@ -160,6 +165,7 @@ evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/fc3/chaintape.jsonl",
   "handover/evidence/true_suite/<run>/fc3/cas/",
+  "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
 ]
@@ -188,7 +194,9 @@ anti_contamination_guards = [
 evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/replay_cas/runtime_repo/",
+  "handover/evidence/true_suite/<run>/replay_cas/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/replay_cas/cas/",
+  "handover/evidence/true_suite/<run>/replay_cas/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/replay_cas/genesis_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/replay_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/tamper_report.json",
@@ -221,7 +229,9 @@ anti_contamination_guards = [
 evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/boot_cli/runtime_repo/",
+  "handover/evidence/true_suite/<run>/boot_cli/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/boot_cli/cas/",
+  "handover/evidence/true_suite/<run>/boot_cli/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/boot_cli/genesis_report.json",
   "handover/evidence/true_suite/<run>/boot_cli/replay_report.json",
 ]
