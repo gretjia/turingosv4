@@ -28,7 +28,7 @@ superseded. Status values used here are only:
 | boot to initial ChainTape state | LIVE | `build_chaintape_sequencer`, activation entry, pinned pubkeys, `initial_q_state.json` | none for fresh boot |
 | replay verifier | LIVE | `verify_chaintape`, `replay_full_transition_with_predicate_binding` | none for tested replay path |
 | resume boot from existing tape | LIVE | `resume_existing_chain`, `bootstrap_resume_state`, `Sequencer::new_at_logical_t` | none for tested resume path |
-| map-reduce tick (`clock -> mr`, map/reduce edges) | MISSING | no current ChainTape-visible production tick path | needs Class 4 charter if typed tx, sequencer, replay, or CAS schema changes |
+| map-reduce tick (`clock -> mr`, map/reduce edges) | LIVE | fresh boot commits `MapReduceTickTx` to L4 after predicate activation; replay re-verifies prefix roots and clock advance | none for boot-visible scheduled tick |
 | terminal / halt summary | LIVE | `TerminalSummaryTx`, `RunOutcome`, `SystemEmitCommand::TerminalSummary`, `runs_t` | none for tested terminal-summary path |
 
 ## FC3 Meta Architecture
@@ -66,8 +66,10 @@ cargo test --test constitution_matrix_drift
 cargo test --test fc_alignment_conformance
 ```
 
-The LiveNow probe currently contains 4 tests:
+The LiveNow probe currently contains 6 tests:
 - FC1 typed WorkTx routes to L4 or L4.E
 - FC1 real WorkTx provenance is CAS-bound, not a synthetic fixture placeholder
 - FC2 boot, replay, and resume are live
+- FC2 map-reduce tick is boot-visible and replay-verified
+- FC2 forged map-reduce tick is rejected at agent ingress
 - FC2 terminal summary anchors `RunOutcome`

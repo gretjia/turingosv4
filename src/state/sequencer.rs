@@ -30,8 +30,8 @@ use crate::bottom_white::ledger::system_keypair::{
     transition_ledger_emitter, Ed25519Keypair, KeypairError, SystemEpoch,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    append, canonical_encode, LedgerEntry, LedgerEntrySigningPayload, LedgerWriter,
-    LedgerWriterError,
+    append, canonical_encode, map_reduce_tick_map_root, map_reduce_tick_reduce_root, LedgerEntry,
+    LedgerEntrySigningPayload, LedgerWriter, LedgerWriterError,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::economy::monetary_invariant::{
@@ -40,7 +40,8 @@ use crate::economy::monetary_invariant::{
 };
 use crate::state::q_state::{AgentId, EscrowEntry, Hash, QState, TaskMarketEntry};
 use crate::state::typed_tx::{
-    BoolWithProof, HasSubmitter, PredicateId, SignalBundle, TransitionError, TypedTx, WorkTx,
+    BoolWithProof, HasSubmitter, MapReduceTickTx, PredicateId, SignalBundle, TransitionError,
+    TypedTx, WorkTx,
 };
 use crate::top_white::predicates::registry::{
     PredicateBundleMap, PredicateCasView, PredicateRegistry, PredicateRegistrySnapshotCapsule,
@@ -280,6 +281,19 @@ pub(crate) const PREDICATE_BINDING_ACTIVATE_DOMAIN_V1: &[u8] =
 pub fn predicate_binding_activate_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
     let mut h = Sha256::new();
     h.update(PREDICATE_BINDING_ACTIVATE_DOMAIN_V1);
+    h.update(prev.0);
+    h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
+    let digest: [u8; 32] = h.finalize().into();
+    Hash::from_bytes(digest)
+}
+
+/// TRACE_MATRIX FC2-N20 + FC2:clock + FC2:mr: accept-state domain for system map-reduce ticks.
+pub(crate) const MAP_REDUCE_TICK_DOMAIN_V1: &[u8] = b"turingosv4.map_reduce_tick.accept.v1";
+
+/// TRACE_MATRIX FC2-N20 + FC2:mr: state-root mutator for accepting a verified map-reduce tick.
+pub fn map_reduce_tick_accept_state_root(prev: &Hash, tx: &TypedTx) -> Hash {
+    let mut h = Sha256::new();
+    h.update(MAP_REDUCE_TICK_DOMAIN_V1);
     h.update(prev.0);
     h.update(canonical_encode(tx).expect("TypedTx is canonical-encodable"));
     let digest: [u8; 32] = h.finalize().into();
@@ -539,7 +553,10 @@ fn rejection_class_for(e: &TransitionError) -> L4ERejectionClass {
         TE::EventAlreadyResolved => RC::PolicyViolation,
         TE::PredicateBindingAlreadyActivated
         | TE::PredicateBindingActivationInvalid
-        | TE::PredicateBindingActivationLogicalTMismatch => RC::PolicyViolation,
+        | TE::PredicateBindingActivationLogicalTMismatch
+        | TE::MapReduceTickLogicalTMismatch
+        | TE::MapReduceTickPrefixMismatch
+        | TE::MapReduceTickClockMismatch => RC::PolicyViolation,
         // TB-G G3.2 (2026-05-12): bankruptcy risk-cap admission rejection.
         // → PolicyViolation per CLAUDE.md §15 shielding low-pollution class
         // (architect §1.5 + packet §2.1). Distinct from
@@ -625,6 +642,15 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
         }
         TransitionError::PredicateBindingActivationLogicalTMismatch => {
             Some("predicate_binding_activation_logical_t_mismatch".into())
+        }
+        TransitionError::MapReduceTickLogicalTMismatch => {
+            Some("map_reduce_tick_logical_t_mismatch".into())
+        }
+        TransitionError::MapReduceTickPrefixMismatch => {
+            Some("map_reduce_tick_prefix_mismatch".into())
+        }
+        TransitionError::MapReduceTickClockMismatch => {
+            Some("map_reduce_tick_clock_mismatch".into())
         }
         // TB-G G3.2 (2026-05-12): per-tx-class public summary tag (32 bytes
         // ≤ 64-byte SG-G3.12 budget) — distinct from `stake_balance_exceeded`
@@ -859,6 +885,10 @@ pub(crate) fn system_message_for_verification(
             let digest = t.to_signing_payload().canonical_digest();
             Some(CanonicalMessage::PredicateBindingActivateSigning(digest))
         }
+        TypedTx::MapReduceTick(t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            Some(CanonicalMessage::MapReduceTickSigning(digest))
+        }
         // Agent-submitted variants: stage 1.5 is system-only. TB-13
         // CompleteSetMint / CompleteSetRedeem / MarketSeed are agent-signed
         // (verified separately at admission via the agent-signature path).
@@ -917,6 +947,7 @@ pub(crate) fn system_signature_of(
         // TB-N2 B2 (2026-05-11) — system-emitted; mirror TaskBankruptcy.
         TypedTx::EventResolve(t) => Some(&t.system_signature),
         TypedTx::PredicateBindingActivate(t) => Some(&t.system_signature),
+        TypedTx::MapReduceTick(t) => Some(&t.system_signature),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -956,6 +987,7 @@ pub(crate) fn system_epoch_of(tx: &TypedTx) -> Option<SystemEpoch> {
         // lookup at apply_one stage 1.5.
         TypedTx::EventResolve(t) => Some(t.epoch),
         TypedTx::PredicateBindingActivate(t) => Some(t.epoch),
+        TypedTx::MapReduceTick(t) => Some(t.epoch),
         TypedTx::Work(_)
         | TypedTx::Verify(_)
         | TypedTx::Challenge(_)
@@ -1126,6 +1158,37 @@ fn predicate_verify_error_to_transition(
             TransitionError::SettlementPredicateProofMismatch(pid.clone())
         }
     }
+}
+
+/// TRACE_MATRIX FC2-N20 + FC2:mr: verify the tick against the exact L4 prefix and ledger logical time.
+pub(crate) fn verify_map_reduce_tick_prefix_context(
+    q: &QState,
+    tick: &MapReduceTickTx,
+    prefix: &[LedgerEntry],
+    logical_t: u64,
+) -> Result<(), TransitionError> {
+    if tick.timestamp_logical != logical_t {
+        return Err(TransitionError::MapReduceTickLogicalTMismatch);
+    }
+    if tick.tape0_len != prefix.len() as u64 || tick.tape0_root != q.ledger_root_t {
+        return Err(TransitionError::MapReduceTickPrefixMismatch);
+    }
+    let expected_clock_t = q.q_t.current_round.saturating_add(1);
+    if tick.clock_t != expected_clock_t {
+        return Err(TransitionError::MapReduceTickClockMismatch);
+    }
+    let expected_map_root = map_reduce_tick_map_root(prefix);
+    let expected_reduce_root = map_reduce_tick_reduce_root(
+        expected_map_root,
+        tick.tape0_root,
+        tick.tape0_len,
+        tick.clock_t,
+        tick.tick_kind,
+    );
+    if tick.map_root != expected_map_root || tick.reduce_root != expected_reduce_root {
+        return Err(TransitionError::MapReduceTickPrefixMismatch);
+    }
+    Ok(())
 }
 
 /// TRACE_MATRIX § 8 — exhaustive dispatch over `TypedTx` variants.
@@ -2324,6 +2387,23 @@ pub(crate) fn dispatch_transition(
             let mut q_next = q.clone();
             q_next.predicate_registry_root_t = activate.registry_merkle_root;
             q_next.state_root_t = predicate_binding_activate_state_root(&q.state_root_t, tx);
+            Ok((q_next, SignalBundle::empty()))
+        }
+        TypedTx::MapReduceTick(tick) => {
+            if tick.parent_state_root != q.state_root_t {
+                return Err(TransitionError::StaleParent);
+            }
+            if tick.tape0_root != q.ledger_root_t {
+                return Err(TransitionError::MapReduceTickPrefixMismatch);
+            }
+            if tick.clock_t != q.q_t.current_round.saturating_add(1) {
+                return Err(TransitionError::MapReduceTickClockMismatch);
+            }
+            assert_no_post_init_mint(tx, q)
+                .map_err(|_| TransitionError::MonetaryInvariantViolation)?;
+            let mut q_next = q.clone();
+            q_next.q_t.current_round = tick.clock_t;
+            q_next.state_root_t = map_reduce_tick_accept_state_root(&q.state_root_t, tx);
             Ok((q_next, SignalBundle::empty()))
         }
         // ──────────────────────────────────────────────────────────────────
@@ -3936,6 +4016,11 @@ pub enum SystemEmitCommand {
         registry_snapshot_cid: crate::bottom_white::cas::schema::Cid,
         registry_merkle_root: crate::state::q_state::Hash,
     },
+    /// FC2 map-reduce tick. Runtime derives the L4 prefix roots and the next
+    /// clock from current ChainTape/QState; callers only choose the tick kind.
+    MapReduceTick {
+        tick_kind: crate::state::typed_tx::TickKind,
+    },
     // Future RSP-3.2 additions (NOT in TB-11 scope):
     //   SlashTx        { ... }   (RSP-3.2)
 }
@@ -3982,6 +4067,8 @@ pub enum EmitSystemError {
     /// CAS, is not typed as PredicateRegistrySnapshotCapsule, or does not
     /// match the active registry root.
     PredicateRegistrySnapshotInvalid,
+    /// Ledger prefix could not be read while constructing a system tick.
+    LedgerRead(LedgerWriterError),
 }
 
 impl std::fmt::Display for EmitSystemError {
@@ -4009,6 +4096,7 @@ impl std::fmt::Display for EmitSystemError {
                 f,
                 "SystemEmitCommand::PredicateBindingActivate referenced an invalid predicate registry snapshot capsule"
             ),
+            Self::LedgerRead(e) => write!(f, "system emit ledger prefix read failed: {e}"),
         }
     }
 }
@@ -4339,7 +4427,8 @@ impl Sequencer {
             // Anti-Oreo. Construction goes through
             // `emit_system_tx(SystemEmitCommand::EventResolve)`.
             | TypedTx::EventResolve(_)
-            | TypedTx::PredicateBindingActivate(_) => {
+            | TypedTx::PredicateBindingActivate(_)
+            | TypedTx::MapReduceTick(_) => {
                 return Err(SubmitError::SystemTxForbiddenOnAgentIngress);
             }
             // Agent-submitted variants — proceed to queue. TB-13 conditional-
@@ -4579,6 +4668,54 @@ impl Sequencer {
         .map_err(|e| format!("apply predicate binding activation tx: {e}"))
     }
 
+    /// FC2 initAI → once mr: fresh boot anchors one map-reduce tick on L4 so
+    /// the clock/mr/tape0/tape1 path is live without an external test caller.
+    pub(crate) fn activate_map_reduce_tick_for_boot(&self) -> Result<LedgerEntry, String> {
+        let tx = self
+            .build_signed_system_tx(SystemEmitCommand::MapReduceTick {
+                tick_kind: crate::state::typed_tx::TickKind::Scheduled,
+            })
+            .map_err(|e| format!("build map-reduce tick tx: {e}"))?;
+        self.verify_emitted_system_tx_signature(&tx)
+            .map_err(|e| format!("verify map-reduce tick tx: {e}"))?;
+        let emit_id = self.next_emit_id.fetch_add(1, Ordering::SeqCst);
+        self.apply_one(SubmissionEnvelope {
+            submit_id: emit_id,
+            tx,
+        })
+        .map_err(|e| format!("apply map-reduce tick tx: {e}"))
+    }
+
+    fn ledger_prefix_snapshot_for_emit(&self) -> Result<Vec<LedgerEntry>, EmitSystemError> {
+        let writer = self
+            .ledger_writer
+            .read()
+            .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+        let len = writer.len();
+        let mut prefix = Vec::with_capacity(len as usize);
+        for logical_t in 1..=len {
+            prefix.push(
+                writer
+                    .read_at(logical_t)
+                    .map_err(EmitSystemError::LedgerRead)?,
+            );
+        }
+        Ok(prefix)
+    }
+
+    fn ledger_prefix_snapshot_for_apply(&self) -> Result<Vec<LedgerEntry>, ApplyError> {
+        let writer = self
+            .ledger_writer
+            .read()
+            .map_err(|_| ApplyError::QStateLockPoisoned)?;
+        let len = writer.len();
+        let mut prefix = Vec::with_capacity(len as usize);
+        for logical_t in 1..=len {
+            prefix.push(writer.read_at(logical_t)?);
+        }
+        Ok(prefix)
+    }
+
     /// TRACE_MATRIX TB-5 Atom 4 (preflight § 4.4): construct + sign a system
     /// tx from a high-level `SystemEmitCommand`. Internal-only; called by
     /// `emit_system_tx`. Each command variant constructs its corresponding
@@ -4589,7 +4726,8 @@ impl Sequencer {
         command: SystemEmitCommand,
     ) -> Result<TypedTx, EmitSystemError> {
         use crate::bottom_white::ledger::system_keypair::terminal_summary_emitter::{
-            sign_challenge_resolve, sign_finalize_reward, sign_predicate_binding_activate,
+            sign_challenge_resolve, sign_finalize_reward, sign_map_reduce_tick,
+            sign_predicate_binding_activate,
         };
         use crate::bottom_white::ledger::system_keypair::SystemSignature;
         use crate::state::typed_tx::{ChallengeResolveTx, FinalizeRewardTx};
@@ -4926,6 +5064,49 @@ impl Sequencer {
                 tx.system_signature = sig;
                 Ok(TypedTx::PredicateBindingActivate(tx))
             }
+            SystemEmitCommand::MapReduceTick { tick_kind } => {
+                use crate::state::typed_tx::MapReduceTickTx;
+                let prefix = self.ledger_prefix_snapshot_for_emit()?;
+                let q_snap = self
+                    .q
+                    .read()
+                    .map_err(|_| EmitSystemError::InternalLockPoisoned)?;
+                let logical_t_for_id = self.next_logical_t.load(Ordering::SeqCst) + 1;
+                let tape0_len = prefix.len() as u64;
+                let map_root = map_reduce_tick_map_root(&prefix);
+                let clock_t = q_snap.q_t.current_round.saturating_add(1);
+                let reduce_root = map_reduce_tick_reduce_root(
+                    map_root,
+                    q_snap.ledger_root_t,
+                    tape0_len,
+                    clock_t,
+                    tick_kind,
+                );
+                let mut tx = MapReduceTickTx {
+                    tx_id: crate::state::q_state::TxId(format!(
+                        "system-map-reduce-tick-{}-{}",
+                        self.epoch.get(),
+                        logical_t_for_id
+                    )),
+                    parent_state_root: q_snap.state_root_t,
+                    tape0_root: q_snap.ledger_root_t,
+                    tape0_len,
+                    clock_t,
+                    map_root,
+                    reduce_root,
+                    tick_kind,
+                    epoch: self.epoch,
+                    timestamp_logical: logical_t_for_id,
+                    system_signature: SystemSignature::from_bytes([0u8; 64]),
+                };
+                drop(q_snap);
+                let payload = tx.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let sig = sign_map_reduce_tick(&self.keypair, digest)
+                    .map_err(EmitSystemError::SignatureConstruction)?;
+                tx.system_signature = sig;
+                Ok(TypedTx::MapReduceTick(tx))
+            }
         }
     }
 
@@ -5027,6 +5208,19 @@ impl Sequencer {
             TypedTx::PredicateBindingActivate(t) => {
                 let digest = t.to_signing_payload().canonical_digest();
                 let msg = CanonicalMessage::PredicateBindingActivateSigning(digest);
+                if !verify_system_signature(
+                    &t.system_signature,
+                    &msg,
+                    t.epoch,
+                    &self.pinned_pubkeys,
+                ) {
+                    return Err(EmitSystemError::InvalidSystemSignatureLive);
+                }
+                Ok(())
+            }
+            TypedTx::MapReduceTick(t) => {
+                let digest = t.to_signing_payload().canonical_digest();
+                let msg = CanonicalMessage::MapReduceTickSigning(digest);
                 if !verify_system_signature(
                     &t.system_signature,
                     &msg,
@@ -5255,6 +5449,15 @@ impl Sequencer {
         if let TypedTx::PredicateBindingActivate(t) = &tx {
             if t.timestamp_logical != logical_t {
                 let err = TransitionError::PredicateBindingActivationLogicalTMismatch;
+                self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
+                return Err(ApplyError::Transition(err));
+            }
+        }
+        if let TypedTx::MapReduceTick(t) = &tx {
+            let prefix = self.ledger_prefix_snapshot_for_apply()?;
+            if let Err(err) =
+                verify_map_reduce_tick_prefix_context(&q_snapshot, t, &prefix, logical_t)
+            {
                 self.record_rejection(submit_id, &tx, &q_snapshot, &err)?;
                 return Err(ApplyError::Transition(err));
             }

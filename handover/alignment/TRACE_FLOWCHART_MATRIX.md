@@ -91,15 +91,15 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | FC2-N17 (human architect) | architect (manual) | `constitution.md` author | `fc3_architectai_proposal_not_direct_write` (FC3 binding) | 🚫 N/A runtime |
 | FC2-N18 (law / ground truth) | constitution.md | `constitution.md` | `fc3_constitution_hash_pinned` (existing fc_alignment_conformance) | 🚫 N/A runtime |
 | FC2-N19 (initAI →once predicates) | predicate registration at boot | `BootPredicateManifest::v8_production` + `PredicateBindingActivate` system tx + CAS `PredicateRegistrySnapshotCapsule` | `constitution_predicate_binding_activation` + `constitution_predicate_registry_replay` | ✅ |
-| FC2-N20 (initAI →once mr) | mr-tick at boot | current production surface missing; old pre-ChainTape evaluator clock helpers are retired | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2-N20 (initAI →once mr) | mr-tick at boot | `MapReduceTickTx` + `SystemEmitCommand::MapReduceTick` + fresh boot `activate_map_reduce_tick_for_boot` | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` + `tests/fc_alignment_conformance.rs::fc2_map_reduce_tick_tape_visible_surface_is_live` | ✅ |
 | FC2-N21 (initAI →once Q0) | Q_0 minted | `Kernel::new`, `TuringBus::init` | `fc2_on_init_only_mint` + `fc2_no_post_init_mint` | ✅ |
 | FC2-N22 (HALT) | halted state | `TerminalSummaryTx`, `RunOutcome`, `SystemEmitCommand::TerminalSummary` | `tests/constitution_aggregate_report.rs::aggregate_report_section_17_halt_distribution_present` + `src/state/typed_tx.rs` inline `ExhaustionReason::to_run_outcome` tests | ✅ |
 | FC2-N23 (HaltReason variants) | terminal anchor distribution | `RunOutcome` enum + `ExhaustionReason::to_run_outcome` projection | `tests/constitution_aggregate_report.rs::aggregate_report_section_17_halt_distribution_present` + `tests/fc_alignment_conformance.rs::fc2_n23_terminal_run_outcome_taxonomy_typed` | ✅ |
-| FC2:clock | tick clock node | `TuringBus::clock` legacy append counter exists; typed ChainTape mr-clock surface missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
-| FC2:mr | map-reduce node | current production mr reducer missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
-| FC2 edge `clock -> mr` | tick invokes mr | current production ChainTape tick invocation missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
-| FC2 edge `mr -> tape0` | mr maps over current tape | current production mr map over ChainTape missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
-| FC2 edge `mr -> tape1` | mr reduces to tape-visible output | current production mr reduce-to-tape node missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2:clock | tick clock node | `MapReduceTickTx.clock_t` + `QState.q_t.current_round` boot advance | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` | ✅ |
+| FC2:mr | map-reduce node | `map_reduce_tick_map_root` + `map_reduce_tick_reduce_root` over accepted ChainTape prefix | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` | ✅ |
+| FC2 edge `clock -> mr` | tick invokes mr | fresh boot calls `Sequencer::activate_map_reduce_tick_for_boot`; live/replay pre-dispatch verifies clock/root binding | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` | ✅ |
+| FC2 edge `mr -> tape0` | mr maps over current tape | `MapReduceTickTx.tape0_root` / `tape0_len` bind the pre-tick L4 prefix | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` | ✅ |
+| FC2 edge `mr -> tape1` | mr reduces to tape-visible output | accepted `TxKind::MapReduceTick` L4 row; `LedgerEntry.resulting_ledger_root` is the tape1 witness | `tests/constitution_flowchart_livenow.rs::fc2_map_reduce_tick_is_tape_visible_and_replay_verified` | ✅ |
 | FC2-N28 (tools_other) | non-rtool/wtool tool surface | `ToolRegistry`, `TuringTool`, `TuringBus::tools` (legacy lifecycle), typed `ToolId` references | `fc2_taskopen_escrowlock_are_chain_events` | ✅ |
 
 ### FC2 invariant battery (TB-C0 NEW gate tests)

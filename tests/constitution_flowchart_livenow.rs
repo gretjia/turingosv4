@@ -5,6 +5,7 @@
 //! - FC1 typed sequencer wtool to L4 and L4.E
 //! - FC1 real WorkTx provenance is CAS-bound, not synthetic fixture placeholders
 //! - FC2 boot, replay verification, and resume bootstrap
+//! - FC2 system-emitted map-reduce tick to ChainTape
 //! - FC2 terminal summary / halt-summary typing
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,7 +19,7 @@ use turingosv4::bottom_white::ledger::rejection_evidence::{
     RejectionClass as L4ERejectionClass, RejectionEvidenceWriter,
 };
 use turingosv4::bottom_white::ledger::system_keypair::{
-    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
+    Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
     InMemoryLedgerWriter, LedgerWriter, TxKind,
@@ -34,10 +35,13 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{
     AgentId, EscrowEntry, Hash, QState, TaskId, TaskMarketEntry, TxId,
 };
-use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope, SystemEmitCommand};
+use turingosv4::state::sequencer::{
+    ApplyError, Sequencer, SubmissionEnvelope, SubmitError, SystemEmitCommand,
+};
 use turingosv4::state::typed_tx::{
-    AgentSignature, BoolWithProof, PredicateId, PredicateResultsBundle, RejectionClass, RunId,
-    RunOutcome, SafetyOrCreation, TransitionError, TypedTx, WorkTx,
+    AgentSignature, BoolWithProof, MapReduceTickTx, PredicateId, PredicateResultsBundle,
+    RejectionClass, RunId, RunOutcome, SafetyOrCreation, TickKind, TransitionError, TypedTx,
+    WorkTx,
 };
 use turingosv4::top_white::predicates::registry::{
     BootPredicateKind, BootPredicateManifest, BootPredicateSpec, PredicateBundleMap,
@@ -300,8 +304,8 @@ async fn fc2_boot_replay_and_resume_are_live() {
     .expect("verify chaintape");
     assert!(report.all_indicators_pass(), "replay report: {report:?}");
     assert_eq!(
-        report.l4_entries, 2,
-        "fresh boot must produce activation + TaskOpen L4 entries"
+        report.l4_entries, 3,
+        "fresh boot must produce activation + boot MapReduceTick + TaskOpen L4 entries"
     );
     assert_eq!(report.l4e_entries, 0, "LiveNow boot probe expects no L4.E");
     assert!(
@@ -313,10 +317,78 @@ async fn fc2_boot_replay_and_resume_are_live() {
     let resumed = build_chaintape_sequencer(&resume_cfg).expect("resume boot");
     assert_eq!(
         resumed.sequencer.next_logical_t_peek(),
-        2,
+        3,
         "resume must set next_logical_t to existing L4 length"
     );
     resumed.shutdown().await.expect("resume shutdown");
+}
+
+#[tokio::test]
+async fn fc2_map_reduce_tick_is_tape_visible_and_replay_verified() {
+    let tmp = TempDir::new().expect("tempdir");
+    let fresh_cfg = runtime_cfg(&tmp, "flowchart-livenow-map-reduce-tick", false);
+    let bundle = build_chaintape_sequencer(&fresh_cfg).expect("fresh boot");
+    let writer = bundle.transition_writer.clone();
+    let seq = bundle.sequencer.clone();
+
+    bundle
+        .shutdown()
+        .await
+        .expect("shutdown after boot map-reduce tick");
+
+    let guard = writer.read().expect("ledger read");
+    assert_eq!(
+        guard.len(),
+        2,
+        "fresh boot must produce activation + boot MapReduceTick L4 rows"
+    );
+    let tick_entry = guard.read_at(2).expect("tick ledger entry");
+    assert_eq!(tick_entry.tx_kind, TxKind::MapReduceTick);
+    drop(guard);
+
+    let q_after = seq.q_snapshot().expect("q after tick");
+    assert_eq!(
+        q_after.q_t.current_round, 1,
+        "FC2 tick clock must advance the runtime round exactly once"
+    );
+
+    let report = verify_chaintape(
+        &fresh_cfg.runtime_repo_path,
+        &fresh_cfg.cas_path,
+        &VerifyOptions::default(),
+    )
+    .expect("verify chaintape with MapReduceTick");
+    assert!(report.all_indicators_pass(), "replay report: {report:?}");
+    assert_eq!(report.l4_entries, 2);
+    assert_eq!(report.l4e_entries, 0);
+}
+
+#[tokio::test]
+async fn fc2_map_reduce_tick_agent_ingress_is_forbidden() {
+    let h = memory_harness(
+        QState::genesis(),
+        PredicateRegistry::from_boot_manifest(BootPredicateManifest::empty())
+            .expect("empty predicate registry"),
+    );
+    let tx = TypedTx::MapReduceTick(MapReduceTickTx {
+        tx_id: TxId("forged-map-reduce-tick".to_string()),
+        parent_state_root: Hash::ZERO,
+        tape0_root: Hash::ZERO,
+        tape0_len: 0,
+        clock_t: 1,
+        map_root: Hash::from_bytes([0x11; 32]),
+        reduce_root: Hash::from_bytes([0x22; 32]),
+        tick_kind: TickKind::Scheduled,
+        epoch: SystemEpoch::new(1),
+        timestamp_logical: 1,
+        system_signature: SystemSignature::from_bytes([0u8; 64]),
+    });
+    let err = h
+        .seq
+        .submit_agent_tx(tx)
+        .await
+        .expect_err("agent ingress must reject system tick");
+    assert!(matches!(err, SubmitError::SystemTxForbiddenOnAgentIngress));
 }
 
 #[tokio::test]

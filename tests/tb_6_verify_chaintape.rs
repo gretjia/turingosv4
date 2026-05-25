@@ -129,9 +129,9 @@ async fn i90b_empty_chain_replay_reports_zero_entries_and_all_indicators_pass() 
     )
     .expect("verify");
 
-    assert_eq!(report.l4_entries, 1);
+    assert_eq!(report.l4_entries, 2);
     assert_eq!(report.l4e_entries, 0);
-    // Fresh boot integrity: the activation row replays and no user tx exists.
+    // Fresh boot integrity: activation + MapReduceTick replay and no user tx exists.
     assert!(report.all_indicators_pass());
     assert!(report.detail.head_commit_oid_hex.is_some());
 }

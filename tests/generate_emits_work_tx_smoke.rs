@@ -809,10 +809,11 @@ fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
         kinds,
         vec![
             TxKind::PredicateBindingActivate,
+            TxKind::MapReduceTick,
             TxKind::TaskOpen,
             TxKind::EscrowLock
         ],
-        "all-rejected market must advance activation + TaskOpen/EscrowLock on L4; WorkTx rejection belongs to L4.E"
+        "all-rejected market must advance boot activation + FC2 tick + TaskOpen/EscrowLock on L4; WorkTx rejection belongs to L4.E"
     );
 
     let rejection_path = runtime_repo.join("rejections.jsonl");

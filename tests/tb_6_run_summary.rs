@@ -50,7 +50,7 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
     let boot_root = bundle
         .sequencer
         .q_snapshot()
-        .expect("post-activation q")
+        .expect("post-boot q")
         .state_root_t;
     let task_open = make_synthetic_task_open("task-i92", "sponsor-i92", boot_root, "i92-1");
     let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
@@ -113,7 +113,7 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
 }
 
 #[tokio::test]
-async fn i92b_empty_chain_produces_zero_run_summary() {
+async fn i92b_boot_only_chain_produces_boot_run_summary() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i92b");
     use turingosv4::runtime::build_chaintape_sequencer;
@@ -123,12 +123,12 @@ async fn i92b_empty_chain_produces_zero_run_summary() {
     let summary = RunSummary::from_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, "i92b", 0, 0)
         .expect("build summary");
 
-    assert_eq!(summary.l4_entries, 1);
+    assert_eq!(summary.l4_entries, 2);
     assert_eq!(summary.l4e_entries, 0);
-    assert_eq!(summary.tx_count, 1);
-    assert_eq!(summary.accepted_tx_ids.len(), 1);
+    assert_eq!(summary.tx_count, 2);
+    assert_eq!(summary.accepted_tx_ids.len(), 2);
     assert!(summary.rejected_tx_ids.is_empty());
-    assert_eq!(summary.candidate_proposal_cids.len(), 1);
+    assert_eq!(summary.candidate_proposal_cids.len(), 2);
 }
 
 #[test]

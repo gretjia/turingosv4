@@ -150,12 +150,15 @@ fn fc2_n22_halt_via_halt_and_settle() {
 }
 
 #[test]
-#[ignore = "🔴 FC2 map-reduce tick production surface is not \
-            present on the current ChainTape path. The old evaluator clock \
-            helpers belonged to a retired runtime shape. See \
-            handover/tracer_bullets/TB-FLOWCHART-COVERAGE-TESTSET_2026-05-24.md."]
-fn fc2_map_reduce_tick_tape_visible_pending() {
-    panic!("FC2 map-reduce tick must be implemented or constitutionally superseded");
+fn fc2_map_reduce_tick_tape_visible_surface_is_live() {
+    use turingosv4::bottom_white::ledger::transition_ledger::TxKind;
+    use turingosv4::state::sequencer::SystemEmitCommand;
+    use turingosv4::state::typed_tx::TickKind;
+
+    assert_eq!(TxKind::MapReduceTick as u8, 20);
+    let _ = SystemEmitCommand::MapReduceTick {
+        tick_kind: TickKind::Scheduled,
+    };
 }
 
 // ─── FC3: system topology, readonly subgraph, boot, logs archive ───
