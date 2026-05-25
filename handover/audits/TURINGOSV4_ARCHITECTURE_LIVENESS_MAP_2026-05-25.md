@@ -96,8 +96,8 @@ flowchart TB
     L4E --> LOGS
     CAS --> LOGS
     LOGS --> FB --> ARCH
-    ARCH -.external today.-> VETO
-    VETO -.external today.-> TOOLS
+    ARCH --> VETO
+    VETO --> TOOLS
     REINIT --> INIT
 
     SPEC --> GEN --> TDMA --> A
@@ -150,7 +150,7 @@ flowchart TB
 | TDMA runner / memory kernel / distiller | PW | Real workload machinery for iterative proof/code generation | exercises FC1 but is not a constitutional node |
 | Spec grill and generate pipeline | PW | Current real-user product path | feeds FC1 agent work and FC2 booted workspace |
 | ArtifactBundleManifest | PW | User-visible generated deliverable, stored through CAS | product output attached to FC1 WorkTx evidence |
-| Polymarket lifecycle | PW | Market workload: `MarketSeed -> Verify -> FinalizeReward -> EventResolve` | workload over FC1/FC2 tape substrate |
+| Polymarket lifecycle | PW | Market workload: CompleteSet / Coin-YES-NO conservation, MarketSeed, integer CPMM/router, market action traces, PriceIndex projection, FinalizeReward/EventResolve, and no-ghost-liquidity guards | workload over FC1/FC2 tape substrate |
 | Price index / mask set / market view | PW | Replay-derived UI and market state projection | derived view, not source of truth |
 | Market order tickets | PW | Voluntary trade-intent evidence for market workloads | product sidecar; must remain CAS/tape-derived |
 | Legacy `TuringBus::append` | LEGACY | Retained compatibility surface, not typed authority | zombie candidate if future callers rely on it |
