@@ -284,6 +284,11 @@ fn broad_suite_forbids_old_15_and_score_only_contamination() {
                 "real8_",
                 "stage_phase7_real_e2e",
                 "sidecar_only",
+                "leaderboard",
+                "score_only",
+                "accuracy_only",
+                "raw_prompt",
+                "raw_response",
             ] {
                 assert!(
                     !lower.contains(forbidden),

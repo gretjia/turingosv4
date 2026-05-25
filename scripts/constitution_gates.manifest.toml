@@ -757,6 +757,11 @@ authority = "OBL-005 true-suite replay/CAS integrity execution layer: current-ke
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_true_suite_broad_agi_batch_runner"
+authority = "OBL-005 broad true-problem batch control plane: aggregate current-kernel true-suite runners and broad AGI family contracts without counting pending adapters, old-15 evidence, leaderboard scores, raw provider payloads, or TDMA domain tape as final no-zombie closure"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"

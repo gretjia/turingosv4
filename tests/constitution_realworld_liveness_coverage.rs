@@ -33,6 +33,7 @@ struct CoverageTask {
     id: String,
     problem_type: String,
     status: String,
+    tape_kind: String,
     entrypoint: String,
     module_groups: Vec<String>,
     constitutional_paths: Vec<String>,
@@ -101,6 +102,7 @@ fn coverage_tasks() -> Vec<CoverageTask> {
                 id: as_string(table, "id"),
                 problem_type: as_string(table, "problem_type"),
                 status: as_string(table, "status"),
+                tape_kind: as_string(table, "tape_kind"),
                 entrypoint: as_string(table, "entrypoint"),
                 module_groups: as_str_array(table, "module_groups"),
                 constitutional_paths: as_str_array(table, "constitutional_paths"),
@@ -116,6 +118,62 @@ fn assert_path_exists(path: &str) {
     assert!(Path::new(path).exists(), "path does not exist: {path}");
 }
 
+fn has_canonical_l4_or_cas_artifact(paths: &[String]) -> bool {
+    paths.iter().any(|path| {
+        let lower = path.to_ascii_lowercase();
+        lower.contains("/cas/")
+            || lower.ends_with("/cas")
+            || lower.contains("chaintape")
+            || lower.contains("/l4/")
+            || lower.ends_with("/l4.jsonl")
+    })
+}
+
+fn has_tdma_domain_artifact(paths: &[String]) -> bool {
+    paths.iter().any(|path| path.contains("/tdma_tape.git/"))
+        && paths
+            .iter()
+            .any(|path| path.contains("/per_attempt_probes.jsonl"))
+        && paths
+            .iter()
+            .any(|path| path.contains("/tdma_run_manifest.json"))
+}
+
+fn has_raw_provider_or_score_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.ends_with(".stdout")
+        || lower.ends_with(".stderr")
+        || lower.ends_with("_output.txt")
+        || lower.contains("raw_prompt")
+        || lower.contains("raw_response")
+        || lower.contains("leaderboard")
+        || lower.contains("accuracy")
+        || lower.contains("score_only")
+        || lower.contains("old15")
+        || lower.contains("old_15")
+        || lower.contains("real8x")
+        || lower.contains("stage_phase7_real_e2e")
+        || lower.contains("tdma_zero_gain_demo")
+}
+
+fn assert_allowed_tape_kind(task: &CoverageTask) {
+    assert!(
+        matches!(task.tape_kind.as_str(), "canonical_l4" | "tdma_domain"),
+        "task `{}` has unsupported tape_kind `{}`",
+        task.id,
+        task.tape_kind
+    );
+    if task.tape_kind == "tdma_domain" {
+        assert!(
+            task.anti_contamination_guards
+                .iter()
+                .any(|guard| guard.contains("must not be mislabeled as bottom-white L4 ChainTape")),
+            "tdma_domain task `{}` must explicitly guard against canonical ChainTape conflation",
+            task.id
+        );
+    }
+}
+
 fn assert_no_smoke_or_stdout(task_id: &str, path: &str) {
     let lower = path.to_ascii_lowercase();
     assert!(
@@ -123,23 +181,9 @@ fn assert_no_smoke_or_stdout(task_id: &str, path: &str) {
         "real-world coverage task `{task_id}` uses smoke label in artifact path `{path}`"
     );
     assert!(
-        !lower.ends_with(".stdout") && !lower.ends_with(".stderr"),
-        "task `{task_id}` cannot use raw stdout/stderr as liveness evidence: {path}"
+        !has_raw_provider_or_score_path(path),
+        "task `{task_id}` cannot use raw provider output, old/historical candidate evidence, score-only evidence, or raw stdout/stderr as liveness evidence: {path}"
     );
-}
-
-fn has_tape_artifact(paths: &[String]) -> bool {
-    paths.iter().any(|path| {
-        let lower = path.to_ascii_lowercase();
-        lower.contains("chaintape") || lower.contains("/l4/") || lower.ends_with("/l4.jsonl")
-    })
-}
-
-fn has_cas_artifact(paths: &[String]) -> bool {
-    paths.iter().any(|path| {
-        let lower = path.to_ascii_lowercase();
-        lower.contains("/cas/") || lower.ends_with("/cas")
-    })
 }
 
 fn has_replay_or_verifier_artifact(paths: &[String]) -> bool {
@@ -198,6 +242,7 @@ fn realworld_tasks_cover_required_domains_without_smoke_labels() {
     let mut domains = BTreeSet::new();
     let mut fresh_domains = BTreeSet::new();
     for task in &tasks {
+        assert_allowed_tape_kind(task);
         for field in [&task.id, &task.problem_type, &task.entrypoint] {
             assert!(
                 !field.to_ascii_lowercase().contains("smoke"),
@@ -233,6 +278,11 @@ fn realworld_tasks_cover_required_domains_without_smoke_labels() {
             }
             "fresh_required" => {
                 fresh_domains.insert(task.problem_type.as_str());
+                assert!(
+                    task.evidence_artifacts.is_empty(),
+                    "fresh-required task `{}` must not attach historical candidate artifacts to the final coverage contract",
+                    task.id
+                );
                 assert!(
                     !task.final_evidence_artifacts.is_empty(),
                     "fresh-required task `{}` must declare final artifacts",
@@ -320,14 +370,18 @@ fn every_retained_candidate_group_maps_to_realworld_task() {
 #[test]
 fn final_evidence_shape_is_tape_cas_or_quarantine_not_stdout() {
     for task in coverage_tasks() {
-        let has_tape_or_cas = has_tape_artifact(&task.final_evidence_artifacts)
-            || has_cas_artifact(&task.final_evidence_artifacts);
+        let has_expected_tape = match task.tape_kind.as_str() {
+            "canonical_l4" => has_canonical_l4_or_cas_artifact(&task.final_evidence_artifacts),
+            "tdma_domain" => has_tdma_domain_artifact(&task.final_evidence_artifacts),
+            other => panic!("unknown tape_kind `{other}` in `{}`", task.id),
+        };
         let has_replay_or_verifier =
             has_replay_or_verifier_artifact(&task.final_evidence_artifacts);
         assert!(
-            has_tape_or_cas && has_replay_or_verifier,
-            "task `{}` final evidence must include ChainTape or CAS plus replay/verifier output; runtime_repo alone is supplemental, got {:?}",
+            has_expected_tape && has_replay_or_verifier,
+            "task `{}` final evidence must include the declared tape_kind `{}` plus replay/verifier output; runtime_repo alone is supplemental, got {:?}",
             task.id,
+            task.tape_kind,
             task.final_evidence_artifacts
         );
         for path in task

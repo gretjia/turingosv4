@@ -9,6 +9,7 @@ smoke_is_not_final_evidence = true
 id = "market_external_agent_fresh"
 problem_type = "market_economy"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_market_external_agent.sh"
 module_groups = [
   "canonical_tape_cas_state",
@@ -43,6 +44,7 @@ final_evidence_artifacts = [
 id = "market_ab_performance_fresh"
 problem_type = "market_economy"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "scripts/run_real16_market_performance_benchmark.sh"
 module_groups = [
   "predicate_registry_top_white",
@@ -72,6 +74,7 @@ final_evidence_artifacts = [
 id = "generate_artifact_chain_fresh"
 problem_type = "generate_artifact"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_generate_artifact_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
@@ -91,10 +94,7 @@ anti_contamination_guards = [
   "require generated artifact bundle CID linked to ChainTape/CAS",
   "mechanical DOM/API verdict must not substitute for L4 evidence",
 ]
-evidence_artifacts = [
-  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/verdict.json",
-  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/audit/AUDIT_VERDICT.md",
-]
+evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/generate_artifact/runtime_repo/",
   "handover/evidence/true_suite/<run>/generate_artifact/cas/",
@@ -108,6 +108,7 @@ final_evidence_artifacts = [
 id = "tdma_real_proof_fresh"
 problem_type = "tdma_proof"
 status = "fresh_required"
+tape_kind = "tdma_domain"
 entrypoint = "scripts/run_true_suite_tdma_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
@@ -125,10 +126,7 @@ anti_contamination_guards = [
   "judge verdicts must be replayable from durable TDMA tape files",
   "TDMA GitTapeLedger evidence must not be mislabeled as bottom-white L4 ChainTape",
 ]
-evidence_artifacts = [
-  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
-  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
-]
+evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/tdma/manifest.json",
   "handover/evidence/true_suite/<run>/tdma/chaintape.jsonl",
@@ -142,6 +140,7 @@ final_evidence_artifacts = [
 id = "fc3_governance_reinit_fresh"
 problem_type = "fc3_governance_reinit"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "tests/constitution_fc3_closure.rs"
 module_groups = [
   "canonical_tape_cas_state",
@@ -169,6 +168,7 @@ final_evidence_artifacts = [
 id = "replay_cas_tamper_repair_current"
 problem_type = "replay_cas"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
@@ -185,10 +185,7 @@ anti_contamination_guards = [
   "old evidence is annotated, never rewritten",
   "fresh runner must generate current ChainTape/CAS before tamper forks",
 ]
-evidence_artifacts = [
-  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/aggregate_verdict.json",
-  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/PERSISTENCE_BINDING_REPORT.json",
-]
+evidence_artifacts = []
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/replay_cas/runtime_repo/",
   "handover/evidence/true_suite/<run>/replay_cas/cas/",
@@ -203,6 +200,7 @@ final_evidence_artifacts = [
 id = "boot_cli_current_kernel_fresh"
 problem_type = "boot_cli"
 status = "fresh_required"
+tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_boot_cli_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
