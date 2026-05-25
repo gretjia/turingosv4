@@ -26,6 +26,7 @@ constitutional_paths = [
 anti_contamination_guards = [
   "DeepSeek/SiliconFlow external agent enters only through local OpenAI-compatible proxy, never kernel hardcoding",
   "parsed provider decision must become signed BuyWithCoinRouterTx on ChainTape/CAS",
+  "external_agent_market_manifest.json must include router_economics with CPMM reserves, k, price, retained-plus-out shares, and conservation booleans",
   "reject old scripted REAL fixtures, raw provider-response evidence, price-as-truth, and ghost liquidity",
 ]
 evidence_artifacts = []
