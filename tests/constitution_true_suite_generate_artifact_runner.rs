@@ -222,6 +222,26 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
             .expect("read pinned_pubkeys.json"),
     )
     .expect("parse pinned_pubkeys.json");
+    let genesis_report = run_dir.join("runtime_repo").join("genesis_report.json");
+    assert!(
+        genesis_report.is_file(),
+        "generate true-suite path must write going-forward genesis_report.json"
+    );
+    let genesis: Value = serde_json::from_str(
+        &std::fs::read_to_string(&genesis_report).expect("read genesis_report.json"),
+    )
+    .expect("parse genesis_report.json");
+    assert_eq!(
+        genesis.get("agent_pubkeys_path").and_then(Value::as_str),
+        Some("agent_pubkeys.json")
+    );
+    assert!(
+        genesis
+            .get("initial_balances")
+            .and_then(Value::as_array)
+            .is_some_and(|balances| !balances.is_empty()),
+        "generate genesis_report must capture replayable initial balances"
+    );
     let chain_run_id = pinned
         .get("run_id")
         .and_then(Value::as_str)
