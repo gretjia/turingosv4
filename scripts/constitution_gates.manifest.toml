@@ -717,6 +717,11 @@ authority = "TB-FLOWCHART-FC3-CLOSURE v2 APPROVED-FC3-v2-ALL-IN-ONE: FC3 feedbac
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_production_module_liveness"
+authority = "OBL-005 no-zombie AGI liveness contract: every production code group and standalone binary must be classified, smoke-gated, and either tied to historical real-world ChainTape/CAS candidate evidence or explicitly quarantined"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"

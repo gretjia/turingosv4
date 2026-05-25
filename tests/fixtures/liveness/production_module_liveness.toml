@@ -1,0 +1,580 @@
+schema_version = "turingosv4.production_module_liveness.v1"
+authority = "constitution.md + ChainTape/CAS evidence"
+policy = "real_world_required_for_final"
+final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+smoke_is_not_final_evidence = true
+constitution_blocks = [
+  "constitution.md:455-509",
+  "constitution.md:571-660",
+  "constitution.md:826-870",
+]
+
+[[real_world_suite]]
+id = "real8x_market_ab"
+path = "handover/evidence/real8x_market_ab_20260515T134453Z"
+families = ["market", "batch", "replay"]
+evidence = ["ChainTape", "CAS", "aggregate_verdict", "audit_dashboard"]
+
+[[real_world_suite]]
+id = "real_bcast_hard10"
+path = "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z"
+families = ["market", "librarian", "role_actions"]
+evidence = ["ChainTape", "CAS", "aggregate_verdict", "task_market_probe"]
+
+[[real_world_suite]]
+id = "stage_phase7_real_e2e"
+path = "handover/evidence/stage_phase7_real_e2e_20260518T031804Z"
+families = ["web_product", "artifact_delivery", "user_simulator"]
+evidence = ["artifact", "audit", "user_simulator"]
+
+[[real_world_suite]]
+id = "tdma_zero_gain_demo"
+path = "handover/evidence/tdma_zero_gain_demo_20260522T115130Z"
+families = ["tdma", "retry", "zero_gain"]
+evidence = ["chaintape", "per_attempt_probes"]
+
+[[real_world_suite]]
+id = "cas_git_repair_challenge"
+path = "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z"
+families = ["cas", "git_substrate", "repair"]
+evidence = ["batch", "CAS", "ChainTape"]
+
+[[real_world_suite]]
+id = "real13_market_pressure"
+path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
+families = ["market_pressure", "economic_judgment", "ev_trace"]
+evidence = ["ChainTape", "CAS", "audit_dashboard"]
+
+[[real_world_suite]]
+id = "real11_router_positive_control"
+path = "handover/evidence/real11_router_positive_control_20260515T164142Z"
+families = ["router", "market_control"]
+evidence = ["router_positive_control", "aggregate_verdict"]
+
+[[group]]
+id = "axiom_boot_trust_root"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 3
+allowed_as_fc_authority = true
+restricted_surface = false
+module_ids = ["boot", "main"]
+paths = ["src/boot.rs", "src/main.rs", "genesis_payload.toml"]
+constitutional_anchors = ["Art.0.4", "FC2:boot", "FC3:constitution"]
+necessity = "Boot rejects trust-root drift before any AGI run can claim constitutional tape truth."
+smoke_gates = ["tests/fc_alignment_conformance.rs::fc3_n34_readonly_guard_verify_trust_root_intact_repo"]
+real_world_evidence = ["handover/evidence/real8x_market_ab_20260515T134453Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md"]
+evidence_requires = ["fresh boot", "trusted constitution bytes"]
+
+[[group]]
+id = "canonical_tape_cas_state"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 4
+allowed_as_fc_authority = true
+restricted_surface = true
+module_ids = [
+  "bottom_white",
+  "bottom_white::cas",
+  "bottom_white::cas::git_chain",
+  "bottom_white::cas::schema",
+  "bottom_white::cas::store",
+  "bottom_white::ledger",
+  "bottom_white::ledger::rejection_evidence",
+  "bottom_white::ledger::system_keypair",
+  "bottom_white::ledger::transition_ledger",
+  "state",
+  "state::head_t_witness",
+  "state::q_state",
+  "state::sequencer",
+  "state::typed_tx",
+]
+paths = [
+  "src/bottom_white/cas",
+  "src/bottom_white/ledger",
+  "src/state/q_state.rs",
+  "src/state/sequencer.rs",
+  "src/state/typed_tx.rs",
+  "src/state/head_t_witness.rs",
+]
+constitutional_anchors = ["Art.0.2", "Art.0.4", "FC1:Q_t", "FC1:wtool", "FC2:replay", "FC3:logs"]
+necessity = "The accepted/rejected tape, CAS payloads, state root, and replay verifier are the source of truth."
+smoke_gates = [
+  "tests/constitution_flowchart_livenow.rs::fc1_typed_worktx_routes_to_l4_or_l4e",
+  "tests/constitution_fc3_closure.rs",
+]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/aggregate_verdict.json",
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
+]
+evidence_requires = ["L4", "L4.E", "CAS", "replay"]
+
+[[group]]
+id = "predicate_registry_top_white"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 4
+allowed_as_fc_authority = true
+restricted_surface = true
+module_ids = [
+  "top_white",
+  "top_white::predicates",
+  "top_white::predicates::registry",
+  "top_white::predicates::visibility",
+  "runtime::predicate_registry_loader",
+]
+paths = ["src/top_white", "src/runtime/predicate_registry_loader.rs"]
+constitutional_anchors = ["Art.I.1", "FC1:predicates", "FC2:initAI->predicates"]
+necessity = "Predicate truth must be executable and replay-bound, not runner stamped."
+smoke_gates = [
+  "tests/constitution_predicate_registry_binding.rs",
+  "tests/constitution_predicate_registry_replay.rs",
+]
+real_world_evidence = ["handover/evidence/real8x_market_ab_20260515T134453Z/REAL10_DECISION_GATE_REPORT.md"]
+evidence_requires = ["predicate activation", "registry root", "admission verification"]
+
+[[group]]
+id = "fc1_bus_read_view_bridge"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 3
+allowed_as_fc_authority = true
+restricted_surface = true
+module_ids = ["bus", "kernel", "sdk::snapshot", "state::price_index", "state::router_quote"]
+paths = ["src/bus.rs", "src/kernel.rs", "src/sdk/snapshot.rs", "src/state/price_index.rs", "src/state/router_quote.rs"]
+constitutional_anchors = ["FC1:rtool", "FC1:input", "FC1:wtool", "Art.I.2"]
+necessity = "Agents need a scoped read view and typed write ingress; price and quote views are projections only."
+smoke_gates = [
+  "tests/constitution_flowchart_livenow.rs::fc1_rtool_input_snapshot_is_chain_cas_derived",
+  "tests/constitution_router_price_quote.rs",
+]
+real_world_evidence = ["handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md"]
+evidence_requires = ["read-view", "market projection", "no price-as-truth"]
+
+[[group]]
+id = "economy_market_settlement"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 4
+allowed_as_fc_authority = true
+restricted_surface = true
+module_ids = [
+  "economy",
+  "economy::escrow_vault",
+  "economy::ledger",
+  "economy::monetary_invariant",
+  "economy::money",
+]
+paths = ["src/economy", "src/state/router_quote.rs", "src/state/sequencer.rs", "src/state/typed_tx.rs"]
+constitutional_anchors = ["Law:1Coin=1YES+1NO", "Art.0.2", "FC1:wtool", "market:Coin/YES/NO"]
+necessity = "The market/economy activates agents while preserving integer conservation and no ghost liquidity."
+smoke_gates = [
+  "tests/constitution_polymarket_smoke.rs",
+  "tests/constitution_router_buy_with_coin.rs",
+]
+real_world_evidence = [
+  "handover/evidence/real11_router_positive_control_20260515T164142Z/aggregate_verdict.json",
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
+]
+evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
+
+[[group]]
+id = "runtime_replay_evidence_audit"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 3
+allowed_as_fc_authority = true
+restricted_surface = false
+module_ids = [
+  "bin::audit_dashboard",
+  "bin::audit_tape",
+  "bin::audit_tape_tamper",
+  "bin::gen_run_summary",
+  "bin::resume_preflight",
+  "bin::tb_18r_compute_invariant",
+  "bin::tb_g_persistence_report",
+  "bin::verify_chaintape",
+  "runtime",
+  "runtime::adapter",
+  "runtime::agent_audit_trail",
+  "runtime::agent_keypairs",
+  "runtime::agent_keystore",
+  "runtime::attempt_telemetry",
+  "runtime::audit_assertions",
+  "runtime::audit_tamper",
+  "runtime::audit_views",
+  "runtime::batch_continuation_manifest",
+  "runtime::batch_orchestrator",
+  "runtime::bootstrap",
+  "runtime::chain_derived_run_facts",
+  "runtime::chain_tape_lease",
+  "runtime::cid_hex",
+  "runtime::evidence_capsule",
+  "runtime::generation_attempt",
+  "runtime::genesis_report",
+  "runtime::persistence_evidence",
+  "runtime::peer_verify_coverage",
+  "runtime::proposal_telemetry",
+  "runtime::rejection_capsule",
+  "runtime::replay",
+  "runtime::resume_preflight",
+  "runtime::run_summary",
+  "runtime::verification_result",
+  "runtime::verify",
+]
+paths = ["src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
+constitutional_anchors = ["Art.0.2", "FC2:replay", "FC2:resume", "FC3:logs"]
+necessity = "Real runs must reconstruct from ChainTape/CAS, including attempts, leases, persistence, tamper checks, and replay."
+smoke_gates = [
+  "tests/tb_6_verify_chaintape.rs",
+  "tests/constitution_tape_canonical_gate.rs",
+]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
+  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/batch_evaluator.log",
+]
+evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
+
+[[group]]
+id = "fc3_runtime_meta_roles"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 4
+allowed_as_fc_authority = true
+restricted_surface = true
+module_ids = ["bin::generate_markov_capsule", "runtime::autopsy_capsule", "runtime::markov_capsule"]
+paths = ["src/runtime/autopsy_capsule.rs", "src/runtime/markov_capsule.rs", "src/state/sequencer.rs", "src/state/typed_tx.rs"]
+constitutional_anchors = ["FC3:architectAI", "FC3:vetoAI", "FC3:feedback", "FC3:re-init"]
+necessity = "FC3 is internal runtime governance: logs feed ArchitectAI, Veto-AI gates, and error halt re-inits without evidence rewrite."
+smoke_gates = ["tests/constitution_fc3_closure.rs"]
+real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt"]
+evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
+
+[[group]]
+id = "agent_prompt_model_boundary"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "drivers",
+  "drivers::llm_http",
+  "sdk",
+  "sdk::actor",
+  "sdk::econ_position",
+  "sdk::error_abstraction",
+  "sdk::market_context",
+  "sdk::pending_peer_reviews",
+  "sdk::prompt",
+  "sdk::prompt_guard",
+  "sdk::protocol",
+  "sdk::sanitized_runner",
+  "sdk::your_position",
+  "runtime::embedded_prompts",
+  "runtime::prompt_capsule",
+  "runtime::prompt_promotion",
+]
+paths = ["src/drivers", "src/sdk/protocol.rs", "src/sdk/prompt.rs", "src/sdk/sanitized_runner.rs", "src/sdk/market_context.rs", "src/runtime/prompt_capsule.rs"]
+constitutional_anchors = ["FC1:input", "FC1:agent delta", "Art.III"]
+necessity = "LLM prompts and process boundaries are product workload surfaces; they must stay shielded and tape-bound."
+smoke_gates = [
+  "tests/production_shellouts_must_use_sanitized_runner.rs",
+  "tests/constitution_g3_your_position_prompt.rs",
+]
+real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md"]
+evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
+
+[[group]]
+id = "role_economic_learning_sidecars"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::real14_e2_candidate_verifier",
+  "bin::real15_role_differentiation_verifier",
+  "bin::real16_market_performance_verifier",
+  "runtime::agent_pnl",
+  "runtime::agent_role_classifier",
+  "runtime::agent_scheduler",
+  "runtime::benchmark_manifest",
+  "runtime::diversity",
+  "runtime::economic_judgment",
+  "runtime::ev_decision_trace",
+  "runtime::market_decision_provenance_link",
+  "runtime::market_decision_trace",
+  "runtime::market_decision_trace_summary",
+  "runtime::market_e2_candidate_verifier",
+  "runtime::market_opportunity_trace",
+  "runtime::market_order_ticket",
+  "runtime::market_performance_e4",
+  "runtime::market_review",
+  "runtime::market_tx_category",
+  "runtime::policy_trader_trace",
+  "runtime::positive_ev_ignored",
+  "runtime::real5_roles",
+  "runtime::real6_conviction_budget",
+  "runtime::real6_task_outcome",
+  "runtime::risk_cap_impact_report",
+  "runtime::role_differentiation",
+  "runtime::signal_purification",
+  "runtime::wilson_ci",
+]
+paths = ["src/runtime/economic_judgment.rs", "src/runtime/market_*", "src/runtime/real5_roles.rs", "src/runtime/real6_task_outcome.rs"]
+constitutional_anchors = ["Art.I.2", "Art.II", "market:price/wallet state"]
+necessity = "These modules make market incentives observable and learnable; they are not truth, but they activate AGI behavior."
+smoke_gates = [
+  "tests/constitution_real12_economic_judgment.rs",
+  "tests/constitution_real16_market_performance.rs",
+]
+real_world_evidence = [
+  "handover/evidence/real8x_market_ab_20260515T134453Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md",
+  "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
+]
+evidence_requires = ["market decision trace", "economic judgment", "role differentiation"]
+
+[[group]]
+id = "librarian_spec_grill_product"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "runtime::aggregate_report",
+  "runtime::artifact_bundle",
+  "runtime::build_session_view",
+  "runtime::display_coin",
+  "runtime::g7_structural_smoke",
+  "runtime::grill_envelope",
+  "runtime::grill_predicates",
+  "runtime::librarian_broadcast",
+  "runtime::preview_run",
+  "runtime::spec_capsule",
+  "runtime::spec_synthesis",
+  "runtime::test_run",
+  "runtime::test_scenario",
+]
+paths = ["src/runtime/grill_*", "src/runtime/spec_*", "src/runtime/librarian_broadcast.rs", "src/runtime/artifact_bundle.rs"]
+constitutional_anchors = ["FC2:initAI", "FC3:logs"]
+necessity = "The current product path turns human spec into CAS/tape-bound work and delivered artifacts."
+smoke_gates = [
+  "tests/constitution_librarian_real_evidence_binding.rs",
+  "tests/artifact_bundle_files_have_cids.rs",
+]
+real_world_evidence = [
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/verdict.json",
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/audit/AUDIT_VERDICT.md",
+]
+evidence_requires = ["real user simulator", "artifact fetched via API", "CAS-bound artifact"]
+
+[[group]]
+id = "web_product_surface"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::turingos_web",
+  "web::artifact",
+  "web::artifact_bundle",
+  "web::fixtures",
+  "web::generate",
+  "web::ir",
+  "web::market_view",
+  "web::render",
+  "web::router",
+  "web::session_snapshot",
+  "web::spec",
+  "web::spec_view",
+  "web::store",
+  "web::verify",
+  "web::welcome",
+  "web::write",
+  "web::ws",
+]
+paths = ["src/web", "src/bin/turingos_web.rs"]
+constitutional_anchors = ["FC2:initAI", "FC1:input/output"]
+necessity = "The web surface is not a constitutional node, but it is the current real-world delivery path."
+smoke_gates = [
+  "tests/cli_web_generate_smoke.rs",
+  "tests/web_spec_turn_endpoint.rs",
+  "tests/constitution_web_cli_kernel_invariant.rs",
+]
+real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md"]
+evidence_requires = ["real API session", "artifact delivery", "backend observer"]
+
+[[group]]
+id = "tdma_bounded_solver"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::tdma_rc1_deepseek_nesbitt",
+  "bin::tdma_rc1_deepseek_putnam_2025_b3",
+  "bin::tdma_rc1_deepseek_putnam_a1",
+  "bin::tdma_rc1_distiller_stress",
+  "bin::tdma_rc1_nesbitt_stress",
+  "bin::tdma_rc1_real_evidence",
+  "bin::tdma_rc1_zero_gain_demo",
+  "charter_core",
+  "distiller",
+  "git_tape_ledger",
+  "judges",
+  "judges::generate_judge",
+  "judges::injected_judge",
+  "judges::math_step_judge",
+  "judges::nesbitt_step_judge",
+  "judges::putnam_2024_a1_judge",
+  "judges::putnam_2025_b3_judge",
+  "memory_kernel",
+  "rtool",
+  "state_update",
+  "tdma_runner",
+  "token_budget",
+  "tokenizer",
+]
+paths = ["src/memory_kernel.rs", "src/tdma_runner.rs", "src/judges", "src/git_tape_ledger.rs"]
+constitutional_anchors = ["FC1:agent delta", "FC1:rtool", "FC3:replay"]
+necessity = "The bounded solver is an AGI work loop candidate; it must be lit by real proof/code tasks, not only unit tests."
+smoke_gates = [
+  "tests/tdma_memory_harness_v1.rs",
+  "tests/realworld_tdma_judge_ai_step_proof.rs",
+]
+real_world_evidence = [
+  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
+  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
+]
+evidence_requires = ["real task attempts", "retry tape", "bounded prompt"]
+
+[[group]]
+id = "cli_orchestration_surface"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::turingos",
+  "bin::turingos::chat_client",
+  "bin::turingos::cmd_agent",
+  "bin::turingos::cmd_audit_dashboard",
+  "bin::turingos::cmd_audit_tamper",
+  "bin::turingos::cmd_audit_tape",
+  "bin::turingos::cmd_batch",
+  "bin::turingos::cmd_config",
+  "bin::turingos::cmd_export_evidence",
+  "bin::turingos::cmd_generate",
+  "bin::turingos::cmd_init",
+  "bin::turingos::cmd_llm",
+  "bin::turingos::cmd_preflight",
+  "bin::turingos::cmd_render",
+  "bin::turingos::cmd_replay",
+  "bin::turingos::cmd_report_bankruptcy",
+  "bin::turingos::cmd_report_markov",
+  "bin::turingos::cmd_report_positions",
+  "bin::turingos::cmd_report_run",
+  "bin::turingos::cmd_report_wallet",
+  "bin::turingos::cmd_spec",
+  "bin::turingos::cmd_spec_audit",
+  "bin::turingos::cmd_tape_migrate",
+  "bin::turingos::cmd_task_open",
+  "bin::turingos::cmd_task_tick",
+  "bin::turingos::cmd_task_view",
+  "bin::turingos::cmd_tdma",
+  "bin::turingos::cmd_verify_chaintape",
+  "bin::turingos::cmd_verify_e2_candidate",
+  "bin::turingos::cmd_welcome",
+  "bin::turingos::cmd_wizard",
+  "bin::turingos::common",
+]
+paths = ["src/bin/turingos.rs", "src/bin/turingos"]
+constitutional_anchors = ["FC2:initAI", "FC2:replay", "FC3:logs"]
+necessity = "The CLI is how broad real-world tasks enter and how evidence is exported/replayed."
+smoke_gates = [
+  "tests/cli_init_smoke.rs",
+  "tests/cli_task_open_smoke.rs",
+  "tests/generate_emits_work_tx_smoke.rs",
+]
+real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt"]
+evidence_requires = ["real command path", "generated artifact", "runtime repo"]
+
+[[group]]
+id = "tool_registry_current"
+classification = "required_substrate"
+status = "historical_real_world_candidate"
+risk_class = 3
+allowed_as_fc_authority = true
+restricted_surface = false
+module_ids = ["bottom_white::tools", "bottom_white::tools::registry"]
+paths = ["src/bottom_white/tools/registry.rs"]
+constitutional_anchors = ["FC2:tools", "FC3:tools-to-log"]
+necessity = "Tool permissions must be rooted in a deterministic registry for FC3 tool/log boundaries."
+smoke_gates = ["tests/constitution_fc3_closure.rs"]
+real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt"]
+evidence_requires = ["tool registry root", "system-only meta tx"]
+
+[[group]]
+id = "legacy_shadow_tape_and_tool_surfaces"
+classification = "legacy_quarantine"
+status = "legacy_quarantined"
+risk_class = 3
+allowed_as_fc_authority = false
+restricted_surface = true
+module_ids = [
+  "ledger",
+  "wal",
+  "sdk::sandbox",
+  "sdk::tool",
+  "sdk::tools",
+  "sdk::tools::librarian",
+  "sdk::tools::search",
+  "sdk::tools::wallet",
+]
+paths = ["src/ledger.rs", "src/wal.rs", "src/sdk/tool.rs", "src/sdk/sandbox.rs", "src/sdk/tools"]
+constitutional_anchors = ["Art.0.2", "FC1:wtool", "FC3:tools"]
+necessity = "Retained compatibility surfaces; they cannot be cited as current FC authority unless re-bound to typed ChainTape/CAS."
+smoke_gates = [
+  "tests/tb_7_authoritative_routing.rs",
+  "tests/production_shellouts_must_use_sanitized_runner.rs",
+]
+real_world_evidence = []
+evidence_requires = ["no authoritative write imports", "legacy quarantine"]
+closure_action = "Either rebind each legacy tool to ToolRegistry/tape evidence or delete after dependent product paths migrate."
+
+[[group]]
+id = "real6_attempt_prediction_fixture"
+classification = "legacy_quarantine"
+status = "legacy_quarantined"
+risk_class = 4
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = ["runtime::real6_attempt_prediction"]
+paths = ["src/runtime/real6_attempt_prediction.rs"]
+constitutional_anchors = ["market:attempt prediction"]
+necessity = "Scripted sealed-oracle fixture only; live REAL-6B requires separate Class 4 ratification."
+smoke_gates = ["tests/constitution_real6_attempt_prediction_market.rs", "tests/constitution_real11_no_live_real6b.rs"]
+real_world_evidence = []
+evidence_requires = ["scripted fixture does not count as E2"]
+closure_action = "Keep quarantined until live attempt-prediction market is ratified and tested on real problems."
+
+[[group]]
+id = "dev_harness"
+classification = "dev_only"
+status = "smoke_only"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = ["bin::turingos_dev", "runtime::dev_harness"]
+paths = ["src/runtime/dev_harness.rs", "src/bin/turingos_dev.rs"]
+constitutional_anchors = ["development evidence sidecar"]
+necessity = "Development sidecar only; useful for PR evidence but not a TuringOS production run source of truth."
+smoke_gates = ["tests/constitution_dev_harness.rs"]
+real_world_evidence = []
+evidence_requires = ["dev-only"]
+closure_action = "Excluded from AGI production sufficiency; never count as FC/market liveness."
