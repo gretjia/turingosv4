@@ -45,6 +45,16 @@ historical evidence, real-task tests, and runner scripts.
 
 `OPEN_REAL_WORLD_COVERAGE_PENDING`.
 
+## Execution Layer
+
+The first executable true-suite runner is
+`scripts/run_true_suite_boot_cli_current_kernel.sh` for
+`boot_cli_current_kernel_fresh`. It uses only public/user-facing or current
+runtime boot surfaces: `turingos init`, the small
+`boot_cli_current_kernel_fresh` helper around `build_chaintape_sequencer`, and
+`turingos verify chaintape`. It does not use the historical evaluator,
+`lean_market`, scripted market buys, or old TDMA `MemoryTapeLedger` evidence.
+
 The next implementation phase must produce the fresh evidence directory named
 by the contract. Each final task row must include ChainTape or CAS evidence plus
 replay/verifier output; `runtime_repo` snapshots are supplemental only. Until
