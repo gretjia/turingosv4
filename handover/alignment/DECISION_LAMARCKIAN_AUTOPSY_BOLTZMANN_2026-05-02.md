@@ -1,5 +1,7 @@
 # DECISION — Lamarckian Autopsy + Boltzmann Masking — 2026-05-02
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Authority**: architect directive 2026-05-02, ruling 11.4 + ruling 13 + ruling 14 + ruling 15 of Part C.
 - Source: `handover/directives/2026-05-02_lossless_constitution_polymarket_directive.md`
 - Verbatim: `..._part_C_updated_final_ruling.md` §2.6 (Autopsy), §2.8 (Boltzmann), §7 (Autopsy boundaries), §8 (Kelly), §9 (price-guided masking), §10 (split P_accept / P_progress)

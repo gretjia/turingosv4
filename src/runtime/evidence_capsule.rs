@@ -27,6 +27,12 @@ use crate::state::typed_tx::{CapsulePrivacyPolicy, ExhaustionReason, RunId};
 
 const DEFAULT_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES: u64 = 64 * 1024 * 1024;
 
+#[cfg(test)]
+thread_local! {
+    static TEST_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES: std::cell::Cell<Option<u64>> =
+        const { std::cell::Cell::new(None) };
+}
+
 /// TRACE_MATRIX TB-11 (architect §6.1 ruling 2026-05-02) — CAS-resident
 /// evidence rollup for a failed evaluator run.
 ///
@@ -206,6 +212,11 @@ fn gzip_compress(bytes: &[u8]) -> Result<Vec<u8>, CapsuleWriteError> {
 }
 
 fn max_evidence_log_uncompressed_bytes() -> u64 {
+    #[cfg(test)]
+    if let Some(max_bytes) = TEST_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES.with(|slot| slot.get()) {
+        return max_bytes;
+    }
+
     std::env::var("TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -471,25 +482,26 @@ pub fn restore_evidence_capsule_from_cas_bytes(
 mod tests {
     use super::*;
 
-    struct EnvGuard {
-        key: &'static str,
-        old: Option<String>,
+    struct EvidenceLogMaxGuard {
+        old: Option<u64>,
     }
 
-    impl EnvGuard {
+    impl EvidenceLogMaxGuard {
         fn set(key: &'static str, value: &str) -> Self {
-            let old = std::env::var(key).ok();
-            std::env::set_var(key, value);
-            Self { key, old }
+            assert_eq!(key, "TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES");
+            let max_bytes = value.parse::<u64>().expect("test max bytes is u64");
+            let old = TEST_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES.with(|slot| {
+                let old = slot.get();
+                slot.set(Some(max_bytes));
+                old
+            });
+            Self { old }
         }
     }
 
-    impl Drop for EnvGuard {
+    impl Drop for EvidenceLogMaxGuard {
         fn drop(&mut self) {
-            match &self.old {
-                Some(value) => std::env::set_var(self.key, value),
-                None => std::env::remove_var(self.key),
-            }
+            TEST_MAX_EVIDENCE_LOG_UNCOMPRESSED_BYTES.with(|slot| slot.set(self.old));
         }
     }
 
@@ -682,7 +694,7 @@ mod tests {
         use std::sync::{Arc, RwLock};
         use tempfile::TempDir;
 
-        let _guard = EnvGuard::set("TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES", "4");
+        let _guard = EvidenceLogMaxGuard::set("TURINGOS_EVIDENCE_LOG_MAX_UNCOMPRESSED_BYTES", "4");
         let tmp = TempDir::new().expect("tempdir");
         let cas = Arc::new(RwLock::new(
             crate::bottom_white::cas::store::CasStore::open(tmp.path()).expect("cas"),

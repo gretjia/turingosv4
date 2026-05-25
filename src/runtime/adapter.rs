@@ -131,6 +131,21 @@ pub fn make_synthetic_worktx(
     })
 }
 
+fn real_worktx_read_set(proposal_cid: Cid) -> BTreeSet<ReadKey> {
+    [ReadKey(format!(
+        "cas.proposal_telemetry:{}",
+        proposal_cid.hex()
+    ))]
+    .into_iter()
+    .collect()
+}
+
+fn real_worktx_write_set(task: &str, agent: &str, suffix: &str) -> BTreeSet<WriteKey> {
+    [WriteKey(format!("task_output:{task}:{agent}:{suffix}"))]
+        .into_iter()
+        .collect()
+}
+
 /// TRACE_MATRIX FC1-N14: TB-7 Atom 2 — real-signature WorkTx constructor.
 ///
 /// Builds a `WorkTx` and signs it via the per-run `AgentKeypairRegistry`.
@@ -144,6 +159,9 @@ pub fn make_synthetic_worktx(
 /// 3. The `AgentSignature` is verifiable post-replay against the
 ///    on-disk `agent_pubkeys.json` manifest (Atom 4 verify_chaintape
 ///    extension; Gate 4).
+/// 4. Real WorkTx read/write attribution is derived from the CAS-backed
+///    proposal telemetry and the task/agent output target. The `k.read` /
+///    `k.write` placeholders remain confined to synthetic fixtures.
 ///
 /// This is the AUTHORITATIVE per-LLM-proposal WorkTx for TB-7 Frame B
 /// closure (charter §4.0 + §8 Gate 1). Atom 2 evaluator hook calls this
@@ -172,8 +190,8 @@ pub fn make_real_worktx_signed_by(
     let agent_id = AgentId(agent.into());
     let task_id = TaskId(task.into());
     let tx_id = TxId(format!("worktx-{}-{}", task, suffix));
-    let read_set: BTreeSet<ReadKey> = [ReadKey("k.read".into())].into_iter().collect();
-    let write_set: BTreeSet<WriteKey> = [WriteKey("k.write".into())].into_iter().collect();
+    let read_set = real_worktx_read_set(proposal_cid);
+    let write_set = real_worktx_write_set(task, agent, suffix);
     let predicate_results = PredicateResultsBundle {
         acceptance,
         settlement: BTreeMap::new(),

@@ -94,6 +94,27 @@ async fn i100_real_signature_worktx_signature_verifies_via_manifest() {
         1,
     )
     .expect("build real worktx");
+    if let TypedTx::Work(work) = &tx {
+        assert!(
+            work.read_set
+                .iter()
+                .any(|key| key.0 == format!("cas.proposal_telemetry:{}", work.proposal_cid.hex())),
+            "real WorkTx.read_set must bind the ProposalTelemetry CAS object, got {:?}",
+            work.read_set
+        );
+        assert!(
+            work.write_set
+                .iter()
+                .any(|key| key.0.starts_with("task_output:task-i100:n1:u1")),
+            "real WorkTx.write_set must name the task/agent output target, got {:?}",
+            work.write_set
+        );
+        assert!(
+            work.read_set.iter().all(|key| key.0 != "k.read")
+                && work.write_set.iter().all(|key| key.0 != "k.write"),
+            "real WorkTx must not carry synthetic fixture read/write placeholders"
+        );
+    }
 
     // Manifest now has the n1 pubkey. Reload from disk and verify the
     // signature against the disk-resident pubkey (= what verify_chaintape

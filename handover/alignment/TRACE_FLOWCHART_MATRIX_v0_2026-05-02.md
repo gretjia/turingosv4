@@ -1,5 +1,7 @@
 # TRACE_FLOWCHART_MATRIX — TB ↔ Constitution Flowchart Mapping
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Authority**: architect directive 2026-05-02, ruling 9 of Part C ("Add TRACE_FLOWCHART_MATRIX.md mapping future TBs to Flowchart 1/2/3").
 - Source: `handover/directives/2026-05-02_lossless_constitution_polymarket_directive.md`
 - Insight summary: `handover/architect-insights/2026-05-02_flowchart_hashes_and_trace_matrix.md`

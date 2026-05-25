@@ -1,5 +1,7 @@
 # TRACE_MATRIX_v3 — Bidirectional Mapping with N/M/D Classification
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 > **Date**: 2026-04-27
 > **Purpose**: D-VETO-5 final form; Codex CO P0.7 §2 demanded full coverage beyond seed; Gemini v3.2 Q1 PASS pending complete trace.
 > **Authority**: Constitution + WP architecture (21 §) + WP economic (8 §, numbered 0/2/7/15/18/19/20/21) + RSP appendix.

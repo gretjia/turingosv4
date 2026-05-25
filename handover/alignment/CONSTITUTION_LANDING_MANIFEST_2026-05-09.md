@@ -1,5 +1,7 @@
 # Constitution Landing Manifest — Real-Evidence Audit
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 **Generated**: 2026-05-09 session #26 (post Stage B3 R7 M2 launch + ChainTape physical-evidence audit)
 **HEAD**: `9267ec3` (LATEST.md handover update)
 **Author**: Claude Opus 4.7 (1M context) — physical evidence audit, not LATEST.md narrative paraphrase

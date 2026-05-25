@@ -1,5 +1,7 @@
 # CODE-SCAN Candidate Map
 
+> **ARCHIVAL DERIVED VIEW — not current authority.** Retained only as historical evidence. Current flowchart topology authority is `constitution.md` FC1 `455-509`, FC2 `571-660`, FC3 `826-870`, plus the active matrices that explicitly derive from those blocks.
+
 - Date: `2026-04-22`
 - Branch: `experiment/phase-8a-snapshot-fix`
 - Worktree: `/home/zephryj/projects/turingosv4/.claude/worktrees/phase-8a-snapshot`

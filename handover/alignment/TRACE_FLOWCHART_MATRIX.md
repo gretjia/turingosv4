@@ -3,10 +3,11 @@
 **Purpose**: Per-node FC1 / FC2 / FC3 mapping → code surface → constitution gate test. Companion to `CONSTITUTION_EXECUTION_MATRIX.md` (which is gate-level summary). This file is the granular per-node binding.
 
 **Lineage**:
-- Raw flowchart node enumeration: `FC_ELEMENTS_2026-04-22.md` (134 elements: 48 nodes + 63 edges + 23 subgraphs)
-- Existing symbol-level mapping: `TRACE_MATRIX_v0_2026-04-22.md` (43 rows; orphan/justification framing)
-- Predecessor (TB-tracking variant, archived): `TRACE_FLOWCHART_MATRIX_v0_2026-05-02.md` — that file tracked TB → flowchart contact; this file binds FC nodes → tests
-- This file ADDS the constitution-test binding (TB-C0 test name) that the prior matrices don't have
+- Source of truth: `constitution.md` flowchart blocks only.
+- FC1 source block: `constitution.md:455-509`.
+- FC2 source block: `constitution.md:571-660`.
+- FC3 source block: `constitution.md:826-870`.
+- Older extracted/matrix files are archival derived views only. They are not current FC authority.
 
 **Filter**: `cargo test --workspace constitution_` for all gate tests; `cargo test --workspace fc1_` / `fc2_` / `fc3_` per flowchart.
 
@@ -15,7 +16,7 @@
 - 🟡 test exists, AMBER (smoke or full evidence pending)
 - 🔴 test missing OR test is `assert!(true)` (must NOT remain RED on close)
 - 🚫 N/A (constitution-document-level, not runtime)
-- 📅 deferred (Phase 11+ JudgeAI/ArchitectAI runtime; explicit out-of-scope)
+- 📅 deferred (Phase 11+ Veto-AI/ArchitectAI runtime; explicit out-of-scope)
 
 ---
 
@@ -35,7 +36,7 @@ Flowchart 2 — Boot + full architecture, page 13
   SHA256: 6a4bc9195bafd55bde968fd445cdd2926d6906a7f6a2b38071d4774a7f0de333
 
 Flowchart 3 — Meta-architecture, page 17
-  Constitution + logs archive (read-only) → JudgeAI / ArchitectAI →
+  Constitution + logs archive (read-only) → Veto-AI / ArchitectAI →
   anti-oreo runtime (top / agents / tools) → log → archive → feedback → re-init
   SHA256: c159413984d0c6c5daa06605fea3a86a2ad4ab9c4284d0d20e0e525bf03aa9cd
 ```
@@ -46,7 +47,7 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 
 ## §2. FC1 — Basic runtime cycle (per-node)
 
-**Cycle**: `Q_t → rtool → input → AI(δ) → output → ∏p (predicates) → wtool → Q_{t+1}` (constitution lines 325-379, header `graph TD`).
+**Cycle**: `Q_t → rtool → input → AI(δ) → output → ∏p (predicates) → wtool → Q_{t+1}` (`constitution.md:455-509`, header `graph TD`).
 
 | FC1 Node | Constitution label | Code surface | Constitution gate test | Status |
 |---|---|---|---|---|
@@ -54,15 +55,15 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | FC1-N2 (q_t) | `q_t` slice | `QState`, `TuringBus::q_state` | covered by `tests/q_state_reconstruct.rs` (existing) | ✅ |
 | FC1-N3 (HEAD_t) | `HEAD_t` head pointer | `time_arrow().last()` | covered by `tests/co1_7_extra_git2_writer_head_oid_defense.rs` (existing) | ✅ |
 | FC1-N4 (q1) | `Q_{t+1}` after δ | `TuringBus::append_*` + sequencer accept | `fc1_predicate_pass_goes_l4` | ✅ |
-| FC1-N5 (rtool) | read tool — ground-truth context fetch | `ReadTool::project`, `DefaultReadTool` | `fc3_raw_logs_not_in_agent_read_view` (shielding-side; constrains what rtool exposes) + Wave 3 50p shielding binding `wave3_50p_shielding_lean_result_is_verdict_only` (LeanResult max 146B across 447 instances proves rtool sees structured verdict, NOT raw stderr) + `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (2074-CAS-object aggregate has no leakage-suggestive schema_id) | ✅ |
+| FC1-N5 (rtool) | read tool — ground-truth context fetch | `Rtool::checkout_digest`, `SessionDigest`, `UniverseSnapshot`, `build_agent_prompt` | `fc3_raw_logs_not_in_agent_read_view` (shielding-side; constrains what rtool/prompt exposes) + Wave 3 50p shielding binding `wave3_50p_shielding_lean_result_is_verdict_only` (LeanResult max 146B across 447 instances proves rtool sees structured verdict, NOT raw stderr) + `wave3_50p_shielding_no_leakage_suggestive_schema_ids` (2074-CAS-object aggregate has no leakage-suggestive schema_id) + forward gate design `fc1_rtool_prompt_bridge_is_q_t_derived` | ✅ |
 | FC1-N6 (input = ⟨q_i, s_i⟩) | input bundle to Agent | `UniverseSnapshot`, `build_agent_prompt` | covered by existing `tests/fc_alignment_conformance.rs::fc1_n6_*` | ✅ |
 | FC1-N7 (δ / AI) | external Agent (LLM call) | `ResilientLLMClient::generate` | `fc1_every_externalized_attempt_is_tape_visible` (every δ invocation must produce tape WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (460 = 9 + 400 + 51 across 50/50 problems on real-LLM tape; LHS scope per `OBS_TB18R_INV1_NONLLM_TX` 2026-05-07) + M0 P01-P16 binding | ✅ |
-| FC1-N8 (output = ⟨q_o, a_o⟩) | Agent output | `AgentOutput`, `parse_agent_output` | covered by existing fc_alignment_conformance | ✅ |
-| FC1-N9 (q_o) | proposed q-delta | `AgentOutput::q_delta` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (every q_o reaches tape under real-LLM load — count equality verified on 460 cycles) + M0 P01-P16 binding | ✅ |
-| FC1-N10 (a_o) | action | `AgentOutput::action` | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | ✅ |
+| FC1-N8 (output = ⟨q_o, a_o⟩) | Agent output | `AgentAction`, `parse_agent_output` | covered by existing fc_alignment_conformance | ✅ |
+| FC1-N9 (q_o) | proposed q-delta | `AgentAction` payload fields carried into `WorkTx` / `VerifyTx` | `fc1_attempt_count_equals_tape_count` (q_o reaches tape via WorkTx) + Wave 3 50p binding `wave3_50p_aggregate_fc1_invariant_holds` (every q_o reaches tape under real-LLM load — count equality verified on 460 cycles) + M0 P01-P16 binding | ✅ |
+| FC1-N10 (a_o) | action | `AgentAction::tool`, `route_role_action`, typed tx ingress | `fc1_predicate_pass_goes_l4` + `fc1_predicate_fail_goes_l4e` | ✅ |
 | FC1-N11 (∏p predicates) | predicate composition | `PredicateRegistry` executable entries + `dispatch_transition` registry-bound verification | `predicate_result_is_binary` + `predicate_pass_required_for_l4` + `constitution_predicate_registry_binding` | ✅ |
 | FC1-N12 (individual p) | individual predicates (Forbidden/Sorry/PayloadSize/Lean) | `Predicate` trait impls in `src/top_white/predicates/registry.rs`; Lean proof artifacts via CAS `PredicateProofCapsule` | `lean_verified_required_for_verified_worktx` + `price_never_overrides_predicate` + `constitution_predicate_result_wire_freeze` | ✅ |
-| FC1-N13 (wtool) | write tool | `WriteTool::write`, `TuringBus::append_oracle_accepted` | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) + Wave 3 50p binding `wave3_50p_chaintape_runtime_repo_present` (50/50 problems exercise sequencer-mediated wtool; runtime_repo/ git substrate present per problem; zero legacy bus.append authoritative writes across 460 cycles) | ✅ |
+| FC1-N13 (wtool) | write tool | `TuringBus::submit_typed_tx`, `Sequencer::apply_one`, `TuringBus::append_oracle_accepted` (legacy oracle helper) | `fc1_no_legacy_authoritative_append` (no direct bus.append bypass) + Wave 3 50p binding `wave3_50p_chaintape_runtime_repo_present` (50/50 problems exercise sequencer-mediated wtool; runtime_repo/ git substrate present per problem; zero legacy bus.append authoritative writes across 460 cycles) | ✅ |
 | FC1-N14 (Q_{t+1} success) | accepted-branch advance | `append_internal`, `halt_with_reason` | `fc1_predicate_pass_goes_l4` | ✅ |
 | FC1-N15 (Q_t reject branch) | rejection branch (∏p = 0) | `PartialVerdict::Reject`, `BusResult::Vetoed`, sequencer reject arm | `fc1_predicate_fail_goes_l4e` (rejection lands in L4.E, not L4) | ✅ |
 
@@ -82,23 +83,24 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 
 ## §3. FC2 — Boot / init / halt / tick (per-node)
 
-**Topology**: `human spec / constitution.md → predicates / tools (init) → Q_0 → runtime loop` (constitution lines 441-530, indented `flowchart TD` block).
+**Topology**: `human spec / constitution.md → predicates / tools (init) → Q_0 → runtime loop` (`constitution.md:571-660`, indented `flowchart TD` block).
 
 | FC2 Node | Constitution label | Code surface | Constitution gate test | Status |
 |---|---|---|---|---|
-| FC2-N16 (InitAI) | bootstrap entity | `run_swarm`, `run_oneshot` | `fc2_genesis_report_exists` + `fc2_on_init_only_mint` | ✅ |
+| FC2-N16 (InitAI) | bootstrap entity | `build_chaintape_sequencer`, `build_chaintape_sequencer_with_initial_q`, `QState::genesis`, `initial_q_state.json` | `fc2_genesis_report_exists` + `fc2_on_init_only_mint` + `tests/tb_6_runtime_chaintape_bootstrap.rs` | ✅ |
 | FC2-N17 (human architect) | architect (manual) | `constitution.md` author | `fc3_architectai_proposal_not_direct_write` (FC3 binding) | 🚫 N/A runtime |
 | FC2-N18 (law / ground truth) | constitution.md | `constitution.md` | `fc3_constitution_hash_pinned` (existing fc_alignment_conformance) | 🚫 N/A runtime |
 | FC2-N19 (initAI →once predicates) | predicate registration at boot | `BootPredicateManifest::v8_production` + `PredicateBindingActivate` system tx + CAS `PredicateRegistrySnapshotCapsule` | `constitution_predicate_binding_activation` + `constitution_predicate_registry_replay` | ✅ |
-| FC2-N20 (initAI →once mr) | mr-tick at boot | TICK_INTERVAL + emit_mr_tick_node | covered by `tests/six_axioms_alignment.rs::axiom_5` | ✅ |
+| FC2-N20 (initAI →once mr) | mr-tick at boot | current production surface missing; old pre-ChainTape evaluator clock helpers are retired | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
 | FC2-N21 (initAI →once Q0) | Q_0 minted | `Kernel::new`, `TuringBus::init` | `fc2_on_init_only_mint` + `fc2_no_post_init_mint` | ✅ |
-| FC2-N22 (HALT) | halted state | `QState::Halted`, `halt_with_reason` | covered by `tests/six_axioms_alignment.rs::axiom_4` | ✅ |
-| FC2-N23 (HaltReason variants) | terminal anchor distribution | `HaltReason` enum | covered by existing | ✅ |
-| FC2-N24 (clock) | tick clock | `TuringBus::clock` | covered by `tests/six_axioms_alignment.rs::axiom_5` | ✅ |
-| FC2-N25 (mr) | map-reduce tick | inline mr_summary, `emit_mr_tick_node` | covered by existing | ✅ |
-| FC2-N26 (mr →map tape0) | mr reads tape | `tape.time_arrow().len()` | covered by existing | ✅ |
-| FC2-N27 (mr →reduce tape1) | mr emits tape node | `emit_mr_tick_node` | covered by existing | ✅ |
-| FC2-N28 (tools_other) | non-rtool/wtool tool surface | `WriteTool::write_with_tools`, `TuringBus::tools` | `fc2_taskopen_escrowlock_are_chain_events` | ✅ |
+| FC2-N22 (HALT) | halted state | `TerminalSummaryTx`, `RunOutcome`, `SystemEmitCommand::TerminalSummary` | `tests/constitution_aggregate_report.rs::aggregate_report_section_17_halt_distribution_present` + `src/state/typed_tx.rs` inline `ExhaustionReason::to_run_outcome` tests | ✅ |
+| FC2-N23 (HaltReason variants) | terminal anchor distribution | `RunOutcome` enum + `ExhaustionReason::to_run_outcome` projection | `tests/constitution_aggregate_report.rs::aggregate_report_section_17_halt_distribution_present` + `tests/fc_alignment_conformance.rs::fc2_n23_terminal_run_outcome_taxonomy_typed` | ✅ |
+| FC2:clock | tick clock node | `TuringBus::clock` legacy append counter exists; typed ChainTape mr-clock surface missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2:mr | map-reduce node | current production mr reducer missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2 edge `clock -> mr` | tick invokes mr | current production ChainTape tick invocation missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2 edge `mr -> tape0` | mr maps over current tape | current production mr map over ChainTape missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2 edge `mr -> tape1` | mr reduces to tape-visible output | current production mr reduce-to-tape node missing | required forward gate `fc2_map_reduce_tick_is_executable` | 🔴 MISSING |
+| FC2-N28 (tools_other) | non-rtool/wtool tool surface | `ToolRegistry`, `TuringTool`, `TuringBus::tools` (legacy lifecycle), typed `ToolId` references | `fc2_taskopen_escrowlock_are_chain_events` | ✅ |
 
 ### FC2 invariant battery (TB-C0 NEW gate tests)
 
@@ -117,22 +119,23 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 
 ## §4. FC3 — Meta / anti-oreo / system topology (per-node)
 
-**Topology**: `boot → constitution / logs (read-only) → JudgeAI (veto) ← ArchitectAI (propose) → tools / logs / Q update` (constitution lines 670-714, indented `graph TB` block).
+**Topology**: `boot → constitution / logs (read-only) → Veto-AI (veto) ← ArchitectAI (propose) → tools / logs / Q update` (`constitution.md:826-870`, indented `graph TB` block).
 
 | FC3 Node | Constitution label | Code surface | Constitution gate test | Status |
 |---|---|---|---|---|
 | FC3-N29 (boot) | system boot | `async fn main`, `TuringBus::boot` | `fc2_genesis_report_exists` (FC2 anchor) | ✅ |
 | FC3-N30 (constitution file) | constitution.md as ground truth | `constitution.md` | covered by `tests/fc_alignment_conformance.rs` | 🚫 N/A runtime |
 | FC3-N31 (logs archive) | WAL + L4 archive | `Wal::write_event`, transition_ledger | `fc3_raw_logs_not_in_agent_read_view` + Wave 3 50p binding `wave3_50p_shielding_evidence_capsule_routes_via_cid` + `wave3_50p_shielding_no_orphan_raw_bodies` (capsule shell max 485B / 41 instances; raw_log companion 1:1 capsule/companion proves CID-routed isolation across 2074-CAS-object aggregate) + FC3 evidence binding `fc3_inv3_raw_logs_size_bound` | ✅ |
-| FC3-N32 (JudgeAI) | external veto agent (Codex/Gemini) | external | `fc3_judgeai_veto_only` | ✅ |
-| FC3-N33 (ArchitectAI) | external propose agent | external (Claude code editing) | `fc3_architectai_proposal_not_direct_write` + FC3 evidence binding `fc3_inv7_architect_proposes_no_direct_write_git_witness` (full git-author scan: only project-role authors `gretjia` / `Claude`; zero `codex@` / `gemini@` / `judgeai` / `architect_direct` / `audit-role` markers across the entire history) | ✅ |
+| FC3:vetoAI | Veto-AI role (`{PASS,VETO}`) | external governance witness; runtime Veto-AI not implemented | `fc3_veto_ai_veto_only` | 🟡 EXTERNAL_ONLY |
+| FC3:architectAI | ArchitectAI proposal role | external governance witness; runtime ArchitectAI not implemented | `fc3_architectai_proposal_not_direct_write` + FC3 evidence binding `fc3_inv7_architect_proposes_no_direct_write_git_witness` | 🟡 EXTERNAL_ONLY |
 | FC3-N34 (readonly guard) | constitution + logs read-only | WAL append-only semantics | `fc3_no_automatic_predicate_mutation` | ✅ |
 | FC3-N35 (anti-oreo top→agents→tools) | top-only does signal mgmt | `evaluate_predicates` flow | covered by existing fc_alignment_conformance | ✅ |
 | FC3-N36 (agents) | swarm of N agents | `let agent_ids` round-robin | covered by existing | ✅ |
 | FC3-N37 (tools) | bottom tools (rtool/wtool) | `TuringTool` trait | covered by existing | ✅ |
 | FC3-N38 (Q update) | Q-delta application via wtool | sequencer dispatch | `fc1_predicate_pass_goes_l4` (FC1 anchor) | ✅ |
-| FC3-N39 (markov / capsule) | Markov capsule (TB-15+) | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` + FC3 evidence binding `fc3_inv4_capsule_context_only_replay_determinism` (replay-determinism witness: capsule context-only constraint enforced under load) + Wave 3 50p audit pointer-discipline (no `LATEST_MARKOV_CAPSULE.txt` global pointer survives the run) | ✅ |
-| FC3-N40 (override) | deep-history override | `TURINGOS_MARKOV_OVERRIDE=1` | `fc3_deep_history_requires_override` | ✅ |
+| FC3 support: Markov capsule | supplemental continuity capsule, not a literal FC3 flowchart node | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` + FC3 evidence binding `fc3_inv4_capsule_context_only_replay_determinism` (replay-determinism witness: capsule context-only constraint enforced under load) + Wave 3 50p audit pointer-discipline (no `LATEST_MARKOV_CAPSULE.txt` global pointer survives the run) | ✅ SUPPORT_INVARIANT |
+| FC3 edge `logs -> feedback -> architectAI` | archived logs feed ArchitectAI | current production ArchitectAI feedback consumer missing | required forward gate `fc3_logs_feedback_to_architect_ai` | 🔴 MISSING |
+| FC3 edge `init -> error -> re-init -> boot` | re-init loop | current binary fail-closes on boot error; in-process re-init missing | required forward gate `fc3_reinit_semantics` | 🔴 MISSING |
 
 ### FC3 invariant battery (TB-C0 NEW gate tests)
 
@@ -142,10 +145,10 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | **FC3-INV2** no global pointer | `fc3_no_global_markov_pointer` (also in `no_parallel_ledger.rs`) | `LATEST_MARKOV_CAPSULE.txt` does NOT exist |
 | **FC3-INV3** raw shielding | `fc3_raw_logs_not_in_agent_read_view` | UniverseSnapshot prompt contents do not contain raw Lean stderr |
 | **FC3-INV4** capsule context-only | `fc3_latest_capsule_context_only` | capsule used as agent context, not as predicate-feeding ground-truth |
-| **FC3-INV5** override required | `fc3_deep_history_requires_override` | reading deep-history without `TURINGOS_MARKOV_OVERRIDE=1` returns Default/empty |
+| **FC3-INV5** deep history default-deny | `fc3_deep_history_requires_override` | reading deep history without explicit operator opt-in is denied |
 | **FC3-INV6** no auto mutation | `fc3_no_automatic_predicate_mutation` | predicate set is registered at boot and not mutated thereafter |
 | **FC3-INV7** architect propose-only | `fc3_architectai_proposal_not_direct_write` | architect role lands changes via charter/directive trail, not direct src/ commit |
-| **FC3-INV8** judge veto-only | `fc3_judgeai_veto_only` | judge role does NOT commit code; verdict-only |
+| **FC3-INV8** Veto-AI veto-only | `fc3_veto_ai_veto_only` | Veto-AI role does NOT commit code; verdict-only |
 
 ---
 
@@ -198,8 +201,8 @@ When an FC node's enforcement changes:
 
 When an FC node is renamed in constitution.md:
 1. Phase Z′ 6-stage rerun applies (architect-only).
-2. Update `FC_ELEMENTS_*.md` raw extract.
-3. Update this matrix and `TRACE_MATRIX_v0_*.md`.
+2. Regenerate any historical extractor artifacts as non-authoritative evidence only.
+3. Update this matrix from `constitution.md` line anchors only.
 4. Bump matrix file version: `TRACE_FLOWCHART_MATRIX_vN.md`.
 
 ---
@@ -217,7 +220,7 @@ for `/welcome -> spec grill -> generate -> panel -> artifact -> restart replay`.
 
 | FC Node | New/strengthened binding | Tests / evidence |
 |---|---|---|
-| FC2-N16 / FC2-N21 | Fresh init templates preseed worker-alpha/beta/gamma plus verifier/provider identities; old workspaces missing preseed degrade to N=1 instead of faking N=3. | `tests/generate_emits_work_tx_smoke.rs::generate_n3_emits_full_polymarket_lifecycle_and_replays`; `tests/cli_web_welcome_smoke.rs` |
+| FC2-N16 / FC2-N21 | Fresh init templates preseed worker-alpha/beta/gamma plus verifier/provider identities; old workspaces missing preseed degrade to N=1 instead of faking N=3. | `tests/generate_emits_work_tx_smoke.rs::generate_emits_work_tx_and_market_seed_on_canonical_chain`; `tests/cli_web_welcome_smoke.rs` |
 | FC1-N5 / FC1-N7 | Real-user LLM triage is unblocked while API keys stay child-env-only and out of disk/CAS/evidence. | `tests/cmd_llm_triage_stub.rs::triage_stub_uses_large_budget_and_forces_thinking_off`; `tests/web_spec_turn_endpoint.rs`; `tests/cli_web_generate_smoke.rs` |
-| FC1-N10 / FC1-N11 / FC1-N13 / FC1-N14 | Worker proposals and rejections are emitted through durable ChainTape with CAS-reconstructable ProposalTelemetry, then finalized through `VerifyTx -> FinalizeReward -> EventResolve`. | `tests/generate_emits_work_tx_smoke.rs`; `tests/generate_retry_attempts_are_distinct.rs` |
+| FC1-N10 / FC1-N11 / FC1-N13 / FC1-N14 | Worker proposals and rejections are emitted through durable ChainTape with CAS-reconstructable ProposalTelemetry, real WorkTx read/write sets no longer use `k.read` / `k.write`, then accepted paths finalize through `VerifyTx -> FinalizeReward -> EventResolve`. | `tests/constitution_flowchart_livenow.rs::fc1_real_worktx_provenance_is_cas_bound_not_fixture_placeholder`; `tests/tb_7_authoritative_routing.rs::i100_real_signature_worktx_signature_verifies_via_manifest`; `tests/generate_emits_work_tx_smoke.rs`; `tests/generate_retry_attempts_are_distinct.rs` |
 | FC3-N31 / FC3-N36 / FC3-N37 / FC3-N38 | Websocket is live hint only; panel state is refetched from replayed chain view and winner is exposed only after finalized replay. | `tests/cli_web_generate_smoke.rs`; `src/web/market_view.rs::tests::top_level_winner_agent_id_is_null_until_market_finalized`; frontend test/build |

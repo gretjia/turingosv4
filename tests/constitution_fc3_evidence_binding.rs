@@ -18,7 +18,7 @@
 //!   §I FC3-INV4 Latest capsule = context only               AMBER → GREEN
 //!   §I FC3-INV5 Deep history requires override              AMBER → GREEN
 //!   §I FC3-INV7 ArchitectAI proposes (no direct write)      AMBER → GREEN
-//!   §I FC3-INV8 JudgeAI veto-only                           AMBER → GREEN
+//!   §I FC3-INV8 Veto-AI veto-only                           AMBER → GREEN
 //!   §F Art. V.2 constitution boundaries                     AMBER → GREEN
 //!
 //! `FC-trace: FC3-INV3 + FC3-INV4 + FC3-INV5 + FC3-INV7 + FC3-INV8 + Art-V.2`.
@@ -256,7 +256,7 @@ fn fc3_inv5_deep_history_default_deny_runtime_witness() {
 /// architect-authored direct git commits.
 ///
 /// Kill: "architect directly writes to src/ without TB charter" =
-/// any author matching audit-role markers (codex/gemini/judgeai/
+/// any author matching audit-role markers (vetoai/
 /// architect_direct).
 #[test]
 fn fc3_inv7_architect_proposes_no_direct_write_git_witness() {
@@ -279,20 +279,14 @@ fn fc3_inv7_architect_proposes_no_direct_write_git_witness() {
 
     // Forbidden author markers — these would indicate audit/architect
     // role committing code directly.
-    let forbidden_markers = [
-        "codex@",
-        "gemini@",
-        "judgeai",
-        "architect_direct",
-        "audit-role",
-    ];
+    let forbidden_markers = ["vetoai", "architect_direct", "audit-role"];
     for author in &authors {
         let lower = author.to_lowercase();
         for fm in forbidden_markers {
             assert!(
                 !lower.contains(fm),
                 "FC3-INV7 violation: git author `{author}` matches \
-                 forbidden role marker `{fm}` — judge / architect role \
+                 forbidden role marker `{fm}` — veto / architect role \
                  has direct-written src/ (kill: architect role direct-writes)."
             );
         }
@@ -310,7 +304,7 @@ fn fc3_inv7_architect_proposes_no_direct_write_git_witness() {
     );
 }
 
-/// §I FC3-INV8 — JudgeAI is veto-only; does NOT commit code. Run-time
+/// §I FC3-INV8 — Veto-AI is veto-only; does NOT commit code. Run-time
 /// witness: handover/audits/ contains audit reports + audit-runner
 /// scripts ONLY (.md / .sh / .py / .json / .yaml / .tsv / .txt). NO
 /// .rs / .toml / .lock files. Audit role emits verdicts; src/ commits
@@ -319,7 +313,7 @@ fn fc3_inv7_architect_proposes_no_direct_write_git_witness() {
 /// Kill: "judge commits code" = any .rs / .toml file under
 /// handover/audits/.
 #[test]
-fn fc3_inv8_judgeai_veto_only_audit_dir_witness() {
+fn fc3_inv8_veto_ai_veto_only_audit_dir_witness() {
     let audits_dir = Path::new("handover/audits");
     assert!(
         audits_dir.exists(),
@@ -359,7 +353,7 @@ fn fc3_inv8_judgeai_veto_only_audit_dir_witness() {
     assert!(
         violations.is_empty(),
         "FC3-INV8 violation: handover/audits/ contains code-like files \
-         {violations:?} — judge role has committed code (kill: judge \
+         {violations:?} — veto role has committed code (kill: veto \
          commits code)."
     );
     assert!(
