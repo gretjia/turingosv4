@@ -1,0 +1,217 @@
+schema_version = "turingosv4.realworld_liveness_coverage.v1"
+authority = "constitution.md + fresh ChainTape/CAS real-world evidence"
+policy = "fresh_current_kernel_required_for_final"
+final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+historical_evidence_is_final = false
+smoke_is_not_final_evidence = true
+
+[[task]]
+id = "market_action_minif2f_fresh"
+problem_type = "market_economy"
+status = "fresh_required"
+entrypoint = "scripts/run_real12_task_market_probe.sh"
+module_groups = [
+  "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
+  "runtime_replay_evidence_audit",
+  "agent_prompt_model_boundary",
+  "role_economic_learning_sidecars",
+]
+constitutional_paths = [
+  "FC1:Q_t->rtool->input->agent-delta->output->predicates->wtool->Q_t+1",
+  "FC2:replay",
+]
+anti_contamination_guards = [
+  "reject scripted AttemptPrediction and scripted TaskOutcome buys",
+  "require live_non_scripted_router_tx_count from ChainTape/CAS, not stdout",
+  "enforce no price-as-truth and no ghost liquidity",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/market_action/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/market_action/cas/",
+  "handover/evidence/true_suite/<run>/market_action/aggregate_verdict.json",
+  "handover/evidence/true_suite/<run>/market_action/replay_report.json",
+]
+
+[[task]]
+id = "market_ab_performance_fresh"
+problem_type = "market_economy"
+status = "fresh_required"
+entrypoint = "scripts/run_real16_market_performance_benchmark.sh"
+module_groups = [
+  "predicate_registry_top_white",
+  "economy_market_settlement",
+  "runtime_replay_evidence_audit",
+  "role_economic_learning_sidecars",
+]
+constitutional_paths = [
+  "FC1:predicates",
+  "FC1:wtool",
+  "FC2:pinned-benchmark-replay",
+]
+anti_contamination_guards = [
+  "pin same problem/model/budget hashes across arms",
+  "allow only declared arm diff keys",
+  "forbid causal E4 claim unless verifier proves non-overlapping signal",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/market_ab/arm_config_manifests/",
+  "handover/evidence/true_suite/<run>/market_ab/cas/",
+  "handover/evidence/true_suite/<run>/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+  "handover/evidence/true_suite/<run>/market_ab/replay_report.json",
+]
+
+[[task]]
+id = "generate_artifact_chain_fresh"
+problem_type = "generate_artifact"
+status = "fresh_required"
+entrypoint = "tests/real_task_regression_two_phase.rs"
+module_groups = [
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+  "agent_prompt_model_boundary",
+  "librarian_spec_grill_product",
+  "web_product_surface",
+  "cli_orchestration_surface",
+]
+constitutional_paths = [
+  "FC2:human-spec->initAI",
+  "FC1:output->predicates->wtool",
+  "FC3:logs->feedback",
+]
+anti_contamination_guards = [
+  "session CAS alone is insufficient",
+  "require generated artifact bundle CID linked to ChainTape/CAS",
+  "mechanical DOM/API verdict must not substitute for L4 evidence",
+]
+evidence_artifacts = [
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/verdict.json",
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/audit/AUDIT_VERDICT.md",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/generate_artifact/runtime_repo/",
+  "handover/evidence/true_suite/<run>/generate_artifact/cas/",
+  "handover/evidence/true_suite/<run>/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/<run>/generate_artifact/replay_report.json",
+]
+
+[[task]]
+id = "tdma_real_proof_fresh"
+problem_type = "tdma_proof"
+status = "fresh_required"
+entrypoint = "scripts/run_tdma_rc1_real_evidence.py"
+module_groups = [
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+  "agent_prompt_model_boundary",
+  "tdma_bounded_solver",
+]
+constitutional_paths = [
+  "FC1:rtool->agent-delta->predicates",
+  "FC3:logs->feedback",
+]
+anti_contamination_guards = [
+  "zero-gain retry demo does not count as final success evidence",
+  "require bounded prompt proof and no raw stderr leak",
+  "judge verdicts must be replayable from tape files",
+]
+evidence_artifacts = [
+  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
+  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/tdma/manifest.json",
+  "handover/evidence/true_suite/<run>/tdma/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/tdma/per_attempt_probes.jsonl",
+  "handover/evidence/true_suite/<run>/tdma/replay_report.json",
+]
+
+[[task]]
+id = "fc3_governance_reinit_fresh"
+problem_type = "fc3_governance_reinit"
+status = "fresh_required"
+entrypoint = "tests/constitution_fc3_closure.rs"
+module_groups = [
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "tool_registry_current",
+]
+constitutional_paths = [
+  "FC3:logs-archive->feedback->architectAI->vetoAI->tools/logs->re-init",
+]
+anti_contamination_guards = [
+  "handover files and latest pointers cannot be source of truth",
+  "require LogFeedbackArchiveTx, ArchitectProposalTx, VetoDecisionTx, ReinitRequestTx, and ReinitBootTx in L4/CAS",
+  "Veto-AI must be runtime typed verdict, not external PR ceremony",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/fc3/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/fc3/cas/",
+  "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
+]
+
+[[task]]
+id = "replay_cas_tamper_repair_current"
+problem_type = "replay_cas"
+status = "fresh_required"
+entrypoint = "tests/replay_verifies_all_cross_cid_references_resolve.rs"
+module_groups = [
+  "axiom_boot_trust_root",
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+]
+constitutional_paths = [
+  "FC2:replay",
+  "FC3:logs-archive",
+]
+anti_contamination_guards = [
+  "dashboard cannot pass without deterministic reconstruction",
+  "tampered CAS/L4 must fail closed",
+  "old evidence is annotated, never rewritten",
+]
+evidence_artifacts = [
+  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/aggregate_verdict.json",
+  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/PERSISTENCE_BINDING_REPORT.json",
+]
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/replay_cas/runtime_repo/",
+  "handover/evidence/true_suite/<run>/replay_cas/cas/",
+  "handover/evidence/true_suite/<run>/replay_cas/replay_report.json",
+  "handover/evidence/true_suite/<run>/replay_cas/tamper_report.json",
+]
+
+[[task]]
+id = "boot_cli_current_kernel_fresh"
+problem_type = "boot_cli"
+status = "fresh_required"
+entrypoint = "src/bin/turingos.rs"
+module_groups = [
+  "axiom_boot_trust_root",
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+  "cli_orchestration_surface",
+]
+constitutional_paths = [
+  "FC2:boot",
+  "FC2:Q0",
+  "FC2:replay",
+]
+anti_contamination_guards = [
+  "fresh current main binary must create the workspace",
+  "genesis bytes and constitution hash must match",
+  "resume must continue existing ChainTape rather than minting a new genesis",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/boot_cli/runtime_repo/",
+  "handover/evidence/true_suite/<run>/boot_cli/cas/",
+  "handover/evidence/true_suite/<run>/boot_cli/genesis_report.json",
+  "handover/evidence/true_suite/<run>/boot_cli/replay_report.json",
+]
