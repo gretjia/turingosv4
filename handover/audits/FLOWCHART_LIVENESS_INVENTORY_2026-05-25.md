@@ -66,9 +66,11 @@ cargo test --test constitution_matrix_drift
 cargo test --test fc_alignment_conformance
 ```
 
-The LiveNow probe currently contains 6 tests:
+The LiveNow probe currently contains 7 tests:
 - FC1 typed WorkTx routes to L4 or L4.E
 - FC1 real WorkTx provenance is CAS-bound, not a synthetic fixture placeholder
+- FC1 rtool/input snapshot is ChainTape/CAS-derived, with legacy shadow `Tape`
+  empty in the proof
 - FC2 boot, replay, and resume are live
 - FC2 map-reduce tick is boot-visible and replay-verified
 - FC2 forged map-reduce tick is rejected at agent ingress
