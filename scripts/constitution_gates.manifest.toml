@@ -722,6 +722,11 @@ authority = "OBL-005 no-zombie AGI liveness contract: every production code grou
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_realworld_liveness_coverage"
+authority = "OBL-005 user-expanded no-zombie stop condition + handover/audits/REALWORLD_NO_ZOMBIE_COVERAGE_CONTRACT_2026-05-25.md: fresh current-kernel ChainTape/CAS evidence contract across market, artifact, TDMA, FC3 governance/reinit, replay/CAS, and boot/CLI domains"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"
