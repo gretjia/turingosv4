@@ -248,12 +248,30 @@ status = "historical_real_world_candidate"
 risk_class = 4
 allowed_as_fc_authority = true
 restricted_surface = true
-module_ids = ["bin::generate_markov_capsule", "runtime::autopsy_capsule", "runtime::markov_capsule"]
-paths = ["src/runtime/autopsy_capsule.rs", "src/runtime/markov_capsule.rs", "src/state/sequencer.rs", "src/state/typed_tx.rs"]
+module_ids = [
+  "bin::fc3_governance_reinit_current_kernel",
+  "bin::generate_markov_capsule",
+  "runtime::autopsy_capsule",
+  "runtime::markov_capsule",
+]
+paths = [
+  "src/bin/fc3_governance_reinit_current_kernel.rs",
+  "src/runtime/autopsy_capsule.rs",
+  "src/runtime/markov_capsule.rs",
+  "src/state/sequencer.rs",
+  "src/state/typed_tx.rs",
+]
 constitutional_anchors = ["FC3:architectAI", "FC3:vetoAI", "FC3:feedback", "FC3:re-init"]
 necessity = "FC3 is internal runtime governance: logs feed ArchitectAI, Veto-AI gates, and error halt re-inits without evidence rewrite."
-smoke_gates = ["tests/constitution_fc3_closure.rs"]
-real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt"]
+smoke_gates = [
+  "tests/constitution_fc3_closure.rs",
+  "tests/constitution_true_suite_fc3_governance_runner.rs",
+]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
+  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/fc3_replay_report.json",
+]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
 [[group]]

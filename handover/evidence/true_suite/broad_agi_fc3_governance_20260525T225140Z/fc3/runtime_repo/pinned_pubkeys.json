@@ -1,0 +1,11 @@
+{
+  "run_id": "broad_agi_fc3_governance_20260525T225140Z",
+  "tb_id": "TB-6",
+  "epoch": 1,
+  "pubkeys": [
+    {
+      "epoch": 1,
+      "pubkey_hex": "db2889c0d18ee5d40ca3f9ff30e622805921aea9cfb0bb88c938857a6189e4d8"
+    }
+  ]
+}

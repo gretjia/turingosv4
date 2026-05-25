@@ -146,7 +146,7 @@ id = "fc3_governance_reinit_fresh"
 problem_type = "fc3_governance_reinit"
 status = "fresh_required"
 tape_kind = "canonical_l4"
-entrypoint = "tests/constitution_fc3_closure.rs"
+entrypoint = "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
   "runtime_replay_evidence_audit",
@@ -168,6 +168,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/fc3/fc3_governance_reinit_run_manifest.json",
 ]
 
 [[task]]

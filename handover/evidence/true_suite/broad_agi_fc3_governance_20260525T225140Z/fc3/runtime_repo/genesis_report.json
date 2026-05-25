@@ -1,0 +1,15 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/tmp/turingosv4-broad-agi-suite/handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/runtime_repo",
+  "cas_path": "/tmp/turingosv4-broad-agi-suite/handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/cas",
+  "system_pubkey_hash": "abed8eb36df0d91f7035a25365a6eb7ca6b37a2e614ccb7fc3e3a096f3c0aa2a",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [],
+  "task_id": null,
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}
