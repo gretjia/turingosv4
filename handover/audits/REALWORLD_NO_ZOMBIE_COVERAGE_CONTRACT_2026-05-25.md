@@ -36,7 +36,7 @@ historical evidence, real-task tests, and runner scripts.
 | `market_external_agent_fresh` | market/economy | provider-backed external agent decision, signed ChainTape/CAS market action, conservation, replay |
 | `market_ab_performance_fresh` | market/economy benchmark | pinned arm configs, CAS/replay, no causal overclaim |
 | `generate_artifact_chain_fresh` | user spec to artifact | ChainTape/CAS anchored spec/generate + artifact bundle CID |
-| `tdma_real_proof_fresh` | TDMA/proof | real task attempts, bounded prompts, judge verdicts, replay |
+| `tdma_real_proof_fresh` | TDMA/proof | real task attempts, bounded prompts, judge verdicts, durable TDMA tape replay-style hash verification |
 | `fc3_governance_reinit_fresh` | FC3 governance/re-init | LogFeedbackArchive, ArchitectAI, Veto-AI, Reinit typed L4/CAS |
 | `replay_cas_tamper_repair_current` | replay/CAS integrity | replay + tamper reports over runtime repo/CAS |
 | `boot_cli_current_kernel_fresh` | boot/CLI | fresh workspace boot, genesis report, resume/replay |
@@ -78,8 +78,19 @@ work lands as typed ChainTape entries verified by public
 index so artifact delivery can be replay-linked without treating DOM/API
 smoke output as constitutional evidence.
 
+The TDMA/proof execution layer adds
+`scripts/run_true_suite_tdma_current_kernel.sh` for `tdma_real_proof_fresh`.
+The runner uses the same external LLM proxy boundary, then drives public
+`turingos tdma run` with the durable `GitTapeLedger` backend. This evidence is
+deliberately not described as bottom-white L4 ChainTape: TDMA is a bounded
+proof-work tape. The runner records `manifest.json`, `chaintape.jsonl`,
+`per_attempt_probes.jsonl`, `tdma_tape.git/`, and `replay_report.json`, where
+the report verifies stage completion, prompt-budget safety, no raw-stderr
+prompt leakage, and the manifest hashes for the tape/probe files.
+
 The next implementation phase must produce the fresh evidence directory named
-by the contract. Each final task row must include ChainTape or CAS evidence plus
-replay/verifier output; `runtime_repo` snapshots are supplemental only. Until
-then, no report may claim that every retained code group is necessary,
-sufficient, and live under real-world AGI tasks.
+by the contract. Each final task row must include ChainTape/CAS evidence, or an
+explicitly named domain tape for TDMA, plus replay/verifier output;
+`runtime_repo` snapshots are supplemental only. Until then, no report may claim
+that every retained code group is necessary, sufficient, and live under
+real-world AGI tasks.

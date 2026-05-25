@@ -742,6 +742,11 @@ authority = "OBL-005 true-suite generate/artifact execution layer: provider-back
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_true_suite_tdma_runner"
+authority = "OBL-005 true-suite TDMA/proof execution layer: provider-backed proof steps via local LLM proxy must enter through public turingos tdma run, write durable TDMA GitTapeLedger evidence plus per-attempt probes, and verify replay-style tape/probe hashes without pretending TDMA tape is bottom-white L4"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"

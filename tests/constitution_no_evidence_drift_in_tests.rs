@@ -49,6 +49,8 @@ fn collect_test_files() -> Vec<std::path::PathBuf> {
 const READ_ONLY_FIXTURE_TESTS: &[&str] = &[
     // Reads tb_13_real_llm_smoke fixture; writes pointer + verdict to std::env::temp_dir().
     "markov_pointer_de_canonicalize.rs",
+    // Writes only to TempDir; reads a true-suite runner text containing handover/evidence/true_suite.
+    "constitution_true_suite_tdma_runner.rs",
 ];
 
 /// Heuristic: a test writes to committed evidence if its source contains a

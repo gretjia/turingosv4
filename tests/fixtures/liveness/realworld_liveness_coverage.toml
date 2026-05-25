@@ -107,7 +107,7 @@ final_evidence_artifacts = [
 id = "tdma_real_proof_fresh"
 problem_type = "tdma_proof"
 status = "fresh_required"
-entrypoint = "scripts/run_tdma_rc1_real_evidence.py"
+entrypoint = "scripts/run_true_suite_tdma_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
   "runtime_replay_evidence_audit",
@@ -121,7 +121,8 @@ constitutional_paths = [
 anti_contamination_guards = [
   "zero-gain retry demo does not count as final success evidence",
   "require bounded prompt proof and no raw stderr leak",
-  "judge verdicts must be replayable from tape files",
+  "judge verdicts must be replayable from durable TDMA tape files",
+  "TDMA GitTapeLedger evidence must not be mislabeled as bottom-white L4 ChainTape",
 ]
 evidence_artifacts = [
   "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
@@ -130,8 +131,10 @@ evidence_artifacts = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/tdma/manifest.json",
   "handover/evidence/true_suite/<run>/tdma/chaintape.jsonl",
+  "handover/evidence/true_suite/<run>/tdma/tdma_tape.git/",
   "handover/evidence/true_suite/<run>/tdma/per_attempt_probes.jsonl",
   "handover/evidence/true_suite/<run>/tdma/replay_report.json",
+  "handover/evidence/true_suite/<run>/tdma/tdma_run_manifest.json",
 ]
 
 [[task]]

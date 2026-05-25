@@ -451,6 +451,7 @@ necessity = "The bounded solver is an AGI work loop candidate; it must be lit by
 smoke_gates = [
   "tests/tdma_memory_harness_v1.rs",
   "tests/realworld_tdma_judge_ai_step_proof.rs",
+  "tests/constitution_true_suite_tdma_runner.rs",
 ]
 real_world_evidence = [
   "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
@@ -506,6 +507,7 @@ smoke_gates = [
   "tests/cli_init_smoke.rs",
   "tests/cli_task_open_smoke.rs",
   "tests/constitution_true_suite_generate_artifact_runner.rs",
+  "tests/constitution_true_suite_tdma_runner.rs",
   "tests/generate_emits_work_tx_smoke.rs",
 ]
 real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt"]
