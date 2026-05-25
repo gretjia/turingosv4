@@ -112,6 +112,8 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gpqa/input_capsules/",
   "handover/evidence/true_suite/<run>/gpqa/cas/",
   "handover/evidence/true_suite/<run>/gpqa/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_run_manifest.json",
   "handover/evidence/true_suite/<run>/gpqa/replay_report.json",
   "handover/evidence/true_suite/<run>/gpqa/failure_taxonomy.json",
 ]
