@@ -452,7 +452,9 @@ pub fn assert_no_post_init_mint(tx: &TypedTx, q: &QState) -> Result<(), Monetary
         | TypedTx::EventResolve(_)
         // W3-2 PredicateRegistryBind: activation mutates only
         // q.predicate_registry_root_t and state_root_t.
-        | TypedTx::PredicateBindingActivate(_) => Ok(()),
+        | TypedTx::PredicateBindingActivate(_)
+        // FC2 map-reduce tick mutates only q_t.current_round and state_root_t.
+        | TypedTx::MapReduceTick(_) => Ok(()),
     }
 }
 

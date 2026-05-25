@@ -165,6 +165,9 @@ pub enum TxKind {
     /// predicate admission. Tail-added so all existing discriminants remain
     /// byte-stable.
     PredicateBindingActivate = 19,
+    /// FC2 map-reduce tick — system-emitted, tape-visible clock advance.
+    /// Tail-added so all existing discriminants remain byte-stable.
+    MapReduceTick = 20,
 }
 
 /// TRACE_MATRIX FC2-Append + WP § 5.L4: stored LedgerEntry record (11 fields).
@@ -280,6 +283,40 @@ pub fn append(parent_root: &Hash, signing_digest: &Hash) -> Hash {
     h.update(b"turingosv4.ledger_root.v1");
     h.update(parent_root.0);
     h.update(signing_digest.0);
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC2-N20 + FC2:mr: deterministic map root over the L4 prefix consumed by the tick.
+pub fn map_reduce_tick_map_root(prefix: &[LedgerEntry]) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc2.map_reduce_tick.map_root.v1");
+    h.update((prefix.len() as u64).to_be_bytes());
+    for entry in prefix {
+        h.update(entry.logical_t.to_be_bytes());
+        h.update((entry.tx_kind as u8).to_be_bytes());
+        h.update(entry.tx_payload_cid.0);
+        h.update(entry.resulting_state_root.0);
+        h.update(entry.resulting_ledger_root.0);
+        h.update(entry.to_signing_payload().canonical_digest().0);
+    }
+    Hash(h.finalize().into())
+}
+
+/// TRACE_MATRIX FC2-N20 + FC2:mr: deterministic reduce root binding map output, tape0 root, and next clock.
+pub fn map_reduce_tick_reduce_root(
+    map_root: Hash,
+    tape0_root: Hash,
+    tape0_len: u64,
+    clock_t: u64,
+    tick_kind: crate::state::typed_tx::TickKind,
+) -> Hash {
+    let mut h = Sha256::new();
+    h.update(b"turingosv4.fc2.map_reduce_tick.reduce_root.v1");
+    h.update(map_root.0);
+    h.update(tape0_root.0);
+    h.update(tape0_len.to_be_bytes());
+    h.update(clock_t.to_be_bytes());
+    h.update((tick_kind as u8).to_be_bytes());
     Hash(h.finalize().into())
 }
 
@@ -548,6 +585,7 @@ pub fn replay_full_transition_with_predicate_binding(
     use crate::state::sequencer::{
         dispatch_transition, event_resolve_signature_verifies_current_or_legacy, system_epoch_of,
         system_message_for_verification, system_signature_of,
+        verify_map_reduce_tick_prefix_context,
     };
 
     let mut q = genesis.clone();
@@ -625,6 +663,10 @@ pub fn replay_full_transition_with_predicate_binding(
                     inner: crate::state::typed_tx::TransitionError::PredicateBindingActivationLogicalTMismatch,
                 });
             }
+        }
+        if let crate::state::typed_tx::TypedTx::MapReduceTick(t) = &typed_tx {
+            verify_map_reduce_tick_prefix_context(&q, t, &entries[..i], entry.logical_t)
+                .map_err(|inner| ReplayError::Transition { at: i, inner })?;
         }
 
         if let crate::state::typed_tx::TypedTx::EventResolve(t) = &typed_tx {

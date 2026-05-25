@@ -45,7 +45,7 @@ flowchart TB
         Q0["CF Q0"]
         REPLAY["CF replay verifier"]
         RESUME["CF resume"]
-        MR["MISSING map-reduce tick"]
+        MR["CF MapReduceTick"]
         HALT["CF terminal / halt summary"]
     end
 
@@ -87,6 +87,7 @@ flowchart TB
     W -->|reject| L4E
     L4 --> REPLAY --> RESUME --> Q
     L4E --> REPLAY
+    INIT --> MR --> L4
     W --> HALT
 
     C --> TR --> INIT
@@ -126,7 +127,7 @@ flowchart TB
 | FC1 | predicate failure | LIVE | rejected WorkTx enters L4.E without advancing L4 logical_t | none |
 | FC2 | boot / Q0 | LIVE | `build_chaintape_sequencer`, activation tx, `initial_q_state.json` | none |
 | FC2 | replay / resume | LIVE | `verify_chaintape`, `replay_full_transition_with_predicate_binding`, `resume_existing_chain` | none |
-| FC2 | map-reduce tick | MISSING | no typed tx / sequencer / replay-visible tick path | Class 4 charter required |
+| FC2 | map-reduce tick | LIVE | `MapReduceTickTx`, `SystemEmitCommand::MapReduceTick`, boot `activate_map_reduce_tick_for_boot`, replay prefix verification | none |
 | FC2 | halt summary | LIVE | `TerminalSummaryTx`, `RunOutcome`, `runs_t` | none |
 | FC3 | constitution/logs boundary | PARTIAL | trust-root verification, ChainTape, CAS, L4.E | typed tools-to-log liveness probe still needed |
 | FC3 | ArchitectAI / Veto-AI | EXTERNAL_ONLY | orchestrator/audit process and handover artifacts | implement runtime roles or constitutionally externalize |
@@ -138,7 +139,7 @@ flowchart TB
 | Module | Class | Why it is kept | Flowchart relationship |
 |---|---:|---|---|
 | CAS store | RS | Reconstructs ProposalTelemetry, artifacts, predicates, rejection payloads, and replay evidence | supports FC1/FC2/FC3 tape truth |
-| Git-backed L4 ChainTape | RS | Makes accepted transitions replayable and hash-addressed | concrete tape implementation for FC1/FC2 |
+| Git-backed L4 ChainTape | RS | Makes accepted transitions and boot MapReduceTick replayable and hash-addressed | concrete tape implementation for FC1/FC2 |
 | L4.E rejection tape | RS | Records failed admissions without advancing accepted state | necessary fail-closed branch for FC1 |
 | PredicateRegistry | RS | Makes predicates executable ground truth, not runner-stamped belief | FC1 predicate boundary |
 | AgentKeypairRegistry and pinned system keys | RS | Distinguishes agent signatures from system emissions | protects FC1/FC2 typed tx authority |
@@ -160,15 +161,12 @@ flowchart TB
 
 ## Current Non-Negotiable Missing Closures
 
-1. FC2 map-reduce tick must become ChainTape-visible or be constitutionally
-   superseded. Implementing it likely touches typed tx, sequencer, replay, and
-   CAS/signing surfaces, so it is Class 4.
-2. FC3 ArchitectAI/Veto-AI are currently external process roles, not runtime
+1. FC3 ArchitectAI/Veto-AI are currently external process roles, not runtime
    modules. That is honest only if the architecture says `EXTERNAL_ONLY`; a
    runtime implementation would be Class 4.
-3. FC3 logs-feedback and re-init semantics are missing as in-process runtime
+2. FC3 logs-feedback and re-init semantics are missing as in-process runtime
    paths. Resume and abort are not the same as the flowchart re-init edge.
-4. FC1 rtool/input is still partial: proposal evidence is now CAS-bound, but
+3. FC1 rtool/input is still partial: proposal evidence is now CAS-bound, but
    the first agent prompt needs a stronger proof that read context is derived
    from ChainTape/CAS rather than caller-local prompt closures.
 

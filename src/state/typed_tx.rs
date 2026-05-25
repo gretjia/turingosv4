@@ -911,6 +911,7 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
 const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1"; // TB-N2 B2
 const DOMAIN_SYSTEM_PREDICATE_BINDING_ACTIVATE: &[u8] =
     b"turingosv4.system_sig.predicate_binding_activate.v1";
+const DOMAIN_SYSTEM_MAP_REDUCE_TICK: &[u8] = b"turingosv4.system_sig.map_reduce_tick.v1";
 // TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
 // All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
 // auto-seed; redeem requires system-resolution-reference + outcome match,
@@ -1807,6 +1808,39 @@ pub struct PredicateBindingActivateTx {
     pub system_signature: SystemSignature,
 }
 
+/// TRACE_MATRIX FC2-N20 + FC2:clock: canonical kind marker for map-reduce tick transactions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum TickKind {
+    Scheduled = 0,
+}
+
+impl Default for TickKind {
+    fn default() -> Self {
+        Self::Scheduled
+    }
+}
+
+/// TRACE_MATRIX FC2-N20 + FC2:mr: FC2 map-reduce tick system transaction.
+///
+/// The tick is system-emitted only. It binds the current L4 prefix root/length,
+/// a deterministic map root over the accepted prefix, and a reduce root over
+/// that map result plus the next clock value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MapReduceTickTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub tape0_root: Hash,
+    pub tape0_len: u64,
+    pub clock_t: u64,
+    pub map_root: Hash,
+    pub reduce_root: Hash,
+    pub tick_kind: TickKind,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -2049,6 +2083,28 @@ impl PredicateBindingActivateSigningPayload {
     }
 }
 
+/// TRACE_MATRIX FC2-N20 + FC2:mr: FC2 map-reduce tick signing payload. Excludes `system_signature`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct MapReduceTickSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub tape0_root: Hash,
+    pub tape0_len: u64,
+    pub clock_t: u64,
+    pub map_root: Hash,
+    pub reduce_root: Hash,
+    pub tick_kind: TickKind,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl MapReduceTickSigningPayload {
+    /// TRACE_MATRIX FC2-N20 + FC2:mr: domain-prefixed digest for the map-reduce tick system signature.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_MAP_REDUCE_TICK, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -2196,6 +2252,24 @@ impl PredicateBindingActivateTx {
             parent_state_root: self.parent_state_root,
             registry_snapshot_cid: self.registry_snapshot_cid,
             registry_merkle_root: self.registry_merkle_root,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl MapReduceTickTx {
+    /// TRACE_MATRIX FC2-N20 + FC2:mr: project the tick into its canonical signing payload.
+    pub fn to_signing_payload(&self) -> MapReduceTickSigningPayload {
+        MapReduceTickSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            tape0_root: self.tape0_root,
+            tape0_len: self.tape0_len,
+            clock_t: self.clock_t,
+            map_root: self.map_root,
+            reduce_root: self.reduce_root,
+            tick_kind: self.tick_kind,
             epoch: self.epoch,
             timestamp_logical: self.timestamp_logical,
         }
@@ -2431,6 +2505,8 @@ pub enum TypedTx {
     /// predicate admission. Anchors the registry snapshot and advances
     /// `QState.predicate_registry_root_t` from ZERO to the activated root.
     PredicateBindingActivate(PredicateBindingActivateTx),
+    /// FC2 map-reduce tick — system-emitted tape-visible clock advance.
+    MapReduceTick(MapReduceTickTx),
 }
 
 impl TypedTx {
@@ -2458,6 +2534,7 @@ impl TypedTx {
             Self::BuyWithCoinRouter(_) => TxKind::BuyWithCoinRouter,
             Self::EventResolve(_) => TxKind::EventResolve,
             Self::PredicateBindingActivate(_) => TxKind::PredicateBindingActivate,
+            Self::MapReduceTick(_) => TxKind::MapReduceTick,
         }
     }
 }
@@ -2551,6 +2628,12 @@ impl HasSubmitter for PredicateBindingActivateTx {
     }
 }
 
+impl HasSubmitter for MapReduceTickTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
 // TB-13 — agent-signed conditional-share variants. Submitter is the
 // owner / provider on the wire (mirrors WorkTx → agent_id pattern).
 
@@ -2627,6 +2710,7 @@ impl HasSubmitter for TypedTx {
             Self::BuyWithCoinRouter(t) => t.submitter_id(),
             Self::EventResolve(t) => t.submitter_id(),
             Self::PredicateBindingActivate(t) => t.submitter_id(),
+            Self::MapReduceTick(t) => t.submitter_id(),
         }
     }
 }
@@ -3051,6 +3135,12 @@ pub enum TransitionError {
     /// PredicateBindingActivateTx.timestamp_logical did not match the L4
     /// logical_t assigned to the accepted ledger entry.
     PredicateBindingActivationLogicalTMismatch,
+    /// MapReduceTickTx.timestamp_logical did not match the L4 logical_t.
+    MapReduceTickLogicalTMismatch,
+    /// MapReduceTickTx did not bind the current L4 prefix root/length/map/reduce roots.
+    MapReduceTickPrefixMismatch,
+    /// MapReduceTickTx.clock_t was not the next sequencer clock value.
+    MapReduceTickClockMismatch,
 
     // ── TB-G G3.2 bankruptcy risk-cap admission (charter §1 Module G3; 2026-05-12) ─
     /// 4 admission arms (WorkTx + BuyWithCoinRouter + Challenge + Verify):
@@ -3289,6 +3379,18 @@ impl std::fmt::Display for TransitionError {
             Self::PredicateBindingActivationLogicalTMismatch => write!(
                 f,
                 "PredicateBindingActivateTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::MapReduceTickLogicalTMismatch => write!(
+                f,
+                "MapReduceTickTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::MapReduceTickPrefixMismatch => write!(
+                f,
+                "MapReduceTickTx: L4 prefix root, prefix length, map root, or reduce root mismatch"
+            ),
+            Self::MapReduceTickClockMismatch => write!(
+                f,
+                "MapReduceTickTx: clock_t does not equal current_round + 1"
             ),
             // TB-G G3.2 (2026-05-12): SG-G3.12 budget ≤ 64 bytes. Below = 37 bytes.
             Self::BankruptcyRiskCapExceeded => write!(f, "bankruptcy risk-cap exceeded"),

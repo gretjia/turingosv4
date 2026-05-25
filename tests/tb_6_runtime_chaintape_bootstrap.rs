@@ -197,18 +197,18 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     assert!(bus.sequencer.is_some());
 
-    // Pre-state: fresh boot has already committed PredicateBindingActivate.
+    // Pre-state: fresh boot has already committed PredicateBindingActivate + MapReduceTick.
     {
         let writer = bundle.transition_writer.read().expect("writer read");
         assert!(writer.head_commit_oid_hex().is_some());
-        assert_eq!(writer.len(), 1);
+        assert_eq!(writer.len(), 2);
     }
 
     // Submit one synthetic TaskOpen via the production path.
     let parent_root = bundle
         .sequencer
         .q_snapshot()
-        .expect("post-activation q")
+        .expect("post-boot q")
         .state_root_t;
     let task_open = make_synthetic_task_open("task-t10", "sponsor-t10", parent_root, "t10-1");
     bus.submit_typed_tx(task_open)

@@ -48,10 +48,10 @@ fn cfg_resume(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConf
 
 // ── SG-G1.1 ─────────────────────────────────────────────────────────────────
 //
-// Resume on empty repo follows the fresh boot path. W3-2 adds a mandatory
-// predicate-binding activation entry during fresh boot, so the invariant is no
-// longer byte-equality to bare genesis; it is that both resume=true/empty and
-// resume=false/empty enter the same non-zero predicate-bound mode.
+// Resume on empty repo follows the fresh boot path. Fresh boot emits
+// predicate-binding activation plus the FC2 map-reduce tick, so the invariant is
+// that both resume=true/empty and resume=false/empty enter the same non-zero
+// predicate-bound, round-advanced mode.
 #[tokio::test]
 async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
     // Fresh-genesis path with resume=true on an empty repo.
@@ -84,12 +84,12 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
     };
 
     assert_eq!(
-        n_a, 1,
-        "resume=true/empty fresh boot must emit one activation L4"
+        n_a, 2,
+        "resume=true/empty fresh boot must emit activation + MapReduceTick L4"
     );
     assert_eq!(
-        n_b, 1,
-        "resume=false/empty fresh boot must emit one activation L4"
+        n_b, 2,
+        "resume=false/empty fresh boot must emit activation + MapReduceTick L4"
     );
     assert_ne!(
         q_a.predicate_registry_root_t,
@@ -104,6 +104,8 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
         q_a.economic_state_t, q_b.economic_state_t,
         "SG-G1.1: economic_state_t must be byte-equal across branches"
     );
+    assert_eq!(q_a.q_t.current_round, 1);
+    assert_eq!(q_a.q_t.current_round, q_b.q_t.current_round);
 }
 
 // ── SG-G1.2 ─────────────────────────────────────────────────────────────────
@@ -113,31 +115,31 @@ async fn sg_g1_1_resume_on_empty_repo_equals_legacy_genesis() {
 // holds — proved by submitting one extra TaskOpen after resume and
 // observing the chain length advances from N → N+1.
 //
-// The test uses N=2 (activation + one TaskOpen) because making each subsequent
+// The test uses N=3 (activation + MapReduceTick + one TaskOpen) because making each subsequent
 // `make_synthetic_task_open`
 // accept requires threading `parent_state_root` through the latest
 // `q_snapshot()` between submits, which races the async driver. N=1
-// pre-W3-2 has become N=2 after the mandatory predicate activation entry.
-// The post-resume commit advances 2 → 3 and pins the `Git2LedgerWriter`
+// pre-W3-2 has become N=3 after mandatory boot system entries.
+// The post-resume commit advances 3 → 4 and pins the `Git2LedgerWriter`
 // `len + 1` constraint.
 #[tokio::test]
 async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg_fresh = cfg_resume(&tmp, "g1_2-fresh", false);
 
-    // Phase 1: fresh bootstrap emits activation, then submit 1 TaskOpen
-    // against the post-activation state root so it really accepts.
+    // Phase 1: fresh bootstrap emits activation + MapReduceTick, then submit
+    // 1 TaskOpen against the post-boot state root so it really accepts.
     let bundle = build_chaintape_sequencer(&cfg_fresh).expect("fresh bootstrap");
-    let q_after_activation = bundle
+    let q_after_boot = bundle
         .sequencer
         .q_snapshot()
-        .expect("q_snapshot after activation");
+        .expect("q_snapshot after boot system txs");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     let tx = make_synthetic_task_open(
         "task-g1_2",
         "sponsor-g1_2",
-        q_after_activation.state_root_t,
+        q_after_boot.state_root_t,
         "g1_2-1",
     );
     bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
@@ -153,8 +155,8 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         reopened.len()
     };
     assert_eq!(
-        n_on_disk, 2,
-        "phase 1: chain should hold activation + 1 accepted TaskOpen before resume"
+        n_on_disk, 3,
+        "phase 1: chain should hold activation + MapReduceTick + 1 accepted TaskOpen before resume"
     );
 
     // Phase 2: resume bootstrap. next_logical_t must equal chain length.
@@ -162,13 +164,13 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
     let bundle_r = build_chaintape_sequencer(&cfg_r).expect("resume bootstrap");
     assert_eq!(
         bundle_r.sequencer.next_logical_t_peek(),
-        2,
+        3,
         "SG-G1.2: Sequencer.next_logical_t must equal chain_length on resume \
-         (chain has 2 entries → next_logical_t must be 2; the next commit signs as logical_t=3)"
+         (chain has 3 entries → next_logical_t must be 3; the next commit signs as logical_t=4)"
     );
 
     // Phase 3: submit one more TaskOpen with parent = post-replay
-    // state_root. Chain advances 2 → 3 without
+    // state_root. Chain advances 3 → 4 without
     // `Git2LedgerWriter::append`'s strict `len + 1` invariant tripping.
     let q_after_replay = bundle_r
         .sequencer
@@ -196,8 +198,8 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         reopened.len()
     };
     assert_eq!(
-        n_after, 3,
-        "SG-G1.2: chain length must advance from 2 → 3 after one post-resume commit"
+        n_after, 4,
+        "SG-G1.2: chain length must advance from 3 → 4 after one post-resume commit"
     );
 }
 

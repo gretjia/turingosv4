@@ -878,6 +878,9 @@ pub fn build_chaintape_sequencer_with_initial_q(
         sequencer
             .activate_predicate_binding_for_boot()
             .map_err(BootstrapError::LedgerWriter)?;
+        sequencer
+            .activate_map_reduce_tick_for_boot()
+            .map_err(BootstrapError::LedgerWriter)?;
     }
     let sequencer = Arc::new(sequencer);
 

@@ -236,19 +236,19 @@ fn ignored_runtime_stubs_are_not_counted_as_green_coverage() {
 }
 
 #[test]
-fn missing_flowchart_paths_remain_explicit_until_class4_closure() {
+fn flowchart_liveness_status_matches_class4_closures() {
     let trace = read(TRACE_MATRIX);
     let exec = read(EXEC_MATRIX);
     let inventory = read(LIVENESS_INVENTORY);
     let architecture = read(ARCHITECTURE_MAP);
 
-    assert_line_contains_all(TRACE_MATRIX, &trace, "FC2:mr", &["MISSING"]);
-    assert_line_contains_all(EXEC_MATRIX, &exec, "Art. IV.tick", &["MISSING"]);
+    assert_line_contains_all(TRACE_MATRIX, &trace, "FC2:mr", &["✅"]);
+    assert_line_contains_all(EXEC_MATRIX, &exec, "Art. IV.tick", &["GREEN"]);
     assert_line_contains_all(
         EXEC_MATRIX,
         &exec,
         "map-reduce tick tape-visible",
-        &["MISSING"],
+        &["GREEN"],
     );
     assert_line_contains_all(
         TRACE_MATRIX,
@@ -270,7 +270,7 @@ fn missing_flowchart_paths_remain_explicit_until_class4_closure() {
         &LIVENESS_INVENTORY,
         &inventory,
         "map-reduce tick",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         &LIVENESS_INVENTORY,
@@ -301,7 +301,7 @@ fn missing_flowchart_paths_remain_explicit_until_class4_closure() {
         &ARCHITECTURE_MAP,
         &architecture,
         "map-reduce tick",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         &ARCHITECTURE_MAP,

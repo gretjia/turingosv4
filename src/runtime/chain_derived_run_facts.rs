@@ -1092,7 +1092,8 @@ mod tests {
         }
     }
 
-    /// U-A5.a — fresh boot emits only the predicate-binding activation L4 row.
+    /// U-A5.a — fresh boot emits predicate-binding activation + FC2
+    /// map-reduce tick L4 rows.
     /// User/business proposal fields remain all-zero / all-default.
     #[tokio::test]
     async fn empty_chain_yields_default_run_facts() {
@@ -1105,7 +1106,7 @@ mod tests {
             .expect("compute facts");
         assert!(!facts.solved);
         assert!(!facts.verified);
-        assert_eq!(facts.tx_count, 1);
+        assert_eq!(facts.tx_count, 2);
         assert_eq!(facts.proposal_count, 0);
         assert_eq!(facts.golden_path_token_count, 0);
         assert!(facts.gp_payload.is_none());
@@ -1115,9 +1116,10 @@ mod tests {
     }
 
     /// U-A5.b — submit a zero-stake WorkTx through bus.submit_typed_tx
-    /// → it lands in L4.E (rejected). Chain-derived run facts: tx_count=1,
-    /// failed_branch_count=1, proposal_count=0 (rejected WorkTx is in L4.E,
-    /// not L4 — proposal_count is L4-only WorkTx). solved=false.
+    /// → it lands in L4.E (rejected). Chain-derived run facts include the
+    /// boot system L4 rows plus one L4.E row; failed_branch_count=1,
+    /// proposal_count=0 (rejected WorkTx is in L4.E, not L4 —
+    /// proposal_count is L4-only WorkTx). solved=false.
     ///
     /// This exercises the L4.E side of tx_count without depending on
     /// successful WorkTx admission (which requires pre-seeded escrow).

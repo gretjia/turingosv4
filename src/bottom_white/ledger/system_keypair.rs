@@ -276,6 +276,9 @@ pub enum CanonicalMessage {
     /// payload digest. Opaque [u8; 32] from
     /// `PredicateBindingActivateTx::to_signing_payload().canonical_digest()`.
     PredicateBindingActivateSigning([u8; 32]),
+    /// FC2 map-reduce tick signing payload digest. Opaque [u8; 32] from
+    /// `MapReduceTickTx::to_signing_payload().canonical_digest()`.
+    MapReduceTickSigning([u8; 32]),
 }
 
 /// TRACE_MATRIX FC1-Sig+FC3-Sig: epoch-indexed public keys pinned by genesis and rotation history.
@@ -535,6 +538,10 @@ pub fn canonical_digest(message: &CanonicalMessage) -> [u8; 32] {
             h.update(b"PredicateBindingActivateSigning");
             h.update(digest);
         }
+        CanonicalMessage::MapReduceTickSigning(digest) => {
+            h.update(b"MapReduceTickSigning");
+            h.update(digest);
+        }
     }
     h.finalize().into()
 }
@@ -707,6 +714,14 @@ pub(crate) mod terminal_summary_emitter {
             keypair,
             &CanonicalMessage::PredicateBindingActivateSigning(digest),
         )
+    }
+
+    /// TRACE_MATRIX FC2-N20 + FC2:clock + FC2:mr: sign the system-only map-reduce tick transaction.
+    pub(crate) fn sign_map_reduce_tick(
+        keypair: &Ed25519Keypair,
+        digest: [u8; 32],
+    ) -> Result<SystemSignature, KeypairError> {
+        sign_system_message_inner(keypair, &CanonicalMessage::MapReduceTickSigning(digest))
     }
 
     /// TRACE_MATRIX FC3-Sig: sign only typed epoch rotation proofs.

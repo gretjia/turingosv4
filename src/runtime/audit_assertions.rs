@@ -471,6 +471,7 @@ pub struct TxKindCounts {
     pub task_bankruptcy: u64,
     pub event_resolve: u64, // TB-N2 B2 (2026-05-11) — Open → Finalized system-emit
     pub predicate_binding_activate: u64,
+    pub map_reduce_tick: u64,
 }
 
 impl TxKindCounts {
@@ -499,6 +500,7 @@ impl TxKindCounts {
                 TxKind::TaskBankruptcy => c.task_bankruptcy += 1,
                 TxKind::EventResolve => c.event_resolve += 1, // TB-N2 B2 (2026-05-11)
                 TxKind::PredicateBindingActivate => c.predicate_binding_activate += 1,
+                TxKind::MapReduceTick => c.map_reduce_tick += 1,
             }
         }
         c
@@ -1116,7 +1118,8 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         TypedTx::ChallengeResolve(_)
         | TypedTx::TaskBankruptcy(_)
         | TypedTx::EventResolve(_)
-        | TypedTx::PredicateBindingActivate(_) => {
+        | TypedTx::PredicateBindingActivate(_)
+        | TypedTx::MapReduceTick(_) => {
             // No direct AgentId fields; refer to other tx by id only.
             // REAL-6A EventResolveTx: 7 wire fields (tx_id + parent_state_root +
             // task_id + outcome + epoch + timestamp_logical + system_signature); none

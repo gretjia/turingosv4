@@ -230,6 +230,7 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::BuyWithCoinRouter(t) => t.tx_id.clone(), // Stage C P-M6 / Phase F.5
         TypedTx::EventResolve(t) => t.tx_id.clone(),   // TB-N2 B2 (2026-05-11)
         TypedTx::PredicateBindingActivate(t) => t.tx_id.clone(),
+        TypedTx::MapReduceTick(t) => t.tx_id.clone(),
     }
 }
 
