@@ -52,11 +52,11 @@ flowchart TB
     subgraph FC3["FC3 Meta Architecture"]
         C["CF constitution"]
         LOGS["CF logs archive"]
-        ARCH["EXTERNAL_ONLY ArchitectAI"]
-        VETO["EXTERNAL_ONLY Veto-AI"]
+        ARCH["CF LIVE runtime ArchitectAI"]
+        VETO["CF LIVE runtime Veto-AI"]
         TOOLS["CF tools-to-log boundary"]
-        FB["MISSING logs feedback to ArchitectAI"]
-        REINIT["MISSING error re-init loop"]
+        FB["CF LIVE logs feedback to ArchitectAI"]
+        REINIT["CF LIVE error re-init loop"]
         TR["SI trust-root manifest"]
         GATES["SI constitution gates"]
     end
@@ -95,12 +95,10 @@ flowchart TB
     L4 --> LOGS
     L4E --> LOGS
     CAS --> LOGS
-    LOGS -.external today.-> ARCH
+    LOGS --> FB --> ARCH
     ARCH -.external today.-> VETO
     VETO -.external today.-> TOOLS
-    LOGS -.missing runtime feedback.-> FB
-    FB -.missing.-> ARCH
-    REINIT -.missing.-> INIT
+    REINIT --> INIT
 
     SPEC --> GEN --> TDMA --> A
     TDMA --> PT
@@ -130,9 +128,9 @@ flowchart TB
 | FC2 | map-reduce tick | LIVE | `MapReduceTickTx`, `SystemEmitCommand::MapReduceTick`, boot `activate_map_reduce_tick_for_boot`, replay prefix verification | none |
 | FC2 | halt summary | LIVE | `TerminalSummaryTx`, `RunOutcome`, `runs_t` | none |
 | FC3 | constitution/logs boundary | PARTIAL | trust-root verification, ChainTape, CAS, L4.E | typed tools-to-log liveness probe still needed |
-| FC3 | ArchitectAI / Veto-AI | EXTERNAL_ONLY | orchestrator/audit process and handover artifacts | implement runtime roles or constitutionally externalize |
-| FC3 | logs feedback to ArchitectAI | MISSING | no in-process feedback loop | Class 4 design decision |
-| FC3 | error re-init loop | MISSING | abort and resume exist separately | Class 4 design decision |
+| FC3 | ArchitectAI / Veto-AI | LIVE | `ArchitectProposalTx`, `VetoDecisionTx`, `ArchitectCommitTx` with CAS capsules, runtime system emit, PASS-only commit path, replay verification | none for typed runtime meta-role path |
+| FC3 | logs feedback to ArchitectAI | LIVE | `LogFeedbackArchiveTx` / `TxKind::LogFeedbackArchive = 21`, `ArchitectFeedbackCapsule` CAS schema `fc3.architect_feedback.v1`, system-only signing, L4/L4.E/CAS/constitution prefix roots, replay checks, and runtime proposal continuation in `constitution_fc3_closure` | none for the typed feedback edge |
+| FC3 | error re-init loop | LIVE | `ReinitRequestTx` / `ReinitBootTx`, ErrorHalt `TerminalSummaryTx` trigger, `ReinitReasonCapsule` CAS schema `fc3.reinit_reason.v1`, replayed boot state root, no old evidence rewrite | none for the typed re-init edge |
 
 ## Extra Active Modules
 
@@ -159,13 +157,13 @@ flowchart TB
 | Legacy forbidden-pattern predicate gate | LEGACY | Superseded by executable PredicateRegistry | should not be cited as FC1 predicate proof |
 | Old FC extraction files / old trace matrices | LEGACY | Historical derived views only | forbidden as current topology authority |
 
-## Current Non-Negotiable Missing Closures
+## Current Non-Negotiable Boundary
 
-1. FC3 ArchitectAI/Veto-AI are currently external process roles, not runtime
-   modules. That is honest only if the architecture says `EXTERNAL_ONLY`; a
-   runtime implementation would be Class 4.
-2. FC3 logs-feedback and re-init semantics are missing as in-process runtime
-   paths. Resume and abort are not the same as the flowchart re-init edge.
+1. FC3 ArchitectAI/Veto-AI are live runtime meta-role surfaces. External PR
+   reviews may still audit development work, but they no longer count as FC3
+   node coverage.
+2. FC3 logs-feedback, proposal, veto, commit, and re-init semantics are now
+   live as typed, system-emitted L4 facts with CAS and replay binding.
 3. FC1 rtool/input is live for the tested typed read-view path:
    `TuringBus::snapshot` reconstructs input context from ChainTape/CAS-backed
    proposal telemetry rather than the legacy shadow `Tape`. Product-specific
@@ -176,6 +174,7 @@ flowchart TB
 Current tests that keep this map falsifiable:
 
 ```bash
+cargo test --test constitution_fc3_closure
 cargo test --test constitution_flowchart_source_alignment
 cargo test --test constitution_flowchart_livenow
 cargo test --test tb_7_authoritative_routing

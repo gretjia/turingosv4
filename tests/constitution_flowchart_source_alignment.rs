@@ -254,17 +254,17 @@ fn flowchart_liveness_status_matches_class4_closures() {
         TRACE_MATRIX,
         &trace,
         "FC3 edge `logs -> feedback -> architectAI`",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         TRACE_MATRIX,
         &trace,
         "FC3 edge `init -> error -> re-init -> boot`",
-        &["MISSING"],
+        &["LIVE"],
     );
-    assert_line_contains_all(TRACE_MATRIX, &trace, "FC3:vetoAI", &["EXTERNAL_ONLY"]);
-    assert_line_contains_all(TRACE_MATRIX, &trace, "FC3:architectAI", &["EXTERNAL_ONLY"]);
-    assert_line_contains_all(EXEC_MATRIX, &exec, "Veto-AI veto-only", &["EXTERNAL_ONLY"]);
+    assert_line_contains_all(TRACE_MATRIX, &trace, "FC3:vetoAI", &["RUNTIME"]);
+    assert_line_contains_all(TRACE_MATRIX, &trace, "FC3:architectAI", &["RUNTIME"]);
+    assert_line_contains_all(EXEC_MATRIX, &exec, "Veto-AI veto-only", &["RUNTIME"]);
 
     assert_line_contains_all(
         &LIVENESS_INVENTORY,
@@ -282,25 +282,20 @@ fn flowchart_liveness_status_matches_class4_closures() {
         &LIVENESS_INVENTORY,
         &inventory,
         "logs feedback to ArchitectAI",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         &LIVENESS_INVENTORY,
         &inventory,
         "error to re-init semantics",
-        &["MISSING"],
+        &["LIVE"],
     );
-    assert_line_contains_all(
-        &LIVENESS_INVENTORY,
-        &inventory,
-        "Veto-AI role",
-        &["EXTERNAL_ONLY"],
-    );
+    assert_line_contains_all(&LIVENESS_INVENTORY, &inventory, "Veto-AI role", &["LIVE"]);
     assert_line_contains_all(
         &LIVENESS_INVENTORY,
         &inventory,
         "ArchitectAI role",
-        &["EXTERNAL_ONLY"],
+        &["LIVE"],
     );
 
     assert_line_contains_all(
@@ -319,19 +314,19 @@ fn flowchart_liveness_status_matches_class4_closures() {
         &ARCHITECTURE_MAP,
         &architecture,
         "logs feedback to ArchitectAI",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         &ARCHITECTURE_MAP,
         &architecture,
         "error re-init loop",
-        &["MISSING"],
+        &["LIVE"],
     );
     assert_line_contains_all(
         &ARCHITECTURE_MAP,
         &architecture,
         "ArchitectAI / Veto-AI",
-        &["EXTERNAL_ONLY"],
+        &["LIVE"],
     );
 }
 

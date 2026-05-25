@@ -44,8 +44,8 @@ use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
-    LedgerWriterError, ReplayError,
+    replay_full_transition_with_predicate_binding_and_l4e, Git2LedgerWriter, LedgerEntry,
+    LedgerWriter, LedgerWriterError, ReplayError,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::runtime::PinnedPubkeyManifest;
@@ -296,11 +296,12 @@ pub fn verify_chaintape(
     // Step 6: replay.
     let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let replay_outcome = replay_full_transition_with_predicate_binding(
+    let replay_outcome = replay_full_transition_with_predicate_binding_and_l4e(
         &initial_q,
         &entries,
         &cas_store,
         &cas_store,
+        &l4e_writer,
         &pinned,
         &predicate_registry,
         &tool_registry,

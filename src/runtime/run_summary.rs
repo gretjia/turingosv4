@@ -231,6 +231,12 @@ fn extract_tx_id(tx: &TypedTx) -> TxId {
         TypedTx::EventResolve(t) => t.tx_id.clone(),   // TB-N2 B2 (2026-05-11)
         TypedTx::PredicateBindingActivate(t) => t.tx_id.clone(),
         TypedTx::MapReduceTick(t) => t.tx_id.clone(),
+        TypedTx::LogFeedbackArchive(t) => t.tx_id.clone(),
+        TypedTx::ArchitectProposal(t) => t.tx_id.clone(),
+        TypedTx::VetoDecision(t) => t.tx_id.clone(),
+        TypedTx::ArchitectCommit(t) => t.tx_id.clone(),
+        TypedTx::ReinitRequest(t) => t.tx_id.clone(),
+        TypedTx::ReinitBoot(t) => t.tx_id.clone(),
     }
 }
 

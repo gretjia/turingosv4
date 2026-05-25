@@ -912,6 +912,23 @@ const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve
 const DOMAIN_SYSTEM_PREDICATE_BINDING_ACTIVATE: &[u8] =
     b"turingosv4.system_sig.predicate_binding_activate.v1";
 const DOMAIN_SYSTEM_MAP_REDUCE_TICK: &[u8] = b"turingosv4.system_sig.map_reduce_tick.v1";
+const DOMAIN_SYSTEM_LOG_FEEDBACK_ARCHIVE: &[u8] = b"turingosv4.system_sig.log_feedback_archive.v1";
+const DOMAIN_SYSTEM_ARCHITECT_PROPOSAL: &[u8] = b"turingosv4.system_sig.architect_proposal.v1";
+const DOMAIN_SYSTEM_VETO_DECISION: &[u8] = b"turingosv4.system_sig.veto_decision.v1";
+const DOMAIN_SYSTEM_ARCHITECT_COMMIT: &[u8] = b"turingosv4.system_sig.architect_commit.v1";
+const DOMAIN_SYSTEM_REINIT_REQUEST: &[u8] = b"turingosv4.system_sig.reinit_request.v1";
+const DOMAIN_SYSTEM_REINIT_BOOT: &[u8] = b"turingosv4.system_sig.reinit_boot.v1";
+
+/// TRACE_MATRIX FC3-N41 + FC3-N43: CAS schema id for runtime feedback capsules.
+pub const ARCHITECT_FEEDBACK_SCHEMA_ID: &str = "fc3.architect_feedback.v1";
+/// TRACE_MATRIX FC3-N33: CAS schema id for runtime ArchitectAI proposal capsules.
+pub const ARCHITECT_PROPOSAL_SCHEMA_ID: &str = "fc3.architect_proposal.v1";
+/// TRACE_MATRIX FC3-N32/FC3-N43: CAS schema id for runtime Veto-AI decision capsules.
+pub const VETO_DECISION_SCHEMA_ID: &str = "fc3.veto_decision.v1";
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: CAS schema id for runtime ArchitectAI commit capsules.
+pub const ARCHITECT_COMMIT_SCHEMA_ID: &str = "fc3.architect_commit.v1";
+/// TRACE_MATRIX FC3-N44: CAS schema id for runtime re-init reason capsules.
+pub const REINIT_REASON_SCHEMA_ID: &str = "fc3.reinit_reason.v1";
 // TB-13 — CompleteSet + MarketSeedTx (architect 2026-05-03 post-TB-12 ruling Part A §4.3).
 // All three TB-13 typed-tx are AGENT-SIGNED (provider funds explicit; no
 // auto-seed; redeem requires system-resolution-reference + outcome match,
@@ -1841,6 +1858,272 @@ pub struct MapReduceTickTx {
     pub system_signature: SystemSignature,
 }
 
+/// TRACE_MATRIX FC3-N39..N43: mode marker for the meta role represented by a
+/// tape-visible FC3 system transaction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum MetaRoleMode {
+    Runtime = 0,
+}
+
+impl Default for MetaRoleMode {
+    fn default() -> Self {
+        Self::Runtime
+    }
+}
+
+/// TRACE_MATRIX FC3-N39..N43: Veto-AI verdict recorded by a feedback archive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum VetoVerdict {
+    Pass = 0,
+    Veto = 1,
+}
+
+impl Default for VetoVerdict {
+    fn default() -> Self {
+        Self::Pass
+    }
+}
+
+/// TRACE_MATRIX FC3-N41 + FC3-N43: tape-visible feedback archive from logs to
+/// ArchitectAI/Veto-AI. This is the runtime input edge into the InitAI meta
+/// roles; subsequent proposal and veto transactions must use `Runtime` mode.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct LogFeedbackArchiveTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub source_ledger_root: Hash,
+    pub source_l4_len: u64,
+    pub source_l4e_root: Hash,
+    pub source_l4e_len: u64,
+    pub cas_metadata_root: Hash,
+    pub constitution_hash: Hash,
+    pub feedback_capsule_cid: Cid,
+    pub feedback_root: Hash,
+    pub previous_feedback_cid: Option<Cid>,
+    pub role_mode: MetaRoleMode,
+    pub veto_verdict: VetoVerdict,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N41: CAS capsule bytes behind `LogFeedbackArchiveTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchitectFeedbackCapsule {
+    pub schema_version: String,
+    pub source_ledger_root: Hash,
+    pub source_l4e_root: Hash,
+    pub cas_metadata_root: Hash,
+    pub constitution_hash: Hash,
+    pub public_summary: String,
+    pub private_detail_cid: Option<Cid>,
+}
+
+/// TRACE_MATRIX FC3-N33: runtime ArchitectAI proposal class. `Noop` is the
+/// legal outcome when the logs contain no safe architecture improvement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ArchitectProposalKind {
+    Noop = 0,
+    ToolRegistryPatch = 1,
+    PredicatePatch = 2,
+    StoragePatch = 3,
+    TrustRootManifestPatch = 4,
+}
+
+impl Default for ArchitectProposalKind {
+    fn default() -> Self {
+        Self::Noop
+    }
+}
+
+/// TRACE_MATRIX FC3-N33: runtime ArchitectAI proposal anchored to a prior
+/// accepted `LogFeedbackArchiveTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ArchitectProposalTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub feedback_tx_id: TxId,
+    pub feedback_root: Hash,
+    pub proposal_capsule_cid: Cid,
+    pub proposal_root: Hash,
+    pub constitution_hash: Hash,
+    pub tool_registry_root: Hash,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N33: canonical bytes for an ArchitectAI proposal. It is
+/// generated by the runtime from archived feedback, then stored in CAS and
+/// referenced by `ArchitectProposalTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchitectProposalCapsule {
+    pub schema_version: String,
+    pub feedback_tx_id: TxId,
+    pub feedback_root: Hash,
+    pub constitution_hash: Hash,
+    pub tool_registry_root: Hash,
+    pub proposal_kind: ArchitectProposalKind,
+    pub target_path: Option<String>,
+    pub proposed_artifact_cid: Option<Cid>,
+    pub tools_used: Vec<String>,
+    pub public_summary: String,
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: Veto-AI's closed reason code. The verdict
+/// itself is still the two-valued `VetoVerdict`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum VetoReasonCode {
+    ConstitutionCompliant = 0,
+    ConstitutionMutationForbidden = 1,
+    DirectWriteForbidden = 2,
+    MissingProposalEvidence = 3,
+    ToolMutationUnsafe = 4,
+}
+
+impl Default for VetoReasonCode {
+    fn default() -> Self {
+        Self::ConstitutionCompliant
+    }
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: runtime Veto-AI verdict on an ArchitectAI
+/// proposal. It is system-emitted and replay-verified against the proposal
+/// capsule and constitution hash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct VetoDecisionTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub proposal_tx_id: TxId,
+    pub proposal_root: Hash,
+    pub decision_capsule_cid: Cid,
+    pub decision_root: Hash,
+    pub constitution_hash: Hash,
+    pub verdict: VetoVerdict,
+    pub reason_code: VetoReasonCode,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: canonical bytes behind `VetoDecisionTx`.
+/// There is no score, ranking, style field, performance field, or coverage
+/// grade; the only authority-bearing output is `verdict`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VetoDecisionCapsule {
+    pub schema_version: String,
+    pub proposal_tx_id: TxId,
+    pub proposal_root: Hash,
+    pub constitution_hash: Hash,
+    pub verdict: VetoVerdict,
+    pub reason_code: VetoReasonCode,
+    pub public_summary: String,
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: ArchitectAI's commit authority after a
+/// Veto-AI PASS. The commit is a tape/CAS artifact in this runtime; writes to
+/// `constitution.md` remain forbidden by Art. V.1.1 and rejected by Veto-AI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ArchitectCommitTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub proposal_tx_id: TxId,
+    pub veto_tx_id: TxId,
+    pub decision_root: Hash,
+    pub commit_capsule_cid: Cid,
+    pub commit_root: Hash,
+    pub constitution_hash: Hash,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: canonical bytes behind an accepted
+/// ArchitectAI commit.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchitectCommitCapsule {
+    pub schema_version: String,
+    pub proposal_tx_id: TxId,
+    pub veto_tx_id: TxId,
+    pub decision_root: Hash,
+    pub constitution_hash: Hash,
+    pub applied_artifact_cid: Option<Cid>,
+    pub target_path: Option<String>,
+    pub public_summary: String,
+}
+
+/// TRACE_MATRIX FC3-N44: re-init reason taxonomy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ReinitReason {
+    TerminalErrorHalt = 0,
+    ReplayFailure = 1,
+    RuntimeInvariantViolation = 2,
+}
+
+impl Default for ReinitReason {
+    fn default() -> Self {
+        Self::TerminalErrorHalt
+    }
+}
+
+/// TRACE_MATRIX FC3-N44: opaque boot profile selected by an accepted re-init request.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+pub struct BootProfileId(pub String);
+
+/// TRACE_MATRIX FC3-N44: system request to start a new boot cycle from a
+/// tape-visible failure trigger.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReinitRequestTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub trigger_entry: u64,
+    pub error_evidence_cid: Cid,
+    pub reason: ReinitReason,
+    pub source_ledger_root: Hash,
+    pub source_l4_len: u64,
+    pub source_l4e_root: Hash,
+    pub source_l4e_len: u64,
+    pub cas_metadata_root: Hash,
+    pub target_boot_profile: BootProfileId,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N45: system acknowledgement that the next boot profile was
+/// derived from a prior accepted `ReinitRequestTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReinitBootTx {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub request_tx_id: TxId,
+    pub replayed_state_root: Hash,
+    pub boot_profile: BootProfileId,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+    pub system_signature: SystemSignature,
+}
+
+/// TRACE_MATRIX FC3-N44: CAS capsule bytes behind `ReinitRequestTx.error_evidence_cid`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReinitReasonCapsule {
+    pub schema_version: String,
+    pub trigger_entry: u64,
+    pub reason: ReinitReason,
+    pub public_summary: String,
+    pub private_detail_cid: Option<Cid>,
+}
+
 // ── TB-13 SigningPayloads ───────────────────────────────────────────────
 
 /// TRACE_MATRIX TB-13 Atom 1 (architect §4.3): signing payload for
@@ -2105,6 +2388,150 @@ impl MapReduceTickSigningPayload {
     }
 }
 
+/// TRACE_MATRIX FC3-N41 + FC3-N43: system signing payload for `LogFeedbackArchiveTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct LogFeedbackArchiveSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub source_ledger_root: Hash,
+    pub source_l4_len: u64,
+    pub source_l4e_root: Hash,
+    pub source_l4e_len: u64,
+    pub cas_metadata_root: Hash,
+    pub constitution_hash: Hash,
+    pub feedback_capsule_cid: Cid,
+    pub feedback_root: Hash,
+    pub previous_feedback_cid: Option<Cid>,
+    pub role_mode: MetaRoleMode,
+    pub veto_verdict: VetoVerdict,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl LogFeedbackArchiveSigningPayload {
+    /// TRACE_MATRIX FC3-N41 + FC3-N43: canonical digest for feedback archive signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_LOG_FEEDBACK_ARCHIVE, self)
+    }
+}
+
+/// TRACE_MATRIX FC3-N33: system signing payload for runtime ArchitectAI proposals.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ArchitectProposalSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub feedback_tx_id: TxId,
+    pub feedback_root: Hash,
+    pub proposal_capsule_cid: Cid,
+    pub proposal_root: Hash,
+    pub constitution_hash: Hash,
+    pub tool_registry_root: Hash,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl ArchitectProposalSigningPayload {
+    /// TRACE_MATRIX FC3-N33: canonical digest for runtime ArchitectAI proposal signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_ARCHITECT_PROPOSAL, self)
+    }
+}
+
+/// TRACE_MATRIX FC3-N32/FC3-N43: system signing payload for runtime Veto-AI verdicts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct VetoDecisionSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub proposal_tx_id: TxId,
+    pub proposal_root: Hash,
+    pub decision_capsule_cid: Cid,
+    pub decision_root: Hash,
+    pub constitution_hash: Hash,
+    pub verdict: VetoVerdict,
+    pub reason_code: VetoReasonCode,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl VetoDecisionSigningPayload {
+    /// TRACE_MATRIX FC3-N32/FC3-N43: canonical digest for runtime Veto-AI decision signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_VETO_DECISION, self)
+    }
+}
+
+/// TRACE_MATRIX FC3-N33 + Art. V.1.2: system signing payload for approved
+/// ArchitectAI commits.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ArchitectCommitSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub proposal_tx_id: TxId,
+    pub veto_tx_id: TxId,
+    pub decision_root: Hash,
+    pub commit_capsule_cid: Cid,
+    pub commit_root: Hash,
+    pub constitution_hash: Hash,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl ArchitectCommitSigningPayload {
+    /// TRACE_MATRIX FC3-N33 + Art. V.1.2: canonical digest for approved ArchitectAI commit signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_ARCHITECT_COMMIT, self)
+    }
+}
+
+/// TRACE_MATRIX FC3-N44: system signing payload for `ReinitRequestTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReinitRequestSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub trigger_entry: u64,
+    pub error_evidence_cid: Cid,
+    pub reason: ReinitReason,
+    pub source_ledger_root: Hash,
+    pub source_l4_len: u64,
+    pub source_l4e_root: Hash,
+    pub source_l4e_len: u64,
+    pub cas_metadata_root: Hash,
+    pub target_boot_profile: BootProfileId,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl ReinitRequestSigningPayload {
+    /// TRACE_MATRIX FC3-N44: canonical digest for re-init request signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_REINIT_REQUEST, self)
+    }
+}
+
+/// TRACE_MATRIX FC3-N45: system signing payload for `ReinitBootTx`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct ReinitBootSigningPayload {
+    pub tx_id: TxId,
+    pub parent_state_root: Hash,
+    pub request_tx_id: TxId,
+    pub replayed_state_root: Hash,
+    pub boot_profile: BootProfileId,
+    pub role_mode: MetaRoleMode,
+    pub epoch: SystemEpoch,
+    pub timestamp_logical: u64,
+}
+
+impl ReinitBootSigningPayload {
+    /// TRACE_MATRIX FC3-N45: canonical digest for re-init boot acknowledgement signing.
+    pub fn canonical_digest(&self) -> [u8; 32] {
+        domain_prefixed_digest(DOMAIN_SYSTEM_REINIT_BOOT, self)
+    }
+}
+
 // ── Projections: tx → signing payload ────────────────────────────────────
 
 impl WorkTx {
@@ -2270,6 +2697,125 @@ impl MapReduceTickTx {
             map_root: self.map_root,
             reduce_root: self.reduce_root,
             tick_kind: self.tick_kind,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl LogFeedbackArchiveTx {
+    /// TRACE_MATRIX FC3-N41 + FC3-N43: project feedback archive into its system signing payload.
+    pub fn to_signing_payload(&self) -> LogFeedbackArchiveSigningPayload {
+        LogFeedbackArchiveSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            source_ledger_root: self.source_ledger_root,
+            source_l4_len: self.source_l4_len,
+            source_l4e_root: self.source_l4e_root,
+            source_l4e_len: self.source_l4e_len,
+            cas_metadata_root: self.cas_metadata_root,
+            constitution_hash: self.constitution_hash,
+            feedback_capsule_cid: self.feedback_capsule_cid,
+            feedback_root: self.feedback_root,
+            previous_feedback_cid: self.previous_feedback_cid,
+            role_mode: self.role_mode,
+            veto_verdict: self.veto_verdict,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl ArchitectProposalTx {
+    /// TRACE_MATRIX FC3-N33: project runtime ArchitectAI proposal into its system signing payload.
+    pub fn to_signing_payload(&self) -> ArchitectProposalSigningPayload {
+        ArchitectProposalSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            feedback_tx_id: self.feedback_tx_id.clone(),
+            feedback_root: self.feedback_root,
+            proposal_capsule_cid: self.proposal_capsule_cid,
+            proposal_root: self.proposal_root,
+            constitution_hash: self.constitution_hash,
+            tool_registry_root: self.tool_registry_root,
+            role_mode: self.role_mode,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl VetoDecisionTx {
+    /// TRACE_MATRIX FC3-N32/FC3-N43: project runtime Veto-AI decision into its system signing payload.
+    pub fn to_signing_payload(&self) -> VetoDecisionSigningPayload {
+        VetoDecisionSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            proposal_tx_id: self.proposal_tx_id.clone(),
+            proposal_root: self.proposal_root,
+            decision_capsule_cid: self.decision_capsule_cid,
+            decision_root: self.decision_root,
+            constitution_hash: self.constitution_hash,
+            verdict: self.verdict,
+            reason_code: self.reason_code,
+            role_mode: self.role_mode,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl ArchitectCommitTx {
+    /// TRACE_MATRIX FC3-N33 + Art. V.1.2: project approved ArchitectAI commit into its system signing payload.
+    pub fn to_signing_payload(&self) -> ArchitectCommitSigningPayload {
+        ArchitectCommitSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            proposal_tx_id: self.proposal_tx_id.clone(),
+            veto_tx_id: self.veto_tx_id.clone(),
+            decision_root: self.decision_root,
+            commit_capsule_cid: self.commit_capsule_cid,
+            commit_root: self.commit_root,
+            constitution_hash: self.constitution_hash,
+            role_mode: self.role_mode,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl ReinitRequestTx {
+    /// TRACE_MATRIX FC3-N44: project re-init request into its system signing payload.
+    pub fn to_signing_payload(&self) -> ReinitRequestSigningPayload {
+        ReinitRequestSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            trigger_entry: self.trigger_entry,
+            error_evidence_cid: self.error_evidence_cid,
+            reason: self.reason,
+            source_ledger_root: self.source_ledger_root,
+            source_l4_len: self.source_l4_len,
+            source_l4e_root: self.source_l4e_root,
+            source_l4e_len: self.source_l4e_len,
+            cas_metadata_root: self.cas_metadata_root,
+            target_boot_profile: self.target_boot_profile.clone(),
+            role_mode: self.role_mode,
+            epoch: self.epoch,
+            timestamp_logical: self.timestamp_logical,
+        }
+    }
+}
+
+impl ReinitBootTx {
+    /// TRACE_MATRIX FC3-N45: project re-init boot acknowledgement into its system signing payload.
+    pub fn to_signing_payload(&self) -> ReinitBootSigningPayload {
+        ReinitBootSigningPayload {
+            tx_id: self.tx_id.clone(),
+            parent_state_root: self.parent_state_root,
+            request_tx_id: self.request_tx_id.clone(),
+            replayed_state_root: self.replayed_state_root,
+            boot_profile: self.boot_profile.clone(),
+            role_mode: self.role_mode,
             epoch: self.epoch,
             timestamp_logical: self.timestamp_logical,
         }
@@ -2507,6 +3053,24 @@ pub enum TypedTx {
     PredicateBindingActivate(PredicateBindingActivateTx),
     /// FC2 map-reduce tick — system-emitted tape-visible clock advance.
     MapReduceTick(MapReduceTickTx),
+    /// FC3 feedback archive — system-emitted, tape-visible log feedback edge
+    /// to ArchitectAI/Veto-AI.
+    LogFeedbackArchive(LogFeedbackArchiveTx),
+    /// FC3 re-init request — system-emitted request linking an error halt to a
+    /// subsequent boot profile.
+    ReinitRequest(ReinitRequestTx),
+    /// FC3 re-init boot acknowledgement — system-emitted proof that a boot was
+    /// derived from a prior accepted re-init request.
+    ReinitBoot(ReinitBootTx),
+    /// FC3 runtime ArchitectAI proposal — system-emitted from an accepted
+    /// feedback archive. Tail-added after FC3-v2 system txs.
+    ArchitectProposal(ArchitectProposalTx),
+    /// FC3 runtime Veto-AI decision — system-emitted verdict on an
+    /// ArchitectAI proposal. Tail-added after FC3-v2 system txs.
+    VetoDecision(VetoDecisionTx),
+    /// FC3 runtime ArchitectAI commit — system-emitted only after Veto-AI PASS.
+    /// Tail-added after FC3-v2 system txs.
+    ArchitectCommit(ArchitectCommitTx),
 }
 
 impl TypedTx {
@@ -2535,6 +3099,12 @@ impl TypedTx {
             Self::EventResolve(_) => TxKind::EventResolve,
             Self::PredicateBindingActivate(_) => TxKind::PredicateBindingActivate,
             Self::MapReduceTick(_) => TxKind::MapReduceTick,
+            Self::LogFeedbackArchive(_) => TxKind::LogFeedbackArchive,
+            Self::ArchitectProposal(_) => TxKind::ArchitectProposal,
+            Self::VetoDecision(_) => TxKind::VetoDecision,
+            Self::ArchitectCommit(_) => TxKind::ArchitectCommit,
+            Self::ReinitRequest(_) => TxKind::ReinitRequest,
+            Self::ReinitBoot(_) => TxKind::ReinitBoot,
         }
     }
 }
@@ -2634,6 +3204,42 @@ impl HasSubmitter for MapReduceTickTx {
     }
 }
 
+impl HasSubmitter for LogFeedbackArchiveTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
+impl HasSubmitter for ArchitectProposalTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
+impl HasSubmitter for VetoDecisionTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
+impl HasSubmitter for ArchitectCommitTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
+impl HasSubmitter for ReinitRequestTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
+impl HasSubmitter for ReinitBootTx {
+    fn submitter_id(&self) -> Option<AgentId> {
+        None
+    }
+}
+
 // TB-13 — agent-signed conditional-share variants. Submitter is the
 // owner / provider on the wire (mirrors WorkTx → agent_id pattern).
 
@@ -2711,6 +3317,12 @@ impl HasSubmitter for TypedTx {
             Self::EventResolve(t) => t.submitter_id(),
             Self::PredicateBindingActivate(t) => t.submitter_id(),
             Self::MapReduceTick(t) => t.submitter_id(),
+            Self::LogFeedbackArchive(t) => t.submitter_id(),
+            Self::ArchitectProposal(t) => t.submitter_id(),
+            Self::VetoDecision(t) => t.submitter_id(),
+            Self::ArchitectCommit(t) => t.submitter_id(),
+            Self::ReinitRequest(t) => t.submitter_id(),
+            Self::ReinitBoot(t) => t.submitter_id(),
         }
     }
 }
@@ -3141,6 +3753,58 @@ pub enum TransitionError {
     MapReduceTickPrefixMismatch,
     /// MapReduceTickTx.clock_t was not the next sequencer clock value.
     MapReduceTickClockMismatch,
+    /// LogFeedbackArchiveTx.timestamp_logical did not match the L4 logical_t.
+    LogFeedbackArchiveLogicalTMismatch,
+    /// LogFeedbackArchiveTx source L4/L4.E/CAS roots or lengths did not match the prefix.
+    LogFeedbackArchivePrefixMismatch,
+    /// LogFeedbackArchiveTx referenced a missing or wrong-schema feedback capsule.
+    LogFeedbackArchiveCapsuleInvalid,
+    /// LogFeedbackArchiveTx.feedback_root did not match the canonical capsule/root binding.
+    LogFeedbackArchiveRootMismatch,
+    /// ArchitectProposalTx.timestamp_logical did not match the L4 logical_t.
+    ArchitectProposalLogicalTMismatch,
+    /// ArchitectProposalTx did not reference a prior accepted LogFeedbackArchiveTx.
+    ArchitectProposalFeedbackMissing,
+    /// ArchitectProposalTx referenced a missing or wrong-schema proposal capsule.
+    ArchitectProposalCapsuleInvalid,
+    /// ArchitectProposalTx.proposal_root did not match the canonical capsule/root binding.
+    ArchitectProposalRootMismatch,
+    /// VetoDecisionTx.timestamp_logical did not match the L4 logical_t.
+    VetoDecisionLogicalTMismatch,
+    /// VetoDecisionTx did not reference a prior accepted ArchitectProposalTx.
+    VetoDecisionProposalMissing,
+    /// VetoDecisionTx referenced a missing or wrong-schema decision capsule.
+    VetoDecisionCapsuleInvalid,
+    /// VetoDecisionTx.decision_root did not match the canonical capsule/root binding.
+    VetoDecisionRootMismatch,
+    /// VetoDecisionTx verdict/reason did not match the deterministic Veto-AI evaluation.
+    VetoDecisionMismatch,
+    /// ArchitectCommitTx.timestamp_logical did not match the L4 logical_t.
+    ArchitectCommitLogicalTMismatch,
+    /// ArchitectCommitTx did not reference a prior accepted VetoDecisionTx.
+    ArchitectCommitVetoMissing,
+    /// ArchitectCommitTx referenced a VetoDecisionTx whose verdict was VETO.
+    ArchitectCommitBlockedByVeto,
+    /// ArchitectCommitTx referenced a missing or wrong-schema commit capsule.
+    ArchitectCommitCapsuleInvalid,
+    /// ArchitectCommitTx.commit_root did not match the canonical capsule/root binding.
+    ArchitectCommitRootMismatch,
+    /// ReinitRequestTx.timestamp_logical did not match the L4 logical_t.
+    ReinitRequestLogicalTMismatch,
+    /// ReinitRequestTx source L4/L4.E/CAS roots or lengths did not match the prefix.
+    ReinitRequestPrefixMismatch,
+    /// ReinitRequestTx referenced a missing or wrong-schema reason capsule.
+    ReinitRequestCapsuleInvalid,
+    /// ReinitRequestTx.trigger_entry did not resolve to a prior L4 entry.
+    ReinitRequestTriggerMissing,
+    /// ReinitRequestTx.trigger_entry was not an ErrorHalt TerminalSummaryTx.
+    ReinitRequestTriggerNotErrorHalt,
+    /// ReinitBootTx.request_tx_id did not resolve to a prior accepted ReinitRequestTx.
+    ReinitBootRequestMissing,
+    /// ReinitBootTx.timestamp_logical did not match the L4 logical_t.
+    ReinitBootLogicalTMismatch,
+    /// ReinitBootTx.replayed_state_root did not equal the replay-derived state root.
+    ReinitBootReplayedRootMismatch,
 
     // ── TB-G G3.2 bankruptcy risk-cap admission (charter §1 Module G3; 2026-05-12) ─
     /// 4 admission arms (WorkTx + BuyWithCoinRouter + Challenge + Verify):
@@ -3391,6 +4055,109 @@ impl std::fmt::Display for TransitionError {
             Self::MapReduceTickClockMismatch => write!(
                 f,
                 "MapReduceTickTx: clock_t does not equal current_round + 1"
+            ),
+            Self::LogFeedbackArchiveLogicalTMismatch => write!(
+                f,
+                "LogFeedbackArchiveTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::LogFeedbackArchivePrefixMismatch => write!(
+                f,
+                "LogFeedbackArchiveTx: source L4/L4.E/CAS prefix roots or lengths mismatch"
+            ),
+            Self::LogFeedbackArchiveCapsuleInvalid => write!(
+                f,
+                "LogFeedbackArchiveTx: feedback capsule missing, malformed, or wrong schema"
+            ),
+            Self::LogFeedbackArchiveRootMismatch => write!(
+                f,
+                "LogFeedbackArchiveTx: feedback_root does not bind capsule bytes and source roots"
+            ),
+            Self::ArchitectProposalLogicalTMismatch => write!(
+                f,
+                "ArchitectProposalTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::ArchitectProposalFeedbackMissing => write!(
+                f,
+                "ArchitectProposalTx: feedback_tx_id does not point to a prior LogFeedbackArchiveTx"
+            ),
+            Self::ArchitectProposalCapsuleInvalid => write!(
+                f,
+                "ArchitectProposalTx: proposal capsule missing, malformed, or wrong schema"
+            ),
+            Self::ArchitectProposalRootMismatch => write!(
+                f,
+                "ArchitectProposalTx: proposal_root does not bind capsule bytes, feedback, constitution, and tool registry roots"
+            ),
+            Self::VetoDecisionLogicalTMismatch => write!(
+                f,
+                "VetoDecisionTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::VetoDecisionProposalMissing => write!(
+                f,
+                "VetoDecisionTx: proposal_tx_id does not point to a prior ArchitectProposalTx"
+            ),
+            Self::VetoDecisionCapsuleInvalid => write!(
+                f,
+                "VetoDecisionTx: decision capsule missing, malformed, or wrong schema"
+            ),
+            Self::VetoDecisionRootMismatch => write!(
+                f,
+                "VetoDecisionTx: decision_root does not bind capsule bytes, proposal root, and constitution hash"
+            ),
+            Self::VetoDecisionMismatch => write!(
+                f,
+                "VetoDecisionTx: verdict/reason does not match deterministic Veto-AI evaluation"
+            ),
+            Self::ArchitectCommitLogicalTMismatch => write!(
+                f,
+                "ArchitectCommitTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::ArchitectCommitVetoMissing => write!(
+                f,
+                "ArchitectCommitTx: veto_tx_id does not point to a prior VetoDecisionTx"
+            ),
+            Self::ArchitectCommitBlockedByVeto => write!(
+                f,
+                "ArchitectCommitTx: referenced VetoDecisionTx is VETO, so ArchitectAI commit is blocked"
+            ),
+            Self::ArchitectCommitCapsuleInvalid => write!(
+                f,
+                "ArchitectCommitTx: commit capsule missing, malformed, or wrong schema"
+            ),
+            Self::ArchitectCommitRootMismatch => write!(
+                f,
+                "ArchitectCommitTx: commit_root does not bind capsule bytes, Veto-AI decision, and constitution hash"
+            ),
+            Self::ReinitRequestLogicalTMismatch => write!(
+                f,
+                "ReinitRequestTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::ReinitRequestPrefixMismatch => write!(
+                f,
+                "ReinitRequestTx: source L4/L4.E/CAS prefix roots or lengths mismatch"
+            ),
+            Self::ReinitRequestCapsuleInvalid => write!(
+                f,
+                "ReinitRequestTx: reason capsule missing, malformed, or wrong schema"
+            ),
+            Self::ReinitRequestTriggerMissing => {
+                write!(f, "ReinitRequestTx: trigger_entry does not point to a prior L4 entry")
+            }
+            Self::ReinitRequestTriggerNotErrorHalt => write!(
+                f,
+                "ReinitRequestTx: trigger_entry is not an ErrorHalt TerminalSummaryTx"
+            ),
+            Self::ReinitBootRequestMissing => write!(
+                f,
+                "ReinitBootTx: request_tx_id does not point to a prior accepted ReinitRequestTx"
+            ),
+            Self::ReinitBootLogicalTMismatch => write!(
+                f,
+                "ReinitBootTx: timestamp_logical does not match ledger logical_t"
+            ),
+            Self::ReinitBootReplayedRootMismatch => write!(
+                f,
+                "ReinitBootTx: replayed_state_root does not match replay-derived state root"
             ),
             // TB-G G3.2 (2026-05-12): SG-G3.12 budget ≤ 64 bytes. Below = 37 bytes.
             Self::BankruptcyRiskCapExceeded => write!(f, "bankruptcy risk-cap exceeded"),

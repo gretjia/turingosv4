@@ -472,6 +472,12 @@ pub struct TxKindCounts {
     pub event_resolve: u64, // TB-N2 B2 (2026-05-11) — Open → Finalized system-emit
     pub predicate_binding_activate: u64,
     pub map_reduce_tick: u64,
+    pub log_feedback_archive: u64,
+    pub architect_proposal: u64,
+    pub veto_decision: u64,
+    pub architect_commit: u64,
+    pub reinit_request: u64,
+    pub reinit_boot: u64,
 }
 
 impl TxKindCounts {
@@ -501,6 +507,12 @@ impl TxKindCounts {
                 TxKind::EventResolve => c.event_resolve += 1, // TB-N2 B2 (2026-05-11)
                 TxKind::PredicateBindingActivate => c.predicate_binding_activate += 1,
                 TxKind::MapReduceTick => c.map_reduce_tick += 1,
+                TxKind::LogFeedbackArchive => c.log_feedback_archive += 1,
+                TxKind::ArchitectProposal => c.architect_proposal += 1,
+                TxKind::VetoDecision => c.veto_decision += 1,
+                TxKind::ArchitectCommit => c.architect_commit += 1,
+                TxKind::ReinitRequest => c.reinit_request += 1,
+                TxKind::ReinitBoot => c.reinit_boot += 1,
             }
         }
         c
@@ -1119,7 +1131,13 @@ fn extract_all_agent_ids(tx: &TypedTx) -> Vec<(&'static str, String)> {
         | TypedTx::TaskBankruptcy(_)
         | TypedTx::EventResolve(_)
         | TypedTx::PredicateBindingActivate(_)
-        | TypedTx::MapReduceTick(_) => {
+        | TypedTx::MapReduceTick(_)
+        | TypedTx::LogFeedbackArchive(_)
+        | TypedTx::ArchitectProposal(_)
+        | TypedTx::VetoDecision(_)
+        | TypedTx::ArchitectCommit(_)
+        | TypedTx::ReinitRequest(_)
+        | TypedTx::ReinitBoot(_) => {
             // No direct AgentId fields; refer to other tx by id only.
             // REAL-6A EventResolveTx: 7 wire fields (tx_id + parent_state_root +
             // task_id + outcome + epoch + timestamp_logical + system_signature); none

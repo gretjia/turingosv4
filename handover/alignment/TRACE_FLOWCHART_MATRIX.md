@@ -16,7 +16,7 @@
 - 🟡 test exists, AMBER (smoke or full evidence pending)
 - 🔴 test missing OR test is `assert!(true)` (must NOT remain RED on close)
 - 🚫 N/A (constitution-document-level, not runtime)
-- 📅 deferred (Phase 11+ Veto-AI/ArchitectAI runtime; explicit out-of-scope)
+- 📅 deferred (explicitly out-of-scope for the current atom; must not be counted as LIVE)
 
 ---
 
@@ -126,16 +126,16 @@ These hashes are immutable architectural contracts; if a flowchart changes, that
 | FC3-N29 (boot) | system boot | `async fn main`, `TuringBus::boot` | `fc2_genesis_report_exists` (FC2 anchor) | ✅ |
 | FC3-N30 (constitution file) | constitution.md as ground truth | `constitution.md` | covered by `tests/fc_alignment_conformance.rs` | 🚫 N/A runtime |
 | FC3-N31 (logs archive) | WAL + L4 archive | `Wal::write_event`, transition_ledger | `fc3_raw_logs_not_in_agent_read_view` + Wave 3 50p binding `wave3_50p_shielding_evidence_capsule_routes_via_cid` + `wave3_50p_shielding_no_orphan_raw_bodies` (capsule shell max 485B / 41 instances; raw_log companion 1:1 capsule/companion proves CID-routed isolation across 2074-CAS-object aggregate) + FC3 evidence binding `fc3_inv3_raw_logs_size_bound` | ✅ |
-| FC3:vetoAI | Veto-AI role (`{PASS,VETO}`) | external governance witness; runtime Veto-AI not implemented | `fc3_veto_ai_veto_only` | 🟡 EXTERNAL_ONLY |
-| FC3:architectAI | ArchitectAI proposal role | external governance witness; runtime ArchitectAI not implemented | `fc3_architectai_proposal_not_direct_write` + FC3 evidence binding `fc3_inv7_architect_proposes_no_direct_write_git_witness` | 🟡 EXTERNAL_ONLY |
+| FC3:vetoAI | Veto-AI role (`{PASS,VETO}`) | `VetoDecisionTx` / `TxKind::VetoDecision = 25`; `VetoDecisionCapsule` CAS schema `fc3.veto_decision.v1`; runtime deterministic `deterministic_veto_ai_verdict` enforces `{PASS,VETO}` and blocks constitution mutation commits | `tests/constitution_fc3_closure.rs::fc3_runtime_veto_blocks_constitution_mutation_commit` + `tests/fc_alignment_conformance.rs::fc3_n32_veto_ai_runtime` | ✅ RUNTIME |
+| FC3:architectAI | ArchitectAI proposal role | `ArchitectProposalTx` / `TxKind::ArchitectProposal = 24` + `ArchitectCommitTx` / `TxKind::ArchitectCommit = 26`; proposal/commit capsules in CAS; system-only runtime emit path, replay-verified; commit capsule target/artifact must match the Veto-AI-approved proposal capsule | `tests/constitution_fc3_closure.rs::{fc3_runtime_architect_veto_pass_allows_approved_commit,fc3_runtime_passed_proposal_cannot_be_retargeted_at_commit}` + `tests/fc_alignment_conformance.rs::fc3_n33_architect_ai_runtime` | ✅ RUNTIME |
 | FC3-N34 (readonly guard) | constitution + logs read-only | WAL append-only semantics | `fc3_no_automatic_predicate_mutation` | ✅ |
 | FC3-N35 (anti-oreo top→agents→tools) | top-only does signal mgmt | `evaluate_predicates` flow | covered by existing fc_alignment_conformance | ✅ |
 | FC3-N36 (agents) | swarm of N agents | `let agent_ids` round-robin | covered by existing | ✅ |
 | FC3-N37 (tools) | bottom tools (rtool/wtool) | `TuringTool` trait | covered by existing | ✅ |
 | FC3-N38 (Q update) | Q-delta application via wtool | sequencer dispatch | `fc1_predicate_pass_goes_l4` (FC1 anchor) | ✅ |
 | FC3 support: Markov capsule | supplemental continuity capsule, not a literal FC3 flowchart node | `markov_capsule.rs` | `fc3_capsule_derived_from_tape_cas` + `fc3_no_global_markov_pointer` + FC3 evidence binding `fc3_inv4_capsule_context_only_replay_determinism` (replay-determinism witness: capsule context-only constraint enforced under load) + Wave 3 50p audit pointer-discipline (no `LATEST_MARKOV_CAPSULE.txt` global pointer survives the run) | ✅ SUPPORT_INVARIANT |
-| FC3 edge `logs -> feedback -> architectAI` | archived logs feed ArchitectAI | current production ArchitectAI feedback consumer missing | required forward gate `fc3_logs_feedback_to_architect_ai` | 🔴 MISSING |
-| FC3 edge `init -> error -> re-init -> boot` | re-init loop | current binary fail-closes on boot error; in-process re-init missing | required forward gate `fc3_reinit_semantics` | 🔴 MISSING |
+| FC3 edge `logs -> feedback -> architectAI` | archived logs feed ArchitectAI | `LogFeedbackArchiveTx` / `TxKind::LogFeedbackArchive = 21` system-emitted L4 row binds L4/L4.E/CAS/constitution roots + `ArchitectFeedbackCapsule` CAS schema `fc3.architect_feedback.v1`; next runtime edge is `ArchitectProposalTx` | `tests/constitution_fc3_closure.rs::fc3_logs_feedback_to_architect_ai_is_tape_cas_bound` + `fc3_meta_feedback_replay_recomputes_source_log_root` + `fc3_runtime_architect_veto_pass_allows_approved_commit` | ✅ LIVE_EDGE |
+| FC3 edge `init -> error -> re-init -> boot` | re-init loop | `ReinitRequestTx` / `ReinitBootTx` system-emitted L4 rows bind ErrorHalt `TerminalSummaryTx` trigger, `ReinitReasonCapsule` CAS schema `fc3.reinit_reason.v1`, and replay-derived boot state root; no old evidence rewrite | `tests/constitution_fc3_closure.rs::fc3_error_reinit_request_links_errorhalt_to_next_boot` + `fc3_reinit_boot_recomputes_replayed_state_root` + `fc3_reinit_no_rewrite_old_evidence` | ✅ LIVE_EDGE |
 
 ### FC3 invariant battery (TB-C0 NEW gate tests)
 

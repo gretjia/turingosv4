@@ -402,7 +402,8 @@ use crate::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry, LedgerWriter,
+    replay_full_transition_with_predicate_binding_and_l4e, Git2LedgerWriter, LedgerEntry,
+    LedgerWriter,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::state::q_state::QState;
@@ -991,11 +992,19 @@ fn bootstrap_resume_state(
     // `dispatch_transition` is a pure function over inputs.
     let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let replayed_q = replay_full_transition_with_predicate_binding(
+    let rejections_path = runtime_repo_path.join("rejections.jsonl");
+    let l4e_writer = RejectionEvidenceWriter::open_jsonl(rejections_path.clone()).map_err(|e| {
+        BootstrapError::RejectionWriter(format!(
+            "resume open_jsonl({:?}) failed before replay: {e}",
+            rejections_path
+        ))
+    })?;
+    let replayed_q = replay_full_transition_with_predicate_binding_and_l4e(
         &initial_q,
         &entries,
         cas_store,
         cas_store,
+        &l4e_writer,
         &pinned,
         &predicate_registry,
         &tool_registry,
