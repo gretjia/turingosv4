@@ -77,8 +77,11 @@ provider only through the local OpenAI-compatible proxy
 kernel: its JSON decision is parsed by the runner helper, signed through
 `AgentKeypairRegistry`, submitted as `BuyWithCoinRouterTx`, and verified by
 public `turingos verify chaintape`. Evidence records only hashes plus parsed
-decision/tx metadata, not raw provider prompt or response bytes. This lights
-the market/economy domain without importing external-agent simulation into the
+decision/tx metadata, not raw provider prompt or response bytes. The helper
+also records `router_economics`: CPMM reserves before/after, k product,
+out-shares/get-shares, effective price numerator/denominator, buyer balance
+and chosen-side deltas, collateral, and conservation booleans. This lights the
+market/economy domain without importing external-agent simulation into the
 kernel or resurrecting old scripted REAL fixtures.
 
 The generate/artifact execution layer adds

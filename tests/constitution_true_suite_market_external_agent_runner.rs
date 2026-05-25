@@ -175,6 +175,108 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         manifest.get("raw_response").is_none(),
         "runner evidence must not store raw provider response"
     );
+    assert!(
+        manifest.get("raw_prompt").is_none(),
+        "runner evidence must not store raw prompt text"
+    );
+
+    let economics = manifest
+        .get("router_economics")
+        .expect("router_economics evidence");
+    assert_eq!(
+        economics.get("pay_coin_micro").and_then(Value::as_i64),
+        Some(1000)
+    );
+    assert_eq!(
+        economics
+            .pointer("/pool_before/pool_yes_units")
+            .and_then(Value::as_u64),
+        Some(100_000)
+    );
+    assert_eq!(
+        economics
+            .pointer("/pool_before/pool_no_units")
+            .and_then(Value::as_u64),
+        Some(100_000)
+    );
+    assert_eq!(
+        economics
+            .pointer("/pool_after/pool_yes_units")
+            .and_then(Value::as_u64),
+        Some(99_010)
+    );
+    assert_eq!(
+        economics
+            .pointer("/pool_after/pool_no_units")
+            .and_then(Value::as_u64),
+        Some(101_000)
+    );
+    assert_eq!(
+        economics
+            .get("quote_out_shares_units")
+            .and_then(Value::as_u64),
+        Some(990),
+        "CPMM outY = floor(payC * poolY / (poolN + payC))"
+    );
+    assert_eq!(
+        economics
+            .get("quote_get_shares_units")
+            .and_then(Value::as_u64),
+        Some(1_990),
+        "router buyer receives retained payC shares plus CPMM output"
+    );
+    assert_eq!(
+        economics
+            .get("price_effective_numerator")
+            .and_then(Value::as_u64),
+        Some(1_000)
+    );
+    assert_eq!(
+        economics
+            .get("price_effective_denominator")
+            .and_then(Value::as_u64),
+        Some(1_990)
+    );
+    for key in [
+        "k_non_decreasing",
+        "pool_delta_matches_quote",
+        "mint_and_swap_retained_plus_out_holds",
+        "buyer_coin_debited_exactly",
+        "total_coin_conserved",
+        "complete_set_balanced_after",
+    ] {
+        assert_eq!(
+            economics.get(key).and_then(Value::as_bool),
+            Some(true),
+            "router economics invariant `{key}` must hold: {economics}"
+        );
+    }
+    assert_eq!(
+        economics
+            .get("buyer_coin_delta_micro")
+            .and_then(Value::as_i64),
+        Some(1_000)
+    );
+    assert_eq!(
+        economics
+            .get("buyer_chosen_side_delta_units")
+            .and_then(Value::as_u64),
+        Some(1_990)
+    );
+    assert_eq!(
+        economics
+            .get("collateral_after_micro")
+            .and_then(Value::as_i64),
+        Some(101_000)
+    );
+    assert_eq!(
+        economics.get("sum_yes_after_units").and_then(Value::as_u64),
+        Some(101_000)
+    );
+    assert_eq!(
+        economics.get("sum_no_after_units").and_then(Value::as_u64),
+        Some(101_000)
+    );
 
     let replay: Value = serde_json::from_str(
         &std::fs::read_to_string(&replay_report).expect("read replay_report.json"),

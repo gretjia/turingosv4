@@ -22,7 +22,8 @@ use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::state::q_state::{AgentId, TaskId};
+use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, TaskId};
+use turingosv4::state::router_quote::{quote_buy_with_coin_router, QuoteDirection};
 use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
@@ -65,6 +66,44 @@ struct AgentDecision {
     amount_micro: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct PoolReserveSnapshot {
+    pool_yes_units: u128,
+    pool_no_units: u128,
+    k_product: u128,
+    status: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RouterEconomicsSnapshot {
+    pay_coin_micro: i64,
+    pool_before: PoolReserveSnapshot,
+    pool_after: PoolReserveSnapshot,
+    quote_out_shares_units: u128,
+    quote_get_shares_units: u128,
+    price_effective_numerator: Option<u128>,
+    price_effective_denominator: Option<u128>,
+    quote_liquidity_warning: String,
+    buyer_coin_before_micro: i64,
+    buyer_coin_after_micro: i64,
+    buyer_coin_delta_micro: i64,
+    buyer_chosen_side_before_units: u128,
+    buyer_chosen_side_after_units: u128,
+    buyer_chosen_side_delta_units: u128,
+    collateral_before_micro: i64,
+    collateral_after_micro: i64,
+    total_coin_before_micro: i64,
+    total_coin_after_micro: i64,
+    sum_yes_after_units: u128,
+    sum_no_after_units: u128,
+    k_non_decreasing: bool,
+    pool_delta_matches_quote: bool,
+    mint_and_swap_retained_plus_out_holds: bool,
+    buyer_coin_debited_exactly: bool,
+    total_coin_conserved: bool,
+    complete_set_balanced_after: bool,
+}
+
 #[derive(Debug, Serialize)]
 struct MarketEvidenceManifest {
     schema_version: &'static str,
@@ -81,6 +120,7 @@ struct MarketEvidenceManifest {
     router_tx_id: String,
     router_landed: bool,
     pool_active: bool,
+    router_economics: RouterEconomicsSnapshot,
     final_state_root_hex: String,
     runtime_repo: String,
     cas: String,
@@ -167,6 +207,93 @@ fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
 
 fn hash_hex(h: &turingosv4::state::q_state::Hash) -> String {
     h.0.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn quote_direction(direction: ParsedDirection) -> QuoteDirection {
+    match direction {
+        ParsedDirection::Yes => QuoteDirection::BuyYes,
+        ParsedDirection::No => QuoteDirection::BuyNo,
+    }
+}
+
+fn pool_snapshot(pool: &CpmmPool) -> PoolReserveSnapshot {
+    PoolReserveSnapshot {
+        pool_yes_units: pool.pool_yes.units,
+        pool_no_units: pool.pool_no.units,
+        k_product: pool.pool_yes.units * pool.pool_no.units,
+        status: format!("{:?}", pool.status),
+    }
+}
+
+fn buyer_side_units(
+    econ: &EconomicState,
+    buyer: &AgentId,
+    event_id: &EventId,
+    direction: ParsedDirection,
+) -> u128 {
+    econ.conditional_share_balances_t
+        .0
+        .get(buyer)
+        .and_then(|by_event| by_event.get(event_id))
+        .map(|pair| match direction {
+            ParsedDirection::Yes => pair.yes.units,
+            ParsedDirection::No => pair.no.units,
+        })
+        .unwrap_or(0)
+}
+
+fn coin_balance_micro(econ: &EconomicState, agent: &AgentId) -> i64 {
+    econ.balances_t
+        .0
+        .get(agent)
+        .copied()
+        .unwrap_or_default()
+        .micro_units()
+}
+
+fn collateral_micro(econ: &EconomicState, event_id: &EventId) -> i64 {
+    econ.conditional_collateral_t
+        .0
+        .get(event_id)
+        .copied()
+        .unwrap_or_default()
+        .micro_units()
+}
+
+fn sum_yes_no_for_event(econ: &EconomicState, event_id: &EventId) -> (u128, u128) {
+    let mut yes: u128 = 0;
+    let mut no: u128 = 0;
+    for owner_map in econ.conditional_share_balances_t.0.values() {
+        if let Some(pair) = owner_map.get(event_id) {
+            yes += pair.yes.units;
+            no += pair.no.units;
+        }
+    }
+    if let Some(pool) = econ.cpmm_pools_t.0.get(event_id) {
+        yes += pool.pool_yes.units;
+        no += pool.pool_no.units;
+    }
+    (yes, no)
+}
+
+fn total_coin_micro(econ: &EconomicState) -> Result<i64, String> {
+    let mut sum: i128 = 0;
+    for v in econ.balances_t.0.values() {
+        sum += v.micro_units() as i128;
+    }
+    for esc in econ.escrows_t.0.values() {
+        sum += esc.amount.micro_units() as i128;
+    }
+    for stake in econ.stakes_t.0.values() {
+        sum += stake.amount.micro_units() as i128;
+    }
+    for case in econ.challenge_cases_t.0.values() {
+        sum += case.bond.micro_units() as i128;
+    }
+    for v in econ.conditional_collateral_t.0.values() {
+        sum += v.micro_units() as i128;
+    }
+    i64::try_from(sum).map_err(|_| format!("total coin sum out of i64 range: {sum}"))
 }
 
 fn extract_json_object(content: &str) -> Result<serde_json::Value, String> {
@@ -352,6 +479,30 @@ async fn run(args: Args) -> Result<(), String> {
     let pre_router_q = seq
         .q_snapshot()
         .map_err(|e| format!("q_snapshot before router: {e:?}"))?;
+    let event_id = EventId(TaskId(event_task_id.clone()));
+    let buyer_id = AgentId(TRADER_AGENT.to_string());
+    let pool_before = pre_router_q
+        .economic_state_t
+        .cpmm_pools_t
+        .0
+        .get(&event_id)
+        .cloned()
+        .ok_or("pool missing before router")?;
+    let quote = quote_buy_with_coin_router(
+        &pool_before,
+        turingosv4::economy::money::MicroCoin::from_micro_units(decision.amount_micro),
+        quote_direction(decision.direction),
+    )
+    .ok_or("router quote unavailable before external-agent tx")?;
+    let buyer_coin_before_micro = coin_balance_micro(&pre_router_q.economic_state_t, &buyer_id);
+    let buyer_chosen_side_before_units = buyer_side_units(
+        &pre_router_q.economic_state_t,
+        &buyer_id,
+        &event_id,
+        decision.direction,
+    );
+    let collateral_before_micro = collateral_micro(&pre_router_q.economic_state_t, &event_id);
+    let total_coin_before_micro = total_coin_micro(&pre_router_q.economic_state_t)?;
     let router = tb_real6a_invest_task_outcome_to_router_tx(
         &mut keypairs,
         after_pool,
@@ -383,7 +534,6 @@ async fn run(args: Args) -> Result<(), String> {
     let post_q = seq_handle
         .q_snapshot()
         .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
-    let event_id = EventId(TaskId(event_task_id.clone()));
     let router_landed = post_q
         .economic_state_t
         .conditional_share_balances_t
@@ -396,6 +546,69 @@ async fn run(args: Args) -> Result<(), String> {
         .cpmm_pools_t
         .0
         .contains_key(&event_id);
+    let pool_after = post_q
+        .economic_state_t
+        .cpmm_pools_t
+        .0
+        .get(&event_id)
+        .cloned()
+        .ok_or("pool missing after router")?;
+    let buyer_coin_after_micro = coin_balance_micro(&post_q.economic_state_t, &buyer_id);
+    let buyer_chosen_side_after_units = buyer_side_units(
+        &post_q.economic_state_t,
+        &buyer_id,
+        &event_id,
+        decision.direction,
+    );
+    let collateral_after_micro = collateral_micro(&post_q.economic_state_t, &event_id);
+    let total_coin_after_micro = total_coin_micro(&post_q.economic_state_t)?;
+    let (sum_yes_after_units, sum_no_after_units) =
+        sum_yes_no_for_event(&post_q.economic_state_t, &event_id);
+    let pool_delta_matches_quote = match decision.direction {
+        ParsedDirection::Yes => {
+            pool_after.pool_no.units == pool_before.pool_no.units + decision.amount_micro as u128
+                && pool_after.pool_yes.units + quote.out_shares.units == pool_before.pool_yes.units
+        }
+        ParsedDirection::No => {
+            pool_after.pool_yes.units == pool_before.pool_yes.units + decision.amount_micro as u128
+                && pool_after.pool_no.units + quote.out_shares.units == pool_before.pool_no.units
+        }
+    };
+    let buyer_chosen_side_delta_units =
+        buyer_chosen_side_after_units.saturating_sub(buyer_chosen_side_before_units);
+    let router_economics = RouterEconomicsSnapshot {
+        pay_coin_micro: decision.amount_micro,
+        pool_before: pool_snapshot(&pool_before),
+        pool_after: pool_snapshot(&pool_after),
+        quote_out_shares_units: quote.out_shares.units,
+        quote_get_shares_units: quote.get_shares.units,
+        price_effective_numerator: quote.price_effective.map(|p| p.numerator),
+        price_effective_denominator: quote.price_effective.map(|p| p.denominator),
+        quote_liquidity_warning: format!("{:?}", quote.liquidity_warning),
+        buyer_coin_before_micro,
+        buyer_coin_after_micro,
+        buyer_coin_delta_micro: buyer_coin_before_micro - buyer_coin_after_micro,
+        buyer_chosen_side_before_units,
+        buyer_chosen_side_after_units,
+        buyer_chosen_side_delta_units,
+        collateral_before_micro,
+        collateral_after_micro,
+        total_coin_before_micro,
+        total_coin_after_micro,
+        sum_yes_after_units,
+        sum_no_after_units,
+        k_non_decreasing: pool_after.pool_yes.units * pool_after.pool_no.units
+            >= pool_before.pool_yes.units * pool_before.pool_no.units,
+        pool_delta_matches_quote,
+        mint_and_swap_retained_plus_out_holds: quote.get_shares.units
+            == decision.amount_micro as u128 + quote.out_shares.units
+            && buyer_chosen_side_delta_units == quote.get_shares.units,
+        buyer_coin_debited_exactly: buyer_coin_before_micro - buyer_coin_after_micro
+            == decision.amount_micro,
+        total_coin_conserved: total_coin_before_micro == total_coin_after_micro,
+        complete_set_balanced_after: sum_yes_after_units == sum_no_after_units
+            && sum_yes_after_units == collateral_after_micro as u128,
+    };
 
     let report = GenesisReport {
         constitution_hash: GenesisReport::hash_constitution_md(&args.constitution),
@@ -434,6 +647,7 @@ async fn run(args: Args) -> Result<(), String> {
         router_tx_id,
         router_landed,
         pool_active,
+        router_economics,
         final_state_root_hex: hash_hex(&after_router),
         runtime_repo: args.runtime_repo.display().to_string(),
         cas: args.cas.display().to_string(),
