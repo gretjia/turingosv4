@@ -4,6 +4,8 @@ Date: 2026-05-25
 
 Authority: `constitution.md` + fresh current-kernel ChainTape/CAS evidence.
 Derived contract: `tests/fixtures/liveness/realworld_liveness_coverage.toml`.
+Broad AGI family contract:
+`tests/fixtures/liveness/broad_agi_true_suite_manifest.toml`.
 
 This artifact does not close OBL-005. It defines the evidence shape required to
 close it. Historical evidence remains candidate-only until a fresh current-main
@@ -40,6 +42,18 @@ historical evidence, real-task tests, and runner scripts.
 | `fc3_governance_reinit_fresh` | FC3 governance/re-init | LogFeedbackArchive, ArchitectAI, Veto-AI, Reinit typed L4/CAS |
 | `replay_cas_tamper_repair_current` | replay/CAS integrity | replay + tamper reports over runtime repo/CAS |
 | `boot_cli_current_kernel_fresh` | boot/CLI | fresh workspace boot, genesis report, resume/replay |
+
+## Broad AGI Families
+
+The domain contract above is not enough by itself. The broad-suite manifest
+adds benchmark-family coverage so the final evidence cannot be satisfied by
+only the old 15-question session or by a single product workload. The required
+families are GAIA, GPQA, MATH/formal proof, SWE-bench-style coding repair,
+WebArena, Mind2Web, OSWorld, ToolBench, Cybench, TuringOS market/economy, and
+memory/feedback/re-init. Each family must declare FC trace, risk class, entry
+boundary, evidence shape, failure taxonomy, and anti-contamination guards.
+Leaderboard score is model capability evidence only; it is never module
+liveness proof.
 
 ## Current Status
 

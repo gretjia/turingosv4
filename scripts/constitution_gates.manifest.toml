@@ -727,6 +727,11 @@ authority = "OBL-005 user-expanded no-zombie stop condition + handover/audits/RE
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_broad_agi_true_suite_manifest"
+authority = "OBL-005 broad true-problem expansion: AGI benchmark families must be machine-checkable by FC trace, risk class, entry boundary, evidence shape, and failure taxonomy; old 15-question or leaderboard-score evidence is insufficient"
+added = "2026-05-25"
+
+[[gate]]
 name = "constitution_true_suite_boot_cli_runner"
 authority = "OBL-005 true-suite execution layer: boot_cli_current_kernel_fresh must be produced by public turingos init + current runtime ChainTape boot + public turingos verify chaintape, not by historical evaluator fixtures"
 added = "2026-05-25"
