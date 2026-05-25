@@ -71,7 +71,7 @@ final_evidence_artifacts = [
 id = "generate_artifact_chain_fresh"
 problem_type = "generate_artifact"
 status = "fresh_required"
-entrypoint = "tests/real_task_regression_two_phase.rs"
+entrypoint = "scripts/run_true_suite_generate_artifact_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
   "runtime_replay_evidence_audit",
@@ -97,7 +97,9 @@ evidence_artifacts = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/generate_artifact/runtime_repo/",
   "handover/evidence/true_suite/<run>/generate_artifact/cas/",
+  "handover/evidence/true_suite/<run>/generate_artifact/genesis_report.json",
   "handover/evidence/true_suite/<run>/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/<run>/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/<run>/generate_artifact/replay_report.json",
 ]
 

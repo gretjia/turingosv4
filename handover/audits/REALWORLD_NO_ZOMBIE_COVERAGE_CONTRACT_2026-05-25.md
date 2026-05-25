@@ -67,6 +67,17 @@ decision/tx metadata, not raw provider prompt or response bytes. This lights
 the market/economy domain without importing external-agent simulation into the
 kernel or resurrecting old scripted REAL fixtures.
 
+The generate/artifact execution layer adds
+`scripts/run_true_suite_generate_artifact_current_kernel.sh` for
+`generate_artifact_chain_fresh`. The runner uses the same external LLM proxy
+boundary, then drives public CLI surfaces: `turingos spec` creates a CAS spec
+capsule, `turingos generate --from-capsule` reads that canonical input and
+writes an ArtifactBundleManifest + generated file CIDs to CAS, and accepted
+work lands as typed ChainTape entries verified by public
+`turingos verify chaintape`. The runner records an `artifact_bundle_cid.json`
+index so artifact delivery can be replay-linked without treating DOM/API
+smoke output as constitutional evidence.
+
 The next implementation phase must produce the fresh evidence directory named
 by the contract. Each final task row must include ChainTape or CAS evidence plus
 replay/verifier output; `runtime_repo` snapshots are supplemental only. Until

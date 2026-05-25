@@ -230,6 +230,7 @@ necessity = "Real runs must reconstruct from ChainTape/CAS, including attempts, 
 smoke_gates = [
   "tests/constitution_true_suite_boot_cli_runner.rs",
   "tests/constitution_true_suite_market_external_agent_runner.rs",
+  "tests/constitution_true_suite_generate_artifact_runner.rs",
   "tests/tb_6_verify_chaintape.rs",
   "tests/constitution_tape_canonical_gate.rs",
 ]
@@ -366,6 +367,7 @@ constitutional_anchors = ["FC2:initAI", "FC3:logs"]
 necessity = "The current product path turns human spec into CAS/tape-bound work and delivered artifacts."
 smoke_gates = [
   "tests/constitution_librarian_real_evidence_binding.rs",
+  "tests/constitution_true_suite_generate_artifact_runner.rs",
   "tests/artifact_bundle_files_have_cids.rs",
 ]
 real_world_evidence = [
@@ -503,6 +505,7 @@ necessity = "The CLI is how broad real-world tasks enter and how evidence is exp
 smoke_gates = [
   "tests/cli_init_smoke.rs",
   "tests/cli_task_open_smoke.rs",
+  "tests/constitution_true_suite_generate_artifact_runner.rs",
   "tests/generate_emits_work_tx_smoke.rs",
 ]
 real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt"]
