@@ -62,10 +62,41 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
     );
     assert_eq!(
         manifest
-            .get("final_closure_possible")
+            .get("full_system_required_for_final")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("per_sample_fc_union_is_not_sufficient")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("market_participation_required_for_every_sample")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("full_system_closure_candidate")
             .and_then(Value::as_bool),
         Some(false),
-        "plan-only must never close broad real-world liveness"
+        "plan-only must never become a full-system closure candidate"
+    );
+    assert_eq!(
+        manifest
+            .get("all_declared_artifacts_present")
+            .and_then(Value::as_bool),
+        Some(false),
+        "full-system closure also requires all declared replay/CAS/domain artifacts"
+    );
+    assert_eq!(
+        manifest
+            .get("closure_decision_source")
+            .and_then(Value::as_str),
+        Some("OBL-005 witness after per-sample full_system_participation reports")
     );
     assert_eq!(
         manifest
@@ -91,6 +122,8 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
         "leaderboard score is capability signal only, not module liveness",
         "TDMA evidence is domain tape evidence, not bottom-white L4 ChainTape",
         "provider raw prompt/response is not a valid final artifact",
+        "domain artifacts without full_system_participation.json remain partial runner evidence",
+        "market/economy must participate even in one-agent runs via invest or tape-visible abstention",
     ] {
         assert!(
             guards.iter().any(|guard| guard.as_str() == Some(required)),
@@ -108,13 +141,18 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
             row.get("status")
                 .and_then(Value::as_str)
                 .is_some_and(|status| {
-                    !matches!(
-                        status,
-                        "PASS" | "passed" | "fresh_artifacts_present_unscored"
-                    )
+                    !matches!(status, "PASS" | "passed" | "full_system_participation_passed")
                 })
         }),
-        "plan-only results must stay pending or runner-required, not passed: {results:?}"
+        "plan-only results must stay pending/partial or runner-required, not full-system passed: {results:?}"
+    );
+    assert!(
+        results.iter().all(|row| {
+            row.get("full_system_verdict")
+                .and_then(Value::as_str)
+                == Some("PARTIAL_RUNNER_ONLY")
+        }),
+        "plan-only rows must be explicit partial-runner evidence, not final full-system evidence"
     );
     for required_id in [
         "gaia_general_assistant",
@@ -139,7 +177,7 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
 
     assert_eq!(
         aggregate
-            .get("final_closure_possible")
+            .get("full_system_closure_candidate")
             .and_then(Value::as_bool),
         Some(false)
     );
@@ -157,6 +195,20 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
             .and_then(Value::as_bool),
         Some(true),
         "batch report must still declare FC1/FC2/FC3 trace coverage"
+    );
+    assert_eq!(
+        aggregate
+            .get("per_result_required_fc_blocks_declared")
+            .and_then(Value::as_bool),
+        Some(true),
+        "each result must declare FC1/FC2/FC3; FC union across different results is not enough"
+    );
+    assert_eq!(
+        aggregate
+            .get("full_system_participation_pass_count")
+            .and_then(Value::as_u64),
+        Some(0),
+        "plan-only cannot produce full-system participation passes"
     );
 }
 
@@ -192,10 +244,16 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("mind2web_open_web"));
     assert!(script.contains("benchmark_adapter_pending"));
     assert!(script.contains("OPEN_REAL_WORLD_COVERAGE_PENDING"));
+    assert!(script.contains("full_system_participation.json"));
+    assert!(script.contains("PARTIAL_RUNNER_ONLY"));
+    assert!(script.contains("full_system_report_present_declared_artifacts_missing"));
+    assert!(script.contains("full_system_closure_candidate"));
+    assert!(script.contains("and all_declared_artifacts_present"));
     assert!(script.contains("old 15-question evidence cannot close OBL-005"));
     assert!(script.contains("leaderboard score is capability signal only"));
     assert!(script.contains("TDMA evidence is domain tape evidence"));
     assert!(script.contains("provider raw prompt/response is not a valid final artifact"));
+    assert!(script.contains("market/economy must participate even in one-agent runs"));
     assert!(
         !script.contains("raw_prompt") && !script.contains("raw_response"),
         "batch evidence must not introduce raw provider prompt/response artifacts"

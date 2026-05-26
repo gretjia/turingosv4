@@ -21,6 +21,16 @@ const REQUIRED_DOMAINS: &[&str] = &[
     "replay_cas",
     "boot_cli",
 ];
+const REQUIRED_FC_BLOCKS: &[&str] = &["FC1", "FC2", "FC3"];
+const REQUIRED_PER_SAMPLE_GROUPS: &[&str] = &[
+    "canonical_tape_cas_state",
+    "predicate_registry_top_white",
+    "fc1_bus_read_view_bridge",
+    "economy_market_settlement",
+    "runtime_replay_evidence_audit",
+    "fc3_runtime_meta_roles",
+    "role_economic_learning_sidecars",
+];
 
 #[derive(Debug)]
 struct ProductionGroup {
@@ -46,6 +56,27 @@ struct CoverageTask {
 fn parse_toml(path: &str) -> toml::Value {
     let raw = fs::read_to_string(path).unwrap_or_else(|err| panic!("read {path}: {err}"));
     toml::from_str(&raw).unwrap_or_else(|err| panic!("parse {path}: {err}"))
+}
+
+fn root_str_array(manifest: &toml::Value, key: &str) -> Vec<String> {
+    manifest
+        .get(key)
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{COVERAGE_MANIFEST} missing root array `{key}`"))
+        .iter()
+        .map(|v| {
+            v.as_str()
+                .unwrap_or_else(|| panic!("root array `{key}` contains non-string: {v:?}"))
+                .to_string()
+        })
+        .collect()
+}
+
+fn fc_blocks(paths: &[String]) -> BTreeSet<String> {
+    paths
+        .iter()
+        .filter_map(|path| path.split_once(':').map(|(fc, _)| fc.to_string()))
+        .collect()
 }
 
 fn as_string(table: &toml::value::Table, key: &str) -> String {
@@ -233,6 +264,53 @@ fn realworld_coverage_policy_requires_fresh_current_evidence() {
             .and_then(toml::Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        manifest
+            .get("full_system_required_for_final")
+            .and_then(toml::Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("per_sample_fc_union_is_not_sufficient")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "different tests may not be unioned to fake one full constitutional run"
+    );
+    assert_eq!(
+        manifest
+            .get("market_participation_required_for_every_sample")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "market/economy participates even in one-agent runs via invest or tape-visible abstention"
+    );
+    assert_eq!(
+        manifest
+            .get("full_system_sample_manifest")
+            .and_then(toml::Value::as_str),
+        Some("full_system_participation.json")
+    );
+    let root_fc = root_str_array(&manifest, "required_per_sample_fc_blocks");
+    for &fc in REQUIRED_FC_BLOCKS {
+        assert!(
+            root_fc.iter().any(|item| item == fc),
+            "coverage manifest missing required per-sample FC block `{fc}`"
+        );
+    }
+    let root_groups = root_str_array(&manifest, "required_per_sample_module_groups");
+    for &group in REQUIRED_PER_SAMPLE_GROUPS {
+        assert!(
+            root_groups.iter().any(|item| item == group),
+            "coverage manifest missing required per-sample module group `{group}`"
+        );
+    }
+    let market_modes = root_str_array(&manifest, "market_participation_modes");
+    for mode in ["invest", "abstain_with_tape_visible_market_opportunity"] {
+        assert!(
+            market_modes.iter().any(|item| item == mode),
+            "market participation must support one-agent investment or tape-visible abstention; missing `{mode}`"
+        );
+    }
 }
 
 #[test]
@@ -270,6 +348,31 @@ fn realworld_tasks_cover_required_domains_without_smoke_labels() {
             "task `{}` must bind groups, FC paths, and anti-contamination guards",
             task.id
         );
+        if task.status == "fresh_required" {
+            let task_fc = fc_blocks(&task.constitutional_paths);
+            for &fc in REQUIRED_FC_BLOCKS {
+                assert!(
+                    task_fc.contains(fc),
+                    "fresh task `{}` must declare {fc} participation for the full-system final contract, got {:?}",
+                    task.id,
+                    task_fc
+                );
+            }
+            for &group in REQUIRED_PER_SAMPLE_GROUPS {
+                assert!(
+                    task.module_groups.iter().any(|item| item == group),
+                    "fresh task `{}` must declare required per-sample module group `{group}`",
+                    task.id
+                );
+            }
+            assert!(
+                task.final_evidence_artifacts
+                    .iter()
+                    .any(|path| path.ends_with("/full_system_participation.json")),
+                "fresh task `{}` must require full_system_participation.json before final closure",
+                task.id
+            );
+        }
         match task.status.as_str() {
             "historical_candidate" => {
                 assert!(

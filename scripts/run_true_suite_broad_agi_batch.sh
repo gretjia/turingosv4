@@ -210,6 +210,21 @@ def materialize(path_template: str) -> Path:
 def artifacts_present(templates) -> bool:
     return all(materialize(path).exists() for path in templates)
 
+def full_system_report_present(templates) -> bool:
+    return any(
+        path.endswith("/full_system_participation.json") and materialize(path).exists()
+        for path in templates
+    )
+
+def status_for_artifacts(final_present: bool, full_system_present: bool, fallback: str) -> str:
+    if final_present and full_system_present:
+        return "full_system_participation_passed"
+    if full_system_present:
+        return "full_system_report_present_declared_artifacts_missing"
+    if final_present:
+        return "domain_artifacts_present_full_system_pending"
+    return fallback
+
 def fc_blocks(traces) -> list[str]:
     blocks = set()
     for trace in traces:
@@ -223,9 +238,8 @@ for task in coverage_manifest["task"]:
     task_id = task["id"]
     installed_runner = installed.get(task_id)
     final_present = artifacts_present(task["final_evidence_artifacts"])
-    if final_present:
-        status = "fresh_artifacts_present_unscored"
-    elif installed_runner and mode == "execute-installed" and task_id in selected_set:
+    full_system_present = full_system_report_present(task["final_evidence_artifacts"])
+    if installed_runner and mode == "execute-installed" and task_id in selected_set:
         status = "selected_runner_failed_or_incomplete"
     elif installed_runner and task_id in selected_set:
         status = "installed_runner_requires_execution"
@@ -233,6 +247,7 @@ for task in coverage_manifest["task"]:
         status = "installed_runner_not_selected"
     else:
         status = "runner_pending"
+    status = status_for_artifacts(final_present, full_system_present, status)
     domain_results.append(
         {
             "kind": "realworld_domain",
@@ -242,6 +257,8 @@ for task in coverage_manifest["task"]:
             "entrypoint": task["entrypoint"],
             "fc_blocks": fc_blocks(task["constitutional_paths"]),
             "final_artifacts_present": final_present,
+            "full_system_report_present": full_system_present,
+            "full_system_verdict": "FULL_SYSTEM_LIT" if full_system_present else "PARTIAL_RUNNER_ONLY",
             "final_artifacts": task["final_evidence_artifacts"],
         }
     )
@@ -250,10 +267,12 @@ family_results = []
 for family in broad_manifest["family"]:
     family_id = family["id"]
     final_present = artifacts_present(family["final_evidence_artifacts"])
-    if final_present:
-        status = "fresh_artifacts_present_unscored"
-    else:
-        status = family_runner_status.get(family_id, "benchmark_adapter_pending")
+    full_system_present = full_system_report_present(family["final_evidence_artifacts"])
+    status = status_for_artifacts(
+        final_present,
+        full_system_present,
+        family_runner_status.get(family_id, "benchmark_adapter_pending"),
+    )
     family_results.append(
         {
             "kind": "broad_agi_family",
@@ -265,6 +284,8 @@ for family in broad_manifest["family"]:
             "fc_blocks": fc_blocks(family["fc_trace"]),
             "failure_taxonomy": family["failure_taxonomy"],
             "final_artifacts_present": final_present,
+            "full_system_report_present": full_system_present,
+            "full_system_verdict": "FULL_SYSTEM_LIT" if full_system_present else "PARTIAL_RUNNER_ONLY",
             "final_artifacts": family["final_evidence_artifacts"],
         }
     )
@@ -272,15 +293,20 @@ for family in broad_manifest["family"]:
 all_results = domain_results + family_results
 fc_seen = sorted({block for row in all_results for block in row["fc_blocks"]})
 required_fc = broad_manifest["required_fc_blocks"]
+per_result_fc_complete = all(set(row["fc_blocks"]) >= set(required_fc) for row in all_results)
 pending_results = [
     row
     for row in all_results
-    if row["status"] != "fresh_artifacts_present_unscored"
+    if row["status"] != "full_system_participation_passed"
 ]
-final_closure_possible = (
+all_declared_artifacts_present = mode == "execute-installed" and all(
+    row["final_artifacts_present"] for row in all_results
+)
+full_system_closure_candidate = (
     mode == "execute-installed"
     and not pending_results
-    and set(fc_seen) >= set(required_fc)
+    and all_declared_artifacts_present
+    and per_result_fc_complete
 )
 
 batch_manifest = {
@@ -289,7 +315,15 @@ batch_manifest = {
     "git_head": git_head(),
     "mode": mode,
     "closure_status": "OPEN_REAL_WORLD_COVERAGE_PENDING",
-    "final_closure_possible": final_closure_possible,
+    "full_system_required_for_final": bool(broad_manifest.get("full_system_required_for_final", False)),
+    "full_system_sample_manifest": broad_manifest.get("full_system_sample_manifest", "full_system_participation.json"),
+    "per_sample_fc_union_is_not_sufficient": bool(broad_manifest.get("per_sample_fc_union_is_not_sufficient", False)),
+    "market_participation_required_for_every_sample": bool(
+        broad_manifest.get("market_participation_required_for_every_sample", False)
+    ),
+    "all_declared_artifacts_present": all_declared_artifacts_present,
+    "full_system_closure_candidate": full_system_closure_candidate,
+    "closure_decision_source": "OBL-005 witness after per-sample full_system_participation reports",
     "old_15_is_not_sufficient": bool(broad_manifest["old_15_is_not_sufficient"]),
     "leaderboard_score_is_not_liveness": bool(broad_manifest["leaderboard_score_is_not_liveness"]),
     "authority": "constitution.md + fresh current-kernel true-problem evidence",
@@ -311,6 +345,8 @@ batch_manifest = {
         "leaderboard score is capability signal only, not module liveness",
         "TDMA evidence is domain tape evidence, not bottom-white L4 ChainTape",
         "provider raw prompt/response is not a valid final artifact",
+        "domain artifacts without full_system_participation.json remain partial runner evidence",
+        "market/economy must participate even in one-agent runs via invest or tape-visible abstention",
     ],
 }
 
@@ -321,15 +357,23 @@ aggregate = {
     "required_fc_blocks": required_fc,
     "fc_blocks_seen": fc_seen,
     "all_required_fc_blocks_declared": set(fc_seen) >= set(required_fc),
+    "per_result_required_fc_blocks_declared": per_result_fc_complete,
     "realworld_domain_count": len(domain_results),
     "broad_family_count": len(family_results),
     "installed_domain_runner_count": len(installed),
-    "fresh_artifact_result_count": sum(
-        1 for row in all_results if row["status"] == "fresh_artifacts_present_unscored"
+    "declared_artifact_result_count": sum(
+        1 for row in all_results if row["final_artifacts_present"]
+    ),
+    "full_system_participation_pass_count": sum(
+        1 for row in all_results if row["status"] == "full_system_participation_passed"
     ),
     "pending_result_count": len(pending_results),
     "pending_ids": [row["id"] for row in pending_results],
-    "final_closure_possible": final_closure_possible,
+    "partial_runner_ids": [
+        row["id"] for row in all_results if row["full_system_verdict"] != "FULL_SYSTEM_LIT"
+    ],
+    "all_declared_artifacts_present": all_declared_artifacts_present,
+    "full_system_closure_candidate": full_system_closure_candidate,
 }
 
 run_dir.mkdir(parents=True, exist_ok=True)
@@ -347,5 +391,5 @@ with (run_dir / "family_results.jsonl").open("w", encoding="utf-8") as f:
 
 print(f"TRUE-SUITE broad AGI batch evidence: {run_dir}")
 print(f"closure_status={batch_manifest['closure_status']}")
-print(f"final_closure_possible={str(final_closure_possible).lower()}")
+print(f"full_system_closure_candidate={str(full_system_closure_candidate).lower()}")
 PY

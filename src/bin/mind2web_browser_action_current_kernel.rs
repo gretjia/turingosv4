@@ -175,6 +175,8 @@ struct Mind2WebFcTraceReport {
     work_tx_landed: bool,
     selected_candidate_available: bool,
     browser_action_exact_match: bool,
+    closure_scope: &'static str,
+    full_system_participation_required: bool,
     final_closure_possible: bool,
 }
 
@@ -726,6 +728,8 @@ async fn run(args: Args) -> Result<(), String> {
         work_tx_landed,
         selected_candidate_available,
         browser_action_exact_match: exact_match,
+        closure_scope: "domain_adapter_smoke_only",
+        full_system_participation_required: true,
         final_closure_possible: false,
     };
     write_pretty_json(&args.out_dir.join("fc_trace_report.json"), &fc_trace)?;

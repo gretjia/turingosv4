@@ -263,6 +263,16 @@ fn mind2web_runner_calls_proxy_records_browser_action_and_replays_worktx() {
             .and_then(Value::as_bool),
         Some(false)
     );
+    assert_eq!(
+        fc_trace.get("closure_scope").and_then(Value::as_str),
+        Some("domain_adapter_smoke_only")
+    );
+    assert_eq!(
+        fc_trace
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
 
     let mut cas = CasStore::open(&run_dir.join("cas")).expect("open CAS");
     for key in [

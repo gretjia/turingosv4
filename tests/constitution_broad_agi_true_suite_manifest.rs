@@ -19,6 +19,18 @@ const REQUIRED_FAILURE_CLASSES: &[&str] = &[
     "provider_policy_failure",
     "constitutional_rejection",
 ];
+const REQUIRED_FC_BLOCKS: &[&str] = &["FC1", "FC2", "FC3"];
+const REQUIRED_SUBSTRATE_GROUPS: &[&str] = &[
+    "axiom_boot_trust_root",
+    "canonical_tape_cas_state",
+    "predicate_registry_top_white",
+    "fc1_bus_read_view_bridge",
+    "economy_market_settlement",
+    "runtime_replay_evidence_audit",
+    "agent_prompt_model_boundary",
+    "fc3_runtime_meta_roles",
+    "tool_registry_current",
+];
 const REQUIRED_FAMILIES: &[&str] = &[
     "gaia_general_assistant",
     "gpqa_science_reasoning",
@@ -150,12 +162,60 @@ fn broad_true_suite_manifest_is_non_closing_and_constitution_bound() {
             .and_then(toml::Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        manifest
+            .get("full_system_required_for_final")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "every final benchmark sample must run the whole constitutional machine"
+    );
+    assert_eq!(
+        manifest
+            .get("per_sample_fc_union_is_not_sufficient")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "FC1 from one benchmark plus FC3 from another is not full-system liveness"
+    );
+    assert_eq!(
+        manifest
+            .get("market_participation_required_for_every_sample")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "market/economy is constitutional substrate even for a one-agent run"
+    );
+    assert_eq!(
+        manifest
+            .get("full_system_sample_manifest")
+            .and_then(toml::Value::as_str),
+        Some("full_system_participation.json")
+    );
 
     let required = root_str_array(&manifest, "required_failure_classes");
     for class in REQUIRED_FAILURE_CLASSES {
         assert!(
             required.iter().any(|item| item == class),
             "manifest root missing required failure class `{class}`"
+        );
+    }
+    let required_fc = root_str_array(&manifest, "required_fc_blocks");
+    for &fc in REQUIRED_FC_BLOCKS {
+        assert!(
+            required_fc.iter().any(|item| item == fc),
+            "manifest root missing required FC block `{fc}`"
+        );
+    }
+    let substrate = root_str_array(&manifest, "required_substrate_groups");
+    for &group in REQUIRED_SUBSTRATE_GROUPS {
+        assert!(
+            substrate.iter().any(|item| item == group),
+            "manifest root missing required full-system substrate group `{group}`"
+        );
+    }
+    let market_modes = root_str_array(&manifest, "market_participation_modes");
+    for mode in ["invest", "abstain_with_tape_visible_market_opportunity"] {
+        assert!(
+            market_modes.iter().any(|item| item == mode),
+            "market participation modes must allow one-agent investment or tape-visible abstention: missing `{mode}`"
         );
     }
 }
@@ -236,6 +296,14 @@ fn benchmark_families_are_broad_and_have_machine_checkable_contracts() {
             family.id,
             family.final_evidence_artifacts
         );
+        assert!(
+            family
+                .final_evidence_artifacts
+                .iter()
+                .any(|path| path.ends_with("/full_system_participation.json")),
+            "family `{}` must require per-sample full-system participation evidence",
+            family.id
+        );
     }
 
     assert!(
@@ -260,11 +328,26 @@ fn broad_suite_lights_all_three_flowcharts_without_edge_node_drift() {
             }
         }
     }
-    for fc in ["FC1", "FC2", "FC3"] {
+    for &fc in REQUIRED_FC_BLOCKS {
         assert!(
             fc_seen.contains(fc),
             "broad AGI manifest does not light {fc}"
         );
+    }
+    for family in &families {
+        let family_fc: BTreeSet<_> = family
+            .fc_trace
+            .iter()
+            .filter_map(|trace| trace.split_once(':').map(|(fc, _)| fc.to_string()))
+            .collect();
+        for &fc in REQUIRED_FC_BLOCKS {
+            assert!(
+                family_fc.contains(fc),
+                "family `{}` only declares {:?}; every final sample must include {fc}, not rely on another family to light it",
+                family.id,
+                family_fc
+            );
+        }
     }
 }
 
