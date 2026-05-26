@@ -146,6 +146,20 @@ fn coverage_tasks() -> Vec<CoverageTask> {
         .collect()
 }
 
+fn assert_unique_task_ids(tasks: &[CoverageTask]) {
+    let mut seen = BTreeSet::new();
+    let mut duplicates = Vec::new();
+    for task in tasks {
+        if !seen.insert(task.id.clone()) {
+            duplicates.push(task.id.clone());
+        }
+    }
+    assert!(
+        duplicates.is_empty(),
+        "duplicate real-world coverage task ids would shadow liveness accounting: {duplicates:?}"
+    );
+}
+
 fn assert_path_exists(path: &str) {
     assert!(Path::new(path).exists(), "path does not exist: {path}");
 }
@@ -316,6 +330,7 @@ fn realworld_coverage_policy_requires_fresh_current_evidence() {
 #[test]
 fn realworld_tasks_cover_required_domains_without_smoke_labels() {
     let tasks = coverage_tasks();
+    assert_unique_task_ids(&tasks);
     assert!(
         tasks.len() >= 6,
         "final liveness needs broad true-problem tasks, got {}",
@@ -421,6 +436,7 @@ fn realworld_tasks_cover_required_domains_without_smoke_labels() {
 fn every_retained_candidate_group_maps_to_realworld_task() {
     let production = production_groups();
     let tasks = coverage_tasks();
+    assert_unique_task_ids(&tasks);
     let mut coverage: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut fresh_coverage: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for task in &tasks {
