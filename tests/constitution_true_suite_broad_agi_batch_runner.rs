@@ -110,6 +110,28 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
             .and_then(Value::as_bool),
         Some(true)
     );
+    let outputs = manifest
+        .get("outputs")
+        .and_then(Value::as_object)
+        .expect("outputs");
+    for key in [
+        "family_results_jsonl",
+        "aggregate_fc_trace_report",
+        "evidence_package_manifest",
+    ] {
+        let path = outputs
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| panic!("missing output path {key}"));
+        assert!(
+            !path.starts_with('/'),
+            "batch manifest output path {key} must not leak a machine absolute path: {path}"
+        );
+        assert!(
+            path.starts_with("<run-root>/") || path.starts_with("handover/evidence/true_suite/"),
+            "batch manifest output path {key} must be reconstructable relative evidence path, got {path}"
+        );
+    }
 
     let guards = manifest
         .get("no_overclaim_guards")

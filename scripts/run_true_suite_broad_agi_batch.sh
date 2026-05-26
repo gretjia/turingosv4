@@ -203,6 +203,17 @@ def git_head() -> str:
     )
     return result.stdout.strip()
 
+def report_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(project.resolve()).as_posix()
+    except ValueError:
+        pass
+    try:
+        return f"<run-root>/{resolved.relative_to(run_root.resolve()).as_posix()}"
+    except ValueError:
+        return resolved.as_posix()
+
 def materialize(path_template: str) -> Path:
     replaced = path_template.replace("handover/evidence/true_suite/<run>", str(run_root))
     return project / replaced if not replaced.startswith("/") else Path(replaced)
@@ -431,9 +442,9 @@ batch_manifest = {
         {"id": key, **value} for key, value in sorted(installed.items())
     ],
     "outputs": {
-        "family_results_jsonl": str(run_dir / "family_results.jsonl"),
-        "aggregate_fc_trace_report": str(run_dir / "aggregate_fc_trace_report.json"),
-        "evidence_package_manifest": str(run_root / "evidence_package_manifest.json"),
+        "family_results_jsonl": report_path(run_dir / "family_results.jsonl"),
+        "aggregate_fc_trace_report": report_path(run_dir / "aggregate_fc_trace_report.json"),
+        "evidence_package_manifest": report_path(run_root / "evidence_package_manifest.json"),
     },
     "no_overclaim_guards": [
         "plan-only mode cannot emit passed coverage",
