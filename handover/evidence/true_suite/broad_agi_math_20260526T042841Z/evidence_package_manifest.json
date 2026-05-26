@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 28149,
+      "archive_path": "math/cas.dotgit.tar.gz",
+      "archive_sha256": "6aa5b4695f50dddea0f28d4700309fb57beb81105f9b5e1828da915fd5c397a2",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "math/cas",
+      "source_path": "math/cas/.git"
+    },
+    {
+      "archive_bytes": 1376,
+      "archive_path": "math/cas.worktree.tar.gz",
+      "archive_sha256": "56ddf345f0c9ad2a90a30f5523ee94eee3bd5e3f52baacaf34816528a832f8d2",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "math/cas",
+      "source_path": "math/cas"
+    },
+    {
+      "archive_bytes": 14525,
+      "archive_path": "math/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "4051ab9d602e2f9a188614a600c246074598d28df0b40d99c4f8882746610928",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "math/runtime_repo",
+      "source_path": "math/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1259,
+      "archive_path": "math/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "a72a88c77317e37ea16865762a39c07e683d6f3768a2dd9d5225c26e35d4c333",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "math/runtime_repo",
+      "source_path": "math/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_math_20260526T042841Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

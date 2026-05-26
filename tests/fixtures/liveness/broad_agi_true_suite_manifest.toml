@@ -168,6 +168,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/<run>/math/math_competition_reasoning_run_manifest.json",
   "handover/evidence/true_suite/<run>/math/replay_report.json",
+  "handover/evidence/true_suite/<run>/math/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/math/failure_taxonomy.json",
 ]
 

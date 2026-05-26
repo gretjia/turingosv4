@@ -1,0 +1,97 @@
+{
+  "authority": "constitution.md + fresh current-kernel true-problem evidence",
+  "broad_manifest": "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml",
+  "closure_status": "OPEN_REAL_WORLD_COVERAGE_PENDING",
+  "final_closure_possible": false,
+  "git_head": "af5374510bcd6c6f655f0ce0d8153f8a28c86577",
+  "installed_domain_runners": [
+    {
+      "entrypoint": "scripts/run_true_suite_boot_cli_current_kernel.sh",
+      "family_ids": [],
+      "id": "boot_cli_current_kernel_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh",
+      "family_ids": [
+        "memory_feedback_reinit"
+      ],
+      "id": "fc3_governance_reinit_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
+      "family_ids": [
+        "gaia_general_assistant"
+      ],
+      "id": "generate_artifact_chain_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh",
+      "family_ids": [
+        "gpqa_science_reasoning"
+      ],
+      "id": "gpqa_science_reasoning_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_market_external_agent.sh",
+      "family_ids": [
+        "market_economy_polymarket"
+      ],
+      "id": "market_external_agent_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_math_competition_current_kernel.sh",
+      "family_ids": [
+        "math_formal_proof"
+      ],
+      "id": "math_competition_reasoning_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_mind2web_current_kernel.sh",
+      "family_ids": [
+        "mind2web_open_web"
+      ],
+      "id": "mind2web_open_web_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+      "family_ids": [],
+      "id": "replay_cas_tamper_repair_current"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_tdma_current_kernel.sh",
+      "family_ids": [
+        "math_formal_proof"
+      ],
+      "id": "tdma_real_proof_fresh"
+    },
+    {
+      "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
+      "family_ids": [
+        "toolbench_api_tool_use"
+      ],
+      "id": "toolbench_api_tool_use_fresh"
+    }
+  ],
+  "leaderboard_score_is_not_liveness": true,
+  "mode": "execute-installed",
+  "no_overclaim_guards": [
+    "plan-only mode cannot emit passed coverage",
+    "pending benchmark adapters never count as liveness pass",
+    "old 15-question evidence cannot close OBL-005",
+    "leaderboard score is capability signal only, not module liveness",
+    "TDMA evidence is domain tape evidence, not bottom-white L4 ChainTape",
+    "provider raw prompt/response is not a valid final artifact"
+  ],
+  "old_15_is_not_sufficient": true,
+  "outputs": {
+    "aggregate_fc_trace_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_math_20260526T042841Z/broad_batch/aggregate_fc_trace_report.json",
+    "evidence_package_manifest": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_math_20260526T042841Z/evidence_package_manifest.json",
+    "family_results_jsonl": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_math_20260526T042841Z/broad_batch/family_results.jsonl"
+  },
+  "realworld_coverage_manifest": "tests/fixtures/liveness/realworld_liveness_coverage.toml",
+  "run_id": "broad_agi_math_20260526T042841Z",
+  "schema_version": "turingosv4.true_suite.broad_agi_batch.v1",
+  "selected_runners": [
+    "math_competition_reasoning_fresh"
+  ]
+}
