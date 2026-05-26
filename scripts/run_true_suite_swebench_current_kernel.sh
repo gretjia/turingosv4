@@ -49,11 +49,12 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin swebench_live_coding_repair_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin swebench_live_coding_repair_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin swebench_live_coding_repair_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin swebench_live_coding_repair_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/swebench_live_coding_repair_current_kernel"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 SAMPLE_JSON="$RUN_DIR/repo_snapshots/swebench_sample.json"
 
 echo "[init] turingos init --project $RUN_DIR"
@@ -172,6 +173,17 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --out "$RUN_DIR/replay_report.json"
 
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "swebench_live_coding_repair" \
+    --entrypoint "scripts/run_true_suite_swebench_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --domain-manifest "$RUN_DIR/swebench_live_coding_repair_manifest.json" \
+    --out "$RUN_DIR/full_system_participation.json"
+
 cat > "$RUN_DIR/swebench_live_coding_repair_run_manifest.json" <<EOF
 {
   "schema_version": "turingosv4.true_suite.swebench_live_coding_repair_run.v1",
@@ -191,6 +203,7 @@ cat > "$RUN_DIR/swebench_live_coding_repair_run_manifest.json" <<EOF
   "swebench_manifest": "$RUN_DIR/swebench_live_coding_repair_manifest.json",
   "failure_taxonomy": "$RUN_DIR/failure_taxonomy.json",
   "replay_report": "$RUN_DIR/replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "SWE-bench data comes from the public Princeton-NLP SWE-bench Lite rows API unless SWEBENCH_SAMPLE_JSON is explicitly supplied",
     "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
