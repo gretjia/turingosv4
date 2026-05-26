@@ -21,13 +21,14 @@
 #![allow(dead_code)]
 
 use turingosv4::boot::{parse_trust_root_section, verify_trust_root, TrustRootError};
+use turingosv4::bottom_white::ledger::transition_ledger::append as append_l4_root;
 use turingosv4::bus::{BusConfig, BusResult, TuringBus};
 use turingosv4::drivers::llm_http::ResilientLLMClient;
 use turingosv4::kernel::Kernel;
 use turingosv4::ledger::{EventType, Ledger, LedgerEvent, Tape};
 use turingosv4::sdk::protocol::{parse_agent_output, AgentAction};
 use turingosv4::sdk::snapshot::UniverseSnapshot;
-use turingosv4::wal::Wal;
+use turingosv4::state::q_state::Hash;
 
 // ─── FC1: basic cycle Q_t → rtool → input → AI(δ) → output → ∏p → wtool → Q_{t+1} ───
 
@@ -187,25 +188,16 @@ fn fc3_n34_parse_trust_root_section_helper() {
 }
 
 #[test]
-fn fc3_n31_logs_archive_wal_open_in_tempdir() {
-    // FC3-N31 logs archive = Wal append-only ledger. A0e-fix 2026-04-25:
-    // strengthened from type_name to actual Wal::open call (the
-    // append-only API surface).
-    let tmp = std::env::temp_dir().join(format!(
-        "fc_alignment_conformance_wal_{}_{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
-    let wal = Wal::open(&tmp);
-    assert!(
-        wal.is_ok(),
-        "FC3-N31: Wal::open must succeed at fresh tempdir path"
+fn fc3_n31_logs_archive_l4_root_fold_is_live() {
+    // FC3-N31 logs archive = canonical ChainTape L4/L4.E/CAS archive.
+    // WAL is legacy quarantine and must not be cited as current FC authority.
+    let signing_digest = Hash::from_bytes([7u8; 32]);
+    let next = append_l4_root(&Hash::ZERO, &signing_digest);
+    assert_ne!(
+        next,
+        Hash::ZERO,
+        "FC3-N31: L4 append root fold must move the canonical log root"
     );
-    // Cleanup
-    let _ = std::fs::remove_file(&tmp);
 }
 
 #[test]
