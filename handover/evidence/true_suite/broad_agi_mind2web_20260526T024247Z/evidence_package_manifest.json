@@ -1,0 +1,30 @@
+{
+  "package_count": 2,
+  "packages": [
+    {
+      "archive_bytes": 37802,
+      "archive_path": "mind2web/cas.dotgit.tar.gz",
+      "archive_sha256": "f4c80e8d8903e269a35f4317ce5859ec000247e4244bd6c6e58ced5561506758",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "mind2web/cas",
+      "source_path": "mind2web/cas/.git"
+    },
+    {
+      "archive_bytes": 14395,
+      "archive_path": "mind2web/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "4405b2fefb9b9a7d40a95bf37454484d6587e579d3ef0bb0faea7697fd9b8550",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "mind2web/runtime_repo",
+      "source_path": "mind2web/runtime_repo/.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

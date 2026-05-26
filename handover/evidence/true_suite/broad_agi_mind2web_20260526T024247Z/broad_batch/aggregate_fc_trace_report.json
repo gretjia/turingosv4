@@ -1,0 +1,42 @@
+{
+  "all_required_fc_blocks_declared": true,
+  "broad_family_count": 11,
+  "fc_blocks_seen": [
+    "FC1",
+    "FC2",
+    "FC3"
+  ],
+  "final_closure_possible": false,
+  "fresh_artifact_result_count": 0,
+  "installed_domain_runner_count": 9,
+  "mode": "execute-installed",
+  "pending_ids": [
+    "market_external_agent_fresh",
+    "market_ab_performance_fresh",
+    "generate_artifact_chain_fresh",
+    "tdma_real_proof_fresh",
+    "fc3_governance_reinit_fresh",
+    "replay_cas_tamper_repair_current",
+    "boot_cli_current_kernel_fresh",
+    "gaia_general_assistant",
+    "gpqa_science_reasoning",
+    "math_formal_proof",
+    "swebench_live_coding_repair",
+    "webarena_web_agent",
+    "mind2web_open_web",
+    "osworld_computer_use",
+    "toolbench_api_tool_use",
+    "cybench_security_sandbox",
+    "market_economy_polymarket",
+    "memory_feedback_reinit"
+  ],
+  "pending_result_count": 18,
+  "realworld_domain_count": 7,
+  "required_fc_blocks": [
+    "FC1",
+    "FC2",
+    "FC3"
+  ],
+  "run_id": "broad_agi_mind2web_20260526T024247Z",
+  "schema_version": "turingosv4.true_suite.broad_agi_fc_trace_report.v1"
+}
