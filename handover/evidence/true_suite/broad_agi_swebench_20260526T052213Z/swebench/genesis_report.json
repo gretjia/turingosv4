@@ -1,0 +1,68 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/runtime_repo",
+  "cas_path": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/cas",
+  "system_pubkey_hash": "a04f8d650756843f9dac87af7f0e982f0a75b0d74ea3ea7fa4bfa0112b82ee4d",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ],
+    [
+      "MarketMakerBudget",
+      5000000
+    ]
+  ],
+  "task_id": "swebench:astropy__astropy-12907",
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}

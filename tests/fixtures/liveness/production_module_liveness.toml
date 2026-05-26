@@ -70,6 +70,12 @@ families = ["math", "competition_reasoning", "current_kernel", "replay"]
 evidence = ["public_math_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
 
 [[real_world_suite]]
+id = "broad_agi_swebench_20260526T052213Z"
+path = "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z"
+families = ["swebench", "coding_repair", "current_kernel", "replay"]
+evidence = ["public_swebench_lite_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -235,6 +241,7 @@ module_ids = [
   "bin::math_competition_reasoning_current_kernel",
   "bin::mind2web_browser_action_current_kernel",
   "bin::resume_preflight",
+  "bin::swebench_live_coding_repair_current_kernel",
   "bin::tb_18r_compute_invariant",
   "bin::toolbench_api_tool_use_current_kernel",
   "bin::tb_g_persistence_report",
@@ -267,13 +274,14 @@ module_ids = [
   "runtime::verification_result",
   "runtime::verify",
 ]
-paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/gpqa_science_reasoning_current_kernel.rs", "src/bin/market_external_agent_current_kernel.rs", "src/bin/math_competition_reasoning_current_kernel.rs", "src/bin/toolbench_api_tool_use_current_kernel.rs", "src/bin/mind2web_browser_action_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
+paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/gpqa_science_reasoning_current_kernel.rs", "src/bin/market_external_agent_current_kernel.rs", "src/bin/math_competition_reasoning_current_kernel.rs", "src/bin/swebench_live_coding_repair_current_kernel.rs", "src/bin/toolbench_api_tool_use_current_kernel.rs", "src/bin/mind2web_browser_action_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
 constitutional_anchors = ["Art.0.2", "FC2:replay", "FC2:resume", "FC3:logs"]
 necessity = "Real runs must reconstruct from ChainTape/CAS, including attempts, leases, persistence, tamper checks, and replay."
 smoke_gates = [
   "tests/constitution_true_suite_boot_cli_runner.rs",
   "tests/constitution_true_suite_gpqa_runner.rs",
   "tests/constitution_true_suite_math_runner.rs",
+  "tests/constitution_true_suite_swebench_runner.rs",
   "tests/constitution_true_suite_market_external_agent_runner.rs",
   "tests/constitution_true_suite_generate_artifact_runner.rs",
   "tests/constitution_true_suite_replay_cas_tamper_runner.rs",
@@ -304,6 +312,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/replay_report.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/restore_replay_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -384,6 +395,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
   "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 

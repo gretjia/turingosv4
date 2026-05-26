@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 29687,
+      "archive_path": "swebench/cas.dotgit.tar.gz",
+      "archive_sha256": "c0500528a5b397a184506182adaaef593f09ee6b571b085ef28cc7dd878c5a6d",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "swebench/cas",
+      "source_path": "swebench/cas/.git"
+    },
+    {
+      "archive_bytes": 1381,
+      "archive_path": "swebench/cas.worktree.tar.gz",
+      "archive_sha256": "96ef7e278d5e4bc0b4780217e5306c396f8b3fadbd52c6c2355130ccd55da750",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "swebench/cas",
+      "source_path": "swebench/cas"
+    },
+    {
+      "archive_bytes": 14523,
+      "archive_path": "swebench/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "b203dd60eb3cec88a9c100c4ed1bd358c80519f1ce6e816cd270d70eb8e5e513",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "swebench/runtime_repo",
+      "source_path": "swebench/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1249,
+      "archive_path": "swebench/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "e52052ccc3837214686f90ecff36f0a5e6494c385729891ea849840ea8ae5c6d",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "swebench/runtime_repo",
+      "source_path": "swebench/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
