@@ -88,6 +88,12 @@ families = ["tdma", "proof", "current_kernel", "full_system_participation", "mar
 evidence = ["public_putnam_2025_b3_style_task", "local_openai_proxy", "TDMA GitTapeLedger", "ChainTape", "CAS", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
+id = "replay_cas_full_system_evidence_20260526T190754Z"
+path = "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z"
+families = ["replay_cas", "tamper", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["ChainTape", "CAS", "replay", "restore_replay", "tamper_detection", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -157,6 +163,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/broad_batch/aggregate_fc_trace_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["L4", "L4.E", "CAS", "replay"]
 
@@ -203,6 +212,7 @@ real_world_evidence = [
   "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["read-view", "market projection", "no price-as-truth"]
 
@@ -237,6 +247,8 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/replay_report.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/restore_replay_report.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
 
@@ -348,6 +360,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/replay_report.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/restore_replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/evidence_package_manifest.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -389,6 +406,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/restore_replay_report.json",
   "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/full_system_participation.json",
   "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
@@ -487,6 +507,8 @@ real_world_evidence = [
   "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["market decision trace", "economic judgment", "role differentiation"]
 
@@ -693,6 +715,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/replay_cas_run_manifest.json",
   "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/tdma_run_manifest.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_cas_run_manifest.json",
 ]
 evidence_requires = ["real command path", "generated artifact", "runtime repo"]
 
@@ -708,7 +731,11 @@ paths = ["src/bottom_white/tools/registry.rs"]
 constitutional_anchors = ["FC2:tools", "FC3:tools-to-log"]
 necessity = "Tool permissions must be rooted in a deterministic registry for FC3 tool/log boundaries."
 smoke_gates = ["tests/constitution_fc3_closure.rs"]
-real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt"]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+]
 evidence_requires = ["tool registry root", "system-only meta tx"]
 
 [[group]]

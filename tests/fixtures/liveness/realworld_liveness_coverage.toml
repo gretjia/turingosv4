@@ -316,12 +316,18 @@ anti_contamination_guards = [
 ]
 evidence_artifacts = []
 final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
   "handover/evidence/true_suite/<run>/replay_cas/runtime_repo/",
   "handover/evidence/true_suite/<run>/replay_cas/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/replay_cas/runtime_repo.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/replay_cas/cas/",
   "handover/evidence/true_suite/<run>/replay_cas/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/replay_cas/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/replay_cas/genesis_report.json",
+  "handover/evidence/true_suite/<run>/replay_cas/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/replay_cas/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/replay_cas/replay_report.json",
+  "handover/evidence/true_suite/<run>/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/tamper_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/post_tamper_replay_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/replay_cas_run_manifest.json",

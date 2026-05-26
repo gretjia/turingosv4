@@ -1,0 +1,157 @@
+{
+  "schema_version": "turingosv4.true_suite.full_system_participation.v1",
+  "run_id": "replay_cas_full_system_evidence_20260526T190754Z",
+  "family_id": "replay_cas_tamper_repair_current",
+  "entrypoint": "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+  "authority": "ChainTape + CAS + replay verifier; stdout/dashboard are non-authoritative",
+  "evidence_paths": {
+    "runtime_repo": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/runtime_repo",
+    "cas": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/cas",
+    "replay_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
+    "genesis_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/genesis_report.json",
+    "domain_manifest": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_report.json",
+    "fc3_index": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json"
+  },
+  "replay": {
+    "l4_entries": 15,
+    "l4e_entries": 0,
+    "ledger_root_verified": true,
+    "system_signatures_verified": true,
+    "state_reconstructed": true,
+    "economic_state_reconstructed": true,
+    "cas_payloads_retrievable": true,
+    "agent_signatures_verified": true,
+    "proposal_telemetry_cas_retrievable": true,
+    "all_indicators_pass": true,
+    "initial_q_state_loaded_from_disk": true,
+    "final_state_root_hex": "00297513da6640362e11779ed9c965e1c74372029046952e54a0176081e50747",
+    "final_ledger_root_hex": "0b90bac9b413c8a104209078d93c3532ec4ef3aaa4c89df90a49d8d71a6e9f9a",
+    "head_commit_oid_hex": "6886029b32d2113d8fe571959add4a1fb76b4a77"
+  },
+  "tx_kind_counts": {
+    "work": 1,
+    "verify": 0,
+    "challenge": 0,
+    "reuse": 0,
+    "task_open": 2,
+    "escrow_lock": 1,
+    "complete_set_mint": 0,
+    "complete_set_redeem": 0,
+    "market_seed": 1,
+    "complete_set_merge": 0,
+    "cpmm_pool": 1,
+    "cpmm_swap": 0,
+    "buy_with_coin_router": 1,
+    "finalize_reward": 0,
+    "challenge_resolve": 0,
+    "terminal_summary": 1,
+    "task_expire": 0,
+    "task_bankruptcy": 0,
+    "event_resolve": 0,
+    "predicate_binding_activate": 0,
+    "map_reduce_tick": 1,
+    "log_feedback_archive": 1,
+    "architect_proposal": 1,
+    "veto_decision": 1,
+    "architect_commit": 1,
+    "reinit_request": 1,
+    "reinit_boot": 1
+  },
+  "tx_kind_counts_source": "derived from Git2LedgerWriter L4 entries",
+  "tx_kind_sequence": [
+    "TaskOpen",
+    "EscrowLock",
+    "Work",
+    "MapReduceTick",
+    "LogFeedbackArchive",
+    "ArchitectProposal",
+    "VetoDecision",
+    "ArchitectCommit",
+    "TerminalSummary",
+    "ReinitRequest",
+    "ReinitBoot",
+    "TaskOpen",
+    "MarketSeed",
+    "CpmmPool",
+    "BuyWithCoinRouter"
+  ],
+  "fc1": {
+    "present": true,
+    "accepted_work_txs": 1,
+    "l4e_entries": 0,
+    "work_or_rejection_landed": true,
+    "proposal_telemetry_cas_retrievable": true,
+    "domain_manifest_work_tx_landed": null
+  },
+  "fc2": {
+    "present": true,
+    "genesis_report_present": true,
+    "initial_q_state_loaded_from_disk": true,
+    "map_reduce_tick_present": true,
+    "replay_verified": true
+  },
+  "fc3": {
+    "present": true,
+    "typed_meta_roles_present": true,
+    "reinit_semantics_present": true,
+    "log_feedback_archive_txs": 1,
+    "architect_proposal_txs": 1,
+    "veto_decision_txs": 1,
+    "architect_commit_txs": 1,
+    "reinit_request_txs": 1,
+    "reinit_boot_txs": 1,
+    "fc3_index_present": true,
+    "external_pr_ceremony_used_as_fc3": false
+  },
+  "market": {
+    "present": true,
+    "mode": "invest",
+    "l4_market_tx_count": 3,
+    "market_seed_txs": 1,
+    "cpmm_pool_txs": 1,
+    "cpmm_swap_txs": 0,
+    "buy_with_coin_router_txs": 1,
+    "event_resolve_txs": 0,
+    "agent_market_action_txs": 1,
+    "market_decision_trace_count": 1,
+    "market_decision_submitted_count": 1,
+    "market_decision_no_trade_count": 0,
+    "market_decision_declined_count": 0,
+    "market_opportunity_trace_count": 0
+  },
+  "domain_manifest": {
+    "all_detected": true,
+    "detected_count": 3,
+    "expected": 3,
+    "schema_version": "v1/audit_tape_tamper",
+    "tamper_results": [
+      {
+        "detail": "destructively truncated 267 bytes from largest L4-reachable loose object 4755ade473c49afccd38b9a361898d403777bcc9 (\"/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git/objects/47/55ade473c49afccd38b9a361898d403777bcc9\") — forces git2 zlib decode failure when audit_tape next reads",
+        "detected": true,
+        "label": "flip_l4_byte",
+        "schema_version": "v1/audit_tape_tamper",
+        "verdict": null
+      },
+      {
+        "detail": "destructively truncated 688 bytes from largest CAS object \"/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_work/flip_cas_byte/cas/.git/objects/60/51388fe499970d53acab82498a96249acf2966\"",
+        "detected": true,
+        "label": "flip_cas_byte",
+        "schema_version": "v1/audit_tape_tamper",
+        "verdict": null
+      },
+      {
+        "detail": "zeroed last 4 hex chars in 2 chain ref(s): refs/chaintape/l4, refs/transitions/main",
+        "detected": true,
+        "label": "truncate_l4_ref",
+        "schema_version": "v1/audit_tape_tamper",
+        "verdict": null
+      }
+    ]
+  },
+  "verdict": {
+    "full_system_participation": true,
+    "full_system_verdict": "FULL_SYSTEM_LIT",
+    "missing": [],
+    "final_closure_possible": false
+  }
+}

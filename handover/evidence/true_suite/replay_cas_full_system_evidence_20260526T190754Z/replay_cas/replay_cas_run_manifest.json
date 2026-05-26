@@ -1,0 +1,23 @@
+{
+  "schema_version": "turingosv4.true_suite.replay_cas_tamper_current.v1",
+  "run_id": "replay_cas_full_system_evidence_20260526T190754Z",
+  "git_head": "7fb51fa490d041b49d18d78bf6401f9de288c174",
+  "entrypoint": "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+  "runtime_repo": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/runtime_repo",
+  "cas": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/cas",
+  "genesis_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/genesis_report.json",
+  "full_system_augmentation_manifest": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
+  "tamper_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_report.json",
+  "post_tamper_replay_report": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/post_tamper_replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-obl005-next6/handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "notes": [
+    "fresh evidence is generated through public turingos init",
+    "fc3_governance_reinit_current_kernel emits typed FC1 WorkTx, FC2 MapReduceTick, and FC3 governance/reinit rows",
+    "full_system_augment_current_kernel appends a tape-visible agent market action",
+    "public turingos verify chaintape reconstructs the original tape before and after tamper forks",
+    "audit_tape_tamper corrupts only temporary forks and must detect 3/3 corruptions",
+    "full_system_participation_current_kernel requires FULL_SYSTEM_LIT for replay/CAS tamper evidence"
+  ]
+}
