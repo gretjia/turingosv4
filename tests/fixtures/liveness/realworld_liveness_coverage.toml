@@ -359,11 +359,16 @@ anti_contamination_guards = [
 ]
 evidence_artifacts = []
 final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
   "handover/evidence/true_suite/<run>/boot_cli/runtime_repo/",
   "handover/evidence/true_suite/<run>/boot_cli/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/boot_cli/runtime_repo.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/boot_cli/cas/",
   "handover/evidence/true_suite/<run>/boot_cli/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/boot_cli/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/boot_cli/genesis_report.json",
   "handover/evidence/true_suite/<run>/boot_cli/replay_report.json",
+  "handover/evidence/true_suite/<run>/boot_cli/restore_replay_report.json",
+  "handover/evidence/true_suite/<run>/boot_cli/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/<run>/boot_cli/full_system_participation.json",
 ]

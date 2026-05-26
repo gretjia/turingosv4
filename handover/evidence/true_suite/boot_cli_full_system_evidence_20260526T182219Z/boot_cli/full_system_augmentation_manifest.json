@@ -1,0 +1,12 @@
+{
+  "schema_version": "turingosv4.true_suite.full_system_augment.v1",
+  "run_id": "boot_cli_full_system_evidence_20260526T182219Z",
+  "runtime_repo": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/runtime_repo",
+  "cas": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/cas",
+  "accepted_work_tx_id": "worktx-fc3-governance-reinit-work-true-suite-fc3",
+  "market_event_id": "node_survive:worktx-fc3-governance-reinit-work-true-suite-fc3",
+  "router_tx_id": "router-Agent_1-full-system-augment",
+  "market_decision_trace_cid": "29e5b6dd729fa76f647cbd5db9ad1ce842f5d2e7ee72d510f4fa288a09743190",
+  "fc3_tx_sequence": [],
+  "final_state_root_hex": "c4c92aeb1f3f02407854ed88dfd473991b32b0984294c9d622b3737401075827"
+}
