@@ -76,7 +76,7 @@ cat > "$RUN_DIR/answers.json" <<'EOF'
   "It should remember the three plans, criteria weights, and the current score table inside the page state while I am using it.",
   "I open one page, see three plan columns, edit scores from 1 to 5, and immediately see weighted totals and a recommended plan.",
   "Blank scores, equal totals, long plan names, and accidental non-number input should not break it.",
-  "No login, no backend, no cloud sync, no collaboration, no payments, no external packages.",
+  "No login, no backend, no cloud sync, no collaboration, no payments, no external packages, no remote fonts, no CDN, and no external URLs.",
   "After a month, I know it works if I can paste a launch scenario into the page, compare options in under five minutes, and explain the final choice.",
   "Build a self-contained HTML launch-plan decision matrix with editable scores, weighted totals, clear recommendation, and no external runtime dependencies."
 ]
@@ -117,6 +117,11 @@ CHAIN_RUN_ID="$(sed -n 's/.*"run_id": "\(.*\)".*/\1/p' "$RUN_DIR/runtime_repo/pi
 if [[ -z "$CHAIN_RUN_ID" ]]; then
     echo "ERROR: could not parse ChainTape run_id from pinned_pubkeys.json" >&2
     exit 7
+fi
+
+if rg -n 'https?://|//fonts\\.|//cdn\\.|<script[^>]+src=|<link[^>]+href=' "$RUN_DIR/artifacts"; then
+    echo "ERROR: generated artifact uses remote runtime dependencies; true-suite generate requires a self-contained artifact" >&2
+    exit 8
 fi
 
 cat > "$RUN_DIR/artifact_bundle_cid.json" <<EOF
