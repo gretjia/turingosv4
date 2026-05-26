@@ -20,12 +20,22 @@ fn bin(name: &str) -> &'static str {
         "market_external_agent_current_kernel" => {
             env!("CARGO_BIN_EXE_market_external_agent_current_kernel")
         }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
 }
 
 fn bin_dir(path: &str) -> &Path {
     Path::new(path).parent().expect("bin has parent")
+}
+
+fn read_json(path: &Path) -> Value {
+    serde_json::from_str(&std::fs::read_to_string(path).expect("read json")).expect("parse json")
 }
 
 fn start_mock_llm_proxy() -> String {
@@ -115,6 +125,33 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         String::from_utf8_lossy(&helper.stderr)
     );
 
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-market-agent",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system augment helper");
+    assert!(
+        augment.status.success(),
+        "full-system augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
+    );
+    std::fs::copy(
+        run_dir.join("runtime_repo").join("genesis_report.json"),
+        run_dir.join("genesis_report.json"),
+    )
+    .expect("copy refreshed genesis report");
+
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
         .env("TURINGOS_BIN_DIR", bin_dir(bin("verify_chaintape")))
@@ -139,10 +176,7 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         String::from_utf8_lossy(&verify.stderr)
     );
 
-    let manifest: Value = serde_json::from_str(
-        &std::fs::read_to_string(&manifest_path).expect("read market manifest"),
-    )
-    .expect("parse market manifest");
+    let manifest = read_json(&manifest_path);
     assert_eq!(
         manifest.get("schema_version").and_then(Value::as_str),
         Some("turingosv4.true_suite.market_external_agent.v1")
@@ -163,6 +197,33 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         manifest.get("pool_active").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        manifest.get("work_tx_landed").and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("final_closure_possible")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
+    for key in [
+        "decision_capsule_cid",
+        "evaluation_capsule_cid",
+        "proposal_telemetry_cid",
+    ] {
+        assert_eq!(
+            manifest.get(key).and_then(Value::as_str).map(str::len),
+            Some(64),
+            "{key} should be a 64-char CAS cid"
+        );
+    }
     assert_eq!(
         manifest
             .get("agent_response_sha256")
@@ -278,14 +339,14 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         Some(101_000)
     );
 
-    let replay: Value = serde_json::from_str(
-        &std::fs::read_to_string(&replay_report).expect("read replay_report.json"),
-    )
-    .expect("parse replay report");
-    assert_eq!(
-        replay.get("l4_entries").and_then(Value::as_u64),
-        Some(6),
-        "boot emits PredicateBindingActivate+MapReduceTick; market helper adds TaskOpen+MarketSeed+CpmmPool+BuyWithCoinRouter"
+    let replay = read_json(&replay_report);
+    assert!(
+        replay
+            .get("l4_entries")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 18,
+        "boot + market helper + full-system augment should produce a full typed chain: {replay}"
     );
     for key in [
         "ledger_root_verified",
@@ -303,11 +364,79 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         );
     }
 
+    let participation_report = run_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-market-agent",
+            "--family-id",
+            "market_economy_polymarket",
+            "--entrypoint",
+            "tests/constitution_true_suite_market_external_agent_runner.rs",
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            run_dir
+                .join("genesis_report.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--domain-manifest",
+            manifest_path.to_str().expect("utf8 path"),
+            "--fc3-index",
+            run_dir
+                .join("governance_capsule_index.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--require-full-system",
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation helper");
+    assert!(
+        participation.status.success(),
+        "full-system participation failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let participation_json = read_json(&participation_report);
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_verdict"))
+            .and_then(Value::as_str),
+        Some("FULL_SYSTEM_LIT")
+    );
+    assert_eq!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("agent_market_action_txs"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0,
+        "market sample must include a typed agent market action"
+    );
+
     let genesis_report = run_dir.join("runtime_repo").join("genesis_report.json");
-    let genesis: Value = serde_json::from_str(
-        &std::fs::read_to_string(genesis_report).expect("read genesis report"),
-    )
-    .expect("parse genesis report");
+    let genesis = read_json(&genesis_report);
     assert!(
         genesis
             .get("initial_balances")
@@ -324,7 +453,12 @@ fn market_external_agent_runner_script_uses_provider_proxy_not_kernel_fixtures()
         .expect("read market runner script");
     assert!(script.contains("LLM_PROXY_URL"));
     assert!(script.contains("market_external_agent_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("verify chaintape"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(
         script.contains("src/drivers/llm_proxy.py"),
