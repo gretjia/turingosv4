@@ -197,6 +197,13 @@ fn manifest_module_index(groups: &[Group]) -> BTreeMap<String, String> {
     index
 }
 
+fn group_by_id<'a>(groups: &'a [Group], id: &str) -> &'a Group {
+    groups
+        .iter()
+        .find(|group| group.id == id)
+        .unwrap_or_else(|| panic!("missing liveness group `{id}`"))
+}
+
 fn assert_existing_path(path: &str) {
     assert!(
         Path::new(path).exists(),
@@ -402,6 +409,41 @@ fn product_and_legacy_rows_cannot_be_flowchart_authority() {
             );
         }
     }
+}
+
+#[test]
+fn legacy_shadow_tape_group_is_split_from_active_tdma_ledger() {
+    let groups = groups();
+    assert!(
+        groups
+            .iter()
+            .all(|group| group.id != "legacy_shadow_tape_and_tool_surfaces"),
+        "the old mixed legacy group must stay split; it hid active TDMA ledger substrate inside SDK/WAL quarantine"
+    );
+
+    let tdma = group_by_id(&groups, "tdma_bounded_solver");
+    assert!(
+        tdma.module_ids.iter().any(|id| id == "ledger"),
+        "`ledger` is active TDMA substrate and must be covered by the TDMA real-world evidence group"
+    );
+    assert!(
+        tdma.paths.iter().any(|path| path == "src/ledger.rs"),
+        "TDMA evidence group must name src/ledger.rs explicitly"
+    );
+
+    let legacy = group_by_id(&groups, "legacy_wal_and_sdk_tool_surfaces");
+    assert!(
+        !legacy.module_ids.iter().any(|id| id == "ledger"),
+        "legacy WAL/SDK quarantine must not absorb active TDMA ledger substrate"
+    );
+    assert!(
+        legacy
+            .closure_action
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Delete WAL/sandbox/search/librarian"),
+        "legacy WAL/SDK quarantine must carry a concrete delete-or-rebind closure plan"
+    );
 }
 
 #[test]
