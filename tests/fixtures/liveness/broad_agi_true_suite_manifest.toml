@@ -386,6 +386,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/toolbench/toolbench_api_tool_use_manifest.json",
   "handover/evidence/true_suite/<run>/toolbench/toolbench_api_tool_use_run_manifest.json",
   "handover/evidence/true_suite/<run>/toolbench/replay_report.json",
+  "handover/evidence/true_suite/<run>/toolbench/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/toolbench/fc_trace_report.json",
 ]
 

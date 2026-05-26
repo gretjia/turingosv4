@@ -1,0 +1,21 @@
+{
+  "l4_entries": 5,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "broad_agi_toolbench_20260526T013607Z",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "a0a60a77d2a347eaa1b30366974803f7f33601aebc4a27e49a609ffeacc4d580",
+    "final_ledger_root_hex": "5df2a0c91caa8914f000fb677fe633b40fd31e49d33c16e7210ec8ee5bb02184",
+    "head_commit_oid_hex": "2019d8a927eb159638f56549037df2dc83d20e33",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

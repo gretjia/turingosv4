@@ -52,6 +52,12 @@ families = ["boot_cli", "replay_cas", "market", "generate_artifact", "tdma", "fc
 evidence = ["ChainTape", "CAS", "TDMA GitTapeLedger", "local_openai_proxy", "replay", "restore_replay", "packaged_restore"]
 
 [[real_world_suite]]
+id = "broad_agi_toolbench_20260526T013607Z"
+path = "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z"
+families = ["toolbench", "api_tool_use", "current_kernel", "replay"]
+evidence = ["public_toolbench_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -273,6 +279,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
+  "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/restore_replay_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -350,6 +359,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 

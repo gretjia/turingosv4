@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_answer_claim_capsule.v1",
+  "query_id": "577",
+  "model_returned": "deepseek-chat",
+  "selected_api_ids": [
+    "ASIN Data::Product",
+    "ASIN Data::Reviews",
+    "ASIN Data::Search"
+  ],
+  "rationale": "The user wants to find top-rated fitness trackers on Amazon, so first we need to search for fitness trackers using ASIN Data::Search. Then, to get features and prices of specific products, we need ASIN Data::Product. Finally, to determine which are top-rated, we need customer reviews via ASIN Data::Reviews.",
+  "rationale_len_chars": 308,
+  "prompt_sha256": "7991c3d461423cd861a73de1ee658bbf00150ad2f1926924ba09bc5839339007",
+  "provider_response_sha256": "47858c11b8876c597a1121f8d543c9ba6ffef192cd570a47ad64998f2d367d88",
+  "raw_provider_response_persisted": false
+}

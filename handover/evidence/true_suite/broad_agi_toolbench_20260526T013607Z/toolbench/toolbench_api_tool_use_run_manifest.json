@@ -1,0 +1,25 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_api_tool_use_run.v1",
+  "run_id": "broad_agi_toolbench_20260526T013607Z",
+  "git_head": "b5a63a713445f60743e8f2d8a2e178263702a829",
+  "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "toolbench_dataset_url": "https://huggingface.co/datasets/tuandunghcmut/toolbench-v1/resolve/main/benchmark/g1_instruction-00000-of-00001.parquet",
+  "toolbench_source_split": "benchmark/g1_instruction",
+  "toolbench_sample_index": 0,
+  "runtime_repo": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/runtime_repo",
+  "cas": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/cas",
+  "genesis_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/genesis_report.json",
+  "toolbench_manifest": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "fc_trace_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/fc_trace_report.json",
+  "failure_taxonomy": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/failure_taxonomy.json",
+  "replay_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/replay_report.json",
+  "notes": [
+    "ToolBench data comes from the public tuandunghcmut/toolbench-v1 benchmark parquet unless TOOLBENCH_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records API selection and structural tool-call hashes, not live third-party API side effects",
+    "benchmark exact-match is not treated as liveness closure"
+  ]
+}

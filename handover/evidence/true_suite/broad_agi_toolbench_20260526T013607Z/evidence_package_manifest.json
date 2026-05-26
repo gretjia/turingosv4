@@ -1,0 +1,30 @@
+{
+  "package_count": 2,
+  "packages": [
+    {
+      "archive_bytes": 32804,
+      "archive_path": "toolbench/cas.dotgit.tar.gz",
+      "archive_sha256": "817cfd201cddb6d82be31d463ac733c52283d000f1ec0debd159343c24f51fc9",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "toolbench/cas",
+      "source_path": "toolbench/cas/.git"
+    },
+    {
+      "archive_bytes": 14453,
+      "archive_path": "toolbench/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "e3f41132ae68041c66ac1cff95433cc2738351075fa8a35b433093af4aad4759",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "toolbench/runtime_repo",
+      "source_path": "toolbench/runtime_repo/.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
