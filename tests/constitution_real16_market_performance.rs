@@ -310,6 +310,63 @@ fn real16_runner_forbids_unsafe_or_scripted_e4_inputs() {
 }
 
 #[test]
+fn true_suite_market_ab_runner_uses_current_kernel_full_system_evidence() {
+    let script = std::fs::read_to_string("scripts/run_true_suite_market_ab_current_kernel.sh")
+        .expect("true-suite market A/B runner exists");
+    let helper = std::fs::read_to_string("src/bin/market_external_agent_current_kernel.rs")
+        .expect("true-suite market helper exists");
+
+    for expected in [
+        "market_external_agent_current_kernel",
+        "full_system_augment_current_kernel",
+        "full_system_participation_current_kernel",
+        "audit_tape",
+        "real14_e2_candidate_verifier",
+        "real16_market_performance_verifier",
+        "--derive-arm-json",
+        "REAL16_MARKET_PERFORMANCE_REPORT.json",
+        "FULL_SYSTEM_PARTICIPATION_REQUIRED=1",
+        "--require-full-system",
+        "arm_A",
+        "arm_D",
+        "candidate-only market performance report; no E4 achieved claim",
+        "e2_verifier_exit_code",
+        "real16_verifier_exit_code",
+        "VETO is recorded but does not fail liveness",
+    ] {
+        assert!(
+            script.contains(expected),
+            "true-suite market A/B runner must preserve current-kernel marker: {expected}"
+        );
+    }
+
+    assert!(
+        script.contains("LLM_PROXY_URL"),
+        "true-suite market A/B runner must use external provider boundary through local proxy"
+    );
+    assert!(
+        !script.contains("run_g_phase_batch.sh"),
+        "true-suite market A/B liveness must not depend on the old G-phase batch runner"
+    );
+    assert!(
+        !script.contains("PPUT_RESULT"),
+        "true-suite market A/B liveness must not parse evaluator stdout as claim-bearing evidence"
+    );
+    assert!(
+        helper.contains("const MARKET_PROVIDER_AGENT: &str = \"Agent_2\";"),
+        "market helper must use a boot-preseeded sandbox provider accepted by audit_tape"
+    );
+    assert!(
+        !helper.contains("ExternalMarketMakerBudget"),
+        "market helper must not introduce a non-sandbox provider identity"
+    );
+    assert!(
+        !helper.contains("const MARKET_PROVIDER_AGENT: &str = \"MarketMakerBudget\";"),
+        "market helper must not collide with full_system_augment_current_kernel's node-market provider key"
+    );
+}
+
+#[test]
 fn real16_load_bearing_files_are_trust_root_pinned() {
     let genesis =
         std::fs::read_to_string("genesis_payload.toml").expect("genesis_payload.toml exists");

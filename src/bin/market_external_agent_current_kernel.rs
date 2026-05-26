@@ -33,7 +33,7 @@ use turingosv4::state::router_quote::{QuoteDirection, quote_buy_with_coin_router
 use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
-const MARKET_PROVIDER_AGENT: &str = "ExternalMarketMakerBudget";
+const MARKET_PROVIDER_AGENT: &str = "Agent_2";
 const TRADER_AGENT: &str = "Agent_0";
 const DEFAULT_MODEL: &str = "deepseek-chat";
 const DEFAULT_AMOUNT_MICRO: i64 = 1_000;
@@ -500,10 +500,15 @@ async fn run(args: Args) -> Result<(), String> {
     )?;
 
     let mut initial_balances = default_pput_preseed_pairs();
-    initial_balances.push((
-        AgentId(MARKET_PROVIDER_AGENT.to_string()),
-        MicroCoin::from_micro_units(5_000_000),
-    ));
+    if !initial_balances
+        .iter()
+        .any(|(agent, _)| agent.0 == MARKET_PROVIDER_AGENT)
+    {
+        initial_balances.push((
+            AgentId(MARKET_PROVIDER_AGENT.to_string()),
+            MicroCoin::from_micro_units(5_000_000),
+        ));
+    }
     let initial_q = genesis_with_balances(&initial_balances);
     let cfg = RuntimeChaintapeConfig {
         runtime_repo_path: args.runtime_repo.clone(),
