@@ -762,6 +762,11 @@ authority = "OBL-005 broad AGI true-suite GPQA execution layer: public benchmark
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_true_suite_toolbench_runner"
+authority = "OBL-005 broad AGI true-suite ToolBench execution layer: public benchmark API-selection input plus external local-proxy LLM tool choice must be CAS-bound, recorded as ProposalTelemetry ToolCallRecord hashes, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads or old-15 contamination"
+added = "2026-05-26"
+
+[[gate]]
 name = "constitution_true_suite_replay_cas_tamper_runner"
 authority = "OBL-005 true-suite replay/CAS integrity execution layer: current-kernel ChainTape/CAS must be generated from public turingos init + runtime boot helper, verified through public turingos verify chaintape, and proven tamper-detecting 3/3 through audit_tape_tamper temp forks"
 added = "2026-05-25"

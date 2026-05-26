@@ -351,8 +351,12 @@ kernel_liveness_modules = [
   "runtime_replay_evidence_audit",
 ]
 evidence_shape = [
-  "tool_call_capsule_cid",
-  "tool_result_capsule_cid",
+  "input_capsule_cid",
+  "answer_claim_capsule_cid",
+  "evaluation_capsule_cid",
+  "proposal_telemetry_cid",
+  "work_tx_or_l4e",
+  "replay_report",
   "predicate_verdict",
   "fc_trace_report",
 ]
@@ -369,11 +373,19 @@ anti_contamination_guards = [
   "tool outputs must be scoped read views, not raw private diagnostics",
   "API failures are infrastructure failures unless predicate says otherwise",
   "tool result must be CAS-bound before prompt reuse",
+  "ToolBench exact-match score cannot close OBL-005 without ChainTape/CAS replay evidence",
+  "selection-only structural tool calls must not be claimed as live third-party API side effects",
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/toolbench/tool_capsules/",
+  "handover/evidence/true_suite/<run>/toolbench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/toolbench/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/toolbench/cas/",
   "handover/evidence/true_suite/<run>/toolbench/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/toolbench/genesis_report.json",
+  "handover/evidence/true_suite/<run>/toolbench/toolbench_api_tool_use_manifest.json",
+  "handover/evidence/true_suite/<run>/toolbench/toolbench_api_tool_use_run_manifest.json",
+  "handover/evidence/true_suite/<run>/toolbench/replay_report.json",
   "handover/evidence/true_suite/<run>/toolbench/fc_trace_report.json",
 ]
 

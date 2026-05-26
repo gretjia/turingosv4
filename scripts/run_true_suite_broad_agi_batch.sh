@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="plan-only"
 RUN_ID="broad_agi_batch_$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_ROOT=""
-SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh}"
+SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,toolbench_api_tool_use_fresh}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -82,6 +82,9 @@ if [[ "$MODE" == "execute-installed" ]]; then
                 ;;
             gpqa_science_reasoning_fresh)
                 "$PROJECT_ROOT/scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh" "$RUN_ID"
+                ;;
+            toolbench_api_tool_use_fresh)
+                "$PROJECT_ROOT/scripts/run_true_suite_toolbench_current_kernel.sh" "$RUN_ID"
                 ;;
             *)
                 echo "ERROR: unknown broad true-suite runner id: $runner" >&2
@@ -152,6 +155,10 @@ installed = {
         "entrypoint": "scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh",
         "family_ids": ["gpqa_science_reasoning"],
     },
+    "toolbench_api_tool_use_fresh": {
+        "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
+        "family_ids": ["toolbench_api_tool_use"],
+    },
 }
 
 family_runner_status = {
@@ -160,6 +167,7 @@ family_runner_status = {
     "gaia_general_assistant": "substrate_runner_installed_benchmark_adapter_pending",
     "gpqa_science_reasoning": "domain_runner_installed_evidence_required",
     "memory_feedback_reinit": "domain_runner_installed_evidence_required",
+    "toolbench_api_tool_use": "domain_runner_installed_evidence_required",
 }
 
 def git_head() -> str:
