@@ -24,16 +24,18 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin audit_tape_tamper --bin full_system_participation_current_kernel"
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_augment_current_kernel --bin audit_tape_tamper --bin full_system_participation_current_kernel"
 (cd "$PROJECT_ROOT" && cargo build --release \
     --bin turingos \
     --bin verify_chaintape \
-    --bin boot_cli_current_kernel_fresh \
+    --bin fc3_governance_reinit_current_kernel \
+    --bin full_system_augment_current_kernel \
     --bin audit_tape_tamper \
     --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
-BOOT_HELPER="$PROJECT_ROOT/target/release/boot_cli_current_kernel_fresh"
+FC3_HELPER="$PROJECT_ROOT/target/release/fc3_governance_reinit_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 TAMPER="$PROJECT_ROOT/target/release/audit_tape_tamper"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 BIN_DIR="$PROJECT_ROOT/target/release"
@@ -41,18 +43,24 @@ BIN_DIR="$PROJECT_ROOT/target/release"
 echo "[init] turingos init --project $RUN_DIR"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider siliconflow
 
-echo "[boot] current runtime ChainTape boot + resume tick"
-"$BOOT_HELPER" \
+echo "[fc3] current runtime ChainTape FC1/FC2/FC3 typed path"
+"$FC3_HELPER" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --run-id "$RUN_ID" \
-    --constitution "$PROJECT_ROOT/constitution.md"
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
+
+echo "[augment] append tape-visible market action on the same ChainTape"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR" \
+    --skip-fc3
 
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
-
-# System-only true-suite runs have no deployed agents, but audit_tape_tamper
-# requires the modern manifest envelope shape.
-printf '{"agents":{}}\n' > "$RUN_DIR/runtime_repo/agent_pubkeys.json"
 
 echo "[verify] public turingos verify chaintape"
 TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
@@ -89,6 +97,8 @@ TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
     --replay-report "$RUN_DIR/replay_report.json" \
     --genesis-report "$RUN_DIR/genesis_report.json" \
     --domain-manifest "$RUN_DIR/tamper_report.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --require-full-system \
     --out "$RUN_DIR/full_system_participation.json"
 
 python3 - "$PROJECT_ROOT" "$RUN_DIR" <<'PY'
@@ -111,8 +121,8 @@ genesis = load("genesis_report.json")
 agent_pubkeys = json.loads((run_dir / "runtime_repo" / "agent_pubkeys.json").read_text())
 
 for label, report in [("replay", replay), ("post_tamper_replay", post)]:
-    if report.get("l4_entries", 0) < 3:
-        raise SystemExit(f"{label}: expected at least 3 L4 entries")
+    if report.get("l4_entries", 0) < 15:
+        raise SystemExit(f"{label}: expected at least 15 L4 entries")
     for key in [
         "ledger_root_verified",
         "system_signatures_verified",
@@ -136,8 +146,8 @@ for row in tamper.get("tamper_results", []):
 constitution_hash = hashlib.sha256((project / "constitution.md").read_bytes()).hexdigest()
 if genesis.get("constitution_hash") != constitution_hash:
     raise SystemExit("genesis_report constitution_hash does not match live constitution.md")
-if agent_pubkeys != {"agents": {}}:
-    raise SystemExit("runtime_repo/agent_pubkeys.json is not an explicit empty agent manifest")
+if not agent_pubkeys.get("agents"):
+    raise SystemExit("runtime_repo/agent_pubkeys.json has no agent keys")
 PY
 
 cat > "$RUN_DIR/replay_cas_run_manifest.json" <<EOF
@@ -149,15 +159,19 @@ cat > "$RUN_DIR/replay_cas_run_manifest.json" <<EOF
   "runtime_repo": "$RUN_DIR/runtime_repo",
   "cas": "$RUN_DIR/cas",
   "genesis_report": "$RUN_DIR/genesis_report.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/replay_report.json",
   "tamper_report": "$RUN_DIR/tamper_report.json",
   "post_tamper_replay_report": "$RUN_DIR/post_tamper_replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "fresh evidence is generated through public turingos init",
-    "current runtime ChainTape boot helper emits boot/resume L4 rows",
+    "fc3_governance_reinit_current_kernel emits typed FC1 WorkTx, FC2 MapReduceTick, and FC3 governance/reinit rows",
+    "full_system_augment_current_kernel appends a tape-visible agent market action",
     "public turingos verify chaintape reconstructs the original tape before and after tamper forks",
-    "audit_tape_tamper corrupts only temporary forks and must detect 3/3 corruptions"
+    "audit_tape_tamper corrupts only temporary forks and must detect 3/3 corruptions",
+    "full_system_participation_current_kernel requires FULL_SYSTEM_LIT for replay/CAS tamper evidence"
   ]
 }
 EOF

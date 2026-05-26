@@ -3,10 +3,10 @@
 //! Three corruption primitives, each guaranteed to make `audit_tape` return
 //! `BLOCK` on the tampered copy:
 //!
-//!   1. [`flip_largest_reachable_l4_blob`] — destructively zero the back half
-//!      of the largest L4-reachable loose object in the runtime_repo. Forces
-//!      git2 zlib decode to fail on the next read of that object, which
-//!      cascades into Layer-B assertion HALTs.
+//!   1. [`flip_largest_reachable_l4_blob`] — destructively truncate the largest
+//!      L4-reachable loose object in the runtime_repo. Forces git2 zlib decode
+//!      to fail on the next read of that object, which cascades into Layer-B
+//!      assertion HALTs.
 //!   2. [`flip_largest_cas_object`] — same idea, applied to the largest CAS
 //!      loose object. Causes Cid mismatch + zlib failure on resolve.
 //!   3. [`corrupt_chain_refs`] — zero the last 4 hex chars of every chain ref
@@ -205,28 +205,37 @@ fn walk_loose(
     Ok(())
 }
 
-/// Zero the back half of `victim` in-place. Caller pre-flight: `make_writable`.
-fn destructively_zero_back_half(victim: &Path) -> Result<u64, String> {
-    let mut bytes = std::fs::read(victim).map_err(|e| format!("read victim: {e}"))?;
-    if bytes.is_empty() {
+/// Truncate `victim` to a one-byte prefix in-place. Caller pre-flight:
+/// `make_writable`.
+///
+/// Earlier tamper code zeroed the back half of a loose object. On larger
+/// full-system tapes that can leave enough bytes for git2 to decompress a
+/// malformed payload, which then reaches bincode with attacker-controlled
+/// length prefixes and can abort on huge allocation. Truncating the compressed
+/// loose object forces the failure at the object-load boundary instead.
+fn destructively_truncate_to_one_byte(victim: &Path) -> Result<u64, String> {
+    let original_len = std::fs::metadata(victim)
+        .map_err(|e| format!("stat victim: {e}"))?
+        .len();
+    if original_len <= 1 {
         return Err("empty victim".into());
     }
-    let original_len = bytes.len() as u64;
-    let start = bytes.len() / 2;
-    for b in &mut bytes[start..] {
-        *b = 0;
-    }
     make_writable(victim).map_err(|e| format!("chmod victim: {e}"))?;
-    std::fs::write(victim, bytes).map_err(|e| format!("write tampered: {e}"))?;
-    Ok(original_len / 2)
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(victim)
+        .map_err(|e| format!("open victim for truncate: {e}"))?;
+    file.set_len(1)
+        .map_err(|e| format!("truncate tampered: {e}"))?;
+    Ok(original_len - 1)
 }
 
 /// TRACE_MATRIX FC1-N35 (audit_tape_tamper Atom 3 / TB-16 Atom 7 closure;
 /// architect §B.9.3 prove-no-fake-accepted L4-side coverage):
 /// walk objects under `runtime_repo/.git/objects/`, restrict to those
-/// reachable from any of `L4_REFS`, pick the largest by byte length, zero
-/// its back half. Forces git2 zlib decode failure when `audit_tape` next
-/// reads it.
+/// reachable from any of `L4_REFS`, pick the largest by byte length, truncate
+/// it to one byte. Forces git2 zlib decode failure when `audit_tape` next reads
+/// it.
 ///
 /// Post-A3 fix (2026-05-10): the prior `flip_byte_in_first_blob` selected
 /// the largest object regardless of reachability, which post-A3 multi-ref
@@ -244,9 +253,9 @@ pub fn flip_largest_reachable_l4_blob(repo_path: &Path) -> Result<String, String
             reachable.len()
         )
     })?;
-    let zeroed = destructively_zero_back_half(&victim)?;
+    let truncated = destructively_truncate_to_one_byte(&victim)?;
     Ok(format!(
-        "destructively zeroed back half ({zeroed} bytes) of largest \
+        "destructively truncated {truncated} bytes from largest \
          L4-reachable loose object {oid} ({victim:?}) — forces git2 zlib \
          decode failure when audit_tape next reads"
     ))
@@ -256,7 +265,7 @@ pub fn flip_largest_reachable_l4_blob(repo_path: &Path) -> Result<String, String
 /// architect §B.9.3 prove-no-fake-accepted; session #34 L4.E-body-integrity
 /// landing): walk objects under `runtime_repo/.git/objects/`, restrict to
 /// those reachable from any of [`L4E_REFS`], pick the largest by byte
-/// length, zero its back half. Forces git2 zlib decode failure when
+/// length, truncate it to one byte. Forces git2 zlib decode failure when
 /// `assert_51_l4e_git_attestation_matches_jsonl` next reads it.
 ///
 /// L4.E-only — the L4 path uses [`flip_largest_reachable_l4_blob`]. The
@@ -272,9 +281,9 @@ pub fn flip_largest_reachable_l4e_blob(repo_path: &Path) -> Result<String, Strin
             reachable.len()
         )
     })?;
-    let zeroed = destructively_zero_back_half(&victim)?;
+    let truncated = destructively_truncate_to_one_byte(&victim)?;
     Ok(format!(
-        "destructively zeroed back half ({zeroed} bytes) of largest \
+        "destructively truncated {truncated} bytes from largest \
          L4E-reachable loose object {oid} ({victim:?}) — forces git2 zlib \
          decode failure when assert_51 next reads"
     ))
@@ -282,7 +291,7 @@ pub fn flip_largest_reachable_l4e_blob(repo_path: &Path) -> Result<String, Strin
 
 /// TRACE_MATRIX FC1-N35 (audit_tape_tamper Atom 3 / TB-16 Atom 7 closure;
 /// architect §B.9.3 prove-no-fake-accepted CAS-side coverage):
-/// pick largest CAS loose object by byte length and zero back half.
+/// pick largest CAS loose object by byte length and truncate it to one byte.
 ///
 /// CAS dir is single-ref (no multi-ref aliasing); largest-by-bytes is
 /// adequate. Skips files ≤32 bytes (header noise; not real CAS objects).
@@ -320,10 +329,10 @@ pub fn flip_largest_cas_object(cas: &Path) -> Result<String, String> {
         Ok(())
     }
     walk(&dir, &mut largest).map_err(|e| format!("walk: {e}"))?;
-    let (victim, len) = largest.ok_or("no CAS objects to corrupt")?;
-    let zeroed = destructively_zero_back_half(&victim)?;
+    let (victim, _len) = largest.ok_or("no CAS objects to corrupt")?;
+    let truncated = destructively_truncate_to_one_byte(&victim)?;
     Ok(format!(
-        "destructively zeroed back half ({zeroed} bytes; original {len}) of largest \
+        "destructively truncated {truncated} bytes from largest \
          CAS object {victim:?}"
     ))
 }

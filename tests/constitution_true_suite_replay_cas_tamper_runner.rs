@@ -15,7 +15,15 @@ fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
-        "boot_cli_current_kernel_fresh" => env!("CARGO_BIN_EXE_boot_cli_current_kernel_fresh"),
+        "fc3_governance_reinit_current_kernel" => {
+            env!("CARGO_BIN_EXE_fc3_governance_reinit_current_kernel")
+        }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         "audit_tape_tamper" => env!("CARGO_BIN_EXE_audit_tape_tamper"),
         _ => panic!("unknown bin {name}"),
     }
@@ -35,8 +43,8 @@ fn assert_replay_green(report: &Value, label: &str) {
             .get("l4_entries")
             .and_then(Value::as_u64)
             .unwrap_or(0)
-            >= 3,
-        "{label}: expected at least 3 L4 entries: {report}"
+            >= 15,
+        "{label}: expected at least 15 L4 entries: {report}"
     );
     for key in [
         "ledger_root_verified",
@@ -84,7 +92,7 @@ fn replay_cas_tamper_runner_verifies_current_kernel_and_detects_tamper() {
         String::from_utf8_lossy(&init.stderr)
     );
 
-    let helper = Command::new(bin("boot_cli_current_kernel_fresh"))
+    let helper = Command::new(bin("fc3_governance_reinit_current_kernel"))
         .args([
             "--runtime-repo",
             run_dir.join("runtime_repo").to_str().expect("utf8 path"),
@@ -94,21 +102,46 @@ fn replay_cas_tamper_runner_verifies_current_kernel_and_detects_tamper() {
             "constitution-true-suite-replay-cas",
             "--constitution",
             "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
         ])
         .output()
-        .expect("run boot helper");
+        .expect("run fc3 helper");
     assert!(
         helper.status.success(),
-        "boot helper failed\nstdout:\n{}\nstderr:\n{}",
+        "fc3 helper failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&helper.stdout),
         String::from_utf8_lossy(&helper.stderr)
     );
 
-    std::fs::write(
-        run_dir.join("runtime_repo").join("agent_pubkeys.json"),
-        "{\"agents\":{}}\n",
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-replay-cas",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
+            "--skip-fc3",
+        ])
+        .output()
+        .expect("run full-system augment");
+    assert!(
+        augment.status.success(),
+        "full-system augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
+    );
+
+    std::fs::copy(
+        run_dir.join("runtime_repo").join("genesis_report.json"),
+        run_dir.join("genesis_report.json"),
     )
-    .expect("write explicit empty agent manifest");
+    .expect("copy refreshed genesis report");
 
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
@@ -225,6 +258,69 @@ fn replay_cas_tamper_runner_verifies_current_kernel_and_detects_tamper() {
         "all tamper rows must be detected: {tamper_json}"
     );
 
+    let participation_report = run_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-replay-cas",
+            "--family-id",
+            "replay_cas_tamper_repair_current",
+            "--entrypoint",
+            "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            run_dir
+                .join("genesis_report.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--domain-manifest",
+            tamper_report.to_str().expect("utf8 path"),
+            "--fc3-index",
+            run_dir
+                .join("governance_capsule_index.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--require-full-system",
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation");
+    assert!(
+        participation.status.success(),
+        "full-system participation failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let full_system = read_json(&participation_report);
+    assert_eq!(
+        full_system
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        full_system
+            .get("verdict")
+            .and_then(|v| v.get("full_system_verdict"))
+            .and_then(Value::as_str),
+        Some("FULL_SYSTEM_LIT")
+    );
+    assert_eq!(
+        full_system
+            .get("verdict")
+            .and_then(|v| v.get("missing"))
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(0)
+    );
+
     let genesis_report = read_json(&run_dir.join("runtime_repo").join("genesis_report.json"));
     let constitution_hash =
         sha256_hex(&std::fs::read("constitution.md").expect("read constitution"));
@@ -242,12 +338,16 @@ fn replay_cas_tamper_runner_script_uses_current_kernel_not_historical_fixtures()
         std::fs::read_to_string("scripts/run_true_suite_replay_cas_tamper_current_kernel.sh")
             .expect("read runner script");
     assert!(script.contains("turingos init"));
-    assert!(script.contains("boot_cli_current_kernel_fresh"));
+    assert!(script.contains("fc3_governance_reinit_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("--skip-fc3"));
+    assert!(script.contains("--require-full-system"));
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("audit_tape_tamper"));
-    assert!(script.contains("\"agents\":{}"));
     assert!(script.contains("tamper_report.json"));
     assert!(script.contains("post_tamper_replay_report.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
+    assert!(script.contains("governance_capsule_index.json"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(
         !script.contains("tb_13_real_llm_smoke"),
