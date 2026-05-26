@@ -1,0 +1,14 @@
+{
+  "archive_path": "tdma/tdma_tape.git.tar.gz",
+  "fsck_stderr": "notice: HEAD points to an unborn branch (master)",
+  "fsck_stdout": "",
+  "git_fsck_ok": true,
+  "ledger_tail": "0efde557f15272946d6f6ae6c993bc43d69546f3",
+  "ledger_tail_ref_present": true,
+  "note": "TDMA GitTapeLedger uses refs/tdma/verified_head, not branch HEAD; branch HEAD may be unborn by design.",
+  "restored_git_tape_present": true,
+  "schema_version": "turingosv4.true_suite.tdma_restore_report.v1",
+  "verified_head": "0efde557f15272946d6f6ae6c993bc43d69546f3",
+  "verified_head_matches_ledger_tail": true,
+  "verified_head_ref_present": true
+}

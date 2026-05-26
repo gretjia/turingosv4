@@ -1,0 +1,23 @@
+{
+  "schema_version": "turingosv4.true_suite.gpqa_science_reasoning_run.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "git_head": "df06948b1c2276e78f1b1c8eadfd10217b147ae1",
+  "entrypoint": "scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "gpqa_dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
+  "gpqa_dataset_split": "gpqa_diamond.csv",
+  "gpqa_sample_index": 1,
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/cas",
+  "genesis_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/genesis_report.json",
+  "gpqa_manifest": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "failure_taxonomy": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/failure_taxonomy.json",
+  "replay_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/replay_report.json",
+  "notes": [
+    "GPQA data comes from the public idavidrein/gpqa source unless GPQA_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "benchmark accuracy is not treated as liveness closure"
+  ]
+}

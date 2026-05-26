@@ -46,6 +46,12 @@ families = ["gpqa", "science_reasoning", "current_kernel", "replay"]
 evidence = ["public_gpqa_sample", "local_openai_proxy", "ChainTape", "CAS", "replay", "restore_replay"]
 
 [[real_world_suite]]
+id = "broad_agi_installed_20260526T001843Z"
+path = "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z"
+families = ["boot_cli", "replay_cas", "market", "generate_artifact", "tdma", "fc3", "gpqa", "current_kernel"]
+evidence = ["ChainTape", "CAS", "TDMA GitTapeLedger", "local_openai_proxy", "replay", "restore_replay", "packaged_restore"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -112,6 +118,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/aggregate_verdict.json",
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/broad_batch/aggregate_fc_trace_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
 ]
 evidence_requires = ["L4", "L4.E", "CAS", "replay"]
 
@@ -154,7 +163,10 @@ smoke_gates = [
   "tests/constitution_flowchart_livenow.rs::fc1_rtool_input_snapshot_is_chain_cas_derived",
   "tests/constitution_router_price_quote.rs",
 ]
-real_world_evidence = ["handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md"]
+real_world_evidence = [
+  "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+]
 evidence_requires = ["read-view", "market projection", "no price-as-truth"]
 
 [[group]]
@@ -181,6 +193,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real11_router_positive_control_20260515T164142Z/aggregate_verdict.json",
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
 ]
 evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
 
@@ -249,6 +264,13 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -282,6 +304,9 @@ real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
   "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/governance_capsule_index.json",
   "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
@@ -320,6 +345,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
@@ -370,6 +398,7 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real8x_market_ab_20260515T134453Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md",
   "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
 ]
 evidence_requires = ["market decision trace", "economic judgment", "role differentiation"]
 
@@ -406,6 +435,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/verdict.json",
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/audit/AUDIT_VERDICT.md",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/restore_replay_report.json",
 ]
 evidence_requires = ["real user simulator", "artifact fetched via API", "CAS-bound artifact"]
 
@@ -443,7 +475,11 @@ smoke_gates = [
   "tests/web_spec_turn_endpoint.rs",
   "tests/constitution_web_cli_kernel_invariant.rs",
 ]
-real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md"]
+real_world_evidence = [
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifacts/index.html",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifact_bundle_cid.json",
+]
 evidence_requires = ["real API session", "artifact delivery", "backend observer"]
 
 [[group]]
@@ -489,6 +525,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
   "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
 ]
 evidence_requires = ["real task attempts", "retry tape", "bounded prompt"]
 
@@ -544,7 +583,13 @@ smoke_gates = [
   "tests/constitution_true_suite_tdma_runner.rs",
   "tests/generate_emits_work_tx_smoke.rs",
 ]
-real_world_evidence = ["handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt"]
+real_world_evidence = [
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/boot_cli_current_kernel_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_run_manifest.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/replay_cas_run_manifest.json",
+]
 evidence_requires = ["real command path", "generated artifact", "runtime repo"]
 
 [[group]]

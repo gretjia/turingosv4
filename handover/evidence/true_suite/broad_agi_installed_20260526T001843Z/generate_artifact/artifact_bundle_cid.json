@@ -1,0 +1,10 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_bundle_cid.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "chain_run_id": "polymarket-default-1779755319",
+  "spec_capsule_cid": "2b9e7705ca029f4704c092bec4430533e304108f43e065f4a920a35f5df1de1a",
+  "artifact_bundle_cid": "4077e1fac62e7c74f9c155ac4a577cba9709b515d7b7d75535f89bd79739d828",
+  "workspace": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact",
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/cas"
+}

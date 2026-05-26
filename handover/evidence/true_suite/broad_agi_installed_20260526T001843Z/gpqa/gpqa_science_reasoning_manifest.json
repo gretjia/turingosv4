@@ -1,0 +1,32 @@
+{
+  "schema_version": "turingosv4.true_suite.gpqa_science_reasoning.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "model_requested": "deepseek-chat",
+  "model_returned": "deepseek-chat",
+  "llm_proxy_url": "http://localhost:8080",
+  "sample_id": "rec0Arme2jcXQZnAW",
+  "source_family": "GPQA",
+  "public_source": "https://github.com/idavidrein/gpqa",
+  "prompt_sha256": "f4b34fc03487c369ecf0a124968053a7fe1a67b8caf4e6e55ee1d7e2353a71a9",
+  "provider_response_sha256": "30d566f13f2984ec6ac47a5bb2825cf1276d530a4932213eb46503f89a8839db",
+  "question_capsule_cid": "89ec75b1941e11aeec04502157d87fd334c77a9546631942802f113ecbaf2f1b",
+  "answer_claim_capsule_cid": "32d6d2b99bda21a44229bf7381fe910d91428e4e275a55cd74a898d7b4f66cc4",
+  "evaluation_capsule_cid": "a8c8d661ef62008b6d29c08bc79be74ff96af56993f570777a21638bc28bfe91",
+  "proposal_telemetry_cid": "30593f84da2a4651e145127e6f065f077a169b4a8778a440883050f9a3b88725",
+  "work_tx_id": "worktx-gpqa:rec0Arme2jcXQZnAW-true-suite-gpqa",
+  "work_tx_landed": true,
+  "rationale_guard_passed": true,
+  "answer_correct": false,
+  "benchmark_verdict": "incorrect_with_rationale",
+  "failure_taxonomy_path": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/failure_taxonomy.json",
+  "final_state_root_hex": "4e296dcc0c58301ab3f502a5721109ad6e4b50ea2124fbe2944970b98fb3c2cd",
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/cas",
+  "notes": [
+    "GPQA dataset input is hashed into CAS before the model call",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw prompt and raw provider response are not written to evidence",
+    "parsed answer claim and benchmark evaluation are CAS capsules",
+    "benchmark accuracy is a capability signal only, not OBL-005 closure"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingosv4.true_suite.market_external_agent_run.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "git_head": "df06948b1c2276e78f1b1c8eadfd10217b147ae1",
+  "entrypoint": "scripts/run_true_suite_market_external_agent.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/cas",
+  "genesis_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/genesis_report.json",
+  "external_agent_market_manifest": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "replay_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/replay_report.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "market action is admitted only as signed typed tx on ChainTape"
+  ]
+}
