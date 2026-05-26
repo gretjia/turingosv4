@@ -270,6 +270,7 @@ fc_trace = [
 kernel_liveness_modules = [
   "agent_prompt_model_boundary",
   "web_product_surface",
+  "frontend_product_surface",
   "runtime_replay_evidence_audit",
 ]
 evidence_shape = [
@@ -314,6 +315,7 @@ fc_trace = [
 kernel_liveness_modules = [
   "agent_prompt_model_boundary",
   "web_product_surface",
+  "frontend_product_surface",
   "runtime_replay_evidence_audit",
 ]
 evidence_shape = [

@@ -630,6 +630,32 @@ real_world_evidence = [
 evidence_requires = ["real API session", "artifact delivery", "backend observer"]
 
 [[group]]
+id = "frontend_product_surface"
+classification = "product_workload"
+status = "historical_real_world_candidate"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = []
+paths = ["frontend/package.json", "frontend/src", "frontend/test"]
+constitutional_anchors = ["FC2:initAI", "FC1:input/output"]
+necessity = "The frontend is not a constitutional node, but it is retained product code for the current browser-facing user path and must not evade no-zombie accounting."
+smoke_gates = [
+  "frontend/test/welcome.test.ts",
+  "frontend/test/spec-result.test.ts",
+  "frontend/test/agent-attempts-panel.test.ts",
+  "tests/cli_web_welcome_smoke.rs",
+]
+real_world_evidence = [
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md",
+  "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/verdict.json",
+  "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifacts/index.html",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifacts/index.html",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
+]
+evidence_requires = ["real user simulator", "artifact delivery", "backend observer"]
+
+[[group]]
 id = "tdma_bounded_solver"
 classification = "product_workload"
 status = "historical_real_world_candidate"
