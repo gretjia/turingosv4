@@ -22,6 +22,12 @@ fn bin(name: &str) -> &'static str {
         "gpqa_science_reasoning_current_kernel" => {
             env!("CARGO_BIN_EXE_gpqa_science_reasoning_current_kernel")
         }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
 }
@@ -172,6 +178,33 @@ fn gpqa_runner_calls_proxy_writes_cas_claim_and_replays_worktx() {
         String::from_utf8_lossy(&helper.stderr)
     );
 
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-gpqa",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system augment helper");
+    assert!(
+        augment.status.success(),
+        "full-system augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
+    );
+    std::fs::copy(
+        run_dir.join("runtime_repo").join("genesis_report.json"),
+        run_dir.join("genesis_report.json"),
+    )
+    .expect("copy refreshed genesis report");
+
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
         .env("TURINGOS_BIN_DIR", bin_dir(bin("verify_chaintape")))
@@ -306,6 +339,117 @@ fn gpqa_runner_calls_proxy_writes_cas_claim_and_replays_worktx() {
             .and_then(Value::as_bool),
         Some(true)
     );
+
+    let participation_report = run_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-gpqa",
+            "--family-id",
+            "gpqa_science_reasoning",
+            "--entrypoint",
+            "tests/constitution_true_suite_gpqa_runner.rs",
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            run_dir
+                .join("genesis_report.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--domain-manifest",
+            run_dir
+                .join("gpqa_science_reasoning_manifest.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--fc3-index",
+            run_dir
+                .join("governance_capsule_index.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--require-full-system",
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation helper");
+    assert!(
+        participation.status.success(),
+        "full-system participation failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let participation_json = read_json(&participation_report);
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_verdict"))
+            .and_then(Value::as_str),
+        Some("FULL_SYSTEM_LIT")
+    );
+    assert_eq!(
+        participation_json
+            .get("fc1")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc2")
+            .and_then(|v| v.get("map_reduce_tick_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc3")
+            .and_then(|v| v.get("typed_meta_roles_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc3")
+            .and_then(|v| v.get("reinit_semantics_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("agent_market_action_txs"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0,
+        "GPQA full-system sample must include an actual agent market action"
+    );
+    assert!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("market_decision_submitted_count"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 0,
+        "GPQA full-system sample must write a CAS-visible submitted market decision trace"
+    );
 }
 
 #[test]
@@ -316,7 +460,12 @@ fn gpqa_runner_script_uses_public_dataset_proxy_and_no_raw_provider_evidence() {
     assert!(script.contains("idavidrein/gpqa"));
     assert!(script.contains("LLM_PROXY_URL"));
     assert!(script.contains("gpqa_science_reasoning_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("verify chaintape"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("input_capsules"));
     assert!(script.contains("failure_taxonomy.json"));
     assert!(script.contains("benchmark accuracy is not treated as liveness closure"));
