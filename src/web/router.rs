@@ -64,7 +64,7 @@ use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
-use super::spec::spec_turn_handler;
+use super::spec::{spec_turn_handler, web_llm_api_key_available};
 use super::store::TaskMemoryStore;
 use super::welcome::{
     welcome_agent_deploy_handler, welcome_init_handler, welcome_llm_config_handler,
@@ -191,18 +191,27 @@ pub(crate) fn build_router() -> Router {
 // HTML handlers
 // ---------------------------------------------------------------------------
 
+/// Compute whether an API key is available for LLM-bearing handlers — checks
+/// the in-memory welcome key AND the env-var fallback set used by
+/// `spec_turn_handler` / `generate_handler`. Keeping the gate symmetric is
+/// what prevents env-configured deployments from passing the API gate but
+/// being blocked from the `/build` UI (Codex P2, 2026-05-23).
+fn router_api_key_available(state: &AppState) -> bool {
+    let in_memory: Option<String> = state
+        .api_key
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().map(|s| s.to_string()));
+    web_llm_api_key_available(in_memory.as_deref())
+}
+
 /// TRACE_MATRIX FC2-N16: W7 — GET / dispatches to /welcome when the user has
 /// not finished onboarding, else renders the dashboard. We compute next_step
 /// using the same inspection logic that backs `/api/welcome/status` so the
 /// redirect decision can't drift from the wizard's own state machine.
 async fn handle_root_redirect(State(state): State<AppState>) -> axum::response::Response {
     let workspace = super::welcome::resolve_workspace_path();
-    let api_key_set = state
-        .api_key
-        .lock()
-        .ok()
-        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
-        .unwrap_or(false);
+    let api_key_set = router_api_key_available(&state);
     let next = super::welcome::next_step_for(&workspace, api_key_set);
     if !matches!(next, NextStep::Done) {
         return Redirect::to("/welcome").into_response();
@@ -220,12 +229,7 @@ async fn handle_root_redirect(State(state): State<AppState>) -> axum::response::
 /// briefly presenting Ready while the server still requires step 3.
 async fn handle_welcome_page(State(state): State<AppState>) -> impl IntoResponse {
     let workspace = super::welcome::resolve_workspace_path();
-    let api_key_set = state
-        .api_key
-        .lock()
-        .ok()
-        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
-        .unwrap_or(false);
+    let api_key_set = router_api_key_available(&state);
     let status = super::welcome::status_for(&workspace, api_key_set);
     (
         [(header::CACHE_CONTROL, "no-store")],
@@ -283,12 +287,7 @@ async fn handle_audit() -> Html<String> {
 /// on the server for this page; the interview is fully client-orchestrated.
 async fn handle_build(State(state): State<AppState>) -> axum::response::Response {
     let workspace = super::welcome::resolve_workspace_path();
-    let api_key_set = state
-        .api_key
-        .lock()
-        .ok()
-        .and_then(|g| g.as_ref().map(|s| !s.is_empty()))
-        .unwrap_or(false);
+    let api_key_set = router_api_key_available(&state);
     let next = super::welcome::next_step_for(&workspace, api_key_set);
     if matches!(
         next,
