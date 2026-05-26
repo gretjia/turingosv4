@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 61589,
+      "archive_path": "market_action/cas.dotgit.tar.gz",
+      "archive_sha256": "6439ed1b203678ba7478b73302827991985da7bd868d7dcad717bcf6cdf7d5d0",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/cas",
+      "source_path": "market_action/cas/.git"
+    },
+    {
+      "archive_bytes": 3353,
+      "archive_path": "market_action/cas.worktree.tar.gz",
+      "archive_sha256": "7701562f9bbffd32a3f6e4703814b6b90ff2b23c192f8f82cf5d1fc94be3392d",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_action/cas",
+      "source_path": "market_action/cas"
+    },
+    {
+      "archive_bytes": 27521,
+      "archive_path": "market_action/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "075b84da52f1a062a6350bf5528329e12562efe1d94cb1d2ff9c62932c0f7f60",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/runtime_repo",
+      "source_path": "market_action/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1455,
+      "archive_path": "market_action/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "da04591b9ac954b98c9899ed8a62c43560f38ee28f1a82b995ba88392a7b0c29",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_action/runtime_repo",
+      "source_path": "market_action/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-obl005-next2/handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
