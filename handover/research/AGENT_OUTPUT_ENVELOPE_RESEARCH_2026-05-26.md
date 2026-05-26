@@ -306,7 +306,7 @@ Key 设计点:
   解析失败。但 `AttemptOutcome` 仍是 `ParseFail`（attempt 在解析时被拒）。
 - 子类细节通过两个通道携带:
   - `tool_name: String` 加点号扩展 (Phase A, 零 schema 改动)
-  - 可选 `envelope_validation_subclass: Option<EnvelopeValidationSubclass>` 
+  - 可选 `envelope_validation_subclass: Option<EnvelopeValidationSubclass>`
     tail-additive serde field on `AttemptTelemetry` (Phase B)
 
 ### 4.3 candidate_payload_cid 的语义
@@ -491,7 +491,7 @@ constitution gate test）固化:
 // 伪代码
 #[test]
 fn envelope_pass_does_not_imply_predicate_pass() {
-    let body = r#"{"envelope_version":"v1","task_kind":"gpqa", … 
+    let body = r#"{"envelope_version":"v1","task_kind":"gpqa", …
                    "payload":{"final_answer_letter":"A", … }}"#;
     let envelope = envelope::validate(body, /* … */).expect("envelope ok");
     // gold = "C", model = "A"
@@ -583,7 +583,7 @@ Phase B — Class 2 wire-up（可选，只在 Phase A 跑通 200-attempt 真 evi
    `pub envelope_validation_subclass: Option<EnvelopeValidationSubclass>`
    `#[serde(default)]`. schema_version 不动（per 现注释 §"Tail-additive
    fields ... forward-compat at v1"）—— 但请 clean-context Codex 审计这条。
-2. 给 `audit_tape` 加一个 sampler: "随机抽 N 个 parse_fail attempt, 
+2. 给 `audit_tape` 加一个 sampler: "随机抽 N 个 parse_fail attempt,
    断言 envelope_validation_subclass 都非 None"。
 3. 给 dashboard / replay verifier 加 envelope sub-class 切片视图。
 
