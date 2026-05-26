@@ -795,22 +795,6 @@ evidence_requires = ["no authoritative write imports", "legacy quarantine"]
 closure_action = "Either rebind each legacy tool to ToolRegistry/tape evidence or delete after dependent product paths migrate."
 
 [[group]]
-id = "real6_attempt_prediction_fixture"
-classification = "legacy_quarantine"
-status = "legacy_quarantined"
-risk_class = 4
-allowed_as_fc_authority = false
-restricted_surface = false
-module_ids = ["runtime::real6_attempt_prediction"]
-paths = ["src/runtime/real6_attempt_prediction.rs"]
-constitutional_anchors = ["market:attempt prediction"]
-necessity = "Scripted sealed-oracle fixture only; live REAL-6B requires separate Class 4 ratification."
-smoke_gates = ["tests/constitution_real6_attempt_prediction_market.rs", "tests/constitution_real11_no_live_real6b.rs"]
-real_world_evidence = []
-evidence_requires = ["scripted fixture does not count as E2"]
-closure_action = "Keep quarantined until live attempt-prediction market is ratified and tested on real problems."
-
-[[group]]
 id = "dev_harness"
 classification = "dev_only"
 status = "smoke_only"

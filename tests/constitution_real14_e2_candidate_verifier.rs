@@ -573,3 +573,27 @@ fn real14_verifier_cli_and_dashboard_binding_are_source_separated() {
         "independent verifier must not parse dashboard text as truth"
     );
 }
+
+#[test]
+fn real14_scripted_attempt_prediction_is_schema_sentinel_not_runtime_fixture() {
+    let helper =
+        std::fs::read_to_string("src/runtime/market_e2_candidate_verifier.rs").expect("helper");
+    let runtime_mod = std::fs::read_to_string("src/runtime/mod.rs").expect("runtime mod");
+
+    assert!(
+        helper.contains("real6b.attempt_prediction_fixture.v1"),
+        "E2 verifier must still reject CAS contamination from old scripted REAL-6B fixtures"
+    );
+    assert!(
+        helper.contains("scripted fixture CAS records present"),
+        "E2 verifier must explain fixture contamination as a VETO reason"
+    );
+    assert!(
+        !runtime_mod.contains("pub mod real6_attempt_prediction"),
+        "scripted REAL-6B fixture must not be exported as a production runtime module"
+    );
+    assert!(
+        std::path::Path::new("tests/support/real6_attempt_prediction_fixture.rs").exists(),
+        "scripted REAL-6B fixture belongs in integration-test support only"
+    );
+}

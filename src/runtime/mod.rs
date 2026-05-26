@@ -341,10 +341,6 @@ pub mod real5_roles;
 /// routes through typed tx admission (`MarketSeedTx` + `CpmmPoolTx`).
 pub mod real6_task_outcome;
 
-/// REAL-6B — AttemptPredictionMarket sealed-oracle scripted fixture helpers.
-/// Current stage is design + scripted fixture only; no live real-LLM ship.
-pub mod real6_attempt_prediction;
-
 /// REAL-6C — ConvictionBudget / PnL feedback derived view. Free cognition,
 /// paid conviction; no new economic source of truth.
 pub mod real6_conviction_budget;

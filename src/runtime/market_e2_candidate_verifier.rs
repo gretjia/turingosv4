@@ -33,9 +33,10 @@ use crate::runtime::prompt_capsule::read_prompt_capsule_v2_from_cas;
 use crate::runtime::real5_roles::{
     is_trader_like, read_role_turn_trace_from_cas, role_turn_trace_cids, RoleTurnTrace,
 };
-use crate::runtime::real6_attempt_prediction::attempt_prediction_fixture_cids;
 use crate::state::q_state::{AgentId, TxId};
 use crate::state::typed_tx::{BuyDirection, EventId, TypedTx};
+
+const REAL6B_ATTEMPT_PREDICTION_FIXTURE_SCHEMA_ID: &str = "real6b.attempt_prediction_fixture.v1";
 
 /// TRACE_MATRIX FC1/FC3: verifier runtime options for exact-join evidence
 /// replay; controls expected count checks without changing ChainTape/CAS.
@@ -306,7 +307,7 @@ pub fn verify_market_e2_candidate(
     let duplicate_l4_router_tx_id_count = duplicate_count(&router_l4_tx_id_witnesses);
     let duplicate_submitted_trace_tx_id_count =
         duplicate_count(&submitted_market_decision_router_tx_ids);
-    let scripted_fixture_tx_count = attempt_prediction_fixture_cids(&cas).len() as u64;
+    let scripted_fixture_tx_count = count_real6b_attempt_prediction_fixture_cids(&cas) as u64;
     let policy_counts_for_e2 = PolicyTraderTraceSummary::from_cas(&cas)
         .map_err(|e| format!("PolicyTraderTrace summary failed: {e}"))?
         .policy_counts_for_e2;
@@ -493,6 +494,16 @@ pub fn verify_market_e2_candidate(
         verdict,
         failure_reasons,
     })
+}
+
+fn count_real6b_attempt_prediction_fixture_cids(cas: &CasStore) -> usize {
+    cas.list_all_cids()
+        .into_iter()
+        .filter(|cid| {
+            cas.metadata(cid).and_then(|meta| meta.schema_id.as_deref())
+                == Some(REAL6B_ATTEMPT_PREDICTION_FIXTURE_SCHEMA_ID)
+        })
+        .count()
 }
 
 fn collect_l4_router_tx_id_witnesses(
