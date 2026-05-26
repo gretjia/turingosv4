@@ -1,0 +1,23 @@
+# Standalone PoC subcrate — its own workspace, isolated from parent turingosv4
+# workspace at /tmp/turingosv4-agent-schema-research/Cargo.toml. Compiles
+# without touching any src/ surface of the main crate.
+#
+# This subcrate validates the AgentOutputEnvelope research design
+# (handover/research/AGENT_OUTPUT_ENVELOPE_RESEARCH_2026-05-26.md). It must
+# never be added to the parent [workspace] members. Class 0 (research) only.
+
+[workspace]
+
+[package]
+name = "envelope_poc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Research PoC for AgentOutputEnvelope schema validation"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[dev-dependencies]
