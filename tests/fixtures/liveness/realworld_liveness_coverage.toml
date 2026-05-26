@@ -148,7 +148,9 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/generate_artifact/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/<run>/generate_artifact/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/generate_artifact/replay_report.json",
+  "handover/evidence/true_suite/<run>/generate_artifact/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/generate_artifact/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
 ]
 
 [[task]]

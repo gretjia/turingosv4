@@ -324,6 +324,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/restore_replay_report.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/restore_replay_report.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
@@ -512,6 +515,10 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifact_bundle_cid.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/restore_replay_report.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/replay_report.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/restore_replay_report.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
 ]
 evidence_requires = ["real user simulator", "artifact fetched via API", "CAS-bound artifact"]
 
@@ -553,6 +560,9 @@ real_world_evidence = [
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifacts/index.html",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifacts/index.html",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifact_bundle_cid.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
 ]
 evidence_requires = ["real API session", "artifact delivery", "backend observer"]
 
@@ -666,6 +676,7 @@ real_world_evidence = [
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/boot_cli_current_kernel_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
+  "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/replay_cas_run_manifest.json",
   "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/tdma_run_manifest.json",

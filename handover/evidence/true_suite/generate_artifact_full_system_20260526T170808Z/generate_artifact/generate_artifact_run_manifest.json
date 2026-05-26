@@ -1,0 +1,26 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_current_kernel.v1",
+  "run_id": "generate_artifact_full_system_20260526T170808Z",
+  "chain_run_id": "polymarket-default-1779815426",
+  "git_head": "1ab3e78b217735a4299cde8c517c4efb6b69649b",
+  "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "llm_endpoint": "http://localhost:8080/v1/chat/completions",
+  "init_provider": "deepseek",
+  "n_parallel_workers": 1,
+  "runtime_repo": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/runtime_repo",
+  "cas": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/cas",
+  "genesis_report": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/genesis_report.json",
+  "artifact_bundle_cid": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifact_bundle_cid.json",
+  "full_system_augmentation_manifest": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "full-system liveness wallets are added to genesis_payload.toml before the ChainTape opens; no post-init mint is used",
+    "spec synthesis is anchored as a CAS spec capsule",
+    "generate reads the spec from CAS via --from-capsule",
+    "accepted artifact work lands as typed ChainTape entries and replays through public verify"
+  ]
+}

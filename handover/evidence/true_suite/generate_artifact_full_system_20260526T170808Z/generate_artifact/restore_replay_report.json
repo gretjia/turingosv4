@@ -1,0 +1,21 @@
+{
+  "l4_entries": 20,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "polymarket-default-1779815426",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "2b53eec528f1da6312ac51237c879e9b082d0b71df25073c62cefcf04267c0c0",
+    "final_ledger_root_hex": "d175fdd35e55f92863791df770971fd4cbcef86846d8acdff19ae3a71f77628c",
+    "head_commit_oid_hex": "775478ceb8540c795388371086cdc4d319a9dca6",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
