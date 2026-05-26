@@ -297,8 +297,7 @@ impl PutnamB3Judge {
                     || (norm.contains("divisor") && norm.contains("2010n"))
                     || (norm.contains("divisor") && norm.contains("2010 n"));
                 let has_witness = names_s && seeds_from_one && closure_rule;
-                let has_excluded_prime =
-                    has_word(&words, "7") || has_word(&words, "11") || has_word(&words, "13");
+                let has_excluded_prime = has_concrete_excluded_prime(&words);
                 let has_negative_membership = norm.contains("not in s")
                     || norm.contains("not contained in s")
                     || norm.contains("not contain")
@@ -315,7 +314,7 @@ impl PutnamB3Judge {
                     return (
                         JudgeVerdict::Fail {
                             reason: format!(
-                                "Stage 4 must (a) construct/name S from 1 with divisor-closure, (b) identify a concrete excluded prime such as 7, 11, or 13, and (c) state it is not in S (has_witness={} has_excluded_prime={} has_negative_membership={})",
+                                "Stage 4 must (a) construct/name S from 1 with divisor-closure, (b) identify a concrete excluded prime outside {{2,3,5,67}}, and (c) state it is not in S (has_witness={} has_excluded_prime={} has_negative_membership={})",
                                 has_witness, has_excluded_prime, has_negative_membership
                             ),
                         },
@@ -364,8 +363,74 @@ fn lexical_words(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn has_word(words: &[String], needle: &str) -> bool {
-    words.iter().any(|word| word == needle)
+fn has_concrete_excluded_prime(words: &[String]) -> bool {
+    words.iter().enumerate().any(|(idx, word)| {
+        let Ok(n) = word.parse::<u64>() else {
+            return false;
+        };
+        if !is_excluded_prime_candidate(n) {
+            return false;
+        }
+
+        let start = idx.saturating_sub(6);
+        let end = (idx + 7).min(words.len());
+        let window = &words[start..end];
+        let has_negation = window.iter().any(|token| {
+            matches!(
+                token.as_str(),
+                "not"
+                    | "never"
+                    | "outside"
+                    | "omit"
+                    | "omits"
+                    | "omitted"
+                    | "exclude"
+                    | "excludes"
+                    | "excluded"
+                    | "cannot"
+                    | "cant"
+            )
+        });
+        let has_membership_context = window.iter().any(|token| {
+            matches!(
+                token.as_str(),
+                "s" | "set"
+                    | "appear"
+                    | "enter"
+                    | "contain"
+                    | "contains"
+                    | "include"
+                    | "member"
+                    | "element"
+            )
+        });
+
+        has_negation && has_membership_context
+    })
+}
+
+fn is_excluded_prime_candidate(n: u64) -> bool {
+    !matches!(n, 2 | 3 | 5 | 67) && is_prime(n)
+}
+
+fn is_prime(n: u64) -> bool {
+    if n < 2 {
+        return false;
+    }
+    if n == 2 {
+        return true;
+    }
+    if n % 2 == 0 {
+        return false;
+    }
+    let mut divisor = 3;
+    while divisor <= n / divisor {
+        if n % divisor == 0 {
+            return false;
+        }
+        divisor += 2;
+    }
+    true
 }
 
 impl MathStepJudge for PutnamB3Judge {
@@ -441,6 +506,32 @@ mod tests {
         let s = r#"Define \(S\) as the smallest set of positive integers containing \(1\) and closed under the operation: if \(n \in S\), then every positive divisor of \(2010n\) is in \(S\). By the prime-containment invariant, every member of \(S\) has prime factors only from \(\{2,3,5,67\}\), so the prime \(7\) is not in \(S\)."#;
         let (v, _) = j.verdict_for_stage(s, PutnamB3Stage::Stage4Counterex, &priors(3));
         assert!(v.is_pass(), "{:?}", v);
+    }
+
+    #[test]
+    fn b3_judge_accepts_stage4_with_non_whitelisted_excluded_prime() {
+        let j = PutnamB3Judge::new();
+        let s = r#"Let \(S\) be the smallest set containing \(1\) and closed under taking every positive divisor of \(2010n\) whenever \(n\in S\). The closure can introduce only primes already present together with \(2,3,5,67\), so the concrete prime \(17\) is not in \(S\)."#;
+        let (v, _) = j.verdict_for_stage(s, PutnamB3Stage::Stage4Counterex, &priors(3));
+        assert!(v.is_pass(), "{:?}", v);
+    }
+
+    #[test]
+    fn b3_judge_rejects_stage4_core_factor_as_excluded_prime() {
+        let j = PutnamB3Judge::new();
+        let s = r#"Define \(S\) as the smallest set of positive integers containing \(1\) and closed under the operation: if \(n \in S\), then every positive divisor of \(2010n\) is in \(S\). The prime \(67\) is not in \(S\)."#;
+        let (v, c) = j.verdict_for_stage(s, PutnamB3Stage::Stage4Counterex, &priors(3));
+        assert!(matches!(v, JudgeVerdict::Fail { .. }));
+        assert_eq!(c, Some(PutnamB3RejectClass::MissingCounterexample));
+    }
+
+    #[test]
+    fn b3_judge_rejects_stage4_composite_as_excluded_prime() {
+        let j = PutnamB3Judge::new();
+        let s = r#"Define \(S\) as the smallest set of positive integers containing \(1\) and closed under the operation: if \(n \in S\), then every positive divisor of \(2010n\) is in \(S\). The composite number \(49\) is not in \(S\)."#;
+        let (v, c) = j.verdict_for_stage(s, PutnamB3Stage::Stage4Counterex, &priors(3));
+        assert!(matches!(v, JudgeVerdict::Fail { .. }));
+        assert_eq!(c, Some(PutnamB3RejectClass::MissingCounterexample));
     }
 
     #[test]
