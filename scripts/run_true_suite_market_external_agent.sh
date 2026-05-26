@@ -45,11 +45,12 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin full_system_participation_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin full_system_participation_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/market_external_agent_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR"
@@ -64,6 +65,14 @@ echo "[market] external LLM agent -> signed BuyWithCoinRouterTx"
     --llm-proxy-url "$LLM_PROXY_URL" \
     --model "$ACTIVE_MODEL" \
     --out "$RUN_DIR/external_agent_market_manifest.json"
+
+echo "[augment] append FC3 participation rows"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
 
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
 
@@ -82,8 +91,10 @@ echo "[verify] turingos verify chaintape"
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \
     --genesis-report "$RUN_DIR/genesis_report.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
     --domain-manifest "$RUN_DIR/external_agent_market_manifest.json" \
-    --out "$RUN_DIR/full_system_participation.json"
+    --out "$RUN_DIR/full_system_participation.json" \
+    --require-full-system
 
 cat > "$RUN_DIR/market_external_agent_run_manifest.json" <<EOF
 {
@@ -97,6 +108,8 @@ cat > "$RUN_DIR/market_external_agent_run_manifest.json" <<EOF
   "cas": "$RUN_DIR/cas",
   "genesis_report": "$RUN_DIR/genesis_report.json",
   "external_agent_market_manifest": "$RUN_DIR/external_agent_market_manifest.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [

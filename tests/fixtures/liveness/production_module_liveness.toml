@@ -202,6 +202,7 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
 ]
 evidence_requires = ["read-view", "market projection", "no price-as-truth"]
 
@@ -232,6 +233,10 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/replay_report.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/restore_replay_report.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
 ]
 evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
 
@@ -315,6 +320,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/restore_replay_report.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
@@ -406,6 +414,7 @@ real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
@@ -463,6 +472,7 @@ real_world_evidence = [
   "handover/evidence/real8x_market_ab_20260515T134453Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md",
   "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
 ]
 evidence_requires = ["market decision trace", "economic judgment", "role differentiation"]
 

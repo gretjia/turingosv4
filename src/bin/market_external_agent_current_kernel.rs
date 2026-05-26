@@ -12,26 +12,34 @@ use std::sync::Arc;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
-    genesis_with_balances, make_real_cpmm_pool_signed_by, make_real_market_seed_signed_by,
-    make_real_task_open_signed_by, tb8_await_state_root_advance,
-    tb_real6a_invest_task_outcome_to_router_tx,
+    genesis_with_balances, make_real_cpmm_pool_signed_by, make_real_escrow_lock_signed_by,
+    make_real_market_seed_signed_by, make_real_task_open_signed_by, make_real_worktx_signed_by,
+    tb_real6a_invest_task_outcome_to_router_tx, tb8_await_state_root_advance,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
 use turingosv4::runtime::genesis_report::GenesisReport;
-use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, TaskId};
-use turingosv4::state::router_quote::{quote_buy_with_coin_router, QuoteDirection};
+use turingosv4::runtime::proposal_telemetry::{
+    ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
+};
+use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
+use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, Hash, TaskId, TxId};
+use turingosv4::state::router_quote::{QuoteDirection, quote_buy_with_coin_router};
 use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
-const MARKET_PROVIDER_AGENT: &str = "MarketMakerBudget";
+const MARKET_PROVIDER_AGENT: &str = "ExternalMarketMakerBudget";
 const TRADER_AGENT: &str = "Agent_0";
 const DEFAULT_MODEL: &str = "deepseek-chat";
 const DEFAULT_AMOUNT_MICRO: i64 = 1_000;
 const MARKET_SEED_MICRO: i64 = 100_000;
+const TASK_ESCROW_MICRO: i64 = 10_000;
+const WORK_STAKE_MICRO: i64 = 100;
 
 #[derive(Debug)]
 struct Args {
@@ -104,6 +112,37 @@ struct RouterEconomicsSnapshot {
     complete_set_balanced_after: bool,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct MarketDecisionCapsule {
+    schema_version: &'static str,
+    run_id: String,
+    external_agent_id: String,
+    event_task_id: String,
+    model_returned: String,
+    prompt_sha256: String,
+    agent_response_sha256: String,
+    direction: ParsedDirection,
+    amount_micro: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MarketEvaluationCapsule {
+    schema_version: &'static str,
+    run_id: String,
+    decision_capsule_cid: String,
+    router_tx_id: String,
+    router_landed: bool,
+    pool_active: bool,
+    k_non_decreasing: bool,
+    pool_delta_matches_quote: bool,
+    mint_and_swap_retained_plus_out_holds: bool,
+    buyer_coin_debited_exactly: bool,
+    total_coin_conserved: bool,
+    complete_set_balanced_after: bool,
+    benchmark_verdict: String,
+    failure_class: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct MarketEvidenceManifest {
     schema_version: &'static str,
@@ -117,10 +156,18 @@ struct MarketEvidenceManifest {
     event_task_id: String,
     direction: ParsedDirection,
     amount_micro: i64,
+    decision_capsule_cid: String,
+    evaluation_capsule_cid: String,
+    proposal_telemetry_cid: String,
     router_tx_id: String,
     router_landed: bool,
+    work_tx_id: String,
+    work_tx_landed: bool,
     pool_active: bool,
     router_economics: RouterEconomicsSnapshot,
+    closure_scope: &'static str,
+    full_system_participation_required: bool,
+    final_closure_possible: bool,
     final_state_root_hex: String,
     runtime_repo: String,
     cas: String,
@@ -207,6 +254,39 @@ fn sha256_hex(bytes: impl AsRef<[u8]>) -> String {
 
 fn hash_hex(h: &turingosv4::state::q_state::Hash) -> String {
     h.0.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn hash_from_hex_digest(hex: &str) -> Result<Hash, String> {
+    if hex.len() != 64 {
+        return Err(format!("sha256 hex digest must be 64 chars, got {hex}"));
+    }
+    let mut bytes = [0u8; 32];
+    for i in 0..32 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+            .map_err(|e| format!("parse sha256 hex byte {i}: {e}"))?;
+    }
+    Ok(Hash::from_bytes(bytes))
+}
+
+fn put_json<T: Serialize>(
+    cas_path: &PathBuf,
+    value: &T,
+    object_type: ObjectType,
+    creator: &str,
+    logical_t: u64,
+    schema_id: &str,
+) -> Result<Cid, String> {
+    let bytes =
+        serde_json::to_vec(value).map_err(|e| format!("serialize CAS object {schema_id}: {e}"))?;
+    let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
+    cas.put(
+        &bytes,
+        object_type,
+        creator,
+        logical_t,
+        Some(schema_id.to_string()),
+    )
+    .map_err(|e| format!("put CAS object {schema_id}: {e}"))
 }
 
 fn quote_direction(direction: ParsedDirection) -> QuoteDirection {
@@ -399,9 +479,32 @@ async fn run(args: Args) -> Result<(), String> {
     let (agent_content, model_returned) = ask_external_agent(&args, &event_task_id).await?;
     let agent_response_sha256 = sha256_hex(&agent_content);
     let decision = parse_decision(&agent_content)?;
+    let decision_capsule = MarketDecisionCapsule {
+        schema_version: "turingosv4.true_suite.market_decision_capsule.v1",
+        run_id: args.run_id.clone(),
+        external_agent_id: TRADER_AGENT.to_string(),
+        event_task_id: event_task_id.clone(),
+        model_returned: model_returned.clone(),
+        prompt_sha256: prompt_sha256.clone(),
+        agent_response_sha256: agent_response_sha256.clone(),
+        direction: decision.direction,
+        amount_micro: decision.amount_micro,
+    };
+    let decision_capsule_cid = put_json(
+        &args.cas,
+        &decision_capsule,
+        ObjectType::EvidenceCapsule,
+        "market-decision",
+        2,
+        "turingosv4.true_suite.market_decision_capsule.v1",
+    )?;
 
-    let preseed = default_pput_preseed_pairs();
-    let initial_q = genesis_with_balances(&preseed);
+    let mut initial_balances = default_pput_preseed_pairs();
+    initial_balances.push((
+        AgentId(MARKET_PROVIDER_AGENT.to_string()),
+        MicroCoin::from_micro_units(5_000_000),
+    ));
+    let initial_q = genesis_with_balances(&initial_balances);
     let cfg = RuntimeChaintapeConfig {
         runtime_repo_path: args.runtime_repo.clone(),
         cas_path: args.cas.clone(),
@@ -526,44 +629,39 @@ async fn run(args: Args) -> Result<(), String> {
         .await
         .map_err(|_| "BuyWithCoinRouterTx did not advance state_root".to_string())?;
 
-    let seq_handle = seq.clone();
-    bundle
-        .shutdown()
-        .await
-        .map_err(|e| format!("market chaintape shutdown failed: {e}"))?;
-    let post_q = seq_handle
+    let post_router_q = seq
         .q_snapshot()
-        .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
-    let router_landed = post_q
+        .map_err(|e| format!("post-router q_snapshot: {e:?}"))?;
+    let router_landed = post_router_q
         .economic_state_t
         .conditional_share_balances_t
         .0
         .get(&AgentId(TRADER_AGENT.to_string()))
         .and_then(|by_event| by_event.get(&event_id))
         .is_some();
-    let pool_active = post_q
+    let pool_active = post_router_q
         .economic_state_t
         .cpmm_pools_t
         .0
         .contains_key(&event_id);
-    let pool_after = post_q
+    let pool_after = post_router_q
         .economic_state_t
         .cpmm_pools_t
         .0
         .get(&event_id)
         .cloned()
         .ok_or("pool missing after router")?;
-    let buyer_coin_after_micro = coin_balance_micro(&post_q.economic_state_t, &buyer_id);
+    let buyer_coin_after_micro = coin_balance_micro(&post_router_q.economic_state_t, &buyer_id);
     let buyer_chosen_side_after_units = buyer_side_units(
-        &post_q.economic_state_t,
+        &post_router_q.economic_state_t,
         &buyer_id,
         &event_id,
         decision.direction,
     );
-    let collateral_after_micro = collateral_micro(&post_q.economic_state_t, &event_id);
-    let total_coin_after_micro = total_coin_micro(&post_q.economic_state_t)?;
+    let collateral_after_micro = collateral_micro(&post_router_q.economic_state_t, &event_id);
+    let total_coin_after_micro = total_coin_micro(&post_router_q.economic_state_t)?;
     let (sum_yes_after_units, sum_no_after_units) =
-        sum_yes_no_for_event(&post_q.economic_state_t, &event_id);
+        sum_yes_no_for_event(&post_router_q.economic_state_t, &event_id);
     let pool_delta_matches_quote = match decision.direction {
         ParsedDirection::Yes => {
             pool_after.pool_no.units == pool_before.pool_no.units + decision.amount_micro as u128
@@ -609,6 +707,110 @@ async fn run(args: Args) -> Result<(), String> {
         complete_set_balanced_after: sum_yes_after_units == sum_no_after_units
             && sum_yes_after_units == collateral_after_micro as u128,
     };
+    let market_invariants_hold = router_landed
+        && pool_active
+        && router_economics.k_non_decreasing
+        && router_economics.pool_delta_matches_quote
+        && router_economics.mint_and_swap_retained_plus_out_holds
+        && router_economics.buyer_coin_debited_exactly
+        && router_economics.total_coin_conserved
+        && router_economics.complete_set_balanced_after;
+    let evaluation = MarketEvaluationCapsule {
+        schema_version: "turingosv4.true_suite.market_evaluation_capsule.v1",
+        run_id: args.run_id.clone(),
+        decision_capsule_cid: decision_capsule_cid.hex(),
+        router_tx_id: router_tx_id.clone(),
+        router_landed,
+        pool_active,
+        k_non_decreasing: router_economics.k_non_decreasing,
+        pool_delta_matches_quote: router_economics.pool_delta_matches_quote,
+        mint_and_swap_retained_plus_out_holds: router_economics
+            .mint_and_swap_retained_plus_out_holds,
+        buyer_coin_debited_exactly: router_economics.buyer_coin_debited_exactly,
+        total_coin_conserved: router_economics.total_coin_conserved,
+        complete_set_balanced_after: router_economics.complete_set_balanced_after,
+        benchmark_verdict: if market_invariants_hold {
+            "market_router_invariants_hold"
+        } else {
+            "market_router_invariant_failure"
+        }
+        .to_string(),
+        failure_class: (!market_invariants_hold).then(|| "kernel_invariant_failure".to_string()),
+    };
+    let evaluation_capsule_cid = put_json(
+        &args.cas,
+        &evaluation,
+        ObjectType::ProposalPayload,
+        "market-evaluation",
+        3,
+        "turingosv4.true_suite.market_evaluation_capsule.v1",
+    )?;
+    let proposal_telemetry_cid = {
+        let telemetry = ProposalTelemetry::new_root(
+            AgentId(TRADER_AGENT.to_string()),
+            hash_from_hex_digest(&prompt_sha256)?,
+            evaluation_capsule_cid,
+            "market_external_agent_decision".to_string(),
+            TokenCounts {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                tool_tokens: 1,
+            },
+            format!("{TRADER_AGENT}.market.b0"),
+        );
+        let mut cas = CasStore::open(&args.cas).map_err(|e| format!("open CAS: {e}"))?;
+        write_proposal_telemetry_to_cas(&mut cas, &telemetry, "market-proposal-telemetry", 4)
+            .map_err(|e| format!("write ProposalTelemetry: {e}"))?
+    };
+
+    let escrow = make_real_escrow_lock_signed_by(
+        &mut keypairs,
+        &event_task_id,
+        SPONSOR_AGENT,
+        TASK_ESCROW_MICRO,
+        after_router,
+        "true-suite-market",
+        12,
+    )
+    .map_err(|e| format!("build EscrowLockTx: {e}"))?;
+    seq.submit_agent_tx(escrow)
+        .await
+        .map_err(|e| format!("submit EscrowLockTx: {e:?}"))?;
+    let after_escrow = tb8_await_state_root_advance(&seq, after_router, 5_000)
+        .await
+        .map_err(|_| "EscrowLockTx did not advance state_root".to_string())?;
+
+    let work = make_real_worktx_signed_by(
+        &mut keypairs,
+        &event_task_id,
+        TRADER_AGENT,
+        after_escrow,
+        WORK_STAKE_MICRO,
+        "true-suite-market",
+        proposal_telemetry_cid,
+        true,
+        13,
+    )
+    .map_err(|e| format!("build WorkTx: {e}"))?;
+    let work_tx_id = match &work {
+        TypedTx::Work(w) => w.tx_id.0.clone(),
+        _ => unreachable!("work helper returns WorkTx"),
+    };
+    seq.submit_agent_tx(work)
+        .await
+        .map_err(|e| format!("submit WorkTx: {e:?}"))?;
+    let after_work = tb8_await_state_root_advance(&seq, after_escrow, 5_000)
+        .await
+        .map_err(|_| "WorkTx did not advance state_root".to_string())?;
+
+    let seq_handle = seq.clone();
+    bundle
+        .shutdown()
+        .await
+        .map_err(|e| format!("market chaintape shutdown failed: {e}"))?;
+    let post_q = seq_handle
+        .q_snapshot()
+        .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
 
     let report = GenesisReport {
         constitution_hash: GenesisReport::hash_constitution_md(&args.constitution),
@@ -616,7 +818,7 @@ async fn run(args: Args) -> Result<(), String> {
         cas_path: args.cas.display().to_string(),
         system_pubkey_hash: GenesisReport::hash_system_pubkey_manifest(&args.runtime_repo),
         agent_pubkeys_path: "agent_pubkeys.json".to_string(),
-        initial_balances: preseed
+        initial_balances: initial_balances
             .iter()
             .map(|(agent, balance)| (agent.0.clone(), balance.micro_units()))
             .collect(),
@@ -644,11 +846,23 @@ async fn run(args: Args) -> Result<(), String> {
         event_task_id,
         direction: decision.direction,
         amount_micro: decision.amount_micro,
+        decision_capsule_cid: decision_capsule_cid.hex(),
+        evaluation_capsule_cid: evaluation_capsule_cid.hex(),
+        proposal_telemetry_cid: proposal_telemetry_cid.hex(),
         router_tx_id,
         router_landed,
+        work_tx_id: work_tx_id.clone(),
+        work_tx_landed: post_q
+            .economic_state_t
+            .stakes_t
+            .0
+            .contains_key(&TxId(work_tx_id)),
         pool_active,
         router_economics,
-        final_state_root_hex: hash_hex(&after_router),
+        closure_scope: "single_sample_market_external_agent_full_system_liveness",
+        full_system_participation_required: true,
+        final_closure_possible: false,
+        final_state_root_hex: hash_hex(&after_work),
         runtime_repo: args.runtime_repo.display().to_string(),
         cas: args.cas.display().to_string(),
         notes: vec![

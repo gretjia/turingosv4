@@ -544,8 +544,12 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_action/cas/",
   "handover/evidence/true_suite/<run>/market_action/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_action/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/market_action/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/market_action/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/market_action/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
 ]
 
 [[family]]
