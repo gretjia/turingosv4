@@ -40,6 +40,12 @@ families = ["cas", "git_substrate", "repair"]
 evidence = ["batch", "CAS", "ChainTape"]
 
 [[real_world_suite]]
+id = "broad_agi_gpqa_20260525T234028Z"
+path = "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z"
+families = ["gpqa", "science_reasoning", "current_kernel", "replay"]
+evidence = ["public_gpqa_sample", "local_openai_proxy", "ChainTape", "CAS", "replay", "restore_replay"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -240,6 +246,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
   "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/batch_evaluator.log",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -308,7 +317,10 @@ smoke_gates = [
   "tests/production_shellouts_must_use_sanitized_runner.rs",
   "tests/constitution_g3_your_position_prompt.rs",
 ]
-real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md"]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
 [[group]]

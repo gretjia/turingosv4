@@ -1,0 +1,12 @@
+{
+  "schema_version": "turingosv4.true_suite.gpqa_failure_taxonomy.v1",
+  "run_id": "broad_agi_gpqa_20260525T234028Z",
+  "family_id": "gpqa_science_reasoning",
+  "failure_class": null,
+  "rationale_guard_passed": true,
+  "answer_correct": true,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": false,
+  "infrastructure_failure": false
+}
