@@ -1,8 +1,9 @@
 //! True-suite evidence packaging gate.
 //!
 //! Fresh broad AGI evidence must be commit-friendly and reconstructable. Git
-//! ignores nested `.git` stores, so current-kernel evidence packages those
-//! stores into deterministic tarballs instead of relying on loose directories.
+//! ignores nested `.git` stores and evidence runtime/CAS directories. Current
+//! kernel evidence therefore packages both the Git stores and restore-critical
+//! sidecar files into deterministic tarballs.
 
 use std::fs;
 use std::io::Read;
@@ -52,6 +53,7 @@ fn true_suite_packager_archives_nested_git_stores_and_removes_loose_dirs() {
     )
     .expect("ref");
     fs::write(boot.join("runtime_repo/genesis_report.json"), "{}\n").expect("sidecar");
+    fs::write(boot.join("runtime_repo/pinned_pubkeys.json"), "[]\n").expect("pinned");
 
     fs::create_dir_all(boot.join("cas/.git/objects/aa")).expect("mkdir cas .git");
     fs::write(boot.join("cas/.git/objects/aa/blob"), "payload").expect("cas blob");
@@ -86,7 +88,9 @@ fn true_suite_packager_archives_nested_git_stores_and_removes_loose_dirs() {
 
     for archive in [
         boot.join("runtime_repo.dotgit.tar.gz"),
+        boot.join("runtime_repo.worktree.tar.gz"),
         boot.join("cas.dotgit.tar.gz"),
+        boot.join("cas.worktree.tar.gz"),
         tdma.join("tdma_tape.git.tar.gz"),
     ] {
         assert!(archive.is_file(), "missing archive {}", archive.display());
@@ -100,7 +104,7 @@ fn true_suite_packager_archives_nested_git_stores_and_removes_loose_dirs() {
     );
     assert_eq!(
         manifest.get("package_count").and_then(Value::as_u64),
-        Some(3)
+        Some(5)
     );
     let packages = manifest
         .get("packages")
@@ -114,11 +118,23 @@ fn true_suite_packager_archives_nested_git_stores_and_removes_loose_dirs() {
                 .is_some_and(|s| s.len() == 64),
             "package missing sha256: {package:?}"
         );
-        assert_eq!(
-            package.get("removed_loose_store").and_then(Value::as_bool),
-            Some(true)
+        assert!(
+            package.get("removed_loose_store").and_then(Value::as_bool).is_some(),
+            "package missing removed_loose_store: {package:?}"
         );
     }
+    assert!(
+        packages.iter().any(|package| {
+            package.get("kind").and_then(Value::as_str) == Some("runtime_repo_worktree")
+        }),
+        "manifest must include restore-critical runtime_repo sidecars"
+    );
+    assert!(
+        packages
+            .iter()
+            .any(|package| package.get("kind").and_then(Value::as_str) == Some("cas_worktree")),
+        "manifest must include restore-critical CAS sidecars"
+    );
 }
 
 #[test]
@@ -133,8 +149,10 @@ fn true_suite_packager_archives_restore_to_expected_paths() {
         "ref: refs/heads/main\n",
     )
     .expect("head");
+    fs::write(domain.join("runtime_repo/pinned_pubkeys.json"), "[]\n").expect("pinned");
     fs::create_dir_all(domain.join("cas/.git/objects")).expect("mkdir cas git");
     fs::write(domain.join("cas/.git/HEAD"), "ref: refs/heads/main\n").expect("cas head");
+    fs::write(domain.join("cas/.turingos_cas_index.jsonl"), "{}\n").expect("cas index");
 
     assert!(Command::new("bash")
         .arg(SCRIPT)
@@ -150,11 +168,27 @@ fn true_suite_packager_archives_restore_to_expected_paths() {
 
     assert!(Command::new("tar")
         .arg("-xzf")
+        .arg(domain.join("runtime_repo.worktree.tar.gz"))
+        .arg("-C")
+        .arg(restore.join("runtime_repo"))
+        .status()
+        .expect("extract runtime worktree")
+        .success());
+    assert!(Command::new("tar")
+        .arg("-xzf")
         .arg(domain.join("runtime_repo.dotgit.tar.gz"))
         .arg("-C")
         .arg(restore.join("runtime_repo"))
         .status()
         .expect("extract runtime")
+        .success());
+    assert!(Command::new("tar")
+        .arg("-xzf")
+        .arg(domain.join("cas.worktree.tar.gz"))
+        .arg("-C")
+        .arg(restore.join("cas"))
+        .status()
+        .expect("extract cas worktree")
         .success());
     assert!(Command::new("tar")
         .arg("-xzf")
@@ -166,7 +200,9 @@ fn true_suite_packager_archives_restore_to_expected_paths() {
         .success());
 
     assert!(restore.join("runtime_repo/.git/HEAD").is_file());
+    assert!(restore.join("runtime_repo/pinned_pubkeys.json").is_file());
     assert!(restore.join("cas/.git/HEAD").is_file());
+    assert!(restore.join("cas/.turingos_cas_index.jsonl").is_file());
 }
 
 #[test]
@@ -182,6 +218,7 @@ fn true_suite_packager_tarballs_are_deterministic_for_identical_input() {
         )
         .expect("write head");
         fs::write(domain.join("runtime_repo/.git/refs/heads/main"), "abc123\n").expect("write ref");
+        fs::write(domain.join("runtime_repo/pinned_pubkeys.json"), "[]\n").expect("write pinned");
         assert!(Command::new("bash")
             .arg(SCRIPT)
             .arg("--run-root")
@@ -193,5 +230,12 @@ fn true_suite_packager_tarballs_are_deterministic_for_identical_input() {
 
     let a = tmp.path().join("run_a/boot_cli/runtime_repo.dotgit.tar.gz");
     let b = tmp.path().join("run_b/boot_cli/runtime_repo.dotgit.tar.gz");
+    assert_eq!(sha256(&a), sha256(&b));
+    let a = tmp
+        .path()
+        .join("run_a/boot_cli/runtime_repo.worktree.tar.gz");
+    let b = tmp
+        .path()
+        .join("run_b/boot_cli/runtime_repo.worktree.tar.gz");
     assert_eq!(sha256(&a), sha256(&b));
 }

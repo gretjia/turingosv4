@@ -1,5 +1,5 @@
 {
-  "package_count": 2,
+  "package_count": 4,
   "packages": [
     {
       "archive_bytes": 37802,
@@ -11,6 +11,15 @@
       "source_path": "mind2web/cas/.git"
     },
     {
+      "archive_bytes": 1620,
+      "archive_path": "mind2web/cas.worktree.tar.gz",
+      "archive_sha256": "41d39f1470617babbe17d398342ab72631303940adc7f46da8eab84498accf71",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "mind2web/cas",
+      "source_path": "mind2web/cas"
+    },
+    {
       "archive_bytes": 14395,
       "archive_path": "mind2web/runtime_repo.dotgit.tar.gz",
       "archive_sha256": "4405b2fefb9b9a7d40a95bf37454484d6587e579d3ef0bb0faea7697fd9b8550",
@@ -18,10 +27,21 @@
       "removed_loose_store": true,
       "restore_into": "mind2web/runtime_repo",
       "source_path": "mind2web/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1264,
+      "archive_path": "mind2web/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "0fdec4f8c3f133c44f089993298fe52e06ec6ebf34f64e088371cee8b83ac74e",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "mind2web/runtime_repo",
+      "source_path": "mind2web/runtime_repo"
     }
   ],
   "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
     "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
     "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
     "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
   ],

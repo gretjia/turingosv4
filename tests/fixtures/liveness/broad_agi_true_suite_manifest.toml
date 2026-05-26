@@ -288,8 +288,10 @@ anti_contamination_guards = [
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/mind2web/page_snapshots/",
   "handover/evidence/true_suite/<run>/mind2web/runtime_repo/",
+  "handover/evidence/true_suite/<run>/mind2web/runtime_repo.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/mind2web/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/mind2web/cas/",
+  "handover/evidence/true_suite/<run>/mind2web/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/mind2web/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/mind2web/genesis_report.json",
   "handover/evidence/true_suite/<run>/mind2web/mind2web_browser_action_manifest.json",
