@@ -58,29 +58,29 @@ use sha2::{Digest, Sha256};
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::{
-    parse_and_verify_jsonl_record_bytes, RejectionEvidenceError, RejectionEvidenceWriter,
+    RejectionEvidenceError, RejectionEvidenceWriter, parse_and_verify_jsonl_record_bytes,
 };
 use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter,
-    LedgerCasView, LedgerEntry, LedgerWriter, ReplayError, TxKind,
+    Git2LedgerWriter, LedgerEntry, LedgerWriter, ReplayError, TxKind, canonical_decode,
+    replay_full_transition_with_predicate_binding,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
+use crate::runtime::PinnedPubkeyManifest;
 use crate::runtime::agent_keypairs::AgentPubkeyManifest;
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, AttemptOutcome,
-    AttemptTelemetry, LeanResult,
+    AttemptOutcome, AttemptTelemetry, LeanResult, read_attempt_telemetry_shared_slot_from_cas,
+    read_lean_result_from_cas,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
 use crate::runtime::genesis_report::AgentModelAssignment;
 use crate::runtime::markov_capsule::MarkovEvidenceCapsule;
 use crate::runtime::proposal_telemetry::ProposalTelemetry;
 use crate::runtime::verification_result::VerificationResult;
-use crate::runtime::PinnedPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
-use crate::state::typed_tx::{CapsulePrivacyPolicy, TypedTx};
+use crate::state::typed_tx::TypedTx;
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types
@@ -386,7 +386,7 @@ pub fn assert_g_no_hidden_model_switch(t: &LoadedTape) -> AssertionResult {
                 NAME,
                 AssertionLayer::G,
                 format!("read {genesis_path:?}: {e}"),
-            )
+            );
         }
     };
     let genesis: crate::runtime::genesis_report::GenesisReport =
@@ -398,7 +398,7 @@ pub fn assert_g_no_hidden_model_switch(t: &LoadedTape) -> AssertionResult {
                     NAME,
                     AssertionLayer::G,
                     format!("parse {genesis_path:?}: {e}"),
-                )
+                );
             }
         };
 
@@ -423,7 +423,7 @@ pub fn assert_g_no_hidden_model_switch(t: &LoadedTape) -> AssertionResult {
                     NAME,
                     AssertionLayer::G,
                     format!("AttemptTelemetry decode failed for cid {cid}: {e}"),
-                )
+                );
             }
         }
     }
@@ -603,18 +603,6 @@ impl From<std::io::Error> for AuditError {
 // LoadedTape — what the auditor reads up-front (no live state)
 // ─────────────────────────────────────────────────────────────────────
 
-/// Wraps a `CasStore` Arc<RwLock> in the narrow `LedgerCasView` trait
-/// needed by replay. CasStore::get takes a `&self` so we need to
-/// snapshot the store; instead, we hold a reference and forward.
-struct CasStoreRef<'a>(&'a CasStore);
-impl<'a> LedgerCasView for CasStoreRef<'a> {
-    fn get_typed_payload(&self, cid: &Cid) -> Result<Vec<u8>, ReplayError> {
-        self.0
-            .get(cid)
-            .map_err(|_| ReplayError::CasMissing { at: 0 })
-    }
-}
-
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub struct LoadedTape {
     pub runtime_repo: PathBuf,
@@ -704,11 +692,10 @@ pub fn load_tape(inputs: &AuditInputs) -> Result<LoadedTape, AuditError> {
     // replay (best-effort; result captured for assertions)
     let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let cas_view = CasStoreRef(&cas);
     let (replayed_q, replay_error) = match replay_full_transition_with_predicate_binding(
         &initial_q,
         &entries,
-        &cas_view,
+        &cas,
         &cas,
         &pinned,
         &predicate_registry,
@@ -1251,7 +1238,7 @@ pub fn assert_07_genesis_row_zero_parents(t: &LoadedTape) -> AssertionResult {
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_08_system_tx_signatures_verify(t: &LoadedTape) -> AssertionResult {
-    use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
+    use crate::bottom_white::ledger::system_keypair::{CanonicalMessage, verify_system_signature};
     let mut count = 0u32;
     for (i, e) in t.entries.iter().enumerate() {
         if !is_system_tx_kind(e.tx_kind) {
@@ -1520,11 +1507,10 @@ pub fn assert_15_canonical_edges_replay_deterministic(t: &LoadedTape) -> Asserti
 pub fn assert_16_replay_idempotent_across_calls(t: &LoadedTape) -> AssertionResult {
     let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let cas_view = CasStoreRef(&t.cas);
     let q1 = match replay_full_transition_with_predicate_binding(
         &t.initial_q,
         &t.entries,
-        &cas_view,
+        &t.cas,
         &t.cas,
         &t.pinned,
         &predicate_registry,
@@ -1543,7 +1529,7 @@ pub fn assert_16_replay_idempotent_across_calls(t: &LoadedTape) -> AssertionResu
     let q2 = match replay_full_transition_with_predicate_binding(
         &t.initial_q,
         &t.entries,
-        &cas_view,
+        &t.cas,
         &t.cas,
         &t.pinned,
         &predicate_registry,
@@ -1673,13 +1659,12 @@ pub fn assert_d_total_supply_conserved_per_block(t: &LoadedTape) -> AssertionRes
     }
     let predicate_registry = crate::runtime::predicate_registry_loader::load_replay_registry();
     let tool_registry = ToolRegistry::new();
-    let cas_view = CasStoreRef(&t.cas);
     for i in 0..t.entries.len() {
         let prefix = &t.entries[..=i];
         let q_at_i = match crate::bottom_white::ledger::transition_ledger::replay_full_transition_with_predicate_binding(
             &t.initial_q,
             prefix,
-            &cas_view,
+            &t.cas,
             &t.cas,
             &t.pinned,
             &predicate_registry,
@@ -3155,7 +3140,7 @@ pub fn assert_g_markov_cluster_source_attempt_telemetry(t: &LoadedTape) -> Asser
                     "markov_cluster_source_attempt_telemetry",
                     AssertionLayer::G,
                     format!("AttemptTelemetry source decode failed for {cid}: {e}"),
-                )
+                );
             }
         };
         if matches!(
@@ -3739,13 +3724,7 @@ pub fn summarize_results(
         }
     }
     let mut feature_coverage: BTreeMap<String, String> = BTreeMap::new();
-    let cov = |present: bool| -> &'static str {
-        if present {
-            "GREEN"
-        } else {
-            "RED"
-        }
-    };
+    let cov = |present: bool| -> &'static str { if present { "GREEN" } else { "RED" } };
     let c = &tx_kind_counts;
     feature_coverage.insert("TB-1_monetary".into(), "GREEN".into());
     feature_coverage.insert("TB-2_work".into(), cov(c.work > 0).into());

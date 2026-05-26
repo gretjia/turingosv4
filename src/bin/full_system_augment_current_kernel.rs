@@ -27,6 +27,7 @@ use turingosv4::runtime::adapter::{
     NodeMarketEmitOutcome, tb_n3_emit_node_market_after_work_accept, tb_n3_invest_to_router_tx,
 };
 use turingosv4::runtime::agent_keypairs::{AgentKeypairRegistry, AgentPubkeyManifest};
+use turingosv4::runtime::evidence_capsule::{ExhaustionCounts, write_evidence_capsule};
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::market_decision_trace::{
     MarketDecisionTrace, write_market_decision_trace_to_cas,
@@ -39,9 +40,9 @@ use turingosv4::state::sequencer::SystemEmitCommand;
 use turingosv4::state::typed_tx::{
     ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
     ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
-    BootProfileId, BuyDirection, LogFeedbackArchiveTx, REINIT_REASON_SCHEMA_ID, ReinitReason,
-    ReinitReasonCapsule, RunId, RunOutcome, TypedTx, VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule,
-    VetoDecisionTx, VetoReasonCode, VetoVerdict,
+    BootProfileId, BuyDirection, CapsulePrivacyPolicy, ExhaustionReason, LogFeedbackArchiveTx,
+    REINIT_REASON_SCHEMA_ID, ReinitReason, ReinitReasonCapsule, RunId, RunOutcome, TypedTx,
+    VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
 };
 
 const MARKET_MAKER_AGENT: &str = "MarketMakerBudget";
@@ -382,6 +383,13 @@ async fn append_fc3_sequence(
     )
     .await?;
 
+    let terminal_evidence_cid = put_terminal_evidence_capsule(
+        bundle,
+        &args.run_id,
+        TaskId("full-system-augment-fc3".to_string()),
+        Some(AgentId(TRADER_AGENT.to_string())),
+        "Full-system augment ErrorHalt terminal summary evidence",
+    )?;
     let terminal_entry = emit_and_read(
         bundle,
         SystemEmitCommand::TerminalSummary {
@@ -392,7 +400,7 @@ async fn append_fc3_sequence(
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: commit_entry.logical_t,
             solver_agent: Some(AgentId(TRADER_AGENT.to_string())),
-            evidence_capsule_cid: Some(feedback_capsule_cid),
+            evidence_capsule_cid: Some(terminal_evidence_cid),
         },
         TxKind::TerminalSummary,
     )
@@ -753,6 +761,36 @@ fn put_reinit_capsule(
         REINIT_REASON_SCHEMA_ID,
         bundle.sequencer.next_logical_t_peek(),
     )
+}
+
+fn put_terminal_evidence_capsule(
+    bundle: &ChaintapeBundle,
+    run_id: &str,
+    task_id: TaskId,
+    solver_agent: Option<AgentId>,
+    raw_log: &str,
+) -> Result<Cid, String> {
+    let capsule = write_evidence_capsule(
+        &bundle.cas,
+        RunId(run_id.to_string()),
+        task_id,
+        solver_agent,
+        ExhaustionCounts {
+            attempt_count: 1,
+            lean_error_count: 0,
+            sorry_block_count: 0,
+            protocol_parse_failure_count: 0,
+            partial_accept_count: 0,
+        },
+        (0, 1),
+        ExhaustionReason::ProtocolCollapse,
+        raw_log.as_bytes(),
+        CapsulePrivacyPolicy::AuditOnly,
+        "full_system_augment_current_kernel",
+        bundle.sequencer.next_logical_t_peek(),
+    )
+    .map_err(|e| format!("write terminal EvidenceCapsule: {e}"))?;
+    Ok(capsule.capsule_id)
 }
 
 fn write_governance_index(

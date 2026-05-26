@@ -35,6 +35,7 @@ use turingosv4::runtime::adapter::{
     make_real_worktx_signed_by,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
+use turingosv4::runtime::evidence_capsule::{ExhaustionCounts, write_evidence_capsule};
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::proposal_telemetry::{
     ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
@@ -46,9 +47,10 @@ use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope, Sy
 use turingosv4::state::typed_tx::{
     ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
     ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
-    BootProfileId, LogFeedbackArchiveTx, REINIT_REASON_SCHEMA_ID, ReinitReason,
-    ReinitReasonCapsule, RunId, RunOutcome, TickKind, TypedTx, VETO_DECISION_SCHEMA_ID,
-    VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
+    BootProfileId, CapsulePrivacyPolicy, ExhaustionReason, LogFeedbackArchiveTx,
+    REINIT_REASON_SCHEMA_ID, ReinitReason, ReinitReasonCapsule, RunId, RunOutcome, TickKind,
+    TypedTx, VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode,
+    VetoVerdict,
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
@@ -265,6 +267,13 @@ async fn run(args: Args) -> Result<(), String> {
     .await?;
     assert_kind(&commit_entry, TxKind::ArchitectCommit)?;
 
+    let terminal_evidence_cid = put_terminal_evidence_capsule(
+        &h,
+        &args.run_id,
+        TaskId("fc3-governance-reinit".to_string()),
+        None,
+        "FC3 current-kernel ErrorHalt terminal summary evidence",
+    )?;
     let terminal_entry = apply_emit(
         &h.seq,
         &mut h.rx,
@@ -276,7 +285,7 @@ async fn run(args: Args) -> Result<(), String> {
             failure_class_histogram: BTreeMap::new(),
             last_logical_t: commit_entry.logical_t,
             solver_agent: None,
-            evidence_capsule_cid: Some(feedback_capsule_cid),
+            evidence_capsule_cid: Some(terminal_evidence_cid),
         },
     )
     .await?;
@@ -766,6 +775,36 @@ fn put_reinit_capsule(
         REINIT_REASON_SCHEMA_ID,
         h.seq.next_logical_t_peek(),
     )
+}
+
+fn put_terminal_evidence_capsule(
+    h: &Harness,
+    run_id: &str,
+    task_id: TaskId,
+    solver_agent: Option<AgentId>,
+    raw_log: &str,
+) -> Result<Cid, String> {
+    let capsule = write_evidence_capsule(
+        &h.cas,
+        RunId(run_id.to_string()),
+        task_id,
+        solver_agent,
+        ExhaustionCounts {
+            attempt_count: 1,
+            lean_error_count: 0,
+            sorry_block_count: 0,
+            protocol_parse_failure_count: 0,
+            partial_accept_count: 0,
+        },
+        (0, 1),
+        ExhaustionReason::ProtocolCollapse,
+        raw_log.as_bytes(),
+        CapsulePrivacyPolicy::AuditOnly,
+        "fc3_governance_reinit_current_kernel",
+        h.seq.next_logical_t_peek(),
+    )
+    .map_err(|e| format!("write terminal EvidenceCapsule: {e}"))?;
+    Ok(capsule.capsule_id)
 }
 
 fn tx_id(tx: &TypedTx) -> TxId {
