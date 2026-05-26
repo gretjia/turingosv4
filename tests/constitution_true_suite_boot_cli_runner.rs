@@ -1,7 +1,8 @@
 //! True-suite boot/CLI runner contract.
 //!
-//! This gate executes the boot helper in a temp directory, then verifies the
-//! resulting ChainTape via the public `turingos verify chaintape` wrapper.
+//! This gate executes the boot evidence runner shape in a temp directory,
+//! then verifies the resulting full-system ChainTape via the public
+//! `turingos verify chaintape` wrapper.
 
 use std::path::Path;
 use std::process::Command;
@@ -13,7 +14,12 @@ fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
-        "boot_cli_current_kernel_fresh" => env!("CARGO_BIN_EXE_boot_cli_current_kernel_fresh"),
+        "fc3_governance_reinit_current_kernel" => {
+            env!("CARGO_BIN_EXE_fc3_governance_reinit_current_kernel")
+        }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
         "full_system_participation_current_kernel" => {
             env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
         }
@@ -49,7 +55,7 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
         String::from_utf8_lossy(&init.stderr)
     );
 
-    let helper = Command::new(bin("boot_cli_current_kernel_fresh"))
+    let helper = Command::new(bin("fc3_governance_reinit_current_kernel"))
         .args([
             "--runtime-repo",
             run_dir.join("runtime_repo").to_str().expect("utf8 path"),
@@ -59,14 +65,39 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
             "constitution-true-suite-boot-cli",
             "--constitution",
             "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
         ])
         .output()
-        .expect("run boot helper");
+        .expect("run fc3 boot helper");
     assert!(
         helper.status.success(),
-        "boot helper failed\nstdout:\n{}\nstderr:\n{}",
+        "fc3 boot helper failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&helper.stdout),
         String::from_utf8_lossy(&helper.stderr)
+    );
+
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-boot-cli",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
+            "--skip-fc3",
+        ])
+        .output()
+        .expect("run market augment helper");
+    assert!(
+        augment.status.success(),
+        "market augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
     );
 
     let replay_report = run_dir.join("replay_report.json");
@@ -97,14 +128,18 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
     assert!(genesis_report.is_file(), "genesis_report.json missing");
     let copied_genesis = run_dir.join("genesis_report.json");
     std::fs::copy(&genesis_report, &copied_genesis).expect("copy genesis report");
-    assert!(run_dir
-        .join("runtime_repo")
-        .join("initial_q_state.json")
-        .is_file());
-    assert!(run_dir
-        .join("runtime_repo")
-        .join("pinned_pubkeys.json")
-        .is_file());
+    assert!(
+        run_dir
+            .join("runtime_repo")
+            .join("initial_q_state.json")
+            .is_file()
+    );
+    assert!(
+        run_dir
+            .join("runtime_repo")
+            .join("pinned_pubkeys.json")
+            .is_file()
+    );
     assert!(run_dir.join("cas").is_dir());
 
     let participation_report = run_dir.join("full_system_participation.json");
@@ -152,25 +187,26 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
             .get("market")
             .and_then(|v| v.get("present"))
             .and_then(Value::as_bool),
-        Some(false),
-        "boot-only run must honestly report that market/economy did not participate"
+        Some(true),
+        "boot full-system run must include tape-visible market/economy participation"
     );
     assert_eq!(
         participation
             .get("verdict")
             .and_then(|v| v.get("full_system_participation"))
             .and_then(Value::as_bool),
-        Some(false),
-        "a substrate-only boot sample cannot claim full FC1/FC2/FC3/market participation"
+        Some(true),
+        "boot full-system sample should light FC1/FC2/FC3/market participation"
     );
     let missing = participation
         .get("verdict")
         .and_then(|v| v.get("missing"))
         .and_then(Value::as_array)
         .expect("missing rows");
-    assert!(missing
-        .iter()
-        .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention")));
+    assert!(
+        missing.is_empty(),
+        "full-system boot run missing rows: {missing:?}"
+    );
 
     let replay: Value = serde_json::from_str(
         &std::fs::read_to_string(&replay_report).expect("read replay_report.json"),
@@ -178,8 +214,8 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
     .expect("parse replay report");
     assert_eq!(
         replay.get("l4_entries").and_then(Value::as_u64),
-        Some(3),
-        "fresh boot emits boot tick and resume emits one additional tick"
+        Some(15),
+        "fresh boot full-system evidence emits FC1, FC2, FC3, and market rows"
     );
     for key in [
         "ledger_root_verified",
@@ -219,7 +255,9 @@ fn boot_cli_runner_script_stays_external_to_kernel_simulation() {
     let script = std::fs::read_to_string("scripts/run_true_suite_boot_cli_current_kernel.sh")
         .expect("read runner script");
     assert!(script.contains("turingos init"));
-    assert!(script.contains("boot_cli_current_kernel_fresh"));
+    assert!(script.contains("fc3_governance_reinit_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("--skip-fc3"));
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("full_system_participation.json"));

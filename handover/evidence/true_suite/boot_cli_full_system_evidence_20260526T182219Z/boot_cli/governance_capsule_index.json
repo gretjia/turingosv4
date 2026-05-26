@@ -1,0 +1,88 @@
+{
+  "capsules": {
+    "commit_capsule_cid": "6d96c983e8cbefda50169acc87339623f6a2747a3a5a31f118480fddfcf62741",
+    "feedback_capsule_cid": "280b00e566979ec1c0c12dfc6d54a3541c8e3e0aec015077fdf302018c6de99a",
+    "patch_artifact_cid": "d999b3a2b2cae5f4d7380d8e032a95a8a1ce81812b9e1327f33b5273dbf3bb5f",
+    "proposal_capsule_cid": "2d5e22c0cbaf52ec5f05cbc47076400303aeb4bb49d7c65302d0afb8c8b444d6",
+    "reinit_reason_cid": "d9f552490089fb1b1e789c4d1fd3565cfc11e1db3635896e7ace7255eaa7ce41",
+    "veto_capsule_cid": "326a8addcecd2152ee471c45a1b3ce514e1c0004b795eda33eb51e4821289d72"
+  },
+  "cas": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/cas",
+  "checks": {
+    "all_fc3_typed_transactions_present": true,
+    "architectai_commit_after_vetoai_pass": true,
+    "dashboard_stdout_not_evidence": true,
+    "handover_files_not_source_of_truth": true,
+    "terminal_errorhalt_reinit_request_and_boot_present": true
+  },
+  "constitutional_paths": [
+    "FC3:logs-archive->feedback->architectAI->vetoAI->tools/logs->re-init",
+    "FC2:replay",
+    "FC1:rtool->input"
+  ],
+  "final_q": {
+    "ledger_root_t": "651334015a0903ea40cd1c2d38733a179176df6047291d972e9043052e4f4748",
+    "state_root_t": "1c0bb1f02980dfe5786b86a465e13ce3ce5db396749aeb7ae815273270dc8622",
+    "tool_registry_root_t": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "git_head": "8eff9b17cd53ccdb602f085b4b72e2334dbb01b3",
+  "run_id": "boot_cli_full_system_evidence_20260526T182219Z",
+  "runtime_repo": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/runtime_repo",
+  "schema_version": "turingosv4.true_suite.fc3_governance_reinit_current_kernel.v1",
+  "tx_sequence": [
+    {
+      "logical_t": 3,
+      "tx_id": "worktx-fc3-governance-reinit-work-true-suite-fc3",
+      "tx_kind": "Work",
+      "tx_payload_cid": "f42fed72807ce33157699446daeb69c4ec7c902af9aefa2ddcb2c2b1b9424fad"
+    },
+    {
+      "logical_t": 4,
+      "tx_id": "system-map-reduce-tick-1-4",
+      "tx_kind": "MapReduceTick",
+      "tx_payload_cid": "4e6f4b39760f9714a2cddc055b6ce1983520d616c9d09ab044c15aa8f539e1cd"
+    },
+    {
+      "logical_t": 5,
+      "tx_id": "system-log-feedback-archive-1-5",
+      "tx_kind": "LogFeedbackArchive",
+      "tx_payload_cid": "295be0cf91396eb2676a48e4d681af3cafce41c3dc8c5393a8b867c3222e2348"
+    },
+    {
+      "logical_t": 6,
+      "tx_id": "system-architect-proposal-1-6",
+      "tx_kind": "ArchitectProposal",
+      "tx_payload_cid": "0bd85c6b8b7b5d5b7c5c4a95159053762bcd56e1e540ee7026a972654555e017"
+    },
+    {
+      "logical_t": 7,
+      "tx_id": "system-veto-decision-1-7",
+      "tx_kind": "VetoDecision",
+      "tx_payload_cid": "918eac2f744b94b5e1a770482951a5c22b7922f8b81db57f5d979627a0145ee6"
+    },
+    {
+      "logical_t": 8,
+      "tx_id": "system-architect-commit-1-8",
+      "tx_kind": "ArchitectCommit",
+      "tx_payload_cid": "fb716dea0e83ec26a7e4229ed81f625690f14f4a2ec393580987583e108ccdd7"
+    },
+    {
+      "logical_t": 9,
+      "tx_id": "system-terminal-summary-1-9",
+      "tx_kind": "TerminalSummary",
+      "tx_payload_cid": "a80832b209a603cd0bcaab7730ce58afe5027ebc058fa64a1966264a3cdeff01"
+    },
+    {
+      "logical_t": 10,
+      "tx_id": "system-reinit-request-1-10",
+      "tx_kind": "ReinitRequest",
+      "tx_payload_cid": "b0d779a207dfeb8cc2b51319e00175790c6345895edd92e63f1ae12230102091"
+    },
+    {
+      "logical_t": 11,
+      "tx_id": "system-reinit-boot-1-11",
+      "tx_kind": "ReinitBoot",
+      "tx_payload_cid": "da62184beb203ca338aa5c2fa9a53f84098888fd1a1618dd541dbc1fe584d048"
+    }
+  ]
+}

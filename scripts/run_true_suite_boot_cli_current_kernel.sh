@@ -24,22 +24,35 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin full_system_participation_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin full_system_participation_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
-HELPER="$PROJECT_ROOT/target/release/boot_cli_current_kernel_fresh"
+HELPER="$PROJECT_ROOT/target/release/fc3_governance_reinit_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider siliconflow
 
-echo "[boot] current runtime boot + resume tick"
+echo "[boot] current runtime FC1 work + FC2 tick + FC3 governance/re-init"
 "$HELPER" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --run-id "$RUN_ID" \
-    --constitution "$PROJECT_ROOT/constitution.md"
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
+
+cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
+
+echo "[boot] append tape-visible market participation"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR" \
+    --skip-fc3
 
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
 
@@ -73,8 +86,8 @@ cat > "$RUN_DIR/boot_cli_current_kernel_manifest.json" <<EOF
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "turingos init is filesystem scaffold only",
-    "boot helper calls current runtime ChainTape boot API",
-    "resume path emits an additional system MapReduceTick",
+    "current runtime helper emits FC1 WorkTx, FC2 MapReduceTick, and FC3 typed governance/re-init rows",
+    "full_system_augment_current_kernel appends a tape-visible market action",
     "verify chaintape is invoked through the public turingos CLI wrapper"
   ]
 }

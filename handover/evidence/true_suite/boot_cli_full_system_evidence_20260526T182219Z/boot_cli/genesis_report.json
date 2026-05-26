@@ -1,0 +1,32 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/runtime_repo",
+  "cas_path": "/tmp/turingosv4-obl005-next5/handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/cas",
+  "system_pubkey_hash": "e593c02a24d4ed675e6369306d3f7bc52f2e22aba0244c1ead63c78a77ef7793",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "Agent_user_0",
+      200000
+    ],
+    [
+      "Agent_0",
+      100000
+    ],
+    [
+      "MarketMakerBudget",
+      300000
+    ],
+    [
+      "Agent_1",
+      100000
+    ]
+  ],
+  "task_id": "fc3-governance-reinit-work",
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}

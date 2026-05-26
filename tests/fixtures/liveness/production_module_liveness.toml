@@ -318,6 +318,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/restore_replay_report.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/restore_replay_report.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/full_system_participation.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/restore_replay_report.json",
@@ -683,6 +686,8 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/backend_observer/log_stream.txt",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/boot_cli_current_kernel_manifest.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/boot_cli_current_kernel_manifest.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_run_manifest.json",
