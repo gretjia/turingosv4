@@ -9,7 +9,52 @@
 
 ---
 
-## Current Snapshot
+## Current Snapshot (2026-05-26)
+
+**Session**: OBL-005 no-zombie/no-drift closure remains in progress.
+
+**Main tip**: `145366c9` (PR #190 — design-system liveness accounting guard).
+
+Current state:
+
+- Open PRs: none. PR #137 (`codex/design-system-warm-ember`) was closed as
+  stale against current OBL-005 gates because it added `design-system/`
+  retained code without `design_system_product_surface` liveness accounting.
+  A fresh/reopened design-system PR must rebase on current `main` and classify
+  that surface as either `product_workload` with smoke + real product-path
+  evidence or `dev_only` with an explicit exclusion rationale.
+- OBL-005 gates are active. `tests/constitution_production_module_liveness.rs`
+  now accounts for Rust modules, frontend product code, and future
+  `design-system/` additions. `tests/constitution_realworld_liveness_coverage.rs`
+  still requires current-kernel real-world ChainTape/CAS evidence before final
+  closure.
+- Current hard blocker: `legacy_wal_and_sdk_tool_surfaces` remains in
+  `tests/fixtures/liveness/production_module_liveness.toml`. Live code still
+  exports `src/wal.rs` through `src/lib.rs`, keeps `TuringBus::with_wal_path`
+  / `wal: Option<crate::wal::Wal>` in `src/bus.rs`, and keeps legacy f64
+  `ToolSignal::{YieldReward, InvestOnly}` plus `BetDirection` in
+  `src/sdk/tool.rs`.
+- Required next action: user/architect must ratify
+  `APPROVED-WAL-SDKTOOL-CLOSURE` before implementation, because the closure
+  touches Class 3 persistence/economy surfaces and `src/bus.rs`.
+
+Recent verification:
+
+```text
+cargo test --test constitution_production_module_liveness -- --nocapture
+# 11 passed
+
+cargo test --test constitution_realworld_liveness_coverage -- --nocapture
+# 4 passed
+
+cargo test --test constitution_matrix_drift
+# 3 passed
+
+bash scripts/run_constitution_gates.sh
+# [k-1-5] total=157 failed=0
+```
+
+## Previous Snapshot
 
 **Session**: 2026-05-23 close — TB-SOFTWARE-3-0 + TB-STRESS-PHASE-2 SHIPPED.
 
