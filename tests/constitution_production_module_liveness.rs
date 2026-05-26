@@ -251,12 +251,12 @@ fn liveness_manifest_policy_is_real_world_first() {
         Some(true),
         "smoke tests must never satisfy the final no-zombie claim"
     );
-    assert_ne!(
+    assert_eq!(
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some("CLOSED"),
-        "this PR may install the accounting gate, but it must not claim final closure"
+        Some("OPEN_REAL_WORLD_COVERAGE_PENDING"),
+        "only the explicit open status is allowed until full-system true runs close every retained group"
     );
 }
 
@@ -317,7 +317,7 @@ fn candidate_groups_have_real_world_chaintape_or_cas_evidence() {
         if group.status == "historical_real_world_candidate" {
             assert!(
                 !group.real_world_evidence.is_empty(),
-                "LIVE group `{}` has only smoke evidence; broad real-world evidence is required",
+                "candidate group `{}` has only smoke evidence; broad real-world evidence is required",
                 group.id
             );
             let real_evidence_tokens = [
@@ -356,7 +356,7 @@ fn candidate_groups_have_real_world_chaintape_or_cas_evidence() {
                         .iter()
                         .any(|token| kind.eq_ignore_ascii_case(token))
                 }),
-                "LIVE group `{}` must require ChainTape/CAS/replay or real-run evidence, got {:?}",
+                "candidate group `{}` must require ChainTape/CAS/replay or real-run evidence, got {:?}",
                 group.id,
                 group.evidence_requires
             );

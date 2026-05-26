@@ -120,6 +120,8 @@ struct ToolBenchFcTraceReport {
     work_tx_landed: bool,
     tool_call_count: usize,
     tool_selection_exact_match: bool,
+    closure_scope: &'static str,
+    full_system_participation_required: bool,
     final_closure_possible: bool,
 }
 
@@ -604,6 +606,8 @@ async fn run(args: Args) -> Result<(), String> {
         work_tx_landed,
         tool_call_count: parsed.selected_api_ids.len(),
         tool_selection_exact_match: exact_match,
+        closure_scope: "domain_adapter_smoke_only",
+        full_system_participation_required: true,
         final_closure_possible: false,
     };
     write_pretty_json(&args.out_dir.join("fc_trace_report.json"), &fc_trace)?;

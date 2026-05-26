@@ -4,6 +4,28 @@ policy = "fresh_current_kernel_required_for_final"
 final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
 historical_evidence_is_final = false
 smoke_is_not_final_evidence = true
+full_system_required_for_final = true
+full_system_sample_manifest = "full_system_participation.json"
+per_sample_fc_union_is_not_sufficient = true
+market_participation_required_for_every_sample = true
+market_participation_modes = [
+  "invest",
+  "abstain_with_tape_visible_market_opportunity",
+]
+required_per_sample_fc_blocks = [
+  "FC1",
+  "FC2",
+  "FC3",
+]
+required_per_sample_module_groups = [
+  "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
+  "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
+]
 
 [[task]]
 id = "market_external_agent_fresh"
@@ -18,11 +40,13 @@ module_groups = [
   "economy_market_settlement",
   "runtime_replay_evidence_audit",
   "agent_prompt_model_boundary",
+  "fc3_runtime_meta_roles",
   "role_economic_learning_sidecars",
 ]
 constitutional_paths = [
   "FC1:Q_t->rtool->input->agent-delta->output->predicates->wtool->Q_t+1",
   "FC2:replay",
+  "FC3:logs-archive->feedback->architectAI->vetoAI",
 ]
 anti_contamination_guards = [
   "DeepSeek/SiliconFlow external agent enters only through local OpenAI-compatible proxy, never kernel hardcoding",
@@ -40,6 +64,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
   "handover/evidence/true_suite/<run>/market_action/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_action/full_system_participation.json",
 ]
 
 [[task]]
@@ -49,15 +74,19 @@ status = "fresh_required"
 tape_kind = "canonical_l4"
 entrypoint = "scripts/run_real16_market_performance_benchmark.sh"
 module_groups = [
+  "canonical_tape_cas_state",
   "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
   "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
   "role_economic_learning_sidecars",
 ]
 constitutional_paths = [
   "FC1:predicates",
   "FC1:wtool",
   "FC2:pinned-benchmark-replay",
+  "FC3:logs-archive->feedback->architectAI->vetoAI",
 ]
 anti_contamination_guards = [
   "pin same problem/model/budget hashes across arms",
@@ -71,6 +100,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_ab/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "handover/evidence/true_suite/<run>/market_ab/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_ab/full_system_participation.json",
 ]
 
 [[task]]
@@ -81,7 +111,12 @@ tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_generate_artifact_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
   "agent_prompt_model_boundary",
   "librarian_spec_grill_product",
   "web_product_surface",
@@ -107,6 +142,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/generate_artifact/artifact_bundle_cid.json",
   "handover/evidence/true_suite/<run>/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/<run>/generate_artifact/replay_report.json",
+  "handover/evidence/true_suite/<run>/generate_artifact/full_system_participation.json",
 ]
 
 [[task]]
@@ -117,7 +153,12 @@ tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_swebench_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
   "agent_prompt_model_boundary",
 ]
 constitutional_paths = [
@@ -144,6 +185,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_run_manifest.json",
   "handover/evidence/true_suite/<run>/swebench/replay_report.json",
+  "handover/evidence/true_suite/<run>/swebench/full_system_participation.json",
   "handover/evidence/true_suite/<run>/swebench/failure_taxonomy.json",
 ]
 
@@ -155,12 +197,18 @@ tape_kind = "tdma_domain"
 entrypoint = "scripts/run_true_suite_tdma_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
   "agent_prompt_model_boundary",
   "tdma_bounded_solver",
 ]
 constitutional_paths = [
   "FC1:rtool->agent-delta->predicates",
+  "FC2:boot->Q0->map-reduce-tick->replay",
   "FC3:logs->feedback",
 ]
 anti_contamination_guards = [
@@ -177,6 +225,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/tdma/per_attempt_probes.jsonl",
   "handover/evidence/true_suite/<run>/tdma/replay_report.json",
   "handover/evidence/true_suite/<run>/tdma/tdma_run_manifest.json",
+  "handover/evidence/true_suite/<run>/tdma/full_system_participation.json",
 ]
 
 [[task]]
@@ -187,11 +236,17 @@ tape_kind = "canonical_l4"
 entrypoint = "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
   "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
   "tool_registry_current",
 ]
 constitutional_paths = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:boot->Q0->map-reduce-tick->replay",
   "FC3:logs-archive->feedback->architectAI->vetoAI->tools/logs->re-init",
 ]
 anti_contamination_guards = [
@@ -206,6 +261,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/fc3/full_system_participation.json",
   "handover/evidence/true_suite/<run>/fc3/fc3_governance_reinit_run_manifest.json",
 ]
 
@@ -218,9 +274,15 @@ entrypoint = "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
 ]
 constitutional_paths = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
   "FC2:replay",
   "FC3:logs-archive",
 ]
@@ -241,6 +303,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/replay_cas/tamper_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/post_tamper_replay_report.json",
   "handover/evidence/true_suite/<run>/replay_cas/replay_cas_run_manifest.json",
+  "handover/evidence/true_suite/<run>/replay_cas/full_system_participation.json",
 ]
 
 [[task]]
@@ -252,13 +315,20 @@ entrypoint = "scripts/run_true_suite_boot_cli_current_kernel.sh"
 module_groups = [
   "axiom_boot_trust_root",
   "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
   "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
   "cli_orchestration_surface",
 ]
 constitutional_paths = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
   "FC2:boot",
   "FC2:Q0",
   "FC2:replay",
+  "FC3:logs-archive->feedback->architectAI->vetoAI",
 ]
 anti_contamination_guards = [
   "fresh current main binary must create the workspace",
@@ -273,4 +343,5 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/boot_cli/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/boot_cli/genesis_report.json",
   "handover/evidence/true_suite/<run>/boot_cli/replay_report.json",
+  "handover/evidence/true_suite/<run>/boot_cli/full_system_participation.json",
 ]

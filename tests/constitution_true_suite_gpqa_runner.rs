@@ -215,6 +215,22 @@ fn gpqa_runner_calls_proxy_writes_cas_claim_and_replays_worktx() {
         manifest.get("work_tx_landed").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        manifest.get("closure_scope").and_then(Value::as_str),
+        Some("domain_adapter_smoke_only")
+    );
+    assert_eq!(
+        manifest
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("final_closure_possible")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
     assert!(manifest.get("raw_response").is_none());
     assert!(manifest.get("raw_prompt").is_none());
     for key in [

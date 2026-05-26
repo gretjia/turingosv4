@@ -3,6 +3,14 @@ authority = "constitution.md + fresh current-kernel true-problem evidence"
 closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
 old_15_is_not_sufficient = true
 leaderboard_score_is_not_liveness = true
+full_system_required_for_final = true
+full_system_sample_manifest = "full_system_participation.json"
+per_sample_fc_union_is_not_sufficient = true
+market_participation_required_for_every_sample = true
+market_participation_modes = [
+  "invest",
+  "abstain_with_tape_visible_market_opportunity",
+]
 minimum_family_count = 10
 required_failure_classes = [
   "kernel_invariant_failure",
@@ -16,6 +24,17 @@ required_fc_blocks = [
   "FC1",
   "FC2",
   "FC3",
+]
+required_substrate_groups = [
+  "axiom_boot_trust_root",
+  "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
+  "runtime_replay_evidence_audit",
+  "agent_prompt_model_boundary",
+  "fc3_runtime_meta_roles",
+  "tool_registry_current",
 ]
 allowed_entry_boundaries = [
   "public_cli",
@@ -70,6 +89,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gaia/cas/",
   "handover/evidence/true_suite/<run>/gaia/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/gaia/replay_report.json",
+  "handover/evidence/true_suite/<run>/gaia/full_system_participation.json",
   "handover/evidence/true_suite/<run>/gaia/fc_trace_report.json",
 ]
 
@@ -82,6 +102,7 @@ entry_boundary = "local_openai_proxy"
 fc_trace = [
   "FC1:input->agent-delta->output->predicates",
   "FC2:pinned-benchmark-replay",
+  "FC3:logs-archive->feedback->architectAI->vetoAI",
 ]
 kernel_liveness_modules = [
   "agent_prompt_model_boundary",
@@ -115,6 +136,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_run_manifest.json",
   "handover/evidence/true_suite/<run>/gpqa/replay_report.json",
+  "handover/evidence/true_suite/<run>/gpqa/full_system_participation.json",
   "handover/evidence/true_suite/<run>/gpqa/failure_taxonomy.json",
 ]
 
@@ -169,6 +191,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/math/math_competition_reasoning_run_manifest.json",
   "handover/evidence/true_suite/<run>/math/replay_report.json",
   "handover/evidence/true_suite/<run>/math/restore_replay_report.json",
+  "handover/evidence/true_suite/<run>/math/full_system_participation.json",
   "handover/evidence/true_suite/<run>/math/failure_taxonomy.json",
 ]
 
@@ -222,6 +245,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_run_manifest.json",
   "handover/evidence/true_suite/<run>/swebench/replay_report.json",
+  "handover/evidence/true_suite/<run>/swebench/full_system_participation.json",
   "handover/evidence/true_suite/<run>/swebench/failure_taxonomy.json",
 ]
 
@@ -266,6 +290,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/webarena/cas/",
   "handover/evidence/true_suite/<run>/webarena/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/webarena/replay_report.json",
+  "handover/evidence/true_suite/<run>/webarena/full_system_participation.json",
 ]
 
 [[family]]
@@ -276,6 +301,7 @@ risk_class = "Class 2"
 entry_boundary = "browser_sandbox"
 fc_trace = [
   "FC1:rtool->input->agent-delta->output->predicates",
+  "FC2:boot->Q0->map-reduce-tick->replay",
   "FC3:tools/logs->logs-archive",
 ]
 kernel_liveness_modules = [
@@ -316,6 +342,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/mind2web/mind2web_browser_action_run_manifest.json",
   "handover/evidence/true_suite/<run>/mind2web/replay_report.json",
   "handover/evidence/true_suite/<run>/mind2web/restore_replay_report.json",
+  "handover/evidence/true_suite/<run>/mind2web/full_system_participation.json",
   "handover/evidence/true_suite/<run>/mind2web/fc_trace_report.json",
 ]
 
@@ -360,6 +387,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/osworld/cas/",
   "handover/evidence/true_suite/<run>/osworld/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/osworld/replay_report.json",
+  "handover/evidence/true_suite/<run>/osworld/full_system_participation.json",
 ]
 
 [[family]]
@@ -370,6 +398,7 @@ risk_class = "Class 2"
 entry_boundary = "public_cli"
 fc_trace = [
   "FC1:rtool->input->agent-delta->output->predicates",
+  "FC2:boot->Q0->map-reduce-tick->replay",
   "FC3:tools/logs->logs-archive",
 ]
 kernel_liveness_modules = [
@@ -414,6 +443,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/toolbench/toolbench_api_tool_use_run_manifest.json",
   "handover/evidence/true_suite/<run>/toolbench/replay_report.json",
   "handover/evidence/true_suite/<run>/toolbench/restore_replay_report.json",
+  "handover/evidence/true_suite/<run>/toolbench/full_system_participation.json",
   "handover/evidence/true_suite/<run>/toolbench/fc_trace_report.json",
 ]
 
@@ -458,6 +488,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/cybench/cas/",
   "handover/evidence/true_suite/<run>/cybench/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/cybench/replay_report.json",
+  "handover/evidence/true_suite/<run>/cybench/full_system_participation.json",
 ]
 
 [[family]]
@@ -502,6 +533,7 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_action/cas/",
   "handover/evidence/true_suite/<run>/market_action/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/market_action/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_action/full_system_participation.json",
   "handover/evidence/true_suite/<run>/market_action/market_external_agent_run_manifest.json",
 ]
 
@@ -548,5 +580,6 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/fc3/full_system_participation.json",
   "handover/evidence/true_suite/<run>/fc3/fc3_governance_reinit_run_manifest.json",
 ]
