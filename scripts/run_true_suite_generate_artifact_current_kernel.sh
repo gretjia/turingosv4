@@ -48,10 +48,11 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR --provider $INIT_PROVIDER"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider "$INIT_PROVIDER"
@@ -127,6 +128,17 @@ echo "[verify] turingos verify chaintape"
     --run-id "$CHAIN_RUN_ID" \
     --out "$RUN_DIR/replay_report.json"
 
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "gaia_general_assistant" \
+    --entrypoint "scripts/run_true_suite_generate_artifact_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --domain-manifest "$RUN_DIR/artifact_bundle_cid.json" \
+    --out "$RUN_DIR/full_system_participation.json"
+
 cat > "$RUN_DIR/generate_artifact_run_manifest.json" <<EOF
 {
   "schema_version": "turingosv4.true_suite.generate_artifact_current_kernel.v1",
@@ -143,6 +155,7 @@ cat > "$RUN_DIR/generate_artifact_run_manifest.json" <<EOF
   "genesis_report": "$RUN_DIR/genesis_report.json",
   "artifact_bundle_cid": "$RUN_DIR/artifact_bundle_cid.json",
   "replay_report": "$RUN_DIR/replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
     "spec synthesis is anchored as a CAS spec capsule",

@@ -18,6 +18,9 @@ fn bin(name: &str) -> &'static str {
         "fc3_governance_reinit_current_kernel" => {
             env!("CARGO_BIN_EXE_fc3_governance_reinit_current_kernel")
         }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
 }
@@ -166,6 +169,12 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
         .join("runtime_repo")
         .join("genesis_report.json")
         .is_file());
+    let copied_genesis = run_dir.join("genesis_report.json");
+    std::fs::copy(
+        run_dir.join("runtime_repo").join("genesis_report.json"),
+        &copied_genesis,
+    )
+    .expect("copy genesis report");
     assert!(run_dir
         .join("runtime_repo")
         .join("pinned_pubkeys.json")
@@ -174,6 +183,70 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
         .join("runtime_repo")
         .join("initial_q_state.json")
         .is_file());
+
+    let participation_report = run_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-fc3",
+            "--family-id",
+            "memory_feedback_reinit",
+            "--entrypoint",
+            "tests/constitution_true_suite_fc3_governance_runner.rs",
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            copied_genesis.to_str().expect("utf8 path"),
+            "--fc3-index",
+            run_dir
+                .join("governance_capsule_index.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation helper");
+    assert!(
+        participation.status.success(),
+        "participation helper failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let participation = read_json(&participation_report);
+    assert_eq!(
+        participation
+            .get("fc3")
+            .and_then(|v| v.get("typed_meta_roles_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation
+            .get("fc3")
+            .and_then(|v| v.get("reinit_semantics_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(false),
+        "FC3-only run must honestly report absent market/economy participation"
+    );
+    assert_eq!(
+        participation
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(false)
+    );
 }
 
 #[test]
@@ -187,6 +260,8 @@ fn fc3_governance_runner_script_is_current_kernel_not_external_ceremony() {
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("governance_capsule_index.json"));
     assert!(script.contains("fc3_replay_report.json"));
+    assert!(script.contains("full_system_participation_current_kernel"));
+    assert!(script.contains("full_system_participation.json"));
     assert!(
         !script.contains("handover/ai-direct/LATEST.md")
             && !script.contains("TB_LOG.tsv")

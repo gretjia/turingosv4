@@ -24,16 +24,18 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin audit_tape_tamper"
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin audit_tape_tamper --bin full_system_participation_current_kernel"
 (cd "$PROJECT_ROOT" && cargo build --release \
     --bin turingos \
     --bin verify_chaintape \
     --bin boot_cli_current_kernel_fresh \
-    --bin audit_tape_tamper)
+    --bin audit_tape_tamper \
+    --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 BOOT_HELPER="$PROJECT_ROOT/target/release/boot_cli_current_kernel_fresh"
 TAMPER="$PROJECT_ROOT/target/release/audit_tape_tamper"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 BIN_DIR="$PROJECT_ROOT/target/release"
 
 echo "[init] turingos init --project $RUN_DIR"
@@ -77,6 +79,17 @@ TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
     --cas "$RUN_DIR/cas" \
     --run-id "$RUN_ID" \
     --out "$RUN_DIR/post_tamper_replay_report.json"
+
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "replay_cas_tamper_repair_current" \
+    --entrypoint "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --domain-manifest "$RUN_DIR/tamper_report.json" \
+    --out "$RUN_DIR/full_system_participation.json"
 
 python3 - "$PROJECT_ROOT" "$RUN_DIR" <<'PY'
 import hashlib
@@ -139,6 +152,7 @@ cat > "$RUN_DIR/replay_cas_run_manifest.json" <<EOF
   "replay_report": "$RUN_DIR/replay_report.json",
   "tamper_report": "$RUN_DIR/tamper_report.json",
   "post_tamper_replay_report": "$RUN_DIR/post_tamper_replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "fresh evidence is generated through public turingos init",
     "current runtime ChainTape boot helper emits boot/resume L4 rows",

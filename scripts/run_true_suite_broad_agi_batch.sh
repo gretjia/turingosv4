@@ -210,16 +210,107 @@ def materialize(path_template: str) -> Path:
 def artifacts_present(templates) -> bool:
     return all(materialize(path).exists() for path in templates)
 
-def full_system_report_present(templates) -> bool:
-    return any(
-        path.endswith("/full_system_participation.json") and materialize(path).exists()
-        for path in templates
+def nested_bool(value, keys) -> bool:
+    cur = value
+    for key in keys:
+        if not isinstance(cur, dict):
+            return False
+        cur = cur.get(key)
+    return cur is True
+
+def nested_int(value, keys) -> int:
+    cur = value
+    for key in keys:
+        if not isinstance(cur, dict):
+            return 0
+        cur = cur.get(key)
+    return cur if isinstance(cur, int) and cur >= 0 else 0
+
+def market_choice_lit(report) -> bool:
+    if not nested_bool(report, ["market", "present"]):
+        return False
+    return (
+        nested_int(report, ["market", "agent_market_action_txs"]) > 0
+        or nested_int(report, ["market", "market_decision_submitted_count"]) > 0
+        or nested_int(report, ["market", "market_decision_no_trade_count"]) > 0
+        or nested_int(report, ["market", "market_decision_declined_count"]) > 0
     )
 
-def status_for_artifacts(final_present: bool, full_system_present: bool, fallback: str) -> str:
-    if final_present and full_system_present:
+def full_system_report_result(templates) -> dict:
+    report_templates = [
+        path for path in templates if path.endswith("/full_system_participation.json")
+    ]
+    if not report_templates:
+        return {
+            "present": False,
+            "lit": False,
+            "verdict": "UNDECLARED",
+            "missing": ["full_system_participation.json_not_declared"],
+            "required_rows": {},
+        }
+
+    report_path = materialize(report_templates[0])
+    if not report_path.exists():
+        return {
+            "present": False,
+            "lit": False,
+            "verdict": "MISSING",
+            "missing": ["full_system_participation.json_missing"],
+            "required_rows": {},
+        }
+
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # pragma: no cover - exercised by shell diagnostics.
+        return {
+            "present": True,
+            "lit": False,
+            "verdict": "INVALID_JSON",
+            "missing": [f"full_system_participation_json_parse_error:{exc}"],
+            "required_rows": {},
+        }
+
+    verdict = report.get("verdict") if isinstance(report, dict) else {}
+    if not isinstance(verdict, dict):
+        verdict = {}
+    declared_missing = verdict.get("missing")
+    if not isinstance(declared_missing, list):
+        declared_missing = []
+
+    required_rows = {
+        "FC1_runtime_work_or_l4e": nested_bool(report, ["fc1", "present"]),
+        "FC2_boot_tick_replay": nested_bool(report, ["fc2", "present"]),
+        "FC3_typed_architect_veto_feedback": nested_bool(
+            report, ["fc3", "typed_meta_roles_present"]
+        ),
+        "FC3_reinit_semantics": nested_bool(report, ["fc3", "reinit_semantics_present"]),
+        "market_economy_invest_or_visible_abstention": market_choice_lit(report),
+        "replay_all_indicators_pass": nested_bool(report, ["replay", "all_indicators_pass"]),
+    }
+    computed_missing = [
+        name for name, row_lit in required_rows.items() if not row_lit
+    ]
+    declared_full = verdict.get("full_system_participation") is True
+    declared_verdict = verdict.get("full_system_verdict", "INVALID_REPORT")
+    lit = declared_full and declared_verdict == "FULL_SYSTEM_LIT" and not computed_missing
+    missing = sorted({str(item) for item in declared_missing} | set(computed_missing))
+    if declared_full and computed_missing:
+        declared_verdict = "INVALID_FULL_SYSTEM_REPORT"
+
+    return {
+        "present": True,
+        "lit": lit,
+        "verdict": declared_verdict,
+        "missing": missing,
+        "required_rows": required_rows,
+    }
+
+def status_for_artifacts(final_present: bool, full_system_report: dict, fallback: str) -> str:
+    if final_present and full_system_report["lit"]:
         return "full_system_participation_passed"
-    if full_system_present:
+    if final_present and full_system_report["present"]:
+        return "full_system_participation_report_partial"
+    if full_system_report["present"]:
         return "full_system_report_present_declared_artifacts_missing"
     if final_present:
         return "domain_artifacts_present_full_system_pending"
@@ -238,7 +329,7 @@ for task in coverage_manifest["task"]:
     task_id = task["id"]
     installed_runner = installed.get(task_id)
     final_present = artifacts_present(task["final_evidence_artifacts"])
-    full_system_present = full_system_report_present(task["final_evidence_artifacts"])
+    full_system_report = full_system_report_result(task["final_evidence_artifacts"])
     if installed_runner and mode == "execute-installed" and task_id in selected_set:
         status = "selected_runner_failed_or_incomplete"
     elif installed_runner and task_id in selected_set:
@@ -247,7 +338,7 @@ for task in coverage_manifest["task"]:
         status = "installed_runner_not_selected"
     else:
         status = "runner_pending"
-    status = status_for_artifacts(final_present, full_system_present, status)
+    status = status_for_artifacts(final_present, full_system_report, status)
     domain_results.append(
         {
             "kind": "realworld_domain",
@@ -257,8 +348,11 @@ for task in coverage_manifest["task"]:
             "entrypoint": task["entrypoint"],
             "fc_blocks": fc_blocks(task["constitutional_paths"]),
             "final_artifacts_present": final_present,
-            "full_system_report_present": full_system_present,
-            "full_system_verdict": "FULL_SYSTEM_LIT" if full_system_present else "PARTIAL_RUNNER_ONLY",
+            "full_system_report_present": full_system_report["present"],
+            "full_system_report_lit": full_system_report["lit"],
+            "full_system_verdict": full_system_report["verdict"],
+            "full_system_missing": full_system_report["missing"],
+            "full_system_required_rows": full_system_report["required_rows"],
             "final_artifacts": task["final_evidence_artifacts"],
         }
     )
@@ -267,10 +361,10 @@ family_results = []
 for family in broad_manifest["family"]:
     family_id = family["id"]
     final_present = artifacts_present(family["final_evidence_artifacts"])
-    full_system_present = full_system_report_present(family["final_evidence_artifacts"])
+    full_system_report = full_system_report_result(family["final_evidence_artifacts"])
     status = status_for_artifacts(
         final_present,
-        full_system_present,
+        full_system_report,
         family_runner_status.get(family_id, "benchmark_adapter_pending"),
     )
     family_results.append(
@@ -284,8 +378,11 @@ for family in broad_manifest["family"]:
             "fc_blocks": fc_blocks(family["fc_trace"]),
             "failure_taxonomy": family["failure_taxonomy"],
             "final_artifacts_present": final_present,
-            "full_system_report_present": full_system_present,
-            "full_system_verdict": "FULL_SYSTEM_LIT" if full_system_present else "PARTIAL_RUNNER_ONLY",
+            "full_system_report_present": full_system_report["present"],
+            "full_system_report_lit": full_system_report["lit"],
+            "full_system_verdict": full_system_report["verdict"],
+            "full_system_missing": full_system_report["missing"],
+            "full_system_required_rows": full_system_report["required_rows"],
             "final_artifacts": family["final_evidence_artifacts"],
         }
     )
@@ -345,7 +442,8 @@ batch_manifest = {
         "leaderboard score is capability signal only, not module liveness",
         "TDMA evidence is domain tape evidence, not bottom-white L4 ChainTape",
         "provider raw prompt/response is not a valid final artifact",
-        "domain artifacts without full_system_participation.json remain partial runner evidence",
+        "full_system_participation.json must be parsed and FULL_SYSTEM_LIT, not merely present",
+        "domain artifacts without a FULL_SYSTEM_LIT participation report remain partial runner evidence",
         "market/economy must participate even in one-agent runs via invest or tape-visible abstention",
     ],
 }
@@ -365,12 +463,12 @@ aggregate = {
         1 for row in all_results if row["final_artifacts_present"]
     ),
     "full_system_participation_pass_count": sum(
-        1 for row in all_results if row["status"] == "full_system_participation_passed"
+        1 for row in all_results if row["full_system_report_lit"]
     ),
     "pending_result_count": len(pending_results),
     "pending_ids": [row["id"] for row in pending_results],
     "partial_runner_ids": [
-        row["id"] for row in all_results if row["full_system_verdict"] != "FULL_SYSTEM_LIT"
+        row["id"] for row in all_results if not row["full_system_report_lit"]
     ],
     "all_declared_artifacts_present": all_declared_artifacts_present,
     "full_system_closure_candidate": full_system_closure_candidate,

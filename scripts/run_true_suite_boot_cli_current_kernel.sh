@@ -24,11 +24,12 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin boot_cli_current_kernel_fresh --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/boot_cli_current_kernel_fresh"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider siliconflow
@@ -49,6 +50,16 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --out "$RUN_DIR/replay_report.json"
 
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "boot_cli_current_kernel_fresh" \
+    --entrypoint "scripts/run_true_suite_boot_cli_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --out "$RUN_DIR/full_system_participation.json"
+
 cat > "$RUN_DIR/boot_cli_current_kernel_manifest.json" <<EOF
 {
   "schema_version": "turingosv4.true_suite.boot_cli_current_kernel.v1",
@@ -59,6 +70,7 @@ cat > "$RUN_DIR/boot_cli_current_kernel_manifest.json" <<EOF
   "cas": "$RUN_DIR/cas",
   "genesis_report": "$RUN_DIR/genesis_report.json",
   "replay_report": "$RUN_DIR/replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "turingos init is filesystem scaffold only",
     "boot helper calls current runtime ChainTape boot API",

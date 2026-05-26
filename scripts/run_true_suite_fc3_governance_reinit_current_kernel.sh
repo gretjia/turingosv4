@@ -29,11 +29,12 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/fc3_governance_reinit_current_kernel"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR --provider $INIT_PROVIDER"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider "$INIT_PROVIDER"
@@ -55,6 +56,17 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --out "$RUN_DIR/fc3_replay_report.json"
 
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "memory_feedback_reinit" \
+    --entrypoint "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/fc3_replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --out "$RUN_DIR/full_system_participation.json"
+
 cat > "$RUN_DIR/fc3_governance_reinit_run_manifest.json" <<EOF
 {
   "schema_version": "turingosv4.true_suite.fc3_governance_reinit_run.v1",
@@ -68,6 +80,7 @@ cat > "$RUN_DIR/fc3_governance_reinit_run_manifest.json" <<EOF
   "chaintape_jsonl": "$RUN_DIR/chaintape.jsonl",
   "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/fc3_replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "FC3 evidence is typed ChainTape/CAS runtime evidence, not handover or dashboard evidence",
     "ArchitectAI and Veto-AI are represented by runtime system txs",

@@ -14,6 +14,9 @@ fn bin(name: &str) -> &'static str {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
         "boot_cli_current_kernel_fresh" => env!("CARGO_BIN_EXE_boot_cli_current_kernel_fresh"),
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
 }
@@ -92,6 +95,8 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
 
     let genesis_report = run_dir.join("runtime_repo").join("genesis_report.json");
     assert!(genesis_report.is_file(), "genesis_report.json missing");
+    let copied_genesis = run_dir.join("genesis_report.json");
+    std::fs::copy(&genesis_report, &copied_genesis).expect("copy genesis report");
     assert!(run_dir
         .join("runtime_repo")
         .join("initial_q_state.json")
@@ -101,6 +106,71 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
         .join("pinned_pubkeys.json")
         .is_file());
     assert!(run_dir.join("cas").is_dir());
+
+    let participation_report = run_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-boot-cli",
+            "--family-id",
+            "boot_cli_current_kernel_fresh",
+            "--entrypoint",
+            "tests/constitution_true_suite_boot_cli_runner.rs",
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            copied_genesis.to_str().expect("utf8 path"),
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation helper");
+    assert!(
+        participation.status.success(),
+        "participation helper failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let participation: Value = serde_json::from_str(
+        &std::fs::read_to_string(&participation_report).expect("read participation report"),
+    )
+    .expect("parse participation report");
+    assert_eq!(
+        participation
+            .get("fc2")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true),
+        "boot run must light FC2 boot/tick/replay"
+    );
+    assert_eq!(
+        participation
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(false),
+        "boot-only run must honestly report that market/economy did not participate"
+    );
+    assert_eq!(
+        participation
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(false),
+        "a substrate-only boot sample cannot claim full FC1/FC2/FC3/market participation"
+    );
+    let missing = participation
+        .get("verdict")
+        .and_then(|v| v.get("missing"))
+        .and_then(Value::as_array)
+        .expect("missing rows");
+    assert!(missing
+        .iter()
+        .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention")));
 
     let replay: Value = serde_json::from_str(
         &std::fs::read_to_string(&replay_report).expect("read replay_report.json"),
@@ -151,6 +221,8 @@ fn boot_cli_runner_script_stays_external_to_kernel_simulation() {
     assert!(script.contains("turingos init"));
     assert!(script.contains("boot_cli_current_kernel_fresh"));
     assert!(script.contains("verify chaintape"));
+    assert!(script.contains("full_system_participation_current_kernel"));
+    assert!(script.contains("full_system_participation.json"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(
         !script.contains("TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS"),
