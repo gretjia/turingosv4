@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingosv4.true_suite.swebench_failure_taxonomy.v1",
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "family_id": "swebench_live_coding_repair",
+  "failure_class": null,
+  "has_unified_diff": true,
+  "target_file_overlap": true,
+  "parse_guard_passed": true,
+  "rationale_guard_passed": true,
+  "patch_structurally_plausible": true,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": false,
+  "infrastructure_failure": false
+}

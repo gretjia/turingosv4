@@ -1,0 +1,10 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_browser_action_trace.v1",
+  "sample_id": "7bda9645-0b5f-470a-8dd7-6af0bff4da68:0",
+  "input_capsule_cid": "3104879aa2f922e3fa86ee38728b9bd8891013d5d520d8119949b038ec9e6ece",
+  "selected_backend_node_id": "__missing_backend_node_id__",
+  "operation": "SELECT",
+  "value": "pickup",
+  "selected_candidate_available": false,
+  "action_trace_sha256": "5c4c93ef93325853c41dc610fee2a251349e412f0d9ffde2c701dac41e79f3c0"
+}

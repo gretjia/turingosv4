@@ -1,0 +1,7 @@
+artifact_bundle_cid=6109e8dadb175e56d61d5b6b69439736c5a2b49b35330922d8178c1ae2e51f64
+
+Generated 1 file(s) under /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/generate_artifact/artifacts/
+  index.html
+
+Open the entry file in your browser or run the entry script:
+  xdg-open /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/generate_artifact/artifacts/index.html

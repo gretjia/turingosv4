@@ -1,0 +1,17 @@
+{
+  "schema_version": "turingosv4.true_suite.boot_cli_current_kernel.v1",
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "git_head": "d2ec67dfabb06973449cc5002a10441723a7c594",
+  "entrypoint": "scripts/run_true_suite_boot_cli_current_kernel.sh",
+  "runtime_repo": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/boot_cli/runtime_repo",
+  "cas": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/boot_cli/cas",
+  "genesis_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/boot_cli/genesis_report.json",
+  "replay_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/boot_cli/replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/boot_cli/full_system_participation.json",
+  "notes": [
+    "turingos init is filesystem scaffold only",
+    "boot helper calls current runtime ChainTape boot API",
+    "resume path emits an additional system MapReduceTick",
+    "verify chaintape is invoked through the public turingos CLI wrapper"
+  ]
+}

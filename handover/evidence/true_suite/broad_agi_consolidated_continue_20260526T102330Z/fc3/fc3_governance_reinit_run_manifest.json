@@ -1,0 +1,19 @@
+{
+  "schema_version": "turingosv4.true_suite.fc3_governance_reinit_run.v1",
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "git_head": "d2ec67dfabb06973449cc5002a10441723a7c594",
+  "entrypoint": "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh",
+  "init_provider": "deepseek",
+  "runtime_repo": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/runtime_repo",
+  "cas": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/cas",
+  "genesis_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/genesis_report.json",
+  "chaintape_jsonl": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/chaintape.jsonl",
+  "governance_capsule_index": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/fc3_replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/fc3/full_system_participation.json",
+  "notes": [
+    "FC3 evidence is typed ChainTape/CAS runtime evidence, not handover or dashboard evidence",
+    "ArchitectAI and Veto-AI are represented by runtime system txs",
+    "ReinitRequest and ReinitBoot are tape-visible and replay-verified"
+  ]
+}

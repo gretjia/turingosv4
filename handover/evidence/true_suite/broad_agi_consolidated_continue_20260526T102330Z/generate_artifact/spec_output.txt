@@ -1,0 +1,9 @@
+
+Spec interview complete.
+  spec.md            -> /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/generate_artifact/spec.md
+  spec_transcript    -> /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/generate_artifact/spec_transcript.jsonl
+  CAS capsule CID    -> 17accf4141a032bbbfa57b1668614a35170db5046a9a31e677d2ac10a3669d9e
+                       (schema: turingos-spec-capsule-v1)
+  LLM total tokens   -> 1727
+
+Next step: turingos generate --workspace /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/generate_artifact

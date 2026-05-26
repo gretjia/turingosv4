@@ -26,6 +26,10 @@ while [[ $# -gt 0 ]]; do
             MODE="execute-installed"
             shift
             ;;
+        --aggregate-existing)
+            MODE="aggregate-existing"
+            shift
+            ;;
         --run-id)
             RUN_ID="${2:?--run-id requires a value}"
             shift 2
@@ -53,7 +57,7 @@ RUN_ID="${RUN_ID#handover/evidence/true_suite/}"
 RUN_ROOT="${RUN_ROOT:-$PROJECT_ROOT/handover/evidence/true_suite/$RUN_ID}"
 RUN_DIR="$RUN_ROOT/broad_batch"
 
-if [[ -e "$RUN_DIR" ]]; then
+if [[ -e "$RUN_DIR" && "$MODE" != "aggregate-existing" ]]; then
     echo "ERROR: evidence directory already exists: $RUN_DIR" >&2
     exit 2
 fi
@@ -151,8 +155,14 @@ if [[ "$MODE" == "execute-installed" ]]; then
         fi
     done
     "$PROJECT_ROOT/scripts/package_true_suite_evidence.sh" --run-root "$RUN_ROOT"
+    "$PROJECT_ROOT/scripts/restore_true_suite_chain_evidence.sh" --run-root "$RUN_ROOT"
+elif [[ "$MODE" == "aggregate-existing" ]]; then
+    if [[ ! -d "$RUN_ROOT" ]]; then
+        echo "ERROR: run root is not a directory: $RUN_ROOT" >&2
+        exit 6
+    fi
 elif [[ "$MODE" != "plan-only" ]]; then
-    echo "ERROR: mode must be --plan-only or --execute-installed" >&2
+    echo "ERROR: mode must be --plan-only, --execute-installed, or --aggregate-existing" >&2
     exit 5
 fi
 
@@ -176,6 +186,7 @@ run_id = sys.argv[4]
 mode = sys.argv[5]
 selected_runner_ids = [item for item in sys.argv[6].split(",") if item]
 continue_on_runner_failure = sys.argv[7] == "1"
+evidence_mode = mode in {"execute-installed", "aggregate-existing"}
 
 broad_manifest_path = project / "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml"
 coverage_manifest_path = project / "tests/fixtures/liveness/realworld_liveness_coverage.toml"
@@ -297,7 +308,7 @@ def report_path(path: Path) -> str:
     try:
         return f"<run-root>/{resolved.relative_to(run_root.resolve()).as_posix()}"
     except ValueError:
-        return resolved.as_posix()
+        raise SystemExit(f"refusing to record absolute output path outside project/run root: {resolved}")
 
 def materialize(path_template: str) -> Path:
     replaced = path_template.replace("handover/evidence/true_suite/<run>", str(run_root))
@@ -427,7 +438,8 @@ for task in coverage_manifest["task"]:
     execution = runner_execution_by_id.get(task_id)
     final_present = artifacts_present(task["final_evidence_artifacts"])
     full_system_report = full_system_report_result(task["final_evidence_artifacts"])
-    if execution and int(execution.get("exit_code", 1)) != 0:
+    runner_failed = execution and int(execution.get("exit_code", 1)) != 0
+    if runner_failed:
         status = "runner_execution_failed"
     elif installed_runner and mode == "execute-installed" and task_id in selected_set:
         status = "selected_runner_failed_or_incomplete"
@@ -437,7 +449,8 @@ for task in coverage_manifest["task"]:
         status = "installed_runner_not_selected"
     else:
         status = "runner_pending"
-    status = status_for_artifacts(final_present, full_system_report, status)
+    if not runner_failed:
+        status = status_for_artifacts(final_present, full_system_report, status)
     domain_results.append(
         {
             "kind": "realworld_domain",
@@ -467,13 +480,14 @@ for family in broad_manifest["family"]:
         for runner_id in failed_runner_ids
         if family_id in installed.get(runner_id, {}).get("family_ids", [])
     )
-    status = status_for_artifacts(
-        final_present,
-        full_system_report,
-        "runner_execution_failed"
-        if family_failed_runner_ids
-        else family_runner_status.get(family_id, "benchmark_adapter_pending"),
-    )
+    if family_failed_runner_ids:
+        status = "runner_execution_failed"
+    else:
+        status = status_for_artifacts(
+            final_present,
+            full_system_report,
+            family_runner_status.get(family_id, "benchmark_adapter_pending"),
+        )
     family_results.append(
         {
             "kind": "broad_agi_family",
@@ -504,11 +518,11 @@ pending_results = [
     for row in all_results
     if row["status"] != "full_system_participation_passed"
 ]
-all_declared_artifacts_present = mode == "execute-installed" and all(
+all_declared_artifacts_present = evidence_mode and all(
     row["final_artifacts_present"] for row in all_results
 )
 full_system_closure_candidate = (
-    mode == "execute-installed"
+    evidence_mode
     and not pending_results
     and all_declared_artifacts_present
     and per_result_fc_complete
@@ -578,14 +592,14 @@ aggregate = {
         1 for row in all_results if row["final_artifacts_present"]
     ),
     "full_system_participation_pass_count": sum(
-        1 for row in all_results if row["full_system_report_lit"]
+        1 for row in all_results if row["status"] == "full_system_participation_passed"
     ),
     "pending_result_count": len(pending_results),
     "pending_ids": [row["id"] for row in pending_results],
     "failed_runner_ids": failed_runner_ids,
     "runner_failure_count": len(failed_runner_ids),
     "partial_runner_ids": [
-        row["id"] for row in all_results if not row["full_system_report_lit"]
+        row["id"] for row in all_results if row["status"] != "full_system_participation_passed"
     ],
     "all_declared_artifacts_present": all_declared_artifacts_present,
     "full_system_closure_candidate": full_system_closure_candidate,
