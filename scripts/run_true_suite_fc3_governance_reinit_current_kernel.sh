@@ -29,11 +29,12 @@ if [[ -n "$(cd "$PROJECT_ROOT" && git status --porcelain | grep -vE '^\?\? hando
     exit 3
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_participation_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_participation_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin fc3_governance_reinit_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/fc3_governance_reinit_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR --provider $INIT_PROVIDER"
@@ -46,6 +47,17 @@ echo "[fc3] current-kernel typed FC3 governance/re-init sequence"
     --run-id "$RUN_ID" \
     --constitution "$PROJECT_ROOT/constitution.md" \
     --out-dir "$RUN_DIR"
+
+cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
+
+echo "[full-system] append FC1/market/FC3 participation rows to same ChainTape"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR" \
+    --skip-fc3
 
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
 
@@ -65,6 +77,7 @@ echo "[verify] turingos verify chaintape"
     --replay-report "$RUN_DIR/fc3_replay_report.json" \
     --genesis-report "$RUN_DIR/genesis_report.json" \
     --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --require-full-system \
     --out "$RUN_DIR/full_system_participation.json"
 
 cat > "$RUN_DIR/fc3_governance_reinit_run_manifest.json" <<EOF
@@ -80,9 +93,11 @@ cat > "$RUN_DIR/fc3_governance_reinit_run_manifest.json" <<EOF
   "chaintape_jsonl": "$RUN_DIR/chaintape.jsonl",
   "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/fc3_replay_report.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "FC3 evidence is typed ChainTape/CAS runtime evidence, not handover or dashboard evidence",
+    "This FC3 true-suite sample also appends FC1 WorkTx and market participation rows on the same ChainTape",
     "ArchitectAI and Veto-AI are represented by runtime system txs",
     "ReinitRequest and ReinitBoot are tape-visible and replay-verified"
   ]
