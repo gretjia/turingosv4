@@ -13,14 +13,18 @@ use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::real5_roles::AgentRole;
-use turingosv4::runtime::real6_attempt_prediction::{
+
+#[path = "support/real6_attempt_prediction_fixture.rs"]
+mod real6_attempt_prediction_fixture;
+
+use real6_attempt_prediction_fixture::{
     attempt_prediction_fixture_cids, build_scripted_attempt_prediction_fixture,
     validate_attempt_prediction_fixture, write_attempt_prediction_fixture_to_cas,
     AttemptPredictionStepKind, LeanOracleResult, REAL6B_SCHEMA_ID,
 };
 use turingosv4::state::q_state::{AgentId, TaskId, TxId};
 
-fn fixture() -> turingosv4::runtime::real6_attempt_prediction::AttemptPredictionFixture {
+fn fixture() -> real6_attempt_prediction_fixture::AttemptPredictionFixture {
     build_scripted_attempt_prediction_fixture(
         TaskId("task-real6b".into()),
         Cid::from_content(b"candidate-proof-artifact"),
@@ -178,7 +182,7 @@ fn sg_6b_scripted_fixture_can_be_chain_backed_cas_evidence() {
     assert_eq!(meta.schema_id.as_deref(), Some(REAL6B_SCHEMA_ID));
     assert_eq!(attempt_prediction_fixture_cids(&cas), vec![cid]);
     let bytes = cas.get(&cid).expect("fixture resolves");
-    let decoded: turingosv4::runtime::real6_attempt_prediction::AttemptPredictionFixture =
+    let decoded: real6_attempt_prediction_fixture::AttemptPredictionFixture =
         serde_json::from_slice(&bytes).expect("json fixture decodes");
     assert_eq!(decoded, fx);
 }

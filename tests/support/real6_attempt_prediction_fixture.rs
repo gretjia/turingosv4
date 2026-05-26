@@ -1,19 +1,17 @@
-//! REAL-6B — AttemptPredictionMarket sealed-oracle scripted fixture.
+//! Test-only REAL-6B AttemptPredictionMarket scripted fixture.
 //!
-//! Current-stage limit: design + scripted fixture only. This module does not
-//! add live LLM scheduling, typed transaction discriminants, sequencer
-//! admission, or oracle settlement semantics. It records the deterministic
-//! shape that a future Class-4 `SubmitCandidateTx -> MarketCloseTx ->
-//! OracleResolveTx` atom must preserve.
+//! Production keeps only a schema contamination sentinel. The full scripted
+//! fixture lives under `tests/` so it cannot be mistaken for a live runtime
+//! module or current-kernel production path.
 
 use serde::{Deserialize, Serialize};
 
-use crate::bottom_white::cas::schema::{Cid, ObjectType};
-use crate::bottom_white::cas::store::{CasError, CasStore};
-use crate::economy::money::MicroCoin;
-use crate::runtime::real5_roles::AgentRole;
-use crate::state::q_state::{AgentId, TaskId, TxId};
-use crate::state::typed_tx::EventId;
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
+use turingosv4::bottom_white::cas::store::{CasError, CasStore};
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::runtime::real5_roles::AgentRole;
+use turingosv4::state::q_state::{AgentId, TaskId, TxId};
+use turingosv4::state::typed_tx::EventId;
 
 pub const REAL6B_SCHEMA_ID: &str = "real6b.attempt_prediction_fixture.v1";
 pub const REAL6B_STAGE_LIMIT: &str =
