@@ -16,12 +16,21 @@ use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 
+#[path = "support/full_system.rs"]
+mod full_system;
+
 fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
         "mind2web_browser_action_current_kernel" => {
             env!("CARGO_BIN_EXE_mind2web_browser_action_current_kernel")
+        }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
         }
         _ => panic!("unknown bin {name}"),
     }
@@ -203,6 +212,11 @@ fn mind2web_runner_calls_proxy_records_browser_action_and_replays_worktx() {
         String::from_utf8_lossy(&helper.stdout),
         String::from_utf8_lossy(&helper.stderr)
     );
+    full_system::run_full_system_augment(
+        &run_dir,
+        "constitution-true-suite-mind2web",
+        bin("full_system_augment_current_kernel"),
+    );
 
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
@@ -226,6 +240,15 @@ fn mind2web_runner_calls_proxy_records_browser_action_and_replays_worktx() {
         "turingos verify chaintape failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&verify.stdout),
         String::from_utf8_lossy(&verify.stderr)
+    );
+    full_system::assert_full_system_lit(
+        &run_dir,
+        "constitution-true-suite-mind2web",
+        "mind2web_open_web",
+        "tests/constitution_true_suite_mind2web_runner.rs",
+        "mind2web_browser_action_manifest.json",
+        &replay_report,
+        bin("full_system_participation_current_kernel"),
     );
 
     let manifest = read_json(&run_dir.join("mind2web_browser_action_manifest.json"));
@@ -410,7 +433,12 @@ fn mind2web_runner_script_uses_public_dataset_and_preserves_external_boundary() 
     assert!(script.contains("MIND2WEB_SAMPLE_JSON"));
     assert!(script.contains("LLM_PROXY_URL"));
     assert!(script.contains("mind2web_browser_action_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("turingos verify chaintape"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("raw provider prompt and response are not written"));
     assert!(script.contains("not live website side effects"));
     assert!(

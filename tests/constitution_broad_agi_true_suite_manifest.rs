@@ -20,7 +20,7 @@ const REQUIRED_FAILURE_CLASSES: &[&str] = &[
     "constitutional_rejection",
 ];
 const REQUIRED_FC_BLOCKS: &[&str] = &["FC1", "FC2", "FC3"];
-const REQUIRED_SUBSTRATE_GROUPS: &[&str] = &[
+const TRACKED_SUBSTRATE_GROUPS: &[&str] = &[
     "axiom_boot_trust_root",
     "canonical_tape_cas_state",
     "predicate_registry_top_white",
@@ -185,6 +185,13 @@ fn broad_true_suite_manifest_is_non_closing_and_constitution_bound() {
     );
     assert_eq!(
         manifest
+            .get("tracked_substrate_groups_are_not_closure_requirements")
+            .and_then(toml::Value::as_bool),
+        Some(true),
+        "non-flowchart substrate probes are inventory signals; if broad real tests do not light them, that is a zombie/optional finding, not an automatic closure failure"
+    );
+    assert_eq!(
+        manifest
             .get("full_system_sample_manifest")
             .and_then(toml::Value::as_str),
         Some("full_system_participation.json")
@@ -204,11 +211,11 @@ fn broad_true_suite_manifest_is_non_closing_and_constitution_bound() {
             "manifest root missing required FC block `{fc}`"
         );
     }
-    let substrate = root_str_array(&manifest, "required_substrate_groups");
-    for &group in REQUIRED_SUBSTRATE_GROUPS {
+    let substrate = root_str_array(&manifest, "tracked_substrate_groups");
+    for &group in TRACKED_SUBSTRATE_GROUPS {
         assert!(
             substrate.iter().any(|item| item == group),
-            "manifest root missing required full-system substrate group `{group}`"
+            "manifest root missing tracked substrate probe group `{group}`"
         );
     }
     let market_modes = root_str_array(&manifest, "market_participation_modes");

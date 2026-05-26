@@ -15,12 +15,21 @@ use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 
+#[path = "support/full_system.rs"]
+mod full_system;
+
 fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
         "math_competition_reasoning_current_kernel" => {
             env!("CARGO_BIN_EXE_math_competition_reasoning_current_kernel")
+        }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
         }
         _ => panic!("unknown bin {name}"),
     }
@@ -167,6 +176,11 @@ fn math_runner_calls_proxy_writes_cas_claim_and_replays_worktx() {
         String::from_utf8_lossy(&helper.stdout),
         String::from_utf8_lossy(&helper.stderr)
     );
+    full_system::run_full_system_augment(
+        &run_dir,
+        "constitution-true-suite-math",
+        bin("full_system_augment_current_kernel"),
+    );
 
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
@@ -190,6 +204,15 @@ fn math_runner_calls_proxy_writes_cas_claim_and_replays_worktx() {
         "turingos verify chaintape failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&verify.stdout),
         String::from_utf8_lossy(&verify.stderr)
+    );
+    full_system::assert_full_system_lit(
+        &run_dir,
+        "constitution-true-suite-math",
+        "math_formal_proof",
+        "tests/constitution_true_suite_math_runner.rs",
+        "math_competition_reasoning_manifest.json",
+        &replay_report,
+        bin("full_system_participation_current_kernel"),
     );
 
     let manifest = read_json(&run_dir.join("math_competition_reasoning_manifest.json"));
@@ -313,7 +336,12 @@ fn math_runner_script_uses_public_dataset_proxy_and_no_raw_provider_evidence() {
     assert!(script.contains("datasets-server.huggingface.co/rows"));
     assert!(script.contains("LLM_PROXY_URL"));
     assert!(script.contains("math_competition_reasoning_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("verify chaintape"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("input_capsules"));
     assert!(script.contains("failure_taxonomy.json"));
     assert!(script.contains("benchmark accuracy is not treated as liveness closure"));

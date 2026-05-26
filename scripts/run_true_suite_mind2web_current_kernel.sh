@@ -49,11 +49,12 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin mind2web_browser_action_current_kernel --bin full_system_participation_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin mind2web_browser_action_current_kernel --bin full_system_participation_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin mind2web_browser_action_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin mind2web_browser_action_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 HELPER="$PROJECT_ROOT/target/release/mind2web_browser_action_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 SAMPLE_JSON="$RUN_DIR/input_capsules/mind2web_sample.json"
 
@@ -127,6 +128,14 @@ echo "[mind2web] external LLM agent -> CAS browser action claim -> signed WorkTx
     --model "$ACTIVE_MODEL" \
     --out-dir "$RUN_DIR"
 
+echo "[augment] append market + FC3 participation rows to the same ChainTape"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
+
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
 
 echo "[verify] turingos verify chaintape"
@@ -145,6 +154,8 @@ echo "[verify] turingos verify chaintape"
     --replay-report "$RUN_DIR/replay_report.json" \
     --genesis-report "$RUN_DIR/genesis_report.json" \
     --domain-manifest "$RUN_DIR/mind2web_browser_action_manifest.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --require-full-system \
     --out "$RUN_DIR/full_system_participation.json"
 
 cat > "$RUN_DIR/mind2web_browser_action_run_manifest.json" <<EOF
@@ -165,6 +176,8 @@ cat > "$RUN_DIR/mind2web_browser_action_run_manifest.json" <<EOF
   "mind2web_manifest": "$RUN_DIR/mind2web_browser_action_manifest.json",
   "fc_trace_report": "$RUN_DIR/fc_trace_report.json",
   "failure_taxonomy": "$RUN_DIR/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
