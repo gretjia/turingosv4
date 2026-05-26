@@ -145,7 +145,7 @@ fn make_system_prompt(judge_name: &str, stage_label: &str) -> String {
     };
     let stage_specific = match (judge_name, stage_label) {
         ("putnam_2025_b3", "Stage4-Counterexample-Construction") => {
-            "For Stage 4, explicitly write all three facts: Define S from 1; S is closed under positive divisors of 2010n; a concrete prime such as 7 is not in S."
+            "For Stage 4, explicitly write all three facts: Define S from 1; S is closed under positive divisors of 2010n; and include the exact sentence fragment 'the prime 7 is not in S'."
         }
         ("putnam_2025_b3", "Stage5-Conclude-NO") => {
             "For Stage 5, begin with the literal conclusion 'The answer is NO' and state that S need not contain all positive integers."
@@ -185,7 +185,7 @@ fn make_user_prompt(judge_name: &str, stage_label: &str, accepted_steps: &[Strin
     s.push_str(&format!("Current stage: {}\n\n", stage_label));
     if judge_name == "putnam_2025_b3" && stage_label == "Stage4-Counterexample-Construction" {
         s.push_str(
-            "Stage 4 checklist: define S from 1; state S is closed under positive divisors of 2010n; explicitly name a concrete excluded prime, e.g. '7 is not in S'.\n\n",
+            "Stage 4 checklist: define S from 1; state S is closed under positive divisors of 2010n; include the exact sentence fragment 'the prime 7 is not in S'.\n\n",
         );
     } else if judge_name == "putnam_2025_b3" && stage_label == "Stage5-Conclude-NO" {
         s.push_str(

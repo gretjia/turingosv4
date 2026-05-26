@@ -509,6 +509,7 @@ where
 
         let mut attempts_used = 0usize;
         let mut stage_outcome = "incomplete".to_string();
+        let mut next_retry_prompt: Option<String> = None;
 
         loop {
             if attempts_used >= cfg.max_attempts_per_stage {
@@ -519,15 +520,17 @@ where
 
             let attempt_start = Instant::now();
             let system_prompt = (cfg.system_prompt_for_stage)(&stage_label);
-            let user_prompt = format!(
-                "{}{}",
-                (cfg.user_prompt_for_stage)(&stage_label, &accepted_steps),
-                if attempts_used > 1 {
-                    "\n\n[NOTE: prior attempt was rejected by the verifier — provide more explicit reasoning.]"
-                } else {
-                    ""
-                }
-            );
+            let user_prompt = next_retry_prompt.take().unwrap_or_else(|| {
+                format!(
+                    "{}{}",
+                    (cfg.user_prompt_for_stage)(&stage_label, &accepted_steps),
+                    if attempts_used > 1 {
+                        "\n\n[NOTE: prior attempt was rejected by the verifier — provide more explicit reasoning.]"
+                    } else {
+                        ""
+                    }
+                )
+            });
 
             let llm_resp = match llm_call(&system_prompt, &user_prompt) {
                 Ok(r) => r,
@@ -602,6 +605,7 @@ where
                     if leak {
                         leak_anywhere = true;
                     }
+                    next_retry_prompt = Some(prompt);
                     ("Retry".to_string(), n, leak)
                 }
                 KernelStep::Escalate { reason, .. } => {
@@ -778,6 +782,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
 
     #[test]
     fn any_judge_construction_each_variant() {
@@ -863,5 +868,55 @@ mod tests {
         .expect("manifest json");
         assert_eq!(manifest["total_attempts"], 2);
         assert_eq!(manifest["per_stage"][0]["attempts_used"], 2);
+    }
+
+    #[test]
+    fn retry_attempt_uses_kernel_belief_state_prompt() {
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let cfg = RunConfig {
+            run_id: "retry-prompt-test".to_string(),
+            model_label: "mock-model".to_string(),
+            problem_label: "mock proof".to_string(),
+            leak_sentinel: "RETRY_SENTINEL".to_string(),
+            system_prompt_for_stage: Box::new(|stage| format!("system {stage}")),
+            user_prompt_for_stage: Box::new(|stage, _accepted| format!("base user {stage}")),
+            problem_text: String::new(),
+            evidence_dir: tmp.path().to_path_buf(),
+            temperature: 0.0,
+            max_tokens: 128,
+            max_attempts_per_stage: 2,
+        };
+        let seen_prompts: RefCell<Vec<String>> = RefCell::new(Vec::new());
+        let mut judge = AnyJudge::putnam_b3();
+
+        let _summary = run_proof(cfg, &mut judge, |_sys, user| {
+            seen_prompts.borrow_mut().push(user.to_string());
+            let call_idx = seen_prompts.borrow().len();
+            let content = if call_idx == 1 {
+                "too short".to_string()
+            } else if call_idx == 2 {
+                [
+                    r#"{"schema_version":"tdma-state-update/v1","status":"Proceed","task_id":"Stage1-Simplify-2010n","action":"PROPOSE","failed_predicate":null,"reject_class":null,"next_action_hint":null,"evidence_hash":null}"#,
+                    "---BODY---",
+                    "For any n in S, the expression 2025n - 15n is exactly (2025 - 15)n = 2010n. This explicit simplification identifies the divisor rule as taking every positive divisor of 2010n, which is the arithmetic form needed for the later prime-factor closure argument.",
+                ]
+                .join("\n")
+            } else {
+                "too short".to_string()
+            };
+            Ok(LlmResponse {
+                content,
+                completion_tokens: 2,
+                prompt_tokens: 3,
+            })
+        })
+        .expect("runner writes cap evidence instead of panicking");
+
+        let prompts = seen_prompts.borrow();
+        assert!(prompts.len() >= 2);
+        assert!(prompts[0].contains("base user Stage1-Simplify-2010n"));
+        assert!(prompts[1].contains("[RETRY BELIEF STATE]"));
+        assert!(prompts[1].contains("[EVIDENCE POINTERS]"));
+        assert!(!prompts[1].contains("RETRY_SENTINEL"));
     }
 }
