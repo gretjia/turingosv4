@@ -152,13 +152,13 @@ impl AnyJudge {
 
     /// TRACE_MATRIX FC1a-judge_pi: Run verdict on candidate body.
     /// Returns (success, reject_class_str, failed_predicate_str, judge_reason).
-    pub fn verdict(
-        &self,
-        body: &str,
-        accepted_steps: &[String],
-    ) -> (bool, String, String, String) {
+    pub fn verdict(&self, body: &str, accepted_steps: &[String]) -> (bool, String, String, String) {
         let (v, class_str, pred_str): (JudgeVerdict, String, String) = match self {
-            Self::Nesbitt { judge, stages, cursor } => {
+            Self::Nesbitt {
+                judge,
+                stages,
+                cursor,
+            } => {
                 let stage = stages[*cursor];
                 let (v, c) = judge.verdict_for_stage(body, stage, accepted_steps);
                 let cs = c.map(|x| x.reject_class_str().to_string());
@@ -169,7 +169,11 @@ impl AnyJudge {
                     ps.unwrap_or_else(|| "pass".to_string()),
                 )
             }
-            Self::PutnamA1 { judge, stages, cursor } => {
+            Self::PutnamA1 {
+                judge,
+                stages,
+                cursor,
+            } => {
                 let stage = stages[*cursor];
                 let (v, c) = judge.verdict_for_stage(body, stage, accepted_steps);
                 let cs = c.map(|x| x.reject_class_str().to_string());
@@ -180,7 +184,11 @@ impl AnyJudge {
                     ps.unwrap_or_else(|| "pass".to_string()),
                 )
             }
-            Self::PutnamB3 { judge, stages, cursor } => {
+            Self::PutnamB3 {
+                judge,
+                stages,
+                cursor,
+            } => {
                 let stage = stages[*cursor];
                 let (v, c) = judge.verdict_for_stage(body, stage, accepted_steps);
                 let cs = c.map(|x| x.reject_class_str().to_string());
@@ -191,7 +199,11 @@ impl AnyJudge {
                     ps.unwrap_or_else(|| "pass".to_string()),
                 )
             }
-            Self::Generate { judge, stages, cursor } => {
+            Self::Generate {
+                judge,
+                stages,
+                cursor,
+            } => {
                 let stage = stages[*cursor];
                 let (v, c) = judge.verdict_for_stage(body, stage, accepted_steps);
                 let cs = c.map(|x| x.reject_class_str().to_string());
@@ -215,25 +227,41 @@ impl AnyJudge {
     /// TRACE_MATRIX FC1a-judge_pi: Promote stage after a successful step.
     pub fn advance(&mut self) {
         match self {
-            Self::Nesbitt { judge, stages, cursor } => {
+            Self::Nesbitt {
+                judge,
+                stages,
+                cursor,
+            } => {
                 judge.advance();
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;
                 }
             }
-            Self::PutnamA1 { judge, stages, cursor } => {
+            Self::PutnamA1 {
+                judge,
+                stages,
+                cursor,
+            } => {
                 judge.advance();
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;
                 }
             }
-            Self::PutnamB3 { judge, stages, cursor } => {
+            Self::PutnamB3 {
+                judge,
+                stages,
+                cursor,
+            } => {
                 judge.advance();
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;
                 }
             }
-            Self::Generate { judge, stages, cursor } => {
+            Self::Generate {
+                judge,
+                stages,
+                cursor,
+            } => {
                 judge.advance();
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;
@@ -405,11 +433,7 @@ pub fn make_judge_stderr(
 /// function does not depend on either the production chat_client (used
 /// by cmd_tdma) or the test-proxy `ResilientLLMClient` (used by the standalone
 /// evidence binaries).
-pub fn run_proof<F>(
-    cfg: RunConfig,
-    judge: &mut AnyJudge,
-    llm_call: F,
-) -> Result<RunSummary, String>
+pub fn run_proof<F>(cfg: RunConfig, judge: &mut AnyJudge, llm_call: F) -> Result<RunSummary, String>
 where
     F: FnMut(&str, &str) -> Result<LlmResponse, String>,
 {
@@ -487,11 +511,11 @@ where
         let mut stage_outcome = "incomplete".to_string();
 
         loop {
-            attempts_used += 1;
-            if attempts_used > cfg.max_attempts_per_stage {
+            if attempts_used >= cfg.max_attempts_per_stage {
                 stage_outcome = "cap-reached".into();
                 break;
             }
+            attempts_used += 1;
 
             let attempt_start = Instant::now();
             let system_prompt = (cfg.system_prompt_for_stage)(&stage_label);
@@ -644,8 +668,11 @@ where
 
     // Write evidence
     let probe_lines: Vec<String> = probes.iter().map(|p| p.to_jsonl()).collect();
-    let probes_sha = write_jsonl(&cfg.evidence_dir.join("per_attempt_probes.jsonl"), &probe_lines)
-        .unwrap_or_default();
+    let probes_sha = write_jsonl(
+        &cfg.evidence_dir.join("per_attempt_probes.jsonl"),
+        &probe_lines,
+    )
+    .unwrap_or_default();
 
     let mut chaintape_lines: Vec<String> = Vec::new();
     for (h, node) in kernel.tape.dump_all_nodes().iter() {
@@ -669,8 +696,16 @@ where
         .iter()
         .filter(|p| p.kernel_step.starts_with("Retry"))
         .collect();
-    let prompt_min = retry_probes.iter().map(|p| p.prompt_tokens).min().unwrap_or(0);
-    let prompt_max = retry_probes.iter().map(|p| p.prompt_tokens).max().unwrap_or(0);
+    let prompt_min = retry_probes
+        .iter()
+        .map(|p| p.prompt_tokens)
+        .min()
+        .unwrap_or(0);
+    let prompt_max = retry_probes
+        .iter()
+        .map(|p| p.prompt_tokens)
+        .max()
+        .unwrap_or(0);
     let total_bbs_bytes: usize = retry_probes.iter().map(|p| p.bbs_token_count * 4).sum();
     let compression_ratio = if total_bbs_bytes == 0 {
         0.0
@@ -681,7 +716,11 @@ where
     for p in &retry_probes {
         classes_seen.insert(p.judge_class.clone());
     }
-    let zero_gain_max = retry_probes.iter().map(|p| p.bbs_zero_gain).max().unwrap_or(0);
+    let zero_gain_max = retry_probes
+        .iter()
+        .map(|p| p.bbs_zero_gain)
+        .max()
+        .unwrap_or(0);
 
     let manifest = serde_json::json!({
         "run_id": cfg.run_id,
@@ -783,5 +822,46 @@ mod tests {
         assert!(s.contains("SENTINEL_TEST_XYZ"));
         assert!(s.contains("off-stage"));
         assert!(s.len() >= 10 * 1024);
+    }
+
+    #[test]
+    fn cap_reached_reports_actual_attempt_count() {
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let cfg = RunConfig {
+            run_id: "cap-test".to_string(),
+            model_label: "mock-model".to_string(),
+            problem_label: "mock proof".to_string(),
+            leak_sentinel: "CAP_SENTINEL".to_string(),
+            system_prompt_for_stage: Box::new(|stage| format!("system {stage}")),
+            user_prompt_for_stage: Box::new(|stage, _accepted| format!("user {stage}")),
+            problem_text: String::new(),
+            evidence_dir: tmp.path().to_path_buf(),
+            temperature: 0.0,
+            max_tokens: 128,
+            max_attempts_per_stage: 2,
+        };
+        let mut judge = AnyJudge::putnam_b3();
+        let summary = run_proof(cfg, &mut judge, |_sys, _user| {
+            Ok(LlmResponse {
+                content: "too short".to_string(),
+                completion_tokens: 2,
+                prompt_tokens: 3,
+            })
+        })
+        .expect("cap-reached is written as evidence, not a runner panic");
+
+        assert_eq!(summary.stages_completed, 0);
+        assert_eq!(summary.probes.len(), 2);
+        assert_eq!(summary.per_stage_attempts.len(), 1);
+        assert_eq!(summary.per_stage_attempts[0].0, "Stage1-Simplify-2010n");
+        assert_eq!(summary.per_stage_attempts[0].1, 2);
+        assert_eq!(summary.per_stage_attempts[0].3, "cap-reached");
+
+        let manifest: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(tmp.path().join("manifest.json")).expect("manifest"),
+        )
+        .expect("manifest json");
+        assert_eq!(manifest["total_attempts"], 2);
+        assert_eq!(manifest["per_stage"][0]["attempts_used"], 2);
     }
 }

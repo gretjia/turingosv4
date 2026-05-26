@@ -39,7 +39,7 @@ fn response_for_request(request: &str, stage_attempt: usize) -> String {
     } else if request.contains("Stage3-Closure-Prime-Containment") {
         "For Stage 3, any positive divisor of 2010n can introduce only prime factors already among primes of n together with the primes 2, 3, 5, and 67. Therefore the divisor operation has a clear prime-containment invariant and no new prime outside that set appears."
     } else if request.contains("Stage4-Counterexample-Construction") {
-        "For Stage 4, define S as the smallest set containing 1 and closed under taking every positive divisor of 2010n whenever n is in S. This is a counterexample: every member has only primes from {2,3,5,67}, so the prime 7 never enters and is not contained in S."
+        "For Stage 4, define \\(S\\) as the smallest set containing \\(1\\) and closed under taking every positive divisor of \\(2010n\\) whenever \\(n\\) is in \\(S\\). This is a counterexample: every member has only primes from \\(\\{2,3,5,67\\}\\), so the prime \\(7\\) is not in \\(S\\)."
     } else if request.contains("Stage5-Conclude-NO") {
         "For Stage 5, the answer is NO: S need not contain all positive integers. The constructed closed set satisfies the rule but omits 7, so containing every positive integer is not forced."
     } else {
@@ -247,6 +247,7 @@ fn tdma_runner_script_preserves_external_boundary_and_tdma_tape_semantics() {
     assert!(script.contains("replay_report.json"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("not bottom-white L4"));
+    assert!(script.contains("stages_completed_all"));
     for forbidden in [
         "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS",
         "TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE",
