@@ -1,0 +1,18 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_evaluation_capsule.v1",
+  "sample_id": "7bda9645-0b5f-470a-8dd7-6af0bff4da68:0",
+  "input_capsule_cid": "3104879aa2f922e3fa86ee38728b9bd8891013d5d520d8119949b038ec9e6ece",
+  "answer_claim_capsule_cid": "5d2bf9c76961fb9f09acee53048fc06831a5a84a64d150c70b3144aa1eacccd4",
+  "browser_action_trace_cid": "5381e355e680714b408859c0722a69055a6d7793a730117653cb4ab9712fc6cd",
+  "expected_backend_node_ids": [
+    "136"
+  ],
+  "selected_backend_node_id": "__missing_backend_node_id__",
+  "selected_candidate_available": false,
+  "target_match": false,
+  "operation_match": true,
+  "value_match": true,
+  "exact_match": false,
+  "benchmark_verdict": "browser_action_mismatch",
+  "failure_class": "model_task_failure"
+}

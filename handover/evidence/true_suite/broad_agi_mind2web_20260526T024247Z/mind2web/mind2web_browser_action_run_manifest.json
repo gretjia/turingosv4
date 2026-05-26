@@ -1,0 +1,26 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_browser_action_run.v1",
+  "run_id": "broad_agi_mind2web_20260526T024247Z",
+  "git_head": "dec31eda48eb11020f694ea7eb5235dbc7fda9a2",
+  "entrypoint": "scripts/run_true_suite_mind2web_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "mind2web_dataset_url": "https://huggingface.co/datasets/osunlp/Mind2Web/resolve/main/data/train/train_0.json",
+  "mind2web_source_file": "data/train/train_0.json",
+  "mind2web_task_index": 0,
+  "mind2web_action_index": 0,
+  "runtime_repo": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/runtime_repo",
+  "cas": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/cas",
+  "genesis_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/genesis_report.json",
+  "mind2web_manifest": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
+  "fc_trace_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/fc_trace_report.json",
+  "failure_taxonomy": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/failure_taxonomy.json",
+  "replay_report": "/tmp/turingosv4-gaia-runner/handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/replay_report.json",
+  "notes": [
+    "Mind2Web data comes from the public osunlp/Mind2Web offline snapshot unless MIND2WEB_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records offline browser action selection over a static webpage snapshot, not live website side effects",
+    "benchmark exact-match is not treated as liveness closure"
+  ]
+}

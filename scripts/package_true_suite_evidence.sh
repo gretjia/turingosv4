@@ -32,9 +32,11 @@ while [[ $# -gt 0 ]]; do
 package_true_suite_evidence.sh --run-id <RUN_ID>
 package_true_suite_evidence.sh --run-root <PATH>
 
-Packages nested true-suite evidence Git stores into deterministic tar.gz files:
+Packages true-suite evidence into deterministic tar.gz files:
   runtime_repo/.git      -> runtime_repo.dotgit.tar.gz
+  runtime_repo/ sidecars -> runtime_repo.worktree.tar.gz
   cas/.git               -> cas.dotgit.tar.gz
+  cas/ sidecars          -> cas.worktree.tar.gz
   tdma_tape.git/         -> tdma_tape.git.tar.gz
 
 Writes <run-root>/evidence_package_manifest.json.
@@ -91,9 +93,10 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def sorted_tree(root: Path):
+def sorted_tree(root: Path, skip_dir_names=None):
+    skip_dir_names = set(skip_dir_names or [])
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames.sort()
+        dirnames[:] = sorted(name for name in dirnames if name not in skip_dir_names)
         filenames.sort()
         current = Path(dirpath)
         yield current
@@ -124,7 +127,13 @@ def add_path(tf: tarfile.TarFile, source: Path, arcname: str) -> None:
             tf.addfile(info, f)
 
 
-def package_tree(source: Path, archive: Path, arc_prefix: str, kind: str, restore_into: str):
+def package_tree(
+    source: Path,
+    archive: Path,
+    arc_prefix: str,
+    remove_source: bool,
+    skip_dir_names=None,
+):
     if archive.exists():
         raise SystemExit(f"archive already exists, refusing overwrite: {archive}")
     tmp = archive.with_suffix(archive.suffix + ".tmp")
@@ -133,7 +142,7 @@ def package_tree(source: Path, archive: Path, arc_prefix: str, kind: str, restor
     with tmp.open("wb") as raw:
         with gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz:
             with tarfile.open(fileobj=gz, mode="w") as tf:
-                for item in sorted_tree(source):
+                for item in sorted_tree(source, skip_dir_names=skip_dir_names):
                     if item == source:
                         if arc_prefix:
                             add_path(tf, item, arc_prefix)
@@ -142,21 +151,72 @@ def package_tree(source: Path, archive: Path, arc_prefix: str, kind: str, restor
                     arcname = f"{arc_prefix}/{item_rel}" if arc_prefix else item_rel
                     add_path(tf, item, arcname)
     tmp.replace(archive)
-    digest = sha256_file(archive)
-    size = archive.stat().st_size
-    shutil.rmtree(source)
+    if remove_source:
+        shutil.rmtree(source)
+
+
+def has_packable_payload(source: Path, skip_dir_names=None) -> bool:
+    for item in sorted_tree(source, skip_dir_names=skip_dir_names):
+        if item != source and item.is_file():
+            return True
+    return False
+
+
+def archive_metadata(archive: Path):
+    name = archive.name
+    parent = archive.parent
+    if name == "runtime_repo.dotgit.tar.gz":
+        kind = "runtime_repo_dotgit"
+        removed_loose_store = True
+        restore_into = rel(parent / "runtime_repo")
+        source_path = rel(parent / "runtime_repo/.git")
+    elif name == "runtime_repo.worktree.tar.gz":
+        kind = "runtime_repo_worktree"
+        removed_loose_store = False
+        restore_into = rel(parent / "runtime_repo")
+        source_path = rel(parent / "runtime_repo")
+    elif name == "cas.dotgit.tar.gz":
+        kind = "cas_dotgit"
+        removed_loose_store = True
+        restore_into = rel(parent / "cas")
+        source_path = rel(parent / "cas/.git")
+    elif name == "cas.worktree.tar.gz":
+        kind = "cas_worktree"
+        removed_loose_store = False
+        restore_into = rel(parent / "cas")
+        source_path = rel(parent / "cas")
+    elif name == "tdma_tape.git.tar.gz":
+        kind = "tdma_tape_git"
+        removed_loose_store = True
+        restore_into = rel(parent / "tdma_tape.git")
+        source_path = rel(parent / "tdma_tape.git")
+    else:
+        return None
     return {
-        "archive_bytes": size,
+        "archive_bytes": archive.stat().st_size,
         "archive_path": rel(archive),
-        "archive_sha256": digest,
+        "archive_sha256": sha256_file(archive),
         "kind": kind,
-        "removed_loose_store": True,
+        "removed_loose_store": removed_loose_store,
         "restore_into": restore_into,
-        "source_path": rel(source),
+        "source_path": source_path,
     }
 
 
-packages = []
+for store in sorted(run_root.rglob("*")):
+    if not store.is_dir() or store.name not in {"runtime_repo", "cas"}:
+        continue
+    archive = store.parent / f"{store.name}.worktree.tar.gz"
+    if archive.exists():
+        continue
+    if has_packable_payload(store, skip_dir_names={".git"}):
+        package_tree(
+            store,
+            archive,
+            "",
+            False,
+            skip_dir_names={".git"},
+        )
 
 for dotgit in sorted(run_root.rglob(".git")):
     if not dotgit.is_dir():
@@ -165,35 +225,37 @@ for dotgit in sorted(run_root.rglob(".git")):
     if parent.name not in {"runtime_repo", "cas"}:
         continue
     archive = parent.parent / f"{parent.name}.dotgit.tar.gz"
-    packages.append(
-        package_tree(
-            dotgit,
-            archive,
-            ".git",
-            f"{parent.name}_dotgit",
-            rel(parent),
-        )
+    package_tree(
+        dotgit,
+        archive,
+        ".git",
+        True,
     )
 
 for tdma in sorted(run_root.rglob("tdma_tape.git")):
     if not tdma.is_dir():
         continue
     archive = tdma.with_name("tdma_tape.git.tar.gz")
-    packages.append(
-        package_tree(
-            tdma,
-            archive,
-            "",
-            "tdma_tape_git",
-            rel(tdma),
-        )
+    package_tree(
+        tdma,
+        archive,
+        "",
+        True,
     )
+
+packages = []
+for archive in sorted(run_root.rglob("*.tar.gz")):
+    metadata = archive_metadata(archive)
+    if metadata is not None:
+        packages.append(metadata)
 
 manifest = {
     "package_count": len(packages),
     "packages": packages,
     "restore_notes": [
+        "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
         "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+        "Extract cas.worktree.tar.gz into the corresponding cas directory.",
         "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
         "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it.",
     ],

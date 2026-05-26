@@ -1,0 +1,21 @@
+{
+  "l4_entries": 5,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "broad_agi_mind2web_20260526T024247Z",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "8e6d146f93a8fb6a7fe31f83d19a89e9366af4acaaea2738e2b335e66f00c24a",
+    "final_ledger_root_hex": "de344dba65f812cce980f0b870514da168dbadf5a9a4551b01dbd04316404ac8",
+    "head_commit_oid_hex": "ef084c08992393aa923ca152e28ab6fece4229b4",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

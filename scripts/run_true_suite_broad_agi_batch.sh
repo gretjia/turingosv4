@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="plan-only"
 RUN_ID="broad_agi_batch_$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_ROOT=""
-SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,toolbench_api_tool_use_fresh}"
+SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,toolbench_api_tool_use_fresh,mind2web_open_web_fresh}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -85,6 +85,9 @@ if [[ "$MODE" == "execute-installed" ]]; then
                 ;;
             toolbench_api_tool_use_fresh)
                 "$PROJECT_ROOT/scripts/run_true_suite_toolbench_current_kernel.sh" "$RUN_ID"
+                ;;
+            mind2web_open_web_fresh)
+                "$PROJECT_ROOT/scripts/run_true_suite_mind2web_current_kernel.sh" "$RUN_ID"
                 ;;
             *)
                 echo "ERROR: unknown broad true-suite runner id: $runner" >&2
@@ -159,6 +162,10 @@ installed = {
         "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
         "family_ids": ["toolbench_api_tool_use"],
     },
+    "mind2web_open_web_fresh": {
+        "entrypoint": "scripts/run_true_suite_mind2web_current_kernel.sh",
+        "family_ids": ["mind2web_open_web"],
+    },
 }
 
 family_runner_status = {
@@ -168,6 +175,7 @@ family_runner_status = {
     "gpqa_science_reasoning": "domain_runner_installed_evidence_required",
     "memory_feedback_reinit": "domain_runner_installed_evidence_required",
     "toolbench_api_tool_use": "domain_runner_installed_evidence_required",
+    "mind2web_open_web": "domain_runner_installed_evidence_required",
 }
 
 def git_head() -> str:

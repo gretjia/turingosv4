@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_failure_taxonomy.v1",
+  "run_id": "broad_agi_mind2web_20260526T024247Z",
+  "family_id": "mind2web_open_web",
+  "failure_class": "model_task_failure",
+  "selected_candidate_available": false,
+  "exact_match": false,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": true,
+  "infrastructure_failure": false,
+  "website_schema_drift": false
+}
