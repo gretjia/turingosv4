@@ -1,0 +1,23 @@
+{
+  "schema_version": "turingosv4.true_suite.market_ab_current_kernel_run.v1",
+  "run_id": "market_ab_full_system_evidence_20260526T194445Z",
+  "git_head": "0956976cc67a3d909e0a759813f5c06a3d64c579",
+  "entrypoint": "scripts/run_true_suite_market_ab_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "problem_set_hash": "274fb834a3f0091b9ecf93f2541bf83fe18e4d70b272405f33ea1845e94341ff",
+  "model_assignment_hash": "41c3e270b26bbc602ddde4ccfdf588c74a02f76fdbbe91cd5976ba6abe287000",
+  "budget_hash": "a07ea661823dc23c56e8d022e0292cd5c7bbc58304abb44ea6ab9cc7e54215d3",
+  "prompt_template_hash": "26450c4d8e8c988b95886aa8a3ce09feecd112d8f8e2b10b493e4e1d5f0b58b6",
+  "runtime_config_hash": "939f0335c04cd756b8f367399c0650e10f8050052434bad1e014d560ddef81b4",
+  "arm_a": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_A",
+  "arm_d": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D",
+  "real16_report": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+  "real16_verifier_exit_code": 1,
+  "full_system_participation": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
+  "notes": [
+    "candidate-only market performance report; no E4 achieved claim",
+    "both arms are fresh current-kernel ChainTape/CAS runs",
+    "root full_system_participation uses arm D as the market-pressure representative sample"
+  ]
+}

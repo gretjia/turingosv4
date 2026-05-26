@@ -1,0 +1,21 @@
+{
+  "l4_entries": 19,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "market_ab_full_system_evidence_20260526T194445Z-arm-D",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "34cdf14bd6f403e66fb5410560cf1c04124868a120069bb4244e44321c66d801",
+    "final_ledger_root_hex": "7c05d4fc83c5418477a709f67f16e11a2830f76fbee6938f825a974a42a3996d",
+    "head_commit_oid_hex": "294493318da223fc26592aeae86bfe2baf054ed0",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
