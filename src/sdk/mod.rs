@@ -18,7 +18,6 @@ pub mod pending_peer_reviews;
 pub mod prompt;
 pub mod prompt_guard;
 pub mod protocol;
-pub mod sandbox;
 /// TRACE_MATRIX FC1-N7 + FC1-N12: process-hygiene runner for production
 /// shell-outs. Sanitizes the agent/tool execution boundary without claiming
 /// OS-level hermetic or no-network enforcement.

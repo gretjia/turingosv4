@@ -13,10 +13,6 @@ const ALLOWED_EXCEPTIONS: &[(&str, &str)] = &[
         "single process-hygiene boundary that owns child process creation",
     ),
     (
-        "src/sdk/sandbox.rs",
-        "legacy LocalProcessSandbox dead-code adapter retained until removed",
-    ),
-    (
         "src/bin/turingos_dev.rs",
         "dev-only harness shell-out path, not product runtime",
     ),

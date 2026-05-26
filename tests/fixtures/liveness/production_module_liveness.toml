@@ -776,14 +776,13 @@ allowed_as_fc_authority = false
 restricted_surface = true
 module_ids = [
   "wal",
-  "sdk::sandbox",
   "sdk::tool",
   "sdk::tools",
   "sdk::tools::librarian",
   "sdk::tools::search",
   "sdk::tools::wallet",
 ]
-paths = ["src/wal.rs", "src/sdk/tool.rs", "src/sdk/sandbox.rs", "src/sdk/tools"]
+paths = ["src/wal.rs", "src/sdk/tool.rs", "src/sdk/tools"]
 constitutional_anchors = ["Art.0.2", "FC1:wtool", "FC3:tools"]
 necessity = "Retained WAL and SDK compatibility surfaces; they cannot be cited as current FC authority unless re-bound to typed ChainTape/CAS."
 smoke_gates = [
@@ -793,7 +792,7 @@ smoke_gates = [
 ]
 real_world_evidence = []
 evidence_requires = ["no authoritative write imports", "legacy quarantine", "delete-or-rebind"]
-closure_action = "Delete WAL/sandbox/search/librarian if no current-kernel product path needs them; rebind sdk::tool and wallet only through ToolRegistry plus ChainTape/CAS invocation evidence."
+closure_action = "Delete WAL/search/librarian if no current-kernel product path needs them; rebind sdk::tool and wallet only through ToolRegistry plus ChainTape/CAS invocation evidence."
 
 [[group]]
 id = "dev_harness"
