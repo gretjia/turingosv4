@@ -1,0 +1,30 @@
+{
+  "package_count": 2,
+  "packages": [
+    {
+      "archive_bytes": 28157,
+      "archive_path": "gpqa/cas.dotgit.tar.gz",
+      "archive_sha256": "77407fe1aca21b5c412e027ccb2f208579055434694cfd678aa5b1638558e4a4",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/cas",
+      "source_path": "gpqa/cas/.git"
+    },
+    {
+      "archive_bytes": 14490,
+      "archive_path": "gpqa/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "eb5915ef33fd128adc9d0f30c17b8a1a9cd15fa90c20452fb5a66b30ea5cbf29",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/runtime_repo",
+      "source_path": "gpqa/runtime_repo/.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gpqa-true-suite/handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

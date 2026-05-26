@@ -171,10 +171,13 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_generate_artifact_current_kernel.sh"));
     assert!(script.contains("run_true_suite_tdma_current_kernel.sh"));
     assert!(script.contains("run_true_suite_fc3_governance_reinit_current_kernel.sh"));
+    assert!(script.contains("run_true_suite_gpqa_science_reasoning_current_kernel.sh"));
     assert!(script.contains("package_true_suite_evidence.sh"));
     assert!(script.contains("evidence_package_manifest"));
     assert!(script.contains("fc3_governance_reinit_fresh"));
+    assert!(script.contains("gpqa_science_reasoning_fresh"));
     assert!(script.contains("memory_feedback_reinit"));
+    assert!(script.contains("gpqa_science_reasoning"));
     assert!(script.contains("benchmark_adapter_pending"));
     assert!(script.contains("OPEN_REAL_WORLD_COVERAGE_PENDING"));
     assert!(script.contains("old 15-question evidence cannot close OBL-005"));

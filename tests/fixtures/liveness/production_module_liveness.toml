@@ -40,6 +40,12 @@ families = ["cas", "git_substrate", "repair"]
 evidence = ["batch", "CAS", "ChainTape"]
 
 [[real_world_suite]]
+id = "broad_agi_gpqa_20260525T234028Z"
+path = "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z"
+families = ["gpqa", "science_reasoning", "current_kernel", "replay"]
+evidence = ["public_gpqa_sample", "local_openai_proxy", "ChainTape", "CAS", "replay", "restore_replay"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -190,6 +196,7 @@ module_ids = [
   "bin::audit_tape",
   "bin::audit_tape_tamper",
   "bin::boot_cli_current_kernel_fresh",
+  "bin::gpqa_science_reasoning_current_kernel",
   "bin::gen_run_summary",
   "bin::market_external_agent_current_kernel",
   "bin::resume_preflight",
@@ -224,11 +231,12 @@ module_ids = [
   "runtime::verification_result",
   "runtime::verify",
 ]
-paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/market_external_agent_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
+paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/gpqa_science_reasoning_current_kernel.rs", "src/bin/market_external_agent_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
 constitutional_anchors = ["Art.0.2", "FC2:replay", "FC2:resume", "FC3:logs"]
 necessity = "Real runs must reconstruct from ChainTape/CAS, including attempts, leases, persistence, tamper checks, and replay."
 smoke_gates = [
   "tests/constitution_true_suite_boot_cli_runner.rs",
+  "tests/constitution_true_suite_gpqa_runner.rs",
   "tests/constitution_true_suite_market_external_agent_runner.rs",
   "tests/constitution_true_suite_generate_artifact_runner.rs",
   "tests/constitution_true_suite_replay_cas_tamper_runner.rs",
@@ -238,6 +246,9 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
   "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/batch_evaluator.log",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -306,7 +317,10 @@ smoke_gates = [
   "tests/production_shellouts_must_use_sanitized_runner.rs",
   "tests/constitution_g3_your_position_prompt.rs",
 ]
-real_world_evidence = ["handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md"]
+real_world_evidence = [
+  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
+  "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
 [[group]]

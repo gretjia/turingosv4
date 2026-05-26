@@ -1,0 +1,32 @@
+{
+  "schema_version": "turingosv4.true_suite.gpqa_science_reasoning.v1",
+  "run_id": "broad_agi_gpqa_20260525T234028Z",
+  "model_requested": "deepseek-chat",
+  "model_returned": "deepseek-chat",
+  "llm_proxy_url": "http://localhost:8080",
+  "sample_id": "rec06pnAkLOr2t2mp",
+  "source_family": "GPQA",
+  "public_source": "https://github.com/idavidrein/gpqa",
+  "prompt_sha256": "f3578a1efd2b6838023a1f13d046d986f58c1a6f4fdd8216fa8fd9a3bf017f12",
+  "provider_response_sha256": "ac7f26723cc359e70d85b95e294532ba6ccb643185a3baf23972f618621a95b5",
+  "question_capsule_cid": "40fcd1e118d2f345ac841b31742e9d20d57c2d840c510237fd5eeba6b5460a81",
+  "answer_claim_capsule_cid": "1380f45bfd6d887187420feb1cd3213ee7efa11d9a09a7881e73e59f40fe1cce",
+  "evaluation_capsule_cid": "8b4def16c84ddd86f3ea9c2e6af347faddc92736a1db3b817be65759f30facf2",
+  "proposal_telemetry_cid": "88f0adcae2ea9913205500eacbadcf8d0db67f8ea141e8fd3596f5de3c324b3b",
+  "work_tx_id": "worktx-gpqa:rec06pnAkLOr2t2mp-true-suite-gpqa",
+  "work_tx_landed": true,
+  "rationale_guard_passed": true,
+  "answer_correct": true,
+  "benchmark_verdict": "correct_with_rationale",
+  "failure_taxonomy_path": "/tmp/turingosv4-gpqa-true-suite/handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/failure_taxonomy.json",
+  "final_state_root_hex": "d35e28de6f0332aeef6dba83923183d7f1d42326da179faeeb29d8d43b380c0b",
+  "runtime_repo": "/tmp/turingosv4-gpqa-true-suite/handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/runtime_repo",
+  "cas": "/tmp/turingosv4-gpqa-true-suite/handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/cas",
+  "notes": [
+    "GPQA dataset input is hashed into CAS before the model call",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw prompt and raw provider response are not written to evidence",
+    "parsed answer claim and benchmark evaluation are CAS capsules",
+    "benchmark accuracy is a capability signal only, not OBL-005 closure"
+  ]
+}
