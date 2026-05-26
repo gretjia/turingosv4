@@ -53,10 +53,13 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin tdma_proof_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin tdma_proof_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
+HELPER="$PROJECT_ROOT/target/release/tdma_proof_current_kernel"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
+PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR --provider $INIT_PROVIDER"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider "$INIT_PROVIDER"
@@ -131,10 +134,51 @@ report = {
     "problem_label": manifest.get("problem_label"),
     "model_label": manifest.get("model_label"),
 }
-(run_dir / "replay_report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+(run_dir / "tdma_replay_report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
 if not report["ok"]:
     raise SystemExit(json.dumps(report, indent=2, sort_keys=True))
 PY
+
+tar -C "$RUN_DIR" -czf "$RUN_DIR/tdma_tape.git.tar.gz" tdma_tape.git
+
+echo "[bridge] TDMA proof-work evidence -> CAS summary -> signed WorkTx on canonical ChainTape"
+"$HELPER" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --tdma-evidence-dir "$RUN_DIR" \
+    --out-dir "$RUN_DIR"
+
+echo "[augment] append market + FC3 participation rows to the same ChainTape"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
+
+cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
+
+echo "[verify] turingos verify chaintape"
+"$TURINGOS" verify chaintape \
+    --repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$RUN_ID" \
+    --out "$RUN_DIR/replay_report.json"
+
+"$PARTICIPATION" \
+    --run-id "$RUN_ID" \
+    --family-id "tdma_proof" \
+    --entrypoint "scripts/run_true_suite_tdma_current_kernel.sh" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --replay-report "$RUN_DIR/replay_report.json" \
+    --genesis-report "$RUN_DIR/genesis_report.json" \
+    --domain-manifest "$RUN_DIR/tdma_proof_manifest.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --require-full-system \
+    --out "$RUN_DIR/full_system_participation.json"
 
 cat > "$RUN_DIR/tdma_run_manifest.json" <<EOF
 {
@@ -150,15 +194,26 @@ cat > "$RUN_DIR/tdma_run_manifest.json" <<EOF
   "tdma_max_attempts_per_stage": $TDMA_MAX_ATTEMPTS_PER_STAGE,
   "tdma_temperature": "$TDMA_TEMPERATURE",
   "tdma_tape": "$RUN_DIR/tdma_tape.git",
+  "tdma_tape_archive": "$RUN_DIR/tdma_tape.git.tar.gz",
   "chaintape_jsonl": "$RUN_DIR/chaintape.jsonl",
   "per_attempt_probes": "$RUN_DIR/per_attempt_probes.jsonl",
   "manifest": "$RUN_DIR/manifest.json",
+  "tdma_replay_report": "$RUN_DIR/tdma_replay_report.json",
+  "runtime_repo": "$RUN_DIR/runtime_repo",
+  "cas": "$RUN_DIR/cas",
+  "genesis_report": "$RUN_DIR/genesis_report.json",
+  "tdma_proof_manifest": "$RUN_DIR/tdma_proof_manifest.json",
+  "failure_taxonomy": "$RUN_DIR/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/replay_report.json",
+  "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
     "turingos tdma run is the public CLI entrypoint",
     "TDMA writes a durable GitTapeLedger proof-work tape, not bottom-white L4",
-    "replay_report.json verifies manifest and tape/probe hashes without historical evidence rewrite"
+    "tdma_replay_report.json verifies manifest and tape/probe hashes without historical evidence rewrite",
+    "replay_report.json is canonical ChainTape replay after the TDMA proof bridge WorkTx lands"
   ]
 }
 EOF

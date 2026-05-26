@@ -19,14 +19,30 @@ use turingosv4::ledger::{ImmutableTapeLedger, NodeKind};
 fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
+        "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
+        "tdma_proof_current_kernel" => env!("CARGO_BIN_EXE_tdma_proof_current_kernel"),
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
+}
+
+fn bin_dir(path: &str) -> &Path {
+    Path::new(path).parent().expect("bin has parent")
 }
 
 fn sha256_file(path: &Path) -> String {
     let mut h = Sha256::new();
     h.update(std::fs::read(path).expect("read file for sha256"));
     format!("{:x}", h.finalize())
+}
+
+fn read_json(path: &Path) -> Value {
+    serde_json::from_str(&std::fs::read_to_string(path).expect("read json")).expect("parse json")
 }
 
 fn response_for_request(request: &str, stage_attempt: usize) -> String {
@@ -232,6 +248,213 @@ fn tdma_runner_uses_external_endpoint_and_writes_durable_tdma_tape() {
         "H0",
         "durable TDMA verified head must advance after accepted proof stages"
     );
+
+    let helper = Command::new(bin("tdma_proof_current_kernel"))
+        .args([
+            "--runtime-repo",
+            workspace.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            workspace.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-tdma",
+            "--constitution",
+            "constitution.md",
+            "--tdma-evidence-dir",
+            evidence_dir.to_str().expect("utf8 path"),
+            "--out-dir",
+            evidence_dir.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run TDMA proof bridge helper");
+    assert!(
+        helper.status.success(),
+        "TDMA proof bridge failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&helper.stdout),
+        String::from_utf8_lossy(&helper.stderr)
+    );
+    let tdma_proof_manifest = read_json(&evidence_dir.join("tdma_proof_manifest.json"));
+    assert_eq!(
+        tdma_proof_manifest
+            .get("schema_version")
+            .and_then(Value::as_str),
+        Some("turingosv4.true_suite.tdma_proof_current_kernel.v1")
+    );
+    assert_eq!(
+        tdma_proof_manifest
+            .get("work_tx_landed")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        tdma_proof_manifest
+            .get("stages_completed_all")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        tdma_proof_manifest
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    for key in [
+        "proof_capsule_cid",
+        "evaluation_capsule_cid",
+        "proposal_telemetry_cid",
+    ] {
+        assert_eq!(
+            tdma_proof_manifest
+                .get(key)
+                .and_then(Value::as_str)
+                .map(str::len),
+            Some(64),
+            "{key} should be a 64-char hex cid"
+        );
+    }
+
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            workspace.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            workspace.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-tdma",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            evidence_dir.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system augment helper");
+    assert!(
+        augment.status.success(),
+        "full-system augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
+    );
+    std::fs::copy(
+        workspace.join("runtime_repo").join("genesis_report.json"),
+        evidence_dir.join("genesis_report.json"),
+    )
+    .expect("copy refreshed genesis report");
+
+    let replay_report = evidence_dir.join("replay_report.json");
+    let verify = Command::new(bin("turingos"))
+        .env("TURINGOS_BIN_DIR", bin_dir(bin("verify_chaintape")))
+        .args([
+            "verify",
+            "chaintape",
+            "--repo",
+            workspace.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            workspace.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-tdma",
+            "--out",
+            replay_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run turingos verify chaintape");
+    assert!(
+        verify.status.success(),
+        "turingos verify chaintape failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&verify.stdout),
+        String::from_utf8_lossy(&verify.stderr)
+    );
+
+    let participation_report = evidence_dir.join("full_system_participation.json");
+    let participation = Command::new(bin("full_system_participation_current_kernel"))
+        .args([
+            "--run-id",
+            "constitution-true-suite-tdma",
+            "--family-id",
+            "tdma_proof",
+            "--entrypoint",
+            "tests/constitution_true_suite_tdma_runner.rs",
+            "--runtime-repo",
+            workspace.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            workspace.join("cas").to_str().expect("utf8 path"),
+            "--replay-report",
+            replay_report.to_str().expect("utf8 path"),
+            "--genesis-report",
+            evidence_dir
+                .join("genesis_report.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--domain-manifest",
+            evidence_dir
+                .join("tdma_proof_manifest.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--fc3-index",
+            evidence_dir
+                .join("governance_capsule_index.json")
+                .to_str()
+                .expect("utf8 path"),
+            "--require-full-system",
+            "--out",
+            participation_report.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run full-system participation helper");
+    assert!(
+        participation.status.success(),
+        "full-system participation failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&participation.stdout),
+        String::from_utf8_lossy(&participation.stderr)
+    );
+    let participation_json = read_json(&participation_report);
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_participation"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("verdict")
+            .and_then(|v| v.get("full_system_verdict"))
+            .and_then(Value::as_str),
+        Some("FULL_SYSTEM_LIT")
+    );
+    assert_eq!(
+        participation_json
+            .get("fc1")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc2")
+            .and_then(|v| v.get("map_reduce_tick_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc3")
+            .and_then(|v| v.get("typed_meta_roles_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("fc3")
+            .and_then(|v| v.get("reinit_semantics_present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        participation_json
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
+    );
 }
 
 #[test]
@@ -242,11 +465,23 @@ fn tdma_runner_script_preserves_external_boundary_and_tdma_tape_semantics() {
     assert!(script.contains("TURINGOS_SILICONFLOW_ENDPOINT"));
     assert!(script.contains("src/drivers/llm_proxy.py"));
     assert!(script.contains("\"$TURINGOS\" tdma run"));
+    assert!(script.contains("tdma_proof_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
+    assert!(script.contains("verify chaintape"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("tdma_proof_manifest.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_participation.json"));
     assert!(script.contains("--tape-backend git"));
     assert!(script.contains("tdma_tape.git"));
+    assert!(script.contains("tdma_tape.git.tar.gz"));
+    assert!(script.contains("tdma_replay_report.json"));
     assert!(script.contains("replay_report.json"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("not bottom-white L4"));
+    assert!(script.contains("canonical ChainTape"));
     assert!(script.contains("stages_completed_all"));
     for forbidden in [
         "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS",
