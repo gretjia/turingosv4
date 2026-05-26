@@ -17,10 +17,19 @@ use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUND
 use turingosv4::runtime::generation_attempt::GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 
+#[path = "support/full_system.rs"]
+mod full_system;
+
 fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
         "verify_chaintape" => env!("CARGO_BIN_EXE_verify_chaintape"),
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
+        "full_system_participation_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
+        }
         _ => panic!("unknown bin {name}"),
     }
 }
@@ -101,6 +110,30 @@ fn extract_bundle_cid(stdout: &[u8]) -> String {
         .to_string()
 }
 
+fn add_full_system_liveness_wallets(run_dir: &Path) {
+    let genesis_path = run_dir.join("genesis_payload.toml");
+    let mut genesis = std::fs::read_to_string(&genesis_path).expect("read genesis_payload.toml");
+    assert!(
+        !genesis.contains("\"MarketMakerBudget\""),
+        "fresh generate runner workspace should not already carry augment wallets"
+    );
+    genesis.push_str("\"Agent_1\" = 1_000_000\n\"MarketMakerBudget\" = 5_000_000\n");
+    std::fs::write(&genesis_path, genesis).expect("write full-system liveness wallets");
+}
+
+fn chain_run_id(run_dir: &Path) -> String {
+    let pinned: Value = serde_json::from_str(
+        &std::fs::read_to_string(run_dir.join("runtime_repo").join("pinned_pubkeys.json"))
+            .expect("read pinned_pubkeys.json"),
+    )
+    .expect("parse pinned_pubkeys.json");
+    pinned
+        .get("run_id")
+        .and_then(Value::as_str)
+        .expect("pinned_pubkeys run_id")
+        .to_string()
+}
+
 #[test]
 fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() {
     let tmp = TempDir::new().expect("tempdir");
@@ -125,6 +158,7 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         String::from_utf8_lossy(&init.stdout),
         String::from_utf8_lossy(&init.stderr)
     );
+    add_full_system_liveness_wallets(&run_dir);
 
     let answers = run_dir.join("answers.json");
     std::fs::write(
@@ -188,6 +222,26 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         String::from_utf8_lossy(&generate.stderr)
     );
     let bundle_cid = extract_bundle_cid(&generate.stdout);
+    let chain_run_id = chain_run_id(&run_dir);
+    std::fs::write(
+        run_dir.join("artifact_bundle_cid.json"),
+        serde_json::json!({
+            "schema_version": "turingosv4.true_suite.generate_artifact_bundle_cid.v1",
+            "run_id": "constitution-true-suite-generate-artifact",
+            "chain_run_id": chain_run_id,
+            "artifact_bundle_cid": bundle_cid.clone(),
+            "workspace": run_dir,
+            "runtime_repo": run_dir.join("runtime_repo"),
+            "cas": run_dir.join("cas")
+        })
+        .to_string(),
+    )
+    .expect("write artifact bundle domain manifest");
+    full_system::run_full_system_augment(
+        &run_dir,
+        &chain_run_id,
+        bin("full_system_augment_current_kernel"),
+    );
 
     let cas_dir = run_dir.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas");
@@ -217,11 +271,6 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         );
     }
 
-    let pinned: Value = serde_json::from_str(
-        &std::fs::read_to_string(run_dir.join("runtime_repo").join("pinned_pubkeys.json"))
-            .expect("read pinned_pubkeys.json"),
-    )
-    .expect("parse pinned_pubkeys.json");
     let genesis_report = run_dir.join("runtime_repo").join("genesis_report.json");
     assert!(
         genesis_report.is_file(),
@@ -242,11 +291,6 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
             .is_some_and(|balances| !balances.is_empty()),
         "generate genesis_report must capture replayable initial balances"
     );
-    let chain_run_id = pinned
-        .get("run_id")
-        .and_then(Value::as_str)
-        .expect("pinned_pubkeys run_id");
-
     let replay_report = run_dir.join("replay_report.json");
     let verify = Command::new(bin("turingos"))
         .env("TURINGOS_BIN_DIR", bin_dir(bin("verify_chaintape")))
@@ -258,7 +302,7 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            chain_run_id,
+            &chain_run_id,
             "--out",
             replay_report.to_str().expect("utf8 path"),
         ])
@@ -269,6 +313,15 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         "turingos verify chaintape failed\nstdout:\n{}\nstderr:\n{}",
         String::from_utf8_lossy(&verify.stdout),
         String::from_utf8_lossy(&verify.stderr)
+    );
+    full_system::assert_full_system_lit(
+        &run_dir,
+        &chain_run_id,
+        "gaia_general_assistant",
+        "tests/constitution_true_suite_generate_artifact_runner.rs",
+        "artifact_bundle_cid.json",
+        &replay_report,
+        bin("full_system_participation_current_kernel"),
     );
 
     let replay: Value = serde_json::from_str(
@@ -328,6 +381,14 @@ fn generate_artifact_runner_script_preserves_external_agent_boundary() {
     assert!(script.contains("generate"));
     assert!(script.contains("--from-capsule"));
     assert!(script.contains("artifact_bundle_cid.json"));
+    assert!(script.contains("\"Agent_1\" = 1_000_000"));
+    assert!(script.contains("\"MarketMakerBudget\" = 5_000_000"));
+    assert!(script.contains("no post-init mint is used"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("full_system_participation_current_kernel"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("governance_capsule_index.json"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("rm -f \"$RUN_DIR/spec_transcript.jsonl\""));

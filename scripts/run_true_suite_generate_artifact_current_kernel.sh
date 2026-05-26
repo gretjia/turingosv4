@@ -48,14 +48,26 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin full_system_participation_current_kernel"
-(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin full_system_participation_current_kernel)
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel"
+(cd "$PROJECT_ROOT" && cargo build --release --bin turingos --bin verify_chaintape --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel)
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
+AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 
 echo "[init] turingos init --project $RUN_DIR --provider $INIT_PROVIDER"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider "$INIT_PROVIDER"
+
+# The generate template's product-market wallets are intentionally small.
+# This true-suite runner needs the FC/market liveness identities before the
+# ChainTape is first opened, so extend the boot manifest at Q0 rather than
+# minting budget at runtime.
+if ! grep -q '^"MarketMakerBudget"' "$RUN_DIR/genesis_payload.toml"; then
+    cat >> "$RUN_DIR/genesis_payload.toml" <<'EOF'
+"Agent_1" = 1_000_000
+"MarketMakerBudget" = 5_000_000
+EOF
+fi
 
 cat > "$RUN_DIR/answers.json" <<'EOF'
 [
@@ -122,6 +134,16 @@ EOF
 
 cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
 
+echo "[augment] append market + FC3 participation rows to the same ChainTape"
+"$AUGMENT" \
+    --runtime-repo "$RUN_DIR/runtime_repo" \
+    --cas "$RUN_DIR/cas" \
+    --run-id "$CHAIN_RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out-dir "$RUN_DIR"
+
+cp "$RUN_DIR/runtime_repo/genesis_report.json" "$RUN_DIR/genesis_report.json"
+
 echo "[verify] turingos verify chaintape"
 "$TURINGOS" verify chaintape \
     --repo "$RUN_DIR/runtime_repo" \
@@ -138,6 +160,8 @@ echo "[verify] turingos verify chaintape"
     --replay-report "$RUN_DIR/replay_report.json" \
     --genesis-report "$RUN_DIR/genesis_report.json" \
     --domain-manifest "$RUN_DIR/artifact_bundle_cid.json" \
+    --fc3-index "$RUN_DIR/governance_capsule_index.json" \
+    --require-full-system \
     --out "$RUN_DIR/full_system_participation.json"
 
 cat > "$RUN_DIR/generate_artifact_run_manifest.json" <<EOF
@@ -155,10 +179,13 @@ cat > "$RUN_DIR/generate_artifact_run_manifest.json" <<EOF
   "cas": "$RUN_DIR/cas",
   "genesis_report": "$RUN_DIR/genesis_report.json",
   "artifact_bundle_cid": "$RUN_DIR/artifact_bundle_cid.json",
+  "full_system_augmentation_manifest": "$RUN_DIR/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "$RUN_DIR/governance_capsule_index.json",
   "replay_report": "$RUN_DIR/replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "full-system liveness wallets are added to genesis_payload.toml before the ChainTape opens; no post-init mint is used",
     "spec synthesis is anchored as a CAS spec capsule",
     "generate reads the spec from CAS via --from-capsule",
     "accepted artifact work lands as typed ChainTape entries and replays through public verify"
