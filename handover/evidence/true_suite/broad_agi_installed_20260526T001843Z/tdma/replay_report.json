@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "all_prompts_within_budget": true,
+    "chaintape_present": true,
+    "chaintape_sha256_verified": true,
+    "manifest_present": true,
+    "no_raw_stderr_leak": true,
+    "probes_present": true,
+    "probes_sha256_verified": true,
+    "production_report_present": true,
+    "stages_completed_all": true,
+    "tdma_git_tape_has_commits": true,
+    "tdma_git_tape_present": true,
+    "tdma_git_verified_head_ref_present": true
+  },
+  "model_label": "deepseek-v4-pro",
+  "ok": true,
+  "problem_label": "turingos tdma --judge putnam_2025_b3",
+  "schema_version": "turingosv4.true_suite.tdma_replay_report.v1",
+  "stages_completed": 5,
+  "stages_total": 5,
+  "total_attempts": 6
+}

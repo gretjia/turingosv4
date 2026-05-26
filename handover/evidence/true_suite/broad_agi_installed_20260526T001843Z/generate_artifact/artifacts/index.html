@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Launch Plan Decision Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --accent-light: #6bb09c;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #d6d2c8;
+      --card-bg: #ffffff;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+      --radius: 8px;
+      --font-heading: 'Fraunces', Georgia, serif;
+      --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #a09e96;
+        --border: #3a3a3a;
+        --card-bg: #242424;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+        --accent: #6bb09c;
+        --accent-light: #8cccb8;
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-family: var(--font-heading);
+      font-size: 36px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+
+    /* --- Matrix Layout --- */
+    .matrix {
+      display: grid;
+      grid-template-columns: 200px 1fr 1fr 1fr;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+    }
+
+    /* Header row */
+    .matrix-header {
+      display: contents;
+    }
+
+    .matrix-header .cell {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      padding: 16px 12px;
+      text-align: center;
+      border-bottom: 2px solid var(--accent-light);
+    }
+
+    .matrix-header .cell:first-child {
+      text-align: left;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Corner cell (top-left) */
+    .corner-cell {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      padding: 16px 12px;
+      border-bottom: 2px solid var(--accent-light);
+      display: flex;
+      align-items: center;
+    }
+
+    /* Plan name input */
+    .plan-name-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid rgba(255,255,255,0.4);
+      color: #fff;
+      font-family: var(--font-heading);
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      padding: 4px 0;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .plan-name-input:focus {
+      border-bottom-color: #fff;
+    }
+
+    .plan-name-input::placeholder {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* Criteria label column */
+    .criteria-labels {
+      display: contents;
+    }
+
+    .criteria-label {
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card-bg);
+    }
+
+    .criteria-label .weight-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 4px;
+      padding: 1px 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Score cells */
+    .score-cell {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    .score-input {
+      width: 100%;
+      height: 44px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 20px;
+      text-align: center;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .score-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(78, 139, 122, 0.2);
+    }
+
+    .score-input.invalid {
+      border-color: #c0392b;
+      background: #fce4e4;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .score-input.invalid {
+        background: #3a1a1a;
+      }
+    }
+
+    /* Totals row */
+    .total-label {
+      padding: 16px 12px;
+      font-weight: 600;
+      font-size: 16px;
+      border-top: 2px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    .total-cell {
+      padding: 16px 12px;
+      border-top: 2px solid var(--border);
+      border-left: 1px solid var(--border);
+      text-align: center;
+      font-family: var(--font-heading);
+      font-size: 24px;
+      font-weight: 600;
+      background: var(--card-bg);
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .total-cell.winner {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .total-cell.tie {
+      background: #f0e68c;
+      color: #1a1a1a;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .total-cell.tie {
+        background: #5a5530;
+        color: #f0eee8;
+      }
+    }
+
+    /* Recommendation banner */
+    .recommendation {
+      margin-top: 24px;
+      padding: 20px 24px;
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      border: 2px solid var(--accent);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .recommendation h2 {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .recommendation p {
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .recommendation .winner-name {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .recommendation.tie-message {
+      border-color: #f0e68c;
+    }
+
+    /* Add criteria button */
+    .add-criteria-area {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:hover {
+      background: var(--accent-light);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    .btn-outline:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-danger {
+      border-color: #c0392b;
+      background: transparent;
+      color: #c0392b;
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+      color: #fff;
+    }
+
+    .new-criteria-input {
+      font-family: var(--font-body);
+      font-size: 14px;
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .new-criteria-input:focus {
+      border-color: var(--accent);
+    }
+
+    .new-weight-input {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+      width: 80px;
+      text-align: center;
+    }
+
+    .new-weight-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .matrix {
+        grid-template-columns: 140px 1fr 1fr 1fr;
+        font-size: 14px;
+      }
+
+      .plan-name-input {
+        font-size: 14px;
+      }
+
+      .total-cell {
+        font-size: 18px;
+      }
+
+      .add-criteria-area {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .new-criteria-input, .new-weight-input {
+        min-width: unset;
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .matrix {
+        grid-template-columns: 100px 1fr 1fr 1fr;
+      }
+
+      .criteria-label {
+        font-size: 12px;
+        padding: 8px 6px;
+      }
+
+      .score-input {
+        font-size: 16px;
+        height: 36px;
+      }
+
+      .total-cell {
+        font-size: 16px;
+        padding: 10px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Launch Plan Decision Matrix</h1>
+    <p class="subtitle">Compare three plans side-by-side. Score each criterion from 1 (worst) to 5 (best). Weighted totals update instantly.</p>
+
+    <div id="matrix-root">
+      <!-- Matrix will be rendered by JavaScript -->
+    </div>
+
+    <div class="add-criteria-area">
+      <input type="text" id="new-criteria-name" class="new-criteria-input" placeholder="New criterion name..." maxlength="60">
+      <label style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);">
+        Weight:
+        <input type="number" id="new-criteria-weight" class="new-weight-input" value="1" min="1" max="10" step="1">
+      </label>
+      <button id="add-criteria-btn" class="btn">Add Criterion</button>
+      <button id="reset-defaults-btn" class="btn btn-outline">Reset to Defaults</button>
+    </div>
+
+    <div id="recommendation-area" class="recommendation" style="display:none;">
+      <h2>🏆 Recommendation</h2>
+      <p id="recommendation-text"></p>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // --- State ---
+      let state = {
+        plans: ['Plan A', 'Plan B', 'Plan C'],
+        criteria: [
+          { name: 'Market Potential', weight: 3 },
+          { name: 'Technical Feasibility', weight: 2 },
+          { name: 'Team Readiness', weight: 2 },
+          { name: 'Budget Fit', weight: 1 },
+          { name: 'Timeline', weight: 1 }
+        ],
+        scores: {} // key: `${criterionIndex}-${planIndex}` => number (1-5) or null
+      };
+
+      // --- DOM refs ---
+      const rootEl = document.getElementById('matrix-root');
+      const recArea = document.getElementById('recommendation-area');
+      const recText = document.getElementById('recommendation-text');
+      const newNameInput = document.getElementById('new-criteria-name');
+      const newWeightInput = document.getElementById('new-criteria-weight');
+      const addBtn = document.getElementById('add-criteria-btn');
+      const resetBtn = document.getElementById('reset-defaults-btn');
+
+      // --- Helpers ---
+      function getScore(criterionIndex, planIndex) {
+        const key = `${criterionIndex}-${planIndex}`;
+        if (state.scores.hasOwnProperty(key)) {
+          return state.scores[key];
+        }
+        return null;
+      }
+
+      function setScore(criterionIndex, planIndex, value) {
+        const key = `${criterionIndex}-${planIndex}`;
+        if (value === null || value === undefined || value === '') {
+          delete state.scores[key];
+        } else {
+          state.scores[key] = value;
+        }
+      }
+
+      function calculateTotals() {
+        const totals = [0, 0, 0];
+        let totalWeight = 0;
+
+        for (let c = 0; c < state.criteria.length; c++) {
+          const w = state.criteria[c].weight;
+          totalWeight += w;
+          for (let p = 0; p < 3; p++) {
+            const score = getScore(c, p);
+            if (score !== null && !isNaN(score) && score >= 1 && score <= 5) {
+              totals[p] += score * w;
+            }
+          }
+        }
+
+        // Normalize? No — keep raw weighted sum for clarity.
+        // But if totalWeight is 0, avoid division by zero (shouldn't happen).
+        return totals;
+      }
+
+      function determineWinner(totals) {
+        const maxVal = Math.max(...totals);
+        const winners = [];
+        for (let i = 0; i < totals.length; i++) {
+          if (totals[i] === maxVal) {
+            winners.push(i);
+          }
+        }
+        return winners;
+      }
+
+      // --- Rendering ---
+      function render() {
+        const totals = calculateTotals();
+        const winners = determineWinner(totals);
+
+        // Build matrix HTML
+        let html = '<div class="matrix">';
+
+        // Header row
+        html += '<div class="corner-cell">Criteria</div>';
+        for (let p = 0; p < 3; p++) {
+          html += `<div class="cell"><input type="text" class="plan-name-input" data-plan-index="${p}" value="${escapeHtml(state.plans[p])}" placeholder="Plan ${String.fromCharCode(65 + p)}" maxlength="60"></div>`;
+        }
+
+        // Criteria rows
+        for (let c = 0; c < state.criteria.length; c++) {
+          const crit = state.criteria[c];
+          html += `<div class="criteria-label">${escapeHtml(crit.name)} <span class="weight-badge">w=${crit.weight}</span></div>`;
+          for (let p = 0; p < 3; p++) {
+            const score = getScore(c, p);
+            const displayVal = (score !== null && !isNaN(score)) ? score : '';
+            html += `<div class="score-cell"><input type="text" class="score-input" data-criterion="${c}" data-plan="${p}" value="${displayVal}" inputmode="numeric" maxlength="2" autocomplete="off"></div>`;
+          }
+        }
+
+        // Totals row
+        html += '<div class="total-label">Weighted Total</div>';
+        for (let p = 0; p < 3; p++) {
+          let cls = 'total-cell';
+          if (winners.length === 1 && winners[0] === p) {
+            cls += ' winner';
+          } else if (winners.length > 1 && winners.includes(p)) {
+            cls += ' tie';
+          }
+          html += `<div class="${cls}" data-total-index="${p}">${totals[p].toFixed(1)}</div>`;
+        }
+
+        html += '</div>'; // .matrix
+
+        rootEl.innerHTML = html;
+
+        // --- Update recommendation ---
+        if (winners.length === 0) {
+          recArea.style.display = 'none';
+        } else if (winners.length === 1) {
+          recArea.style.display = 'block';
+          recArea.className = 'recommendation';
+          recText.innerHTML = `The recommended plan is <span class="winner-name">${escapeHtml(state.plans[winners[0]])}</span> with a weighted total of <strong>${totals[winners[0]].toFixed(1)}</strong>.`;
+        } else {
+          recArea.style.display = 'block';
+          recArea.className = 'recommendation tie-message';
+          const names = winners.map(i => escapeHtml(state.plans[i])).join(' and ');
+          recText.innerHTML = `It's a tie between <span class="winner-name">${names}</span> with a weighted total of <strong>${totals[winners[0]].toFixed(1)}</strong>.`;
+        }
+
+        // --- Attach event listeners ---
+        // Plan name inputs
+        document.querySelectorAll('.plan-name-input').forEach(input => {
+          input.addEventListener('change', function(e) {
+            const idx = parseInt(this.dataset.planIndex, 10);
+            const val = this.value.trim();
+            if (val.length > 0) {
+              state.plans[idx] = val;
+            } else {
+              // Revert to placeholder
+              state.plans[idx] = `Plan ${String.fromCharCode(65 + idx)}`;
+              this.value = state.plans[idx];
+            }
+            render(); // re-render to update recommendation
+          });
+        });
+
+        // Score inputs
+        document.querySelectorAll('.score-input').forEach(input => {
+          input.addEventListener('blur', function(e) {
+            const cIdx = parseInt(this.dataset.criterion, 10);
+            const pIdx = parseInt(this.dataset.plan, 10);
+            const raw = this.value.trim();
+
+            // Clear invalid class
+            this.classList.remove('invalid');
+
+            if (raw === '') {
+              setScore(cIdx, pIdx, null);
+              render();
+              return;
+            }
+
+            const num = Number(raw);
+            if (Number.isInteger(num) && num >= 1 && num <= 5) {
+              setScore(cIdx, pIdx, num);
+              this.value = num; // normalize display
+            } else {
+              // Invalid input — clear the field and remove score
+              this.classList.add('invalid');
+              setScore(cIdx, pIdx, null);
+              this.value = '';
+              // Flash invalid briefly
+              setTimeout(() => {
+                this.classList.remove('invalid');
+              }, 800);
+            }
+            render();
+          });
+
+          // Allow Enter to confirm
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              this.blur();
+            }
+          });
+        });
+      }
+
+      // --- Utility ---
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // --- Add criterion ---
+      function addCriterion() {
+        const name = newNameInput.value.trim();
+        const weightRaw = newWeightInput.value.trim();
+        let weight = parseInt(weightRaw, 10);
+
+        if (name.length === 0) {
+          alert('Please enter a criterion name.');
+          return;
+        }
+
+        if (isNaN(weight) || weight < 1 || weight > 10) {
+          weight = 1;
+        }
+
+        // Check for duplicate name (case-insensitive)
+        const exists = state.criteria.some(c => c.name.toLowerCase() === name.toLowerCase());
+        if (exists) {
+          alert('A criterion with that name already exists.');
+          return;
+        }
+
+        state.criteria.push({ name: name, weight: weight });
+        newNameInput.value = '';
+        newWeightInput.value = '1';
+        render();
+      }
+
+      // --- Reset to defaults ---
+      function resetDefaults() {
+        state.plans = ['Plan A', 'Plan B', 'Plan C'];
+        state.criteria = [
+          { name: 'Market Potential', weight: 3 },
+          { name: 'Technical Feasibility', weight: 2 },
+          { name: 'Team Readiness', weight: 2 },
+          { name: 'Budget Fit', weight: 1 },
+          { name: 'Timeline', weight: 1 }
+        ];
+        state.scores = {};
+        render();
+      }
+
+      // --- Event binding ---
+      addBtn.addEventListener('click', addCriterion);
+      resetBtn.addEventListener('click', resetDefaults);
+
+      // Allow Enter in new criteria input
+      newNameInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          addCriterion();
+        }
+      });
+      newWeightInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          addCriterion();
+        }
+      });
+
+      // --- Initial render ---
+      render();
+
+    })();
+  </script>
+</body>
+</html>

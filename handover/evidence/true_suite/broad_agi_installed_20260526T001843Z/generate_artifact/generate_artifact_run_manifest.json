@@ -1,0 +1,22 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_current_kernel.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "chain_run_id": "polymarket-default-1779755319",
+  "git_head": "df06948b1c2276e78f1b1c8eadfd10217b147ae1",
+  "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "llm_endpoint": "http://localhost:8080/v1/chat/completions",
+  "init_provider": "deepseek",
+  "n_parallel_workers": 1,
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/cas",
+  "genesis_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/genesis_report.json",
+  "artifact_bundle_cid": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/artifact_bundle_cid.json",
+  "replay_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/replay_report.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "spec synthesis is anchored as a CAS spec capsule",
+    "generate reads the spec from CAS via --from-capsule",
+    "accepted artifact work lands as typed ChainTape entries and replays through public verify"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": "turingosv4.true_suite.market_external_agent.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "model_requested": "deepseek-chat",
+  "model_returned": "deepseek-chat",
+  "llm_proxy_url": "http://localhost:8080",
+  "prompt_sha256": "5b0419252a0cf42da95faa55892f9fd3dc665041374e9ec95f1972e19397ac69",
+  "agent_response_sha256": "85863dc5cd826be63eb6b93d074bc11bb8f209555550991fed379d3721c99553",
+  "external_agent_id": "Agent_0",
+  "event_task_id": "true-suite-market-broad_agi_installed_20260526T001843Z",
+  "direction": "yes",
+  "amount_micro": 10000,
+  "router_tx_id": "router-task-outcome-Agent_0-true-suite-market",
+  "router_landed": true,
+  "pool_active": true,
+  "router_economics": {
+    "pay_coin_micro": 10000,
+    "pool_before": {
+      "pool_yes_units": 100000,
+      "pool_no_units": 100000,
+      "k_product": 10000000000,
+      "status": "Active"
+    },
+    "pool_after": {
+      "pool_yes_units": 90910,
+      "pool_no_units": 110000,
+      "k_product": 10000100000,
+      "status": "Active"
+    },
+    "quote_out_shares_units": 9090,
+    "quote_get_shares_units": 19090,
+    "price_effective_numerator": 10000,
+    "price_effective_denominator": 19090,
+    "quote_liquidity_warning": "LowLiquidity",
+    "buyer_coin_before_micro": 1000000,
+    "buyer_coin_after_micro": 990000,
+    "buyer_coin_delta_micro": 10000,
+    "buyer_chosen_side_before_units": 0,
+    "buyer_chosen_side_after_units": 19090,
+    "buyer_chosen_side_delta_units": 19090,
+    "collateral_before_micro": 100000,
+    "collateral_after_micro": 110000,
+    "total_coin_before_micro": 35000000,
+    "total_coin_after_micro": 35000000,
+    "sum_yes_after_units": 110000,
+    "sum_no_after_units": 110000,
+    "k_non_decreasing": true,
+    "pool_delta_matches_quote": true,
+    "mint_and_swap_retained_plus_out_holds": true,
+    "buyer_coin_debited_exactly": true,
+    "total_coin_conserved": true,
+    "complete_set_balanced_after": true
+  },
+  "final_state_root_hex": "71e796c674b297fdec3d1360e0a40d8c231d03c35b7039fdd82b5976edd86c7c",
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/runtime_repo",
+  "cas": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/cas",
+  "notes": [
+    "external agent decision came from local LLM proxy before router tx construction",
+    "raw prompt and raw response are not persisted; only sha256 hashes and parsed decision are recorded",
+    "economic action is signed by AgentKeypairRegistry and submitted through Sequencer::submit_agent_tx"
+  ]
+}

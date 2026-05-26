@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingosv4.true_suite.tdma_current_kernel.v1",
+  "run_id": "broad_agi_installed_20260526T001843Z",
+  "git_head": "df06948b1c2276e78f1b1c8eadfd10217b147ae1",
+  "entrypoint": "scripts/run_true_suite_tdma_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "llm_endpoint": "http://localhost:8080/v1/chat/completions",
+  "init_provider": "deepseek",
+  "tdma_judge": "putnam_2025_b3",
+  "tdma_role": "meta",
+  "tdma_max_attempts_per_stage": 2,
+  "tdma_temperature": "0.2",
+  "tdma_tape": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_tape.git",
+  "chaintape_jsonl": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/chaintape.jsonl",
+  "per_attempt_probes": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/per_attempt_probes.jsonl",
+  "manifest": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/manifest.json",
+  "replay_report": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/replay_report.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "turingos tdma run is the public CLI entrypoint",
+    "TDMA writes a durable GitTapeLedger proof-work tape, not bottom-white L4",
+    "replay_report.json verifies manifest and tape/probe hashes without historical evidence rewrite"
+  ]
+}

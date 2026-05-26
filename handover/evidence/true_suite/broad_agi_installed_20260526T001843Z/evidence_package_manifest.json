@@ -1,0 +1,192 @@
+{
+  "package_count": 20,
+  "packages": [
+    {
+      "archive_bytes": 17023,
+      "archive_path": "boot_cli/cas.dotgit.tar.gz",
+      "archive_sha256": "1fc6086204d176b08c2f313c40f713d2b5daf206656b93402710ebac52d62277",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "boot_cli/cas",
+      "source_path": "boot_cli/cas/.git"
+    },
+    {
+      "archive_bytes": 12359,
+      "archive_path": "boot_cli/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "aff781cf3a59695f66e025655904b5e03e85a20b8cd3eaa0a46010d79b0ba321",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "boot_cli/runtime_repo",
+      "source_path": "boot_cli/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 33916,
+      "archive_path": "fc3/cas.dotgit.tar.gz",
+      "archive_sha256": "6b688455861db2a2a2ae3b2469f9372057a16ba1d3a3400eadb25392ce653862",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/cas",
+      "source_path": "fc3/cas/.git"
+    },
+    {
+      "archive_bytes": 17264,
+      "archive_path": "fc3/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "2fddb844e5dd95b0930e96df72b86fbe6d896bc3c02560ddc94607cdd835a9c8",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/runtime_repo",
+      "source_path": "fc3/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 55239,
+      "archive_path": "generate_artifact/cas.dotgit.tar.gz",
+      "archive_sha256": "056d9f3cef769e8cbedebf6e0aed9912f84094768c29a82820ea50a7757f3601",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/cas",
+      "source_path": "generate_artifact/cas/.git"
+    },
+    {
+      "archive_bytes": 18378,
+      "archive_path": "generate_artifact/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "c4183c78395f08d2629e8b0ca9d6de28e84cb193bdf0020dc76b44a00ed59193",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/runtime_repo",
+      "source_path": "generate_artifact/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 28682,
+      "archive_path": "gpqa/cas.dotgit.tar.gz",
+      "archive_sha256": "62a81c1f2ec7b41e6ef39132d36b9dff8fa4825d03badede3788db12d2b47559",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/cas",
+      "source_path": "gpqa/cas/.git"
+    },
+    {
+      "archive_bytes": 14521,
+      "archive_path": "gpqa/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "894fb107bd98fa9933a204e41bca7aa3cf4d9e7fbb1df19f35478a617d81d360",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/runtime_repo",
+      "source_path": "gpqa/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 22229,
+      "archive_path": "market_action/cas.dotgit.tar.gz",
+      "archive_sha256": "53c24b06e267418233dc82c55b9f678b700efc13720c28c8eba343355f74aaac",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/cas",
+      "source_path": "market_action/cas/.git"
+    },
+    {
+      "archive_bytes": 15395,
+      "archive_path": "market_action/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "990b28682a6e760414b9cd527745e3d55238703b8eb7b53a724c420c63ceabee",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/runtime_repo",
+      "source_path": "market_action/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17062,
+      "archive_path": "replay_cas/cas.dotgit.tar.gz",
+      "archive_sha256": "fc004f531e9eaaec121468ebbe11f9c606c09386feeaeefa17534027fc585e65",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/cas",
+      "source_path": "replay_cas/cas/.git"
+    },
+    {
+      "archive_bytes": 12408,
+      "archive_path": "replay_cas/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "87de06557aac88bddd8b214bb56c3dcced3b6f2de6686c4e1502206ad8553fe7",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/runtime_repo",
+      "source_path": "replay_cas/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 16708,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "94c42c74d7aa0e206f7bbeedccaeb25f332a705fe9caa8513867e301d4a08d90",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 12408,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "87de06557aac88bddd8b214bb56c3dcced3b6f2de6686c4e1502206ad8553fe7",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17062,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "fc004f531e9eaaec121468ebbe11f9c606c09386feeaeefa17534027fc585e65",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 12252,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "fe2bd25efaf1b397a52bf8ac9973b208ecdff793120402d224585479e77d6ccd",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 17062,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/cas.dotgit.tar.gz",
+      "archive_sha256": "fc004f531e9eaaec121468ebbe11f9c606c09386feeaeefa17534027fc585e65",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/cas",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/cas/.git"
+    },
+    {
+      "archive_bytes": 12408,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "9f5ec8e6dade1a4dc21aaab05dc80b4c245421576d998716c36c7c81f6b0f1c3",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 45470,
+      "archive_path": "generate_artifact/tdma_tape.git.tar.gz",
+      "archive_sha256": "a6b13576eabd836dcf3a973f8a6fcaf65dcc4665fd24befae853b61deaf0e718",
+      "kind": "tdma_tape_git",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/tdma_tape.git",
+      "source_path": "generate_artifact/tdma_tape.git"
+    },
+    {
+      "archive_bytes": 18274,
+      "archive_path": "tdma/tdma_tape.git.tar.gz",
+      "archive_sha256": "4f0db650301102fc096a505423cf43629e84974d11dde214d4be1de7fe187282",
+      "kind": "tdma_tape_git",
+      "removed_loose_store": true,
+      "restore_into": "tdma/tdma_tape.git",
+      "source_path": "tdma/tdma_tape.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

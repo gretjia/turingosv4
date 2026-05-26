@@ -1,0 +1,40 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/runtime_repo",
+  "cas_path": "/tmp/turingosv4-broad-installed/handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/cas",
+  "system_pubkey_hash": "cc49c1b962971f929a6ea0b746f98db6f4879d784d47cc769b7196b198910be5",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "treasury",
+      100000
+    ],
+    [
+      "market-provider",
+      10000
+    ],
+    [
+      "verifier-alpha",
+      10000
+    ],
+    [
+      "worker-alpha",
+      10000
+    ],
+    [
+      "worker-beta",
+      10000
+    ],
+    [
+      "worker-gamma",
+      10000
+    ]
+  ],
+  "task_id": null,
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}

@@ -1,0 +1,10 @@
+[
+  "I need a small browser tool for comparing three project launch plans. I keep doing this in notes and losing the tradeoffs.",
+  "A lightweight decision matrix app, but without accounts, databases, or external services.",
+  "It should remember the three plans, criteria weights, and the current score table inside the page state while I am using it.",
+  "I open one page, see three plan columns, edit scores from 1 to 5, and immediately see weighted totals and a recommended plan.",
+  "Blank scores, equal totals, long plan names, and accidental non-number input should not break it.",
+  "No login, no backend, no cloud sync, no collaboration, no payments, no external packages.",
+  "After a month, I know it works if I can paste a launch scenario into the page, compare options in under five minutes, and explain the final choice.",
+  "Build a self-contained HTML launch-plan decision matrix with editable scores, weighted totals, clear recommendation, and no external runtime dependencies."
+]
