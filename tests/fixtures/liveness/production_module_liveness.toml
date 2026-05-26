@@ -70,6 +70,12 @@ families = ["math", "competition_reasoning", "current_kernel", "replay"]
 evidence = ["public_math_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
 
 [[real_world_suite]]
+id = "broad_agi_swebench_20260526T052213Z"
+path = "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z"
+families = ["swebench", "coding_repair", "current_kernel", "replay"]
+evidence = ["public_swebench_lite_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -306,6 +312,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/replay_report.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/restore_replay_report.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -386,6 +395,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
   "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
