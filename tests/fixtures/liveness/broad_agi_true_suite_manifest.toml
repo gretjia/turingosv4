@@ -136,6 +136,8 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/<run>/gpqa/gpqa_science_reasoning_run_manifest.json",
   "handover/evidence/true_suite/<run>/gpqa/replay_report.json",
+  "handover/evidence/true_suite/<run>/gpqa/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/gpqa/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/gpqa/full_system_participation.json",
   "handover/evidence/true_suite/<run>/gpqa/failure_taxonomy.json",
 ]

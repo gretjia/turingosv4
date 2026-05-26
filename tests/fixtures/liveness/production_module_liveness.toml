@@ -235,6 +235,7 @@ module_ids = [
   "bin::audit_tape",
   "bin::audit_tape_tamper",
   "bin::boot_cli_current_kernel_fresh",
+  "bin::full_system_augment_current_kernel",
   "bin::full_system_participation_current_kernel",
   "bin::gpqa_science_reasoning_current_kernel",
   "bin::gen_run_summary",
@@ -275,7 +276,7 @@ module_ids = [
   "runtime::verification_result",
   "runtime::verify",
 ]
-paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/full_system_participation_current_kernel.rs", "src/bin/gpqa_science_reasoning_current_kernel.rs", "src/bin/market_external_agent_current_kernel.rs", "src/bin/math_competition_reasoning_current_kernel.rs", "src/bin/swebench_live_coding_repair_current_kernel.rs", "src/bin/toolbench_api_tool_use_current_kernel.rs", "src/bin/mind2web_browser_action_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
+paths = ["src/bin/boot_cli_current_kernel_fresh.rs", "src/bin/full_system_augment_current_kernel.rs", "src/bin/full_system_participation_current_kernel.rs", "src/bin/gpqa_science_reasoning_current_kernel.rs", "src/bin/market_external_agent_current_kernel.rs", "src/bin/math_competition_reasoning_current_kernel.rs", "src/bin/swebench_live_coding_repair_current_kernel.rs", "src/bin/toolbench_api_tool_use_current_kernel.rs", "src/bin/mind2web_browser_action_current_kernel.rs", "src/runtime/adapter.rs", "src/runtime/bootstrap.rs", "src/runtime/verify.rs", "src/runtime/chain_derived_run_facts.rs", "src/runtime/attempt_telemetry.rs", "src/runtime/evidence_capsule.rs", "src/runtime/audit_assertions.rs"]
 constitutional_anchors = ["Art.0.2", "FC2:replay", "FC2:resume", "FC3:logs"]
 necessity = "Real runs must reconstruct from ChainTape/CAS, including attempts, leases, persistence, tamper checks, and replay."
 smoke_gates = [

@@ -506,6 +506,10 @@ impl RuntimeChaintapeConfig {
 pub struct ChaintapeBundle {
     /// Cloned and passed to `TuringBus::with_sequencer`.
     pub sequencer: Arc<Sequencer>,
+    /// Concrete CAS handle shared with the sequencer. Runner-side evidence
+    /// helpers use this when a system-emitted transaction must validate a
+    /// freshly-written capsule before it lands on ChainTape.
+    pub cas: Arc<RwLock<CasStore>>,
     /// Concrete L4 writer (Git-backed). Test code holds a clone for chain-walk verification.
     pub transition_writer: Arc<RwLock<dyn LedgerWriter>>,
     /// L4.E rejection writer. JSONL backend (Atom 1.2 extension) when persisting; falls back
@@ -849,7 +853,7 @@ pub fn build_chaintape_sequencer_with_initial_q(
     // `len + 1` invariant (packet §3 SG-G1.2).
     let (sequencer, queue_rx) = if resume_active {
         Sequencer::new_at_logical_t(
-            cas,
+            cas.clone(),
             keypair,
             epoch,
             transition_writer.clone(),
@@ -863,7 +867,7 @@ pub fn build_chaintape_sequencer_with_initial_q(
         )
     } else {
         Sequencer::new(
-            cas,
+            cas.clone(),
             keypair,
             epoch,
             transition_writer.clone(),
@@ -894,6 +898,7 @@ pub fn build_chaintape_sequencer_with_initial_q(
 
     Ok(ChaintapeBundle {
         sequencer,
+        cas,
         transition_writer,
         rejection_writer,
         epoch,
