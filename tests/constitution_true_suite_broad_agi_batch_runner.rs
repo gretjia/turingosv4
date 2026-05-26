@@ -116,6 +116,7 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
         .expect("outputs");
     for key in [
         "family_results_jsonl",
+        "runner_execution_results_jsonl",
         "aggregate_fc_trace_report",
         "evidence_package_manifest",
     ] {
@@ -253,6 +254,10 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_swebench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_toolbench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_mind2web_current_kernel.sh"));
+    assert!(script.contains("--continue-on-runner-failure"));
+    assert!(script.contains("runner_execution_results.jsonl"));
+    assert!(script.contains("runner_execution_failed"));
+    assert!(script.contains("failed_runner_ids"));
     assert!(script.contains("package_true_suite_evidence.sh"));
     assert!(script.contains("evidence_package_manifest"));
     assert!(script.contains("fc3_governance_reinit_fresh"));
