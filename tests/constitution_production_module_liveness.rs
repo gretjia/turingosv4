@@ -437,12 +437,25 @@ fn legacy_shadow_tape_group_is_split_from_active_tdma_ledger() {
         "legacy WAL/SDK quarantine must not absorb active TDMA ledger substrate"
     );
     assert!(
+        !legacy.module_ids.iter().any(|id| id == "sdk::tools::wallet"),
+        "legacy WAL/SDK quarantine must not absorb active wallet projection substrate"
+    );
+    assert!(
         legacy
             .closure_action
             .as_deref()
             .unwrap_or_default()
             .contains("Delete WAL"),
         "legacy WAL/SDK quarantine must carry a concrete delete-or-rebind closure plan"
+    );
+
+    let economy = group_by_id(&groups, "economy_market_settlement");
+    assert!(
+        economy
+            .module_ids
+            .iter()
+            .any(|id| id == "sdk::tools::wallet"),
+        "wallet projection is active economy substrate and must be covered by economy real-world evidence"
     );
 }
 

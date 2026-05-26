@@ -238,8 +238,10 @@ module_ids = [
   "economy::ledger",
   "economy::monetary_invariant",
   "economy::money",
+  "sdk::tools",
+  "sdk::tools::wallet",
 ]
-paths = ["src/economy", "src/state/router_quote.rs", "src/state/sequencer.rs", "src/state/typed_tx.rs"]
+paths = ["src/economy", "src/sdk/tools", "src/state/router_quote.rs", "src/state/sequencer.rs", "src/state/typed_tx.rs"]
 constitutional_anchors = ["Law:1Coin=1YES+1NO", "Art.0.2", "FC1:wtool", "market:Coin/YES/NO"]
 necessity = "The market/economy activates agents while preserving integer conservation and no ghost liquidity."
 smoke_gates = [
@@ -777,10 +779,8 @@ restricted_surface = true
 module_ids = [
   "wal",
   "sdk::tool",
-  "sdk::tools",
-  "sdk::tools::wallet",
 ]
-paths = ["src/wal.rs", "src/sdk/tool.rs", "src/sdk/tools"]
+paths = ["src/wal.rs", "src/sdk/tool.rs"]
 constitutional_anchors = ["Art.0.2", "FC1:wtool", "FC3:tools"]
 necessity = "Retained WAL and SDK compatibility surfaces; they cannot be cited as current FC authority unless re-bound to typed ChainTape/CAS."
 smoke_gates = [
@@ -790,7 +790,7 @@ smoke_gates = [
 ]
 real_world_evidence = []
 evidence_requires = ["no authoritative write imports", "legacy quarantine", "delete-or-rebind"]
-closure_action = "Delete WAL if no current-kernel product path needs it; rebind sdk::tool and wallet only through ToolRegistry plus ChainTape/CAS invocation evidence."
+closure_action = "Delete WAL if no current-kernel product path needs it; rebind sdk::tool only through ToolRegistry plus ChainTape/CAS invocation evidence."
 
 [[group]]
 id = "dev_harness"
