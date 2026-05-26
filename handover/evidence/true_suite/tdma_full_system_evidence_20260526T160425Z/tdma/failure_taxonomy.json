@@ -1,0 +1,11 @@
+{
+  "schema_version": "turingosv4.true_suite.tdma_failure_taxonomy.v1",
+  "run_id": "tdma_full_system_evidence_20260526T160425Z",
+  "family_id": "tdma_proof",
+  "failure_class": null,
+  "stages_completed_all": true,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": false,
+  "infrastructure_failure": false
+}

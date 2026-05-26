@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.tdma_proof_current_kernel.v1",
+  "run_id": "tdma_full_system_evidence_20260526T160425Z",
+  "problem_label": "turingos tdma --judge putnam_2025_b3",
+  "model_label": "deepseek-v4-pro",
+  "tdma_evidence_dir": "/tmp/turingosv4-tdma-evidence-next/handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma",
+  "proof_capsule_cid": "8ddd8622fefaa67796d3b5aa5e5d36615392feaffade5c8d246c13e9d13e90d4",
+  "evaluation_capsule_cid": "c6a6f2da48be79434070f5bc54379b6ae397655bcfc67073954556c6e9928cdf",
+  "proposal_telemetry_cid": "bf4a767a9a7d865ebf45818d3dfae6b525b91d4cc9e2d5e4855839ea769a1182",
+  "work_tx_id": "worktx-tdma:turingos-tdma---judge-putnam_2025_b3-true-suite-tdma",
+  "work_tx_landed": true,
+  "stages_completed_all": true,
+  "benchmark_verdict": "tdma_proof_completed",
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false,
+  "failure_taxonomy_path": "/tmp/turingosv4-tdma-evidence-next/handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/failure_taxonomy.json",
+  "final_state_root_hex": "2f59f390a0aeefc9e30e3d867df41000bfb494328afb374c6c1d764cd7c3371a",
+  "runtime_repo": "/tmp/turingosv4-tdma-evidence-next/handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/runtime_repo",
+  "cas": "/tmp/turingosv4-tdma-evidence-next/handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/cas",
+  "notes": [
+    "TDMA proof-work tape remains a dedicated GitTapeLedger evidence source",
+    "This bridge writes only a compact CAS summary and signed WorkTx to canonical ChainTape",
+    "Raw provider prompt/response bytes are not written by this bridge",
+    "Full-system liveness still requires replay and participation helpers"
+  ]
+}
