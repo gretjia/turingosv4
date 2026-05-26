@@ -165,7 +165,10 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
             row.get("status")
                 .and_then(Value::as_str)
                 .is_some_and(|status| {
-                    !matches!(status, "PASS" | "passed" | "full_system_participation_passed")
+                    !matches!(
+                        status,
+                        "PASS" | "passed" | "full_system_participation_passed"
+                    )
                 })
         }),
         "plan-only results must stay pending/partial or runner-required, not full-system passed: {results:?}"
@@ -173,10 +176,7 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
     assert!(
         results.iter().all(|row| {
             row.get("full_system_verdict").and_then(Value::as_str) == Some("MISSING")
-                && row
-                    .get("full_system_report_lit")
-                    .and_then(Value::as_bool)
-                    == Some(false)
+                && row.get("full_system_report_lit").and_then(Value::as_bool) == Some(false)
         }),
         "plan-only rows with no report must be explicit missing full-system evidence, not final evidence"
     );
@@ -330,14 +330,23 @@ fn write_file(path: &std::path::Path, body: &str) {
 fn seed_fc3_final_artifacts(run_root: &std::path::Path, report_body: &str) {
     let fc3 = run_root.join("fc3");
     std::fs::create_dir_all(fc3.join("cas")).expect("create cas dir");
+    write_file(&run_root.join("evidence_package_manifest.json"), "{}\n");
     write_file(&fc3.join("chaintape.jsonl"), "{}\n");
     write_file(&fc3.join("cas.dotgit.tar.gz"), "");
+    write_file(&fc3.join("cas.worktree.tar.gz"), "");
     write_file(
         &fc3.join("fc3_replay_report.json"),
         r#"{"ledger_root_verified":true}"#,
     );
+    write_file(
+        &fc3.join("restore_replay_report.json"),
+        r#"{"ledger_root_verified":true,"state_reconstructed":true}"#,
+    );
     write_file(&fc3.join("governance_capsule_index.json"), "{}\n");
+    write_file(&fc3.join("full_system_augmentation_manifest.json"), "{}\n");
     write_file(&fc3.join("fc3_governance_reinit_run_manifest.json"), "{}\n");
+    write_file(&fc3.join("runtime_repo.dotgit.tar.gz"), "");
+    write_file(&fc3.join("runtime_repo.worktree.tar.gz"), "");
     write_file(&fc3.join("full_system_participation.json"), report_body);
 }
 
@@ -545,9 +554,11 @@ fn broad_agi_batch_parses_partial_participation_report_content() {
             .get("full_system_missing")
             .and_then(Value::as_array)
             .expect("missing");
-        assert!(missing
-            .iter()
-            .any(|v| { v.as_str() == Some("market_economy_invest_or_visible_abstention") }));
+        assert!(
+            missing
+                .iter()
+                .any(|v| { v.as_str() == Some("market_economy_invest_or_visible_abstention") })
+        );
     }
     assert_eq!(
         aggregate
@@ -617,9 +628,11 @@ fn broad_agi_batch_rejects_claimed_full_report_with_missing_market_row() {
         .get("full_system_missing")
         .and_then(Value::as_array)
         .expect("missing");
-    assert!(missing
-        .iter()
-        .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention")));
+    assert!(
+        missing
+            .iter()
+            .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention"))
+    );
 }
 
 #[test]

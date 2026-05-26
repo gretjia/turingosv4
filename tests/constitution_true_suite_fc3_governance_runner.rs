@@ -18,6 +18,9 @@ fn bin(name: &str) -> &'static str {
         "fc3_governance_reinit_current_kernel" => {
             env!("CARGO_BIN_EXE_fc3_governance_reinit_current_kernel")
         }
+        "full_system_augment_current_kernel" => {
+            env!("CARGO_BIN_EXE_full_system_augment_current_kernel")
+        }
         "full_system_participation_current_kernel" => {
             env!("CARGO_BIN_EXE_full_system_participation_current_kernel")
         }
@@ -79,6 +82,34 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
         String::from_utf8_lossy(&helper.stderr)
     );
 
+    let chaintape_rows =
+        std::fs::read_to_string(run_dir.join("chaintape.jsonl")).expect("read chaintape jsonl");
+    assert_eq!(chaintape_rows.lines().count(), 11);
+    assert!(chaintape_rows.contains("\"tx_kind\":\"Work\""));
+
+    let augment = Command::new(bin("full_system_augment_current_kernel"))
+        .args([
+            "--runtime-repo",
+            run_dir.join("runtime_repo").to_str().expect("utf8 path"),
+            "--cas",
+            run_dir.join("cas").to_str().expect("utf8 path"),
+            "--run-id",
+            "constitution-true-suite-fc3",
+            "--constitution",
+            "constitution.md",
+            "--out-dir",
+            run_dir.to_str().expect("utf8 path"),
+            "--skip-fc3",
+        ])
+        .output()
+        .expect("run full-system augment");
+    assert!(
+        augment.status.success(),
+        "full-system augment failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&augment.stdout),
+        String::from_utf8_lossy(&augment.stderr)
+    );
+
     let replay_report = run_dir.join("fc3_replay_report.json");
     let verify = Command::new(bin("turingos"))
         .env("TURINGOS_BIN_DIR", bin_dir(bin("verify_chaintape")))
@@ -104,7 +135,13 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
     );
 
     let replay = read_json(&replay_report);
-    assert_eq!(replay.get("l4_entries").and_then(Value::as_u64), Some(8));
+    assert!(
+        replay
+            .get("l4_entries")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            >= 13
+    );
     for key in [
         "ledger_root_verified",
         "system_signatures_verified",
@@ -162,27 +199,30 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
         );
     }
 
-    let chaintape_rows =
-        std::fs::read_to_string(run_dir.join("chaintape.jsonl")).expect("read chaintape jsonl");
-    assert_eq!(chaintape_rows.lines().count(), 8);
-    assert!(run_dir
-        .join("runtime_repo")
-        .join("genesis_report.json")
-        .is_file());
+    assert!(
+        run_dir
+            .join("runtime_repo")
+            .join("genesis_report.json")
+            .is_file()
+    );
     let copied_genesis = run_dir.join("genesis_report.json");
     std::fs::copy(
         run_dir.join("runtime_repo").join("genesis_report.json"),
         &copied_genesis,
     )
     .expect("copy genesis report");
-    assert!(run_dir
-        .join("runtime_repo")
-        .join("pinned_pubkeys.json")
-        .is_file());
-    assert!(run_dir
-        .join("runtime_repo")
-        .join("initial_q_state.json")
-        .is_file());
+    assert!(
+        run_dir
+            .join("runtime_repo")
+            .join("pinned_pubkeys.json")
+            .is_file()
+    );
+    assert!(
+        run_dir
+            .join("runtime_repo")
+            .join("initial_q_state.json")
+            .is_file()
+    );
 
     let participation_report = run_dir.join("full_system_participation.json");
     let participation = Command::new(bin("full_system_participation_current_kernel"))
@@ -206,6 +246,7 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
                 .join("governance_capsule_index.json")
                 .to_str()
                 .expect("utf8 path"),
+            "--require-full-system",
             "--out",
             participation_report.to_str().expect("utf8 path"),
         ])
@@ -234,18 +275,17 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
     );
     assert_eq!(
         participation
-            .get("market")
-            .and_then(|v| v.get("present"))
-            .and_then(Value::as_bool),
-        Some(false),
-        "FC3-only run must honestly report absent market/economy participation"
-    );
-    assert_eq!(
-        participation
             .get("verdict")
             .and_then(|v| v.get("full_system_participation"))
             .and_then(Value::as_bool),
-        Some(false)
+        Some(true)
+    );
+    assert_eq!(
+        participation
+            .get("market")
+            .and_then(|v| v.get("present"))
+            .and_then(Value::as_bool),
+        Some(true)
     );
 }
 
@@ -256,11 +296,15 @@ fn fc3_governance_runner_script_is_current_kernel_not_external_ceremony() {
             .expect("read runner script");
     assert!(script.contains("turingos init"));
     assert!(script.contains("fc3_governance_reinit_current_kernel"));
+    assert!(script.contains("full_system_augment_current_kernel"));
+    assert!(script.contains("--skip-fc3"));
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("governance_capsule_index.json"));
     assert!(script.contains("fc3_replay_report.json"));
     assert!(script.contains("full_system_participation_current_kernel"));
+    assert!(script.contains("--require-full-system"));
+    assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("full_system_participation.json"));
     assert!(
         !script.contains("handover/ai-direct/LATEST.md")

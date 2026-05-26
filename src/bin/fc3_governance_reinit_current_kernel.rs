@@ -25,23 +25,40 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
-    constitution_source_hash, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind,
+    Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind, canonical_decode, canonical_encode,
+    cas_metadata_root_before_logical_t, constitution_source_hash,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
+use turingosv4::economy::money::MicroCoin;
+use turingosv4::runtime::adapter::{
+    genesis_with_balances, make_real_escrow_lock_signed_by, make_real_task_open_signed_by,
+    make_real_worktx_signed_by,
+};
+use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::genesis_report::GenesisReport;
+use turingosv4::runtime::proposal_telemetry::{
+    ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
+};
 use turingosv4::runtime::{PinnedPubkeyEntry, PinnedPubkeyManifest};
-use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
-use turingosv4::state::q_state::{Hash, QState, TaskId, TxId};
+use turingosv4::sdk::sanitized_runner::{SanitizedCommand, run_sanitized};
+use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
-    ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
-    BootProfileId, LogFeedbackArchiveTx, ReinitReason, ReinitReasonCapsule, RunId, RunOutcome,
-    TickKind, TypedTx, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
     ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
-    REINIT_REASON_SCHEMA_ID, VETO_DECISION_SCHEMA_ID,
+    ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
+    BootProfileId, LogFeedbackArchiveTx, REINIT_REASON_SCHEMA_ID, ReinitReason,
+    ReinitReasonCapsule, RunId, RunOutcome, TickKind, TypedTx, VETO_DECISION_SCHEMA_ID,
+    VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
+
+const SPONSOR_AGENT: &str = "Agent_user_0";
+const SOLVER_AGENT: &str = "Agent_0";
+const MARKET_MAKER_AGENT: &str = "MarketMakerBudget";
+const TRADER_AGENT: &str = "Agent_1";
+const FC3_TASK_ID: &str = "fc3-governance-reinit-work";
+const TASK_ESCROW_MICRO: i64 = 10_000;
+const WORK_STAKE_MICRO: i64 = 100;
 
 #[derive(Debug)]
 struct Args {
@@ -148,6 +165,9 @@ async fn run(args: Args) -> Result<(), String> {
     std::fs::create_dir_all(&args.out_dir).map_err(|e| format!("out dir: {e}"))?;
 
     let mut h = build_harness(&args)?;
+
+    let work_entry = apply_fc1_seed_work(&mut h, &args).await?;
+    assert_kind(&work_entry, TxKind::Work)?;
 
     let tick_entry = apply_emit(
         &h.seq,
@@ -305,6 +325,7 @@ async fn run(args: Args) -> Result<(), String> {
             patch_artifact_cid,
         },
         &[
+            work_entry,
             tick_entry,
             feedback_entry,
             proposal_entry,
@@ -334,7 +355,7 @@ fn build_harness(args: &Args) -> Result<Harness, String> {
     let epoch = SystemEpoch::new(1);
     write_pinned_manifest(&args.runtime_repo, epoch, &keypair, &args.run_id)?;
 
-    let initial_q = QState::genesis();
+    let initial_q = fc3_initial_q();
     let initial_q_json =
         serde_json::to_string_pretty(&initial_q).map_err(|e| format!("initial_q json: {e}"))?;
     std::fs::write(
@@ -379,6 +400,124 @@ fn build_harness(args: &Args) -> Result<Harness, String> {
     })
 }
 
+fn fc3_initial_q() -> QState {
+    genesis_with_balances(&[
+        (
+            AgentId(SPONSOR_AGENT.to_string()),
+            MicroCoin::from_micro_units(200_000),
+        ),
+        (
+            AgentId(SOLVER_AGENT.to_string()),
+            MicroCoin::from_micro_units(100_000),
+        ),
+        (
+            AgentId(MARKET_MAKER_AGENT.to_string()),
+            MicroCoin::from_micro_units(300_000),
+        ),
+        (
+            AgentId(TRADER_AGENT.to_string()),
+            MicroCoin::from_micro_units(100_000),
+        ),
+    ])
+}
+
+async fn apply_fc1_seed_work(h: &mut Harness, args: &Args) -> Result<LedgerEntry, String> {
+    let mut keypairs =
+        AgentKeypairRegistry::open(&args.runtime_repo).map_err(|e| format!("{e}"))?;
+    for id in [SPONSOR_AGENT, SOLVER_AGENT] {
+        keypairs
+            .get_or_create(&AgentId(id.to_string()))
+            .map_err(|e| format!("create keypair for {id}: {e}"))?;
+    }
+    h.seq
+        .set_agent_pubkeys(Arc::new(keypairs.manifest()))
+        .map_err(|_| "agent pubkey manifest already set".to_string())?;
+
+    let seed_artifact_cid = put_bytes(
+        h,
+        b"FC3 governance/re-init sample: runtime logs are archived, reviewed by ArchitectAI/Veto-AI, and re-init is requested after ErrorHalt.",
+        "fc3-governance-seed-work",
+        Some("turingosv4.true_suite.fc3_seed_work.v1"),
+    )?;
+    let proposal_telemetry_cid = {
+        let telemetry = ProposalTelemetry::new_root(
+            AgentId(SOLVER_AGENT.to_string()),
+            constitution_source_hash(),
+            seed_artifact_cid,
+            "fc3_governance_reinit".to_string(),
+            TokenCounts {
+                prompt_tokens: 64,
+                completion_tokens: 32,
+                tool_tokens: 0,
+            },
+            format!("{SOLVER_AGENT}.fc3.b0"),
+        );
+        let mut cas = h
+            .cas
+            .write()
+            .map_err(|_| "cas write poisoned".to_string())?;
+        write_proposal_telemetry_to_cas(
+            &mut cas,
+            &telemetry,
+            "fc3-governance-proposal-telemetry",
+            h.seq.next_logical_t_peek(),
+        )
+        .map_err(|e| format!("write ProposalTelemetry: {e}"))?
+    };
+
+    let initial_root = h
+        .seq
+        .q_snapshot()
+        .map_err(|e| format!("q_snapshot initial: {e:?}"))?
+        .state_root_t;
+    let task_open = make_real_task_open_signed_by(
+        &mut keypairs,
+        FC3_TASK_ID,
+        SPONSOR_AGENT,
+        initial_root,
+        "true-suite-fc3",
+        1,
+    )
+    .map_err(|e| format!("build TaskOpenTx: {e}"))?;
+    apply_agent_tx(&h.seq, &mut h.rx, task_open).await?;
+
+    let after_open = h
+        .seq
+        .q_snapshot()
+        .map_err(|e| format!("q_snapshot after TaskOpenTx: {e:?}"))?
+        .state_root_t;
+    let escrow = make_real_escrow_lock_signed_by(
+        &mut keypairs,
+        FC3_TASK_ID,
+        SPONSOR_AGENT,
+        TASK_ESCROW_MICRO,
+        after_open,
+        "true-suite-fc3",
+        2,
+    )
+    .map_err(|e| format!("build EscrowLockTx: {e}"))?;
+    apply_agent_tx(&h.seq, &mut h.rx, escrow).await?;
+
+    let after_escrow = h
+        .seq
+        .q_snapshot()
+        .map_err(|e| format!("q_snapshot after EscrowLockTx: {e:?}"))?
+        .state_root_t;
+    let work = make_real_worktx_signed_by(
+        &mut keypairs,
+        FC3_TASK_ID,
+        SOLVER_AGENT,
+        after_escrow,
+        WORK_STAKE_MICRO,
+        "true-suite-fc3",
+        proposal_telemetry_cid,
+        true,
+        3,
+    )
+    .map_err(|e| format!("build WorkTx: {e}"))?;
+    apply_agent_tx(&h.seq, &mut h.rx, work).await
+}
+
 fn write_pinned_manifest(
     runtime_repo: &Path,
     epoch: SystemEpoch,
@@ -415,6 +554,22 @@ async fn apply_emit(
         .map_err(|e| format!("emit system tx: {e}"))?;
     seq.try_apply_one(rx)
         .ok_or_else(|| "system tx queue unexpectedly empty".to_string())?
+        .map_err(|e| match e {
+            ApplyError::Transition(t) => format!("transition rejected: {t}"),
+            other => format!("apply rejected: {other}"),
+        })
+}
+
+async fn apply_agent_tx(
+    seq: &Sequencer,
+    rx: &mut tokio::sync::mpsc::Receiver<SubmissionEnvelope>,
+    tx: TypedTx,
+) -> Result<LedgerEntry, String> {
+    seq.submit_agent_tx(tx)
+        .await
+        .map_err(|e| format!("submit agent tx: {e:?}"))?;
+    seq.try_apply_one(rx)
+        .ok_or_else(|| "agent tx queue unexpectedly empty".to_string())?
         .map_err(|e| match e {
             ApplyError::Transition(t) => format!("transition rejected: {t}"),
             other => format!("apply rejected: {other}"),
@@ -615,6 +770,9 @@ fn put_reinit_capsule(
 
 fn tx_id(tx: &TypedTx) -> TxId {
     match tx {
+        TypedTx::TaskOpen(t) => t.tx_id.clone(),
+        TypedTx::EscrowLock(t) => t.tx_id.clone(),
+        TypedTx::Work(t) => t.tx_id.clone(),
         TypedTx::MapReduceTick(t) => t.tx_id.clone(),
         TypedTx::LogFeedbackArchive(t) => t.tx_id.clone(),
         TypedTx::ArchitectProposal(t) => t.tx_id.clone(),
@@ -726,8 +884,13 @@ fn write_genesis_report(args: &Args) -> Result<(), String> {
         cas_path: args.cas.display().to_string(),
         system_pubkey_hash: GenesisReport::hash_system_pubkey_manifest(&args.runtime_repo),
         agent_pubkeys_path: "agent_pubkeys.json".to_string(),
-        initial_balances: vec![],
-        task_id: None,
+        initial_balances: vec![
+            (SPONSOR_AGENT.to_string(), 200_000),
+            (SOLVER_AGENT.to_string(), 100_000),
+            (MARKET_MAKER_AGENT.to_string(), 300_000),
+            (TRADER_AGENT.to_string(), 100_000),
+        ],
+        task_id: Some(FC3_TASK_ID.to_string()),
         task_open_tx: None,
         escrow_lock_tx: None,
         agent_model_assignment: vec![],

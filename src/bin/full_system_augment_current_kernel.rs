@@ -20,28 +20,28 @@ use sha2::{Digest, Sha256};
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
-    constitution_source_hash, LedgerEntry, TxKind,
+    LedgerEntry, TxKind, canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
+    constitution_source_hash,
 };
 use turingosv4::runtime::adapter::{
-    tb_n3_emit_node_market_after_work_accept, tb_n3_invest_to_router_tx, NodeMarketEmitOutcome,
+    NodeMarketEmitOutcome, tb_n3_emit_node_market_after_work_accept, tb_n3_invest_to_router_tx,
 };
 use turingosv4::runtime::agent_keypairs::{AgentKeypairRegistry, AgentPubkeyManifest};
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::market_decision_trace::{
-    write_market_decision_trace_to_cas, MarketDecisionTrace,
+    MarketDecisionTrace, write_market_decision_trace_to_cas,
 };
 use turingosv4::runtime::{
-    build_chaintape_sequencer_with_initial_q, ChaintapeBundle, RuntimeChaintapeConfig,
+    ChaintapeBundle, RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q,
 };
 use turingosv4::state::q_state::{AgentId, QState, TaskId, TxId};
 use turingosv4::state::sequencer::SystemEmitCommand;
 use turingosv4::state::typed_tx::{
-    ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
-    BootProfileId, BuyDirection, LogFeedbackArchiveTx, ReinitReason, ReinitReasonCapsule, RunId,
-    RunOutcome, TypedTx, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
     ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
-    REINIT_REASON_SCHEMA_ID, VETO_DECISION_SCHEMA_ID,
+    ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
+    BootProfileId, BuyDirection, LogFeedbackArchiveTx, REINIT_REASON_SCHEMA_ID, ReinitReason,
+    ReinitReasonCapsule, RunId, RunOutcome, TypedTx, VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule,
+    VetoDecisionTx, VetoReasonCode, VetoVerdict,
 };
 
 const MARKET_MAKER_AGENT: &str = "MarketMakerBudget";
@@ -56,6 +56,7 @@ struct Args {
     run_id: String,
     constitution: PathBuf,
     out_dir: PathBuf,
+    skip_fc3: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,7 +84,7 @@ struct TxIndexRow {
 fn usage() -> &'static str {
     "usage: full_system_augment_current_kernel \
      --runtime-repo <PATH> --cas <PATH> --run-id <ID> \
-     --constitution <constitution.md> --out-dir <PATH>"
+     --constitution <constitution.md> --out-dir <PATH> [--skip-fc3]"
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
@@ -92,6 +93,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut run_id = None;
     let mut constitution = None;
     let mut out_dir = None;
+    let mut skip_fc3 = false;
     let mut i = 0;
     while i < argv.len() {
         match argv[i].as_str() {
@@ -115,6 +117,9 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
                 i += 1;
                 out_dir = Some(argv.get(i).ok_or("--out-dir requires value")?.into());
             }
+            "--skip-fc3" => {
+                skip_fc3 = true;
+            }
             "--help" | "-h" => return Err(usage().into()),
             other => return Err(format!("unknown arg: {other}")),
         }
@@ -126,6 +131,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         run_id: run_id.ok_or("--run-id required")?,
         constitution: constitution.ok_or("--constitution required")?,
         out_dir: out_dir.ok_or("--out-dir required")?,
+        skip_fc3,
     })
 }
 
@@ -163,7 +169,11 @@ async fn run(args: Args) -> Result<(), String> {
     let work_tx_id = first_accepted_work_tx_id(&bundle)?;
 
     let market = append_market_action(&bundle, &work_tx_id).await?;
-    let fc3_rows = append_fc3_sequence(&bundle, &args).await?;
+    let fc3_rows = if args.skip_fc3 {
+        Vec::new()
+    } else {
+        append_fc3_sequence(&bundle, &args).await?
+    };
     refresh_genesis_report(&args)?;
 
     let final_q = bundle
@@ -302,7 +312,7 @@ async fn append_market_action(
     };
 
     Ok(MarketRows {
-        event_id: event_id.0 .0,
+        event_id: event_id.0.0,
         router_tx_id: router_tx_id.0,
         market_decision_trace_cid: trace_cid.hex(),
     })

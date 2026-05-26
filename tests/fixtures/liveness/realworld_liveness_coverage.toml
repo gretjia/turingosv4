@@ -272,13 +272,19 @@ anti_contamination_guards = [
 ]
 evidence_artifacts = []
 final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
   "handover/evidence/true_suite/<run>/fc3/chaintape.jsonl",
   "handover/evidence/true_suite/<run>/fc3/cas/",
   "handover/evidence/true_suite/<run>/fc3/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/fc3/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/<run>/fc3/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/fc3/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/fc3/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/fc3/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/<run>/fc3/fc3_governance_reinit_run_manifest.json",
+  "handover/evidence/true_suite/<run>/fc3/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/fc3/runtime_repo.worktree.tar.gz",
 ]
 
 [[task]]
