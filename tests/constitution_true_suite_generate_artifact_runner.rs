@@ -13,7 +13,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use turingosv4::runtime::artifact_bundle::{ARTIFACT_BUNDLE_SCHEMA_ID, ArtifactBundleManifest};
 use turingosv4::runtime::generation_attempt::GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 
@@ -384,6 +384,9 @@ fn generate_artifact_runner_script_preserves_external_agent_boundary() {
     assert!(script.contains("\"Agent_1\" = 1_000_000"));
     assert!(script.contains("\"MarketMakerBudget\" = 5_000_000"));
     assert!(script.contains("no post-init mint is used"));
+    assert!(script.contains("no remote fonts, no CDN, and no external URLs"));
+    assert!(script.contains("generated artifact uses remote runtime dependencies"));
+    assert!(script.contains("https?://|//fonts"));
     assert!(script.contains("full_system_augment_current_kernel"));
     assert!(script.contains("full_system_participation_current_kernel"));
     assert!(script.contains("--require-full-system"));

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launch Plan Decision Matrix</title>
+<style>
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6bb09c;
+    --bg: #f8f6f1;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #d6d2c9;
+    --card-bg: #ffffff;
+    --winner-bg: #e6f3ef;
+    --tie-bg: #f0ede6;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-heading: 'Fraunces', Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --text: #f0eee8;
+      --muted: #a09e96;
+      --border: #3a3a3a;
+      --card-bg: #242424;
+      --winner-bg: #1f3d35;
+      --tie-bg: #2a2a2a;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-family: var(--font-heading);
+    font-size: 2.25rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+  }
+  .matrix-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    min-width: 600px;
+  }
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  th {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+    background: var(--bg);
+    color: var(--text);
+    border-bottom: 2px solid var(--accent);
+  }
+  th:first-child {
+    text-align: left;
+    min-width: 140px;
+  }
+  td:first-child {
+    text-align: left;
+    font-weight: 500;
+  }
+  .plan-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .plan-header input {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    width: 100%;
+    min-width: 80px;
+    max-width: 160px;
+    padding: 0.2rem 0;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .plan-header input:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+  }
+  .plan-header input::placeholder {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .weight-input {
+    width: 60px;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.2rem;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .weight-input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: transparent;
+  }
+  .score-input {
+    width: 64px;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.4rem 0.2rem;
+    background: var(--bg);
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .score-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+  .score-input::placeholder {
+    color: var(--muted);
+    opacity: 0.4;
+  }
+  .criterion-name {
+    font-weight: 500;
+  }
+  .criterion-name input {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    width: 100%;
+    min-width: 80px;
+    padding: 0.2rem 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .criterion-name input:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+    border-bottom-style: solid;
+  }
+  .criterion-name input::placeholder {
+    color: var(--muted);
+    opacity: 0.5;
+  }
+  .totals-row td {
+    font-weight: 600;
+    font-size: 1.05rem;
+    border-top: 2px solid var(--accent);
+    border-bottom: none;
+  }
+  .totals-row td:first-child {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
+  .winner-cell {
+    background: var(--winner-bg);
+    color: var(--accent);
+    border-radius: 4px;
+  }
+  .tie-cell {
+    background: var(--tie-bg);
+    color: var(--muted);
+  }
+  .recommendation {
+    margin-top: 1.5rem;
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    font-size: 1.05rem;
+  }
+  .recommendation strong {
+    font-family: var(--font-heading);
+    font-weight: 600;
+  }
+  .recommendation.tie {
+    border-left-color: var(--muted);
+  }
+  .add-criterion {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .add-criterion:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .remove-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .remove-btn:hover {
+    color: #c0392b;
+    background: rgba(192,57,43,0.08);
+  }
+  .footer-note {
+    margin-top: 2rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  @media (max-width: 700px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.6rem; }
+    th, td { padding: 0.5rem 0.6rem; }
+    .score-input { width: 48px; font-size: 0.9rem; }
+    .weight-input { width: 48px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Launch Plan Decision Matrix</h1>
+  <p class="subtitle">Compare three plans — score each criterion from 1 (worst) to 5 (best).</p>
+
+  <div class="matrix-wrapper">
+    <table id="matrix">
+      <thead>
+        <tr>
+          <th>Criterion</th>
+          <th>Weight</th>
+          <th id="plan0-header" class="plan-header">
+            <input type="text" id="plan0-name" placeholder="Plan A" value="Plan A" maxlength="40">
+          </th>
+          <th id="plan1-header" class="plan-header">
+            <input type="text" id="plan1-name" placeholder="Plan B" value="Plan B" maxlength="40">
+          </th>
+          <th id="plan2-header" class="plan-header">
+            <input type="text" id="plan2-name" placeholder="Plan C" value="Plan C" maxlength="40">
+          </th>
+        </tr>
+      </thead>
+      <tbody id="criteria-body">
+        <!-- rows injected by JS -->
+      </tbody>
+      <tfoot>
+        <tr class="totals-row">
+          <td>Weighted Total</td>
+          <td></td>
+          <td id="total0">0.0</td>
+          <td id="total1">0.0</td>
+          <td id="total2">0.0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <button class="add-criterion" id="add-criterion-btn">+ Add criterion</button>
+
+  <div id="recommendation" class="recommendation">
+    <strong>Recommendation:</strong> <span id="rec-text">Start by adding criteria and scores.</span>
+  </div>
+
+  <div class="footer-note">
+    All data stays in your browser. No internet required.
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // --- state ---
+  const DEFAULT_CRITERIA = ['Cost', 'Speed to Market', 'Team Readiness', 'Risk'];
+  let criteria = DEFAULT_CRITERIA.map(name => ({ name, weight: 1 }));
+  const planCount = 3;
+  // scores[planIndex][criterionIndex] = number or null
+  let scores = Array.from({ length: planCount }, () => criteria.map(() => null));
+
+  // --- DOM refs ---
+  const tbody = document.getElementById('criteria-body');
+  const totalEls = [0,1,2].map(i => document.getElementById('total' + i));
+  const recText = document.getElementById('rec-text');
+  const recBox = document.getElementById('recommendation');
+  const planNameInputs = [0,1,2].map(i => document.getElementById('plan' + i + '-name'));
+
+  // --- helpers ---
+  function parseWeight(val) {
+    const n = parseFloat(val);
+    if (isNaN(n) || n < 0) return 0;
+    return n;
+  }
+
+  function parseScore(val) {
+    if (val === '' || val === null || val === undefined) return null;
+    const n = Number(val);
+    if (!Number.isFinite(n)) return null;
+    if (n < 1 || n > 5) return null;
+    return Math.round(n * 10) / 10; // allow decimals but clamp
+  }
+
+  function computeTotals() {
+    const weights = criteria.map(c => parseWeight(c.weight));
+    const totals = [0, 0, 0];
+    for (let p = 0; p < planCount; p++) {
+      let sum = 0;
+      for (let c = 0; c < criteria.length; c++) {
+        const s = scores[p][c];
+        if (s !== null && !isNaN(s)) {
+          sum += s * weights[c];
+        }
+      }
+      totals[p] = Math.round(sum * 100) / 100;
+    }
+    return totals;
+  }
+
+  function updateUI() {
+    const totals = computeTotals();
+    for (let p = 0; p < planCount; p++) {
+      totalEls[p].textContent = totals[p].toFixed(1);
+    }
+
+    // find max
+    const maxVal = Math.max(...totals);
+    const winners = totals.map((v, i) => v === maxVal ? i : -1).filter(i => i !== -1);
+
+    // clear winner classes
+    for (let p = 0; p < planCount; p++) {
+      totalEls[p].classList.remove('winner-cell', 'tie-cell');
+    }
+
+    if (winners.length === planCount || (winners.length > 1 && maxVal === 0 && totals.every(t => t === 0))) {
+      // all equal (including all zero)
+      for (let p = 0; p < planCount; p++) {
+        totalEls[p].classList.add('tie-cell');
+      }
+      recBox.classList.add('tie');
+      recText.textContent = 'It\'s a tie! All plans have the same weighted total.';
+    } else if (winners.length === 1) {
+      const winnerIdx = winners[0];
+      totalEls[winnerIdx].classList.add('winner-cell');
+      recBox.classList.remove('tie');
+      const name = planNameInputs[winnerIdx].value.trim() || ('Plan ' + String.fromCharCode(65 + winnerIdx));
+      recText.textContent = `${name} leads with ${totals[winnerIdx].toFixed(1)} points.`;
+    } else {
+      // multiple winners but not all
+      for (const idx of winners) {
+        totalEls[idx].classList.add('winner-cell');
+      }
+      recBox.classList.add('tie');
+      const names = winners.map(i => planNameInputs[i].value.trim() || ('Plan ' + String.fromCharCode(65 + i)));
+      recText.textContent = `Tie between ${names.join(' and ')} with ${maxVal.toFixed(1)} points each.`;
+    }
+  }
+
+  function renderRows() {
+    tbody.innerHTML = '';
+    criteria.forEach((criterion, cIdx) => {
+      const tr = document.createElement('tr');
+      tr.dataset.criterionIndex = cIdx;
+
+      // criterion name cell
+      const nameTd = document.createElement('td');
+      nameTd.className = 'criterion-name';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.value = criterion.name;
+      nameInput.placeholder = 'Criterion ' + (cIdx + 1);
+      nameInput.maxLength = 60;
+      nameInput.addEventListener('input', function() {
+        criterion.name = this.value;
+      });
+      nameTd.appendChild(nameInput);
+      tr.appendChild(nameTd);
+
+      // weight cell
+      const weightTd = document.createElement('td');
+      const weightInput = document.createElement('input');
+      weightInput.type = 'text';
+      weightInput.className = 'weight-input';
+      weightInput.value = criterion.weight;
+      weightInput.placeholder = '1';
+      weightInput.addEventListener('input', function() {
+        const parsed = parseWeight(this.value);
+        criterion.weight = isNaN(parsed) ? 0 : parsed;
+        updateUI();
+      });
+      weightTd.appendChild(weightInput);
+      tr.appendChild(weightTd);
+
+      // score cells for each plan
+      for (let p = 0; p < planCount; p++) {
+        const td = document.createElement('td');
+        const scoreInput = document.createElement('input');
+        scoreInput.type = 'text';
+        scoreInput.className = 'score-input';
+        scoreInput.placeholder = '1–5';
+        scoreInput.maxLength = 4;
+        const currentScore = scores[p][cIdx];
+        scoreInput.value = (currentScore !== null && currentScore !== undefined) ? currentScore : '';
+        scoreInput.dataset.plan = p;
+        scoreInput.dataset.criterion = cIdx;
+
+        scoreInput.addEventListener('input', function() {
+          const raw = this.value;
+          const parsed = parseScore(raw);
+          const pIdx = parseInt(this.dataset.plan);
+          const cIdx2 = parseInt(this.dataset.criterion);
+          scores[pIdx][cIdx2] = parsed;
+          // if invalid, clear the field visually but keep null
+          if (parsed === null && raw !== '') {
+            // non-numeric or out of range: clear field
+            this.value = '';
+          } else if (parsed !== null) {
+            this.value = parsed;
+          }
+          updateUI();
+        });
+
+        // also update on blur to clean up
+        scoreInput.addEventListener('blur', function() {
+          const raw = this.value;
+          const parsed = parseScore(raw);
+          const pIdx = parseInt(this.dataset.plan);
+          const cIdx2 = parseInt(this.dataset.criterion);
+          if (parsed === null) {
+            scores[pIdx][cIdx2] = null;
+            this.value = '';
+          } else {
+            scores[pIdx][cIdx2] = parsed;
+            this.value = parsed;
+          }
+          updateUI();
+        });
+
+        td.appendChild(scoreInput);
+        tr.appendChild(td);
+      }
+
+      // remove button
+      const removeTd = document.createElement('td');
+      removeTd.style.padding = '0.5rem';
+      removeTd.style.borderBottom = '1px solid var(--border)';
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.textContent = '✕';
+      removeBtn.title = 'Remove criterion';
+      removeBtn.addEventListener('click', function() {
+        if (criteria.length <= 1) return;
+        const idx = parseInt(tr.dataset.criterionIndex);
+        criteria.splice(idx, 1);
+        for (let p = 0; p < planCount; p++) {
+          scores[p].splice(idx, 1);
+        }
+        renderRows();
+        updateUI();
+      });
+      removeTd.appendChild(removeBtn);
+      tr.appendChild(removeTd);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  function addCriterion() {
+    const newName = 'Criterion ' + (criteria.length + 1);
+    criteria.push({ name: newName, weight: 1 });
+    for (let p = 0; p < planCount; p++) {
+      scores[p].push(null);
+    }
+    renderRows();
+    updateUI();
+    // scroll to bottom
+    const lastRow = tbody.lastElementChild;
+    if (lastRow) lastRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // --- plan name listeners ---
+  planNameInputs.forEach((input, idx) => {
+    input.addEventListener('input', function() {
+      updateUI();
+    });
+  });
+
+  // --- add criterion button ---
+  document.getElementById('add-criterion-btn').addEventListener('click', addCriterion);
+
+  // --- initial render ---
+  renderRows();
+  updateUI();
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+artifact_bundle_cid=1a7e5f42c1458b052609ae03cb6858c9c9cb4999522d37f0bd4fc53523650504
+
+Generated 1 file(s) under /tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifacts/
+  index.html
+
+Open the entry file in your browser or run the entry script:
+  xdg-open /tmp/turingosv4-obl005-next3/handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/artifacts/index.html
