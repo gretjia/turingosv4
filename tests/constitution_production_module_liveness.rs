@@ -12,6 +12,7 @@ use std::fs;
 use std::path::Path;
 
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
+const OPEN_CLOSURE_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
 
 #[derive(Debug, Clone)]
 struct Group {
@@ -204,6 +205,20 @@ fn group_by_id<'a>(groups: &'a [Group], id: &str) -> &'a Group {
         .unwrap_or_else(|| panic!("missing liveness group `{id}`"))
 }
 
+fn assert_unique_group_ids(groups: &[Group]) {
+    let mut seen = BTreeSet::new();
+    let mut duplicates = Vec::new();
+    for group in groups {
+        if !seen.insert(group.id.clone()) {
+            duplicates.push(group.id.clone());
+        }
+    }
+    assert!(
+        duplicates.is_empty(),
+        "duplicate liveness group ids would shadow no-zombie accounting: {duplicates:?}"
+    );
+}
+
 fn assert_existing_path(path: &str) {
     assert!(
         Path::new(path).exists(),
@@ -262,14 +277,50 @@ fn liveness_manifest_policy_is_real_world_first() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some("OPEN_REAL_WORLD_COVERAGE_PENDING"),
+        Some(OPEN_CLOSURE_STATUS),
         "only the explicit open status is allowed until full-system true runs close every retained group"
     );
 }
 
 #[test]
+fn final_closure_cannot_be_claimed_while_quarantine_remains() {
+    let manifest = manifest();
+    let groups = groups();
+    let has_quarantine_or_dev = groups
+        .iter()
+        .any(|group| group.status == "legacy_quarantined" || group.classification == "dev_only");
+
+    if has_quarantine_or_dev {
+        assert_eq!(
+            manifest
+                .get("final_closure_status")
+                .and_then(toml::Value::as_str),
+            Some(OPEN_CLOSURE_STATUS),
+            "OBL-005 final closure cannot be claimed while any legacy_quarantined or dev_only group remains"
+        );
+    }
+
+    for group in groups {
+        if group.status == "legacy_quarantined" {
+            let action = group.closure_action.as_deref().unwrap_or_default();
+            assert!(
+                action.contains("Delete") || action.contains("rebind") || action.contains("Rebind"),
+                "legacy quarantine group `{}` must name a concrete delete-or-rebind action; got `{action}`",
+                group.id
+            );
+        }
+    }
+}
+
+#[test]
+fn liveness_group_ids_are_unique() {
+    assert_unique_group_ids(&groups());
+}
+
+#[test]
 fn every_exported_module_has_exactly_one_liveness_group() {
     let groups = groups();
+    assert_unique_group_ids(&groups);
     let index = manifest_module_index(&groups);
     let declared = declared_inventory();
 
