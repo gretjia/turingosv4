@@ -110,6 +110,44 @@ final_evidence_artifacts = [
 ]
 
 [[task]]
+id = "swebench_live_coding_repair_fresh"
+problem_type = "swebench_coding_repair"
+status = "fresh_required"
+tape_kind = "canonical_l4"
+entrypoint = "scripts/run_true_suite_swebench_current_kernel.sh"
+module_groups = [
+  "canonical_tape_cas_state",
+  "runtime_replay_evidence_audit",
+  "agent_prompt_model_boundary",
+]
+constitutional_paths = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:pinned-benchmark-replay",
+  "FC3:logs-archive->feedback",
+]
+anti_contamination_guards = [
+  "public SWE-bench issue context is hashed into CAS before the model call",
+  "gold patch and test patch remain evaluation-side data and must not enter the prompt",
+  "structural patch plausibility is not final SWE-bench scoring or OBL-005 closure",
+  "raw provider prompt/response are not persisted as evidence",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/swebench/repo_snapshots/",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/cas/",
+  "handover/evidence/true_suite/<run>/swebench/cas.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/genesis_report.json",
+  "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_manifest.json",
+  "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_run_manifest.json",
+  "handover/evidence/true_suite/<run>/swebench/replay_report.json",
+  "handover/evidence/true_suite/<run>/swebench/failure_taxonomy.json",
+]
+
+[[task]]
 id = "tdma_real_proof_fresh"
 problem_type = "tdma_proof"
 status = "fresh_required"

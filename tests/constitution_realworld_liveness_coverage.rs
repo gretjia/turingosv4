@@ -15,6 +15,7 @@ const OPEN_CLOSURE_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
 const REQUIRED_DOMAINS: &[&str] = &[
     "market_economy",
     "generate_artifact",
+    "swebench_coding_repair",
     "tdma_proof",
     "fc3_governance_reinit",
     "replay_cas",

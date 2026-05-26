@@ -191,7 +191,7 @@ kernel_liveness_modules = [
 evidence_shape = [
   "repo_snapshot_hash",
   "patch_artifact_cid",
-  "test_result_capsule",
+  "structural_patch_evaluation_capsule",
   "work_tx_or_l4e",
   "replay_report",
 ]
@@ -207,15 +207,22 @@ failure_taxonomy = [
 anti_contamination_guards = [
   "prefer fresh/live issue split over stale leaderboard rows",
   "patch must be replayable from CAS artifacts",
-  "test pass is not enough without ChainTape/CAS binding",
+  "gold patch and test patch must not enter the model prompt",
+  "structural patch plausibility is not enough for final SWE-bench scoring without ChainTape/CAS binding",
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/swebench/repo_snapshots/",
-  "handover/evidence/true_suite/<run>/swebench/cas/",
-  "handover/evidence/true_suite/<run>/swebench/cas.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/swebench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/swebench/runtime_repo.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/swebench/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/cas/",
+  "handover/evidence/true_suite/<run>/swebench/cas.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/swebench/genesis_report.json",
+  "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_manifest.json",
+  "handover/evidence/true_suite/<run>/swebench/swebench_live_coding_repair_run_manifest.json",
   "handover/evidence/true_suite/<run>/swebench/replay_report.json",
+  "handover/evidence/true_suite/<run>/swebench/failure_taxonomy.json",
 ]
 
 [[family]]
