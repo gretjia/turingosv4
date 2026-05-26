@@ -545,6 +545,59 @@ fn frontend_product_code_is_accounted_for_when_present() {
 }
 
 #[test]
+fn design_system_code_is_accounted_for_when_present() {
+    if !Path::new("design-system").exists() {
+        return;
+    }
+
+    let groups = groups();
+    let design_system = group_by_id(&groups, "design_system_product_surface");
+    assert!(
+        matches!(
+            design_system.classification.as_str(),
+            "product_workload" | "dev_only"
+        ),
+        "design-system code must be classified as retained product surface or dev-only substrate"
+    );
+    assert!(
+        !design_system.allowed_as_fc_authority,
+        "design-system code cannot become flowchart authority"
+    );
+    assert!(
+        design_system
+            .paths
+            .iter()
+            .any(|path| path == "design-system"),
+        "design-system group must account for the root design-system path"
+    );
+
+    if design_system.classification == "product_workload" {
+        assert!(
+            !design_system.smoke_gates.is_empty(),
+            "product design-system code must name a concrete smoke gate"
+        );
+        assert!(
+            !design_system.real_world_evidence.is_empty(),
+            "product design-system code must stay bound to real product-path evidence"
+        );
+    } else {
+        assert!(
+            design_system.real_world_evidence.is_empty(),
+            "dev-only design-system code must not pretend to be lit by AGI production evidence"
+        );
+        assert!(
+            design_system
+                .closure_action
+                .as_deref()
+                .unwrap_or_default()
+                .len()
+                >= 20,
+            "dev-only design-system code must carry an explicit exclusion rationale"
+        );
+    }
+}
+
+#[test]
 fn restricted_surfaces_are_classified_high_risk() {
     for group in groups() {
         if group.restricted_surface {
