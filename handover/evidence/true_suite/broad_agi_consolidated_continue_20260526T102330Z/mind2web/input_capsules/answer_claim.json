@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_answer_claim_capsule.v1",
+  "sample_id": "7bda9645-0b5f-470a-8dd7-6af0bff4da68:0",
+  "model_returned": "deepseek-chat",
+  "selected_backend_node_id": "__missing_backend_node_id__",
+  "operation": "SELECT",
+  "value": "pickup",
+  "rationale": "The task requires checking for pickup restaurant availability. The current reservation type is set to 'Dine in', so we need to change it to 'Pickup' using the select element with backend_node_id 136. This select element has an option with value 'pickup' that matches the task requirement.",
+  "rationale_len_chars": 288,
+  "prompt_sha256": "7c1785bd09b484e6abb257497ba65bad60321ff5f481ed26244130af4191856e",
+  "provider_response_sha256": "772a0c1f4ae076e760642d3620272b97af460f8f42cb3965252eb7f2783f2fbc",
+  "raw_provider_response_persisted": false
+}

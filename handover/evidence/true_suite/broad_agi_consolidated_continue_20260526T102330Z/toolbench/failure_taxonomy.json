@@ -1,0 +1,12 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_failure_taxonomy.v1",
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "family_id": "toolbench_api_tool_use",
+  "failure_class": "model_task_failure",
+  "selected_apis_available": true,
+  "exact_match": false,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": true,
+  "infrastructure_failure": false
+}

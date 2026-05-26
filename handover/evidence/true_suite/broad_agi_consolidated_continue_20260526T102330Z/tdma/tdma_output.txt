@@ -1,0 +1,1 @@
+turingos tdma run: completed 3/5 stages in 22.7s. Evidence at /tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/tdma

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Launch Plan Decision Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --accent-light: #6bb09e;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #d6d2c9;
+      --card-bg: #ffffff;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+      --radius: 10px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #a09e96;
+        --border: #3a3833;
+        --card-bg: #242320;
+        --shadow: 0 2px 8px rgba(0,0,0,0.4);
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px 16px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 36px;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+
+    /* Matrix layout */
+    .matrix {
+      display: grid;
+      grid-template-columns: 220px repeat(3, 1fr);
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--card-bg);
+      box-shadow: var(--shadow);
+    }
+
+    /* Header row */
+    .matrix-header {
+      display: contents;
+    }
+
+    .matrix-header .cell {
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      padding: 16px 12px;
+      text-align: center;
+      border-bottom: 2px solid var(--accent-light);
+    }
+
+    .matrix-header .cell:first-child {
+      text-align: left;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .matrix-header .cell input {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid rgba(255,255,255,0.4);
+      color: #fff;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-weight: 600;
+      font-size: 16px;
+      text-align: center;
+      width: 100%;
+      padding: 4px 0;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .matrix-header .cell input:focus {
+      border-bottom-color: #fff;
+    }
+
+    .matrix-header .cell input::placeholder {
+      color: rgba(255,255,255,0.6);
+    }
+
+    /* Criteria label column */
+    .criteria-label {
+      display: flex;
+      align-items: center;
+      padding: 12px 12px;
+      font-weight: 500;
+      border-right: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    .criteria-label .weight-control {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .criteria-label .weight-control input {
+      width: 44px;
+      padding: 2px 4px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 14px;
+      text-align: center;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .criteria-label .weight-control input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+    }
+
+    /* Score cells */
+    .score-cell {
+      padding: 8px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid var(--border);
+      background: var(--card-bg);
+    }
+
+    .score-cell:last-child {
+      border-right: none;
+    }
+
+    .score-cell input {
+      width: 56px;
+      padding: 6px 4px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 16px;
+      text-align: center;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .score-cell input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+    }
+
+    .score-cell input::placeholder {
+      color: var(--muted);
+      opacity: 0.5;
+    }
+
+    /* Row styling */
+    .matrix-row {
+      display: contents;
+    }
+
+    .matrix-row .cell {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .matrix-row:last-child .cell {
+      border-bottom: none;
+    }
+
+    /* Totals row */
+    .totals-row .cell {
+      border-top: 2px solid var(--accent);
+      font-weight: 600;
+      padding: 14px 12px;
+      text-align: center;
+      background: var(--card-bg);
+    }
+
+    .totals-row .cell:first-child {
+      text-align: left;
+      color: var(--text);
+    }
+
+    .totals-row .total-value {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 22px;
+      color: var(--accent);
+    }
+
+    /* Recommendation area */
+    .recommendation {
+      margin-top: 28px;
+      padding: 20px 24px;
+      border-radius: var(--radius);
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .recommendation h2 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .recommendation .winner {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .recommendation .tie {
+      font-size: 18px;
+      color: var(--muted);
+    }
+
+    .recommendation .empty {
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    /* Add criteria button */
+    .add-criteria-area {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .add-criteria-area input {
+      flex: 1;
+      max-width: 300px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 15px;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+
+    .add-criteria-area input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+    }
+
+    .btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--accent-light);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background: var(--border);
+    }
+
+    .btn-danger {
+      background: #c0392b;
+    }
+
+    .btn-danger:hover {
+      background: #e74c3c;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .matrix {
+        grid-template-columns: 140px repeat(3, 1fr);
+        font-size: 14px;
+      }
+      .matrix-header .cell input {
+        font-size: 14px;
+      }
+      .score-cell input {
+        width: 44px;
+        font-size: 14px;
+      }
+      .criteria-label {
+        padding: 10px 8px;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .criteria-label .weight-control input {
+        width: 36px;
+        font-size: 12px;
+      }
+      h1 {
+        font-size: 28px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .matrix {
+        grid-template-columns: 100px repeat(3, 1fr);
+        font-size: 12px;
+      }
+      .score-cell input {
+        width: 36px;
+        font-size: 12px;
+        padding: 4px 2px;
+      }
+      .matrix-header .cell {
+        padding: 10px 6px;
+      }
+      .criteria-label {
+        padding: 8px 4px;
+        font-size: 12px;
+      }
+      .criteria-label .weight-control input {
+        width: 30px;
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Launch Plan Decision Matrix</h1>
+    <p class="subtitle">Compare three plans side-by-side. Score each criterion from 1 (worst) to 5 (best). Adjust weights to reflect importance.</p>
+
+    <div id="matrix-root">
+      <!-- Matrix will be rendered by JS -->
+    </div>
+
+    <div class="add-criteria-area">
+      <input type="text" id="new-criterion-name" placeholder="New criterion name..." maxlength="60">
+      <button class="btn" id="add-criterion-btn">Add Criterion</button>
+      <button class="btn btn-outline" id="reset-defaults-btn">Reset to Defaults</button>
+    </div>
+
+    <div id="recommendation-area" class="recommendation">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ---------- State ----------
+      const DEFAULT_CRITERIA = [
+        { name: 'Time to Market', weight: 3 },
+        { name: 'Cost Efficiency', weight: 4 },
+        { name: 'Team Readiness', weight: 2 },
+        { name: 'Risk Level', weight: 5 },
+        { name: 'Scalability', weight: 4 },
+      ];
+
+      const DEFAULT_PLANS = ['Plan A', 'Plan B', 'Plan C'];
+
+      let criteria = [];        // [{ name, weight }]
+      let planNames = [];       // [string, string, string]
+      let scores = [];          // [criterionIndex][planIndex] = number or null
+
+      // ---------- DOM refs ----------
+      const rootEl = document.getElementById('matrix-root');
+      const recEl = document.getElementById('recommendation-area');
+      const newCriterionInput = document.getElementById('new-criterion-name');
+      const addCriterionBtn = document.getElementById('add-criterion-btn');
+      const resetDefaultsBtn = document.getElementById('reset-defaults-btn');
+
+      // ---------- Helpers ----------
+      function parseScore(val) {
+        if (val === null || val === undefined || val === '') return null;
+        const trimmed = String(val).trim();
+        if (trimmed === '') return null;
+        const num = Number(trimmed);
+        if (isNaN(num)) return null;
+        // Clamp to 1-5
+        if (num < 1) return 1;
+        if (num > 5) return 5;
+        return Math.round(num);
+      }
+
+      function computeWeightedTotals() {
+        const totals = [0, 0, 0];
+        let totalWeight = 0;
+        for (let c = 0; c < criteria.length; c++) {
+          const w = criteria[c].weight;
+          totalWeight += w;
+          for (let p = 0; p < 3; p++) {
+            const s = scores[c]?.[p];
+            if (s !== null && s !== undefined) {
+              totals[p] += s * w;
+            }
+          }
+        }
+        return { totals, totalWeight };
+      }
+
+      function determineWinner() {
+        const { totals, totalWeight } = computeWeightedTotals();
+        // If no criteria or all scores empty, no winner
+        if (criteria.length === 0) return { winner: null, tied: false, totals, totalWeight };
+
+        // Check if any plan has at least one score
+        const hasAnyScore = scores.some(row => row.some(s => s !== null));
+        if (!hasAnyScore) return { winner: null, tied: false, totals, totalWeight };
+
+        // Find max
+        const maxVal = Math.max(...totals);
+        const maxIndices = [];
+        for (let i = 0; i < 3; i++) {
+          if (totals[i] === maxVal) maxIndices.push(i);
+        }
+
+        if (maxIndices.length > 1) {
+          return { winner: null, tied: true, tiedIndices: maxIndices, totals, totalWeight };
+        }
+        return { winner: maxIndices[0], tied: false, totals, totalWeight };
+      }
+
+      // ---------- Render ----------
+      function render() {
+        // Build matrix HTML
+        let html = '<div class="matrix">';
+
+        // Header row
+        html += '<div class="matrix-header">';
+        html += '<div class="cell">Criteria</div>';
+        for (let p = 0; p < 3; p++) {
+          html += `<div class="cell"><input type="text" class="plan-name-input" data-plan="${p}" value="${escapeHtml(planNames[p])}" placeholder="Plan ${String.fromCharCode(65 + p)}" maxlength="40"></div>`;
+        }
+        html += '</div>';
+
+        // Criteria rows
+        for (let c = 0; c < criteria.length; c++) {
+          const crit = criteria[c];
+          html += '<div class="matrix-row">';
+          html += `<div class="cell criteria-label">${escapeHtml(crit.name)} <span class="weight-control">W: <input type="text" class="weight-input" data-criterion="${c}" value="${crit.weight}" inputmode="numeric"></span></div>`;
+          for (let p = 0; p < 3; p++) {
+            const val = scores[c]?.[p];
+            const displayVal = (val !== null && val !== undefined) ? val : '';
+            html += `<div class="cell score-cell"><input type="text" class="score-input" data-criterion="${c}" data-plan="${p}" value="${displayVal}" placeholder="1-5" inputmode="numeric" maxlength="3"></div>`;
+          }
+          html += '</div>';
+        }
+
+        // Totals row
+        const { totals, totalWeight } = computeWeightedTotals();
+        html += '<div class="matrix-row totals-row">';
+        html += `<div class="cell">Weighted Total</div>`;
+        for (let p = 0; p < 3; p++) {
+          const displayTotal = totalWeight > 0 ? totals[p].toFixed(1) : '—';
+          html += `<div class="cell"><span class="total-value">${displayTotal}</span></div>`;
+        }
+        html += '</div>';
+
+        html += '</div>'; // .matrix
+
+        rootEl.innerHTML = html;
+
+        // Update recommendation
+        const result = determineWinner();
+        let recHtml = '<h2>Recommendation</h2>';
+        if (result.winner !== null) {
+          const winnerName = planNames[result.winner] || `Plan ${String.fromCharCode(65 + result.winner)}`;
+          recHtml += `<div class="winner">🏆 ${escapeHtml(winnerName)}</div>`;
+        } else if (result.tied) {
+          const tiedNames = result.tiedIndices.map(i => planNames[i] || `Plan ${String.fromCharCode(65 + i)}`);
+          recHtml += `<div class="tie">⚖️ Tie between: ${tiedNames.map(n => escapeHtml(n)).join(', ')}</div>`;
+        } else {
+          recHtml += `<div class="empty">Enter scores to see a recommendation.</div>`;
+        }
+        recEl.innerHTML = recHtml;
+
+        // Attach event listeners
+        attachEvents();
+      }
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // ---------- Event binding ----------
+      function attachEvents() {
+        // Plan name inputs
+        document.querySelectorAll('.plan-name-input').forEach(input => {
+          input.addEventListener('input', function() {
+            const idx = parseInt(this.dataset.plan, 10);
+            planNames[idx] = this.value;
+            render();
+          });
+        });
+
+        // Score inputs
+        document.querySelectorAll('.score-input').forEach(input => {
+          input.addEventListener('input', function() {
+            const cIdx = parseInt(this.dataset.criterion, 10);
+            const pIdx = parseInt(this.dataset.plan, 10);
+            const parsed = parseScore(this.value);
+            scores[cIdx][pIdx] = parsed;
+            // If the value is invalid but not empty, show it gracefully (already in input)
+            render();
+          });
+        });
+
+        // Weight inputs
+        document.querySelectorAll('.weight-input').forEach(input => {
+          input.addEventListener('input', function() {
+            const cIdx = parseInt(this.dataset.criterion, 10);
+            const val = this.value.trim();
+            let w = parseInt(val, 10);
+            if (isNaN(w) || w < 1) w = 1;
+            if (w > 10) w = 10;
+            criteria[cIdx].weight = w;
+            render();
+          });
+        });
+      }
+
+      // ---------- State mutations ----------
+      function initState() {
+        criteria = DEFAULT_CRITERIA.map(c => ({ name: c.name, weight: c.weight }));
+        planNames = [...DEFAULT_PLANS];
+        scores = criteria.map(() => [null, null, null]);
+      }
+
+      function addCriterion() {
+        const name = newCriterionInput.value.trim();
+        if (!name) {
+          alert('Please enter a criterion name.');
+          return;
+        }
+        criteria.push({ name, weight: 3 });
+        scores.push([null, null, null]);
+        newCriterionInput.value = '';
+        render();
+      }
+
+      function resetDefaults() {
+        initState();
+        render();
+      }
+
+      // ---------- Init ----------
+      initState();
+      render();
+
+      // ---------- Event listeners for controls ----------
+      addCriterionBtn.addEventListener('click', addCriterion);
+      newCriterionInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addCriterion();
+      });
+      resetDefaultsBtn.addEventListener('click', resetDefaults);
+
+    })();
+  </script>
+</body>
+</html>

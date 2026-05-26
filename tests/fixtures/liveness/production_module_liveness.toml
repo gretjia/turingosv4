@@ -52,6 +52,12 @@ families = ["boot_cli", "replay_cas", "market", "generate_artifact", "tdma", "fc
 evidence = ["ChainTape", "CAS", "TDMA GitTapeLedger", "local_openai_proxy", "replay", "restore_replay", "packaged_restore"]
 
 [[real_world_suite]]
+id = "broad_agi_consolidated_continue_20260526T102330Z"
+path = "handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z"
+families = ["boot_cli", "replay_cas", "market", "generate_artifact", "tdma", "fc3", "gpqa", "math", "swebench", "toolbench", "mind2web", "current_kernel"]
+evidence = ["ChainTape", "CAS", "TDMA GitTapeLedger", "local_openai_proxy", "runner_failure_accounting", "full_system_participation", "replay", "restore_replay", "packaged_restore"]
+
+[[real_world_suite]]
 id = "broad_agi_toolbench_20260526T013607Z"
 path = "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z"
 families = ["toolbench", "api_tool_use", "current_kernel", "replay"]

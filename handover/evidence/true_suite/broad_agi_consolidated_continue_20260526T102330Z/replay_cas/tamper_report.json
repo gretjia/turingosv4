@@ -1,0 +1,29 @@
+{
+  "all_detected": true,
+  "detected_count": 3,
+  "expected": 3,
+  "schema_version": "v1/audit_tape_tamper",
+  "tamper_results": [
+    {
+      "detail": "destructively zeroed back half (133 bytes) of largest L4-reachable loose object 589d86cbb44ea0ac4cd6117ba91189bd7d8e205f (\"/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git/objects/58/9d86cbb44ea0ac4cd6117ba91189bd7d8e205f\") — forces git2 zlib decode failure when audit_tape next reads",
+      "detected": true,
+      "label": "flip_l4_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "destructively zeroed back half (333 bytes; original 667) of largest CAS object \"/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/replay_cas/tamper_work/flip_cas_byte/cas/.git/objects/c7/43cb266c7b6b28ff2d157f610b279e73c6ce74\"",
+      "detected": true,
+      "label": "flip_cas_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "zeroed last 4 hex chars in 2 chain ref(s): refs/chaintape/l4, refs/transitions/main",
+      "detected": true,
+      "label": "truncate_l4_ref",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    }
+  ]
+}

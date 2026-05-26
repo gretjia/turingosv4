@@ -84,6 +84,7 @@ if [[ -z "$SPEC_CAPSULE_CID" ]]; then
     echo "ERROR: could not parse spec capsule CID" >&2
     exit 5
 fi
+rm -f "$RUN_DIR/spec_transcript.jsonl"
 
 echo "[generate] provider-backed artifact generation -> CAS bundle + ChainTape WorkTx"
 GENERATE_OUTPUT="$(

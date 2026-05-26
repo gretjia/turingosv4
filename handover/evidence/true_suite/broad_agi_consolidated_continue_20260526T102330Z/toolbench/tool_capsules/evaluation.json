@@ -1,0 +1,21 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_evaluation_capsule.v1",
+  "query_id": "577",
+  "input_capsule_cid": "1f6984ff2acb75c22f9e717b9a4aafbc350a74aafcbae0effcc094eac1b7aa80",
+  "answer_claim_capsule_cid": "0af0714cca7a5d1133b3c7f035b3e80d0226640af4be453e1cc0bd2008bd3097",
+  "expected_api_ids": [
+    "ASIN Data::Product",
+    "ASIN Data::Search"
+  ],
+  "selected_api_ids": [
+    "ASIN Data::Offers",
+    "ASIN Data::Product",
+    "ASIN Data::Reviews",
+    "ASIN Data::Search"
+  ],
+  "selected_apis_available": true,
+  "rationale_guard_passed": true,
+  "exact_match": false,
+  "benchmark_verdict": "tool_selection_mismatch",
+  "failure_class": "model_task_failure"
+}

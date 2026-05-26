@@ -1,0 +1,61 @@
+{
+  "cas": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/gpqa/cas",
+  "checks": {
+    "external_pr_ceremony_not_used_as_fc3": true,
+    "reinit_request_and_boot_present": true,
+    "typed_architectai_feedback_present": true,
+    "typed_vetoai_decision_present": true
+  },
+  "final_q": {
+    "ledger_root_t": "688c7a389fd294713031273077209a375315f3d9a8e743388e46218b92e03b90",
+    "state_root_t": "d9c70eb94eaf691259942a5ceb7d9c45fdef11b88d3f3e60580b49f493837fe1",
+    "tool_registry_root_t": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "runtime_repo": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/gpqa/runtime_repo",
+  "schema_version": "turingosv4.true_suite.full_system_augment_fc3_index.v1",
+  "tx_sequence": [
+    {
+      "logical_t": 10,
+      "tx_id": "system-log-feedback-archive-2-10",
+      "tx_kind": "LogFeedbackArchive",
+      "tx_payload_cid": "b1dfce75c59cc7d7ec62f498e62d3a37b8a1fc7332db75feb59cae2af69b54e4"
+    },
+    {
+      "logical_t": 11,
+      "tx_id": "system-architect-proposal-2-11",
+      "tx_kind": "ArchitectProposal",
+      "tx_payload_cid": "7fde32eb801b4884d33b1572a0879af79197cd352131bdacf5ef52c030ed4ea1"
+    },
+    {
+      "logical_t": 12,
+      "tx_id": "system-veto-decision-2-12",
+      "tx_kind": "VetoDecision",
+      "tx_payload_cid": "4bec31365c348c151803613be7fb451b434b1c0a474fc98e1fe2186844602f29"
+    },
+    {
+      "logical_t": 13,
+      "tx_id": "system-architect-commit-2-13",
+      "tx_kind": "ArchitectCommit",
+      "tx_payload_cid": "cfb272890ed015e44801ff7e730671ac16371987c95b5de3a4cffb78fb175a45"
+    },
+    {
+      "logical_t": 14,
+      "tx_id": "system-terminal-summary-2-14",
+      "tx_kind": "TerminalSummary",
+      "tx_payload_cid": "4d33e5bc535bb4e0f7db3ddc15057299ce05fe0e94f70ca338f7e683f12931d0"
+    },
+    {
+      "logical_t": 15,
+      "tx_id": "system-reinit-request-2-15",
+      "tx_kind": "ReinitRequest",
+      "tx_payload_cid": "50b149d7c061e9ffb3dc035a93f4beb2237bcd57da3c2593d5c1b656357ec454"
+    },
+    {
+      "logical_t": 16,
+      "tx_id": "system-reinit-boot-2-16",
+      "tx_kind": "ReinitBoot",
+      "tx_payload_cid": "6dab1b9330864da593f21de71054ef6beaf98fe183aa095642e2690a501e0c72"
+    }
+  ]
+}

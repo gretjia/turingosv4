@@ -1,0 +1,29 @@
+{
+  "schema_version": "turingosv4.true_suite.swebench_live_coding_repair_run.v1",
+  "run_id": "broad_agi_consolidated_continue_20260526T102330Z",
+  "git_head": "d2ec67dfabb06973449cc5002a10441723a7c594",
+  "entrypoint": "scripts/run_true_suite_swebench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "swebench_dataset_rows_url": "https://datasets-server.huggingface.co/rows",
+  "swebench_dataset": "princeton-nlp/SWE-bench_Lite",
+  "swebench_config": "default",
+  "swebench_split": "test",
+  "swebench_sample_index": 0,
+  "runtime_repo": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/runtime_repo",
+  "cas": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/cas",
+  "genesis_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/genesis_report.json",
+  "swebench_manifest": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/swebench_live_coding_repair_manifest.json",
+  "failure_taxonomy": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-mainline-after169/handover/evidence/true_suite/broad_agi_consolidated_continue_20260526T102330Z/swebench/full_system_participation.json",
+  "notes": [
+    "SWE-bench data comes from the public Princeton-NLP SWE-bench Lite rows API unless SWEBENCH_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "gold patch and test patch are evaluation-side data only and do not enter the prompt",
+    "structural patch plausibility is not final benchmark or OBL-005 closure"
+  ]
+}

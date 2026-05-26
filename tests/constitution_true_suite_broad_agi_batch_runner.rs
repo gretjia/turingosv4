@@ -110,6 +110,29 @@ fn broad_agi_batch_plan_only_writes_non_closing_pending_report() {
             .and_then(Value::as_bool),
         Some(true)
     );
+    let outputs = manifest
+        .get("outputs")
+        .and_then(Value::as_object)
+        .expect("outputs");
+    for key in [
+        "family_results_jsonl",
+        "runner_execution_results_jsonl",
+        "aggregate_fc_trace_report",
+        "evidence_package_manifest",
+    ] {
+        let path = outputs
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| panic!("missing output path {key}"));
+        assert!(
+            !path.starts_with('/'),
+            "batch manifest output path {key} must not leak a machine absolute path: {path}"
+        );
+        assert!(
+            path.starts_with("<run-root>/") || path.starts_with("handover/evidence/true_suite/"),
+            "batch manifest output path {key} must be reconstructable relative evidence path, got {path}"
+        );
+    }
 
     let guards = manifest
         .get("no_overclaim_guards")
@@ -231,7 +254,14 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_swebench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_toolbench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_mind2web_current_kernel.sh"));
+    assert!(script.contains("--continue-on-runner-failure"));
+    assert!(script.contains("runner_execution_results.jsonl"));
+    assert!(script.contains("runner_execution_failed"));
+    assert!(script.contains("failed_runner_ids"));
     assert!(script.contains("package_true_suite_evidence.sh"));
+    assert!(script.contains("restore_true_suite_chain_evidence.sh"));
+    assert!(script.contains("--aggregate-existing"));
+    assert!(script.contains("mode in {\"execute-installed\", \"aggregate-existing\"}"));
     assert!(script.contains("evidence_package_manifest"));
     assert!(script.contains("fc3_governance_reinit_fresh"));
     assert!(script.contains("gpqa_science_reasoning_fresh"));
@@ -271,6 +301,25 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     );
 }
 
+#[test]
+fn restore_true_suite_chain_evidence_script_verifies_from_packaged_tarballs() {
+    let script = std::fs::read_to_string("scripts/restore_true_suite_chain_evidence.sh")
+        .expect("read restore script");
+    assert!(script.contains("runtime_repo.dotgit.tar.gz"));
+    assert!(script.contains("cas.dotgit.tar.gz"));
+    assert!(script.contains("runtime_repo.worktree.tar.gz"));
+    assert!(script.contains("cas.worktree.tar.gz"));
+    assert!(script.contains("verify chaintape"));
+    assert!(script.contains("domain_run_id"));
+    assert!(script.contains("payload.get(\"run_id\")"));
+    assert!(script.contains("restore_replay_report.json"));
+    assert!(script.contains("fc3_restore_replay_report.json"));
+    assert!(
+        !script.contains("raw_prompt") && !script.contains("raw_response"),
+        "restore verifier must not introduce provider transcript artifacts"
+    );
+}
+
 fn write_file(path: &std::path::Path, body: &str) {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).expect("create parent");
@@ -292,6 +341,30 @@ fn seed_fc3_final_artifacts(run_root: &std::path::Path, report_body: &str) {
     write_file(&fc3.join("full_system_participation.json"), report_body);
 }
 
+fn seed_math_final_artifacts(run_root: &std::path::Path, report_body: &str) {
+    let math = run_root.join("math");
+    std::fs::create_dir_all(math.join("input_capsules")).expect("create input capsules");
+    std::fs::create_dir_all(math.join("runtime_repo")).expect("create runtime repo");
+    std::fs::create_dir_all(math.join("cas")).expect("create cas");
+    for file in [
+        "runtime_repo.worktree.tar.gz",
+        "runtime_repo.dotgit.tar.gz",
+        "cas.worktree.tar.gz",
+        "cas.dotgit.tar.gz",
+        "genesis_report.json",
+        "math_competition_reasoning_manifest.json",
+        "math_competition_reasoning_run_manifest.json",
+        "replay_report.json",
+        "full_system_augmentation_manifest.json",
+        "governance_capsule_index.json",
+        "restore_replay_report.json",
+        "failure_taxonomy.json",
+    ] {
+        write_file(&math.join(file), "{}\n");
+    }
+    write_file(&math.join("full_system_participation.json"), report_body);
+}
+
 fn run_batch_plan_only(run_root: &std::path::Path, run_id: &str) -> std::path::PathBuf {
     let output = Command::new("bash")
         .args([
@@ -311,6 +384,96 @@ fn run_batch_plan_only(run_root: &std::path::Path, run_id: &str) -> std::path::P
         String::from_utf8_lossy(&output.stderr)
     );
     run_root.join("broad_batch")
+}
+
+fn run_batch_aggregate_existing(run_root: &std::path::Path, run_id: &str) -> std::path::PathBuf {
+    let output = Command::new("bash")
+        .args([
+            SCRIPT,
+            "--aggregate-existing",
+            "--run-id",
+            run_id,
+            "--run-root",
+            run_root.to_str().expect("utf8 path"),
+        ])
+        .output()
+        .expect("run broad AGI batch script");
+    assert!(
+        output.status.success(),
+        "broad batch aggregate-existing failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    run_root.join("broad_batch")
+}
+
+#[test]
+fn broad_agi_batch_runner_failure_overrides_full_system_lit_report() {
+    let tmp = TempDir::new().expect("tempdir");
+    let run_root = tmp.path().join("true_suite_batch");
+    seed_math_final_artifacts(
+        &run_root,
+        r#"{
+  "schema_version": "turingosv4.true_suite.full_system_participation.v1",
+  "fc1": {"present": true},
+  "fc2": {"present": true},
+  "fc3": {"typed_meta_roles_present": true, "reinit_semantics_present": true},
+  "market": {"present": true, "agent_market_action_txs": 1},
+  "replay": {"all_indicators_pass": true},
+  "verdict": {
+    "full_system_participation": true,
+    "full_system_verdict": "FULL_SYSTEM_LIT",
+    "missing": [],
+    "final_closure_possible": true
+  }
+}
+"#,
+    );
+    write_file(
+        &run_root.join("runner_execution_results.jsonl"),
+        r#"{"ended_at":"t1","exit_code":1,"runner_id":"tdma_real_proof_fresh","started_at":"t0","status":"failed"}
+{"ended_at":"t2","exit_code":0,"runner_id":"math_competition_reasoning_fresh","started_at":"t1","status":"passed"}
+"#,
+    );
+
+    let batch_dir = run_batch_aggregate_existing(&run_root, "constitution-broad-batch-runner-fail");
+    let aggregate = read_json(&batch_dir.join("aggregate_fc_trace_report.json"));
+    let results_raw =
+        std::fs::read_to_string(batch_dir.join("family_results.jsonl")).expect("read jsonl");
+    let math_row: Value = results_raw
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("parse jsonl row"))
+        .find(|row: &Value| {
+            row.get("kind").and_then(Value::as_str) == Some("broad_agi_family")
+                && row.get("id").and_then(Value::as_str) == Some("math_formal_proof")
+        })
+        .expect("math row");
+
+    assert_eq!(
+        math_row
+            .get("full_system_report_lit")
+            .and_then(Value::as_bool),
+        Some(true),
+        "the report may be lit while a bound runner still failed"
+    );
+    assert_eq!(
+        math_row.get("status").and_then(Value::as_str),
+        Some("runner_execution_failed"),
+        "runner failure must override a lit report for the family"
+    );
+    assert_eq!(
+        aggregate
+            .get("full_system_participation_pass_count")
+            .and_then(Value::as_u64),
+        Some(0),
+        "failed-runner rows must not be counted as full-system passes"
+    );
+    assert_eq!(
+        aggregate
+            .get("full_system_closure_candidate")
+            .and_then(Value::as_bool),
+        Some(false)
+    );
 }
 
 #[test]

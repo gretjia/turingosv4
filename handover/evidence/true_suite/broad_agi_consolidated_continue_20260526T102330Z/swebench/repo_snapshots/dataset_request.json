@@ -1,0 +1,8 @@
+{
+  "config": "default",
+  "dataset": "princeton-nlp/SWE-bench_Lite",
+  "length": 1,
+  "offset": 0,
+  "split": "test",
+  "url": "https://datasets-server.huggingface.co/rows?dataset=princeton-nlp%2FSWE-bench_Lite&config=default&split=test&offset=0&length=1"
+}

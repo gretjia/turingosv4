@@ -330,6 +330,7 @@ fn generate_artifact_runner_script_preserves_external_agent_boundary() {
     assert!(script.contains("artifact_bundle_cid.json"));
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("handover/evidence/true_suite"));
+    assert!(script.contains("rm -f \"$RUN_DIR/spec_transcript.jsonl\""));
     for forbidden in [
         "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS",
         "TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE",
