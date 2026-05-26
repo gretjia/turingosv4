@@ -1,0 +1,60 @@
+{
+  "all_prompts_within_budget": true,
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "5b4cab861b61b5563a6e047531dc56867dc46a54c0f528217d25d905ffe01df7",
+  "compression_ratio": 0.0,
+  "distinct_judge_classes": [],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 3,
+  "max_zero_gain_streak": 0,
+  "model_label": "deepseek-v4-pro",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage1-Simplify-2010n"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage2-Factor-2010"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage3-Closure-Prime-Containment"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage4-Counterexample-Construction"
+    },
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Stage5-Conclude-NO"
+    }
+  ],
+  "probes_sha256": "93f24a43f9b61febef03e35360cba7ade715d3fb8ff23c25ba36401c8613438d",
+  "problem_label": "turingos tdma --judge putnam_2025_b3",
+  "prompt_tokens_max": 0,
+  "prompt_tokens_min": 0,
+  "prompt_tokens_variance": 0,
+  "run_id": "turingos-tdma-putnam_2025_b3",
+  "stages_completed": 5,
+  "stages_escalated": [],
+  "stages_total": 5,
+  "temperature": 0.20000000298023224,
+  "total_attempts": 5,
+  "total_bbs_bytes_estimated": 0,
+  "total_failed_attempts": 0,
+  "total_llm_completion_tokens": 767,
+  "total_llm_prompt_tokens": 3030,
+  "total_raw_stderr_bytes": 0,
+  "total_wall_clock_ms": 22304
+}

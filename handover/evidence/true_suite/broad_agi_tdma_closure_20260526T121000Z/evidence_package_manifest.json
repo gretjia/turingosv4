@@ -1,0 +1,23 @@
+{
+  "package_count": 1,
+  "packages": [
+    {
+      "archive_bytes": 14084,
+      "archive_path": "tdma/tdma_tape.git.tar.gz",
+      "archive_sha256": "aa78edafa26dc874a6e928cb6c927fff632fb41c123731ca8e93c05742a94e0e",
+      "kind": "tdma_tape_git",
+      "removed_loose_store": true,
+      "restore_into": "tdma/tdma_tape.git",
+      "source_path": "tdma/tdma_tape.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-tdma-real-proof/handover/evidence/true_suite/broad_agi_tdma_closure_20260526T121000Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

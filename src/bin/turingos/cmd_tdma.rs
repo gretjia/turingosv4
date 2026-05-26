@@ -24,8 +24,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use crate::cmd_llm;
 use crate::chat_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
+use crate::cmd_llm;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
 /// TRACE_MATRIX FC2-N16: `tdma` short-help (registry display).
@@ -143,6 +143,15 @@ fn make_system_prompt(judge_name: &str, stage_label: &str) -> String {
         ),
         _ => ("the proof", ""),
     };
+    let stage_specific = match (judge_name, stage_label) {
+        ("putnam_2025_b3", "Stage4-Counterexample-Construction") => {
+            "For Stage 4, explicitly write all three facts: Define S from 1; S is closed under positive divisors of 2010n; a concrete prime such as 7 is not in S."
+        }
+        ("putnam_2025_b3", "Stage5-Conclude-NO") => {
+            "For Stage 5, begin with the literal conclusion 'The answer is NO' and state that S need not contain all positive integers."
+        }
+        _ => "",
+    };
     format!(
         r#"You are a mathematics worker proving {problem_label} step-by-step.
 Output EXACTLY ONE next step.
@@ -154,19 +163,17 @@ Replace <STAGE> with the current stage label (e.g. "{stage_label}").
 After the JSON write on a new line:
 ---BODY---
 Then write your step in 1-5 sentences. {problem_specific}
+{stage_specific}
 
 Current stage: {stage_label}"#,
         problem_label = problem_label,
         problem_specific = problem_specific,
+        stage_specific = stage_specific,
         stage_label = stage_label
     )
 }
 
-fn make_user_prompt(
-    judge_name: &str,
-    stage_label: &str,
-    accepted_steps: &[String],
-) -> String {
+fn make_user_prompt(judge_name: &str, stage_label: &str, accepted_steps: &[String]) -> String {
     let problem_text = match judge_name {
         "nesbitt" => PROBLEM_TEXT_NESBITT,
         "putnam_a1" => PROBLEM_TEXT_PUTNAM_A1,
@@ -176,6 +183,15 @@ fn make_user_prompt(
     let mut s = String::new();
     s.push_str(&format!("Problem:\n{}\n\n", problem_text));
     s.push_str(&format!("Current stage: {}\n\n", stage_label));
+    if judge_name == "putnam_2025_b3" && stage_label == "Stage4-Counterexample-Construction" {
+        s.push_str(
+            "Stage 4 checklist: define S from 1; state S is closed under positive divisors of 2010n; explicitly name a concrete excluded prime, e.g. '7 is not in S'.\n\n",
+        );
+    } else if judge_name == "putnam_2025_b3" && stage_label == "Stage5-Conclude-NO" {
+        s.push_str(
+            "Stage 5 checklist: begin with 'The answer is NO'; explain that S need not contain all positive integers because the Stage 4 set omits 7.\n\n",
+        );
+    }
     if accepted_steps.is_empty() {
         s.push_str("No prior steps yet. Write Stage 1.");
     } else {
@@ -411,7 +427,10 @@ fn run_run(args: &[String]) -> ExitCode {
             // Write a small human-readable report alongside the runner's manifest.
             let mut r = String::new();
             r.push_str("# turingos tdma run — TDMA-Bounded Production Report\n\n");
-            r.push_str(&format!("**Model**: {} (temperature {})\n\n", model, temperature));
+            r.push_str(&format!(
+                "**Model**: {} (temperature {})\n\n",
+                model, temperature
+            ));
             r.push_str(&format!("**Role**: {}\n\n", role));
             r.push_str(&format!("**Judge**: {}\n\n", judge_name));
             r.push_str("## Outcome\n\n");
@@ -423,7 +442,10 @@ fn run_run(args: &[String]) -> ExitCode {
                 summary.probes.len(),
                 summary.total_wall_clock_ms as f64 / 1000.0,
             ));
-            r.push_str(&format!("- Raw stderr leak in any prompt: **{}**\n\n", summary.leak_anywhere));
+            r.push_str(&format!(
+                "- Raw stderr leak in any prompt: **{}**\n\n",
+                summary.leak_anywhere
+            ));
             r.push_str("## Per stage\n\n| Stage | Attempts | Final BBS constraints | Outcome |\n|---|---|---|---|\n");
             for (s, a, c, o) in &summary.per_stage_attempts {
                 r.push_str(&format!("| {} | {} | {} | {} |\n", s, a, c, o));
