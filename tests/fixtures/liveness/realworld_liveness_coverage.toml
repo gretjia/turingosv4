@@ -132,6 +132,7 @@ module_groups = [
   "agent_prompt_model_boundary",
   "librarian_spec_grill_product",
   "web_product_surface",
+  "frontend_product_surface",
   "cli_orchestration_surface",
 ]
 constitutional_paths = [

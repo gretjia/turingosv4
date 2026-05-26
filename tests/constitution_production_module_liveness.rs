@@ -511,6 +511,40 @@ fn legacy_shadow_tape_group_is_split_from_active_tdma_ledger() {
 }
 
 #[test]
+fn frontend_product_code_is_accounted_for_when_present() {
+    if !Path::new("frontend/package.json").exists() {
+        return;
+    }
+
+    let groups = groups();
+    let frontend = group_by_id(&groups, "frontend_product_surface");
+    assert_eq!(
+        frontend.classification, "product_workload",
+        "frontend is retained product code, not a constitutional authority"
+    );
+    assert!(
+        !frontend.allowed_as_fc_authority,
+        "frontend product surface cannot become flowchart authority"
+    );
+    assert!(
+        frontend.paths.iter().any(|path| path == "frontend/src")
+            && frontend.paths.iter().any(|path| path == "frontend/test"),
+        "frontend group must account for source and tests"
+    );
+    assert!(
+        frontend
+            .smoke_gates
+            .iter()
+            .any(|gate| gate == "frontend/test/welcome.test.ts"),
+        "frontend group must name a frontend-owned smoke gate"
+    );
+    assert!(
+        !frontend.real_world_evidence.is_empty(),
+        "frontend group must stay bound to real product-path evidence, not only unit tests"
+    );
+}
+
+#[test]
 fn restricted_surfaces_are_classified_high_risk() {
     for group in groups() {
         if group.restricted_surface {
