@@ -778,8 +778,6 @@ module_ids = [
   "wal",
   "sdk::tool",
   "sdk::tools",
-  "sdk::tools::librarian",
-  "sdk::tools::search",
   "sdk::tools::wallet",
 ]
 paths = ["src/wal.rs", "src/sdk/tool.rs", "src/sdk/tools"]
@@ -792,7 +790,7 @@ smoke_gates = [
 ]
 real_world_evidence = []
 evidence_requires = ["no authoritative write imports", "legacy quarantine", "delete-or-rebind"]
-closure_action = "Delete WAL/search/librarian if no current-kernel product path needs them; rebind sdk::tool and wallet only through ToolRegistry plus ChainTape/CAS invocation evidence."
+closure_action = "Delete WAL if no current-kernel product path needs it; rebind sdk::tool and wallet only through ToolRegistry plus ChainTape/CAS invocation evidence."
 
 [[group]]
 id = "dev_harness"
