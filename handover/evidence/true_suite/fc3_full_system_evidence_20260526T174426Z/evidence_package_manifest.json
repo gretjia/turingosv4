@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 60591,
+      "archive_path": "fc3/cas.dotgit.tar.gz",
+      "archive_sha256": "1aef05e68dcbaacdf42d8c95383c11bc93113318d4e0ed82a7d8ed7856e3695b",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/cas",
+      "source_path": "fc3/cas/.git"
+    },
+    {
+      "archive_bytes": 3345,
+      "archive_path": "fc3/cas.worktree.tar.gz",
+      "archive_sha256": "cfbf43d07b09193aaa28ed9eabae4cbbc870bd1cb405e71c0a62d396903a4c89",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "fc3/cas",
+      "source_path": "fc3/cas"
+    },
+    {
+      "archive_bytes": 23870,
+      "archive_path": "fc3/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "f9b602967749153b02511f287b9ab8507c33a319953e22450f0d3d4f94014fe8",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "fc3/runtime_repo",
+      "source_path": "fc3/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1317,
+      "archive_path": "fc3/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "4aa352e42f222fcc9cd14bf5bd2519d7c09a7c6cae5901074da01cab6a8a850e",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "fc3/runtime_repo",
+      "source_path": "fc3/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-obl005-next4/handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

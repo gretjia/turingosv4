@@ -328,6 +328,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/restore_replay_report.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/full_system_participation.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
@@ -378,6 +381,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/governance_capsule_index.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/fc3_restore_replay_report.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/governance_capsule_index.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/fc3_replay_report.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/restore_replay_report.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/full_system_participation.json",
+  "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/fc3/full_system_augmentation_manifest.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
