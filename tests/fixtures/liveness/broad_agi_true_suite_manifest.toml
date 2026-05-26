@@ -120,25 +120,26 @@ final_evidence_artifacts = [
 
 [[family]]
 id = "math_formal_proof"
-source_family = "MATH plus current MiniF2F-style formalization"
-public_source = "https://arxiv.org/abs/2103.03874"
+source_family = "Hendrycks MATH competition reasoning plus TDMA formal-proof substrate"
+public_source = "https://huggingface.co/datasets/EleutherAI/hendrycks_math"
 risk_class = "Class 2"
-entry_boundary = "tdma_domain_tape"
+entry_boundary = "local_openai_proxy"
 fc_trace = [
-  "FC1:rtool->agent-delta->predicates",
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
   "FC2:boot->replay",
   "FC3:logs-archive->feedback",
 ]
 kernel_liveness_modules = [
-  "tdma_bounded_solver",
+  "agent_prompt_model_boundary",
   "predicate_registry_top_white",
   "runtime_replay_evidence_audit",
 ]
 evidence_shape = [
-  "tdma_manifest",
-  "tdma_chaintape",
-  "per_attempt_probes",
-  "proof_verdict_report",
+  "problem_capsule_cid",
+  "answer_claim_capsule_cid",
+  "evaluation_capsule_cid",
+  "work_tx_or_l4e",
+  "replay_report",
 ]
 failure_taxonomy = [
   "kernel_invariant_failure",
@@ -147,18 +148,27 @@ failure_taxonomy = [
   "benchmark_adapter_failure",
   "provider_policy_failure",
   "constitutional_rejection",
-  "invalid_formal_step",
+  "wrong_final_answer",
 ]
 anti_contamination_guards = [
-  "TDMA tape is domain evidence and must not be mislabeled as L4 ChainTape",
-  "proof judge stderr cannot enter ordinary prompts",
-  "zero-gain retry demos are smoke only",
+  "public problem text is hashed into CAS before the model call",
+  "solution and expected answer must not enter the model prompt",
+  "TDMA substrate evidence alone cannot close the MATH benchmark family",
+  "benchmark exact-match score cannot close OBL-005 without ChainTape/CAS replay evidence",
 ]
 final_evidence_artifacts = [
-  "handover/evidence/true_suite/<run>/math_tdma/manifest.json",
-  "handover/evidence/true_suite/<run>/math_tdma/chaintape.jsonl",
-  "handover/evidence/true_suite/<run>/math_tdma/tdma_tape.git.tar.gz",
-  "handover/evidence/true_suite/<run>/math_tdma/replay_report.json",
+  "handover/evidence/true_suite/<run>/math/input_capsules/",
+  "handover/evidence/true_suite/<run>/math/runtime_repo/",
+  "handover/evidence/true_suite/<run>/math/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/math/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/math/cas/",
+  "handover/evidence/true_suite/<run>/math/cas.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/math/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/math/genesis_report.json",
+  "handover/evidence/true_suite/<run>/math/math_competition_reasoning_manifest.json",
+  "handover/evidence/true_suite/<run>/math/math_competition_reasoning_run_manifest.json",
+  "handover/evidence/true_suite/<run>/math/replay_report.json",
+  "handover/evidence/true_suite/<run>/math/failure_taxonomy.json",
 ]
 
 [[family]]
