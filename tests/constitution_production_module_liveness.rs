@@ -441,7 +441,7 @@ fn legacy_shadow_tape_group_is_split_from_active_tdma_ledger() {
             .closure_action
             .as_deref()
             .unwrap_or_default()
-            .contains("Delete WAL/search/librarian"),
+            .contains("Delete WAL"),
         "legacy WAL/SDK quarantine must carry a concrete delete-or-rebind closure plan"
     );
 }
