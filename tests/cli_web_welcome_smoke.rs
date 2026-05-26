@@ -355,6 +355,71 @@ async fn welcome_page_first_paint_never_skips_missing_api_key() {
 }
 
 // ---------------------------------------------------------------------------
+// Test 1b: env-only API keys must satisfy the /build gate (Codex P2 #137,
+// 2026-05-23). `spec_turn_handler` already accepts `OPENAI_API_KEY` /
+// `SILICONFLOW_API_KEY` / ... from the process env via
+// `web_llm_api_key_available`. The router gates (`handle_root_redirect`,
+// `handle_welcome_page`, `handle_build`) used to compute `api_key_set` from
+// the in-memory welcome key only, which force-redirected env-configured
+// deployments to /welcome while the APIs themselves accepted the env key —
+// dead-ending the operator setup. Pin the symmetric behaviour.
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn build_route_honours_env_api_key() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let workspace = dir.path().join("ws");
+    std::fs::create_dir_all(&workspace).expect("mkdir workspace");
+    // Onboarding fixture: init_done + llm_configured + agents_count >= 1.
+    std::fs::write(
+        workspace.join("genesis_payload.toml"),
+        "[meta]\ntemplate = \"multi-agent\"\n",
+    )
+    .expect("write genesis");
+    std::fs::write(
+        workspace.join("agent_pubkeys.json"),
+        "{\n  \"agent-alpha\": {\n    \"pubkey\": \"deadbeef\"\n  }\n}\n",
+    )
+    .expect("write pubkeys");
+    std::fs::write(
+        workspace.join("turingos.toml"),
+        "llm.meta.model = \"deepseek-v4-pro\"\nllm.blackbox.model = \"deepseek-v4-flash\"\n",
+    )
+    .expect("write llm config");
+    let workspace = workspace.to_string_lossy().into_owned();
+
+    let _guard = env_lock().lock().await;
+    std::env::set_var("TURINGOS_WEB_WORKSPACE", &workspace);
+    // No POST /api/welcome/api-key — AppState.api_key stays None.
+    let prior_sf = std::env::var("SILICONFLOW_API_KEY").ok();
+    std::env::set_var("SILICONFLOW_API_KEY", "sk-fake-env-only-for-gate");
+
+    let addr = start_server().await;
+    let (build_status, build_head, _) = http_get(addr, "/build").await;
+
+    std::env::remove_var("TURINGOS_WEB_WORKSPACE");
+    match prior_sf {
+        Some(v) => std::env::set_var("SILICONFLOW_API_KEY", v),
+        None => std::env::remove_var("SILICONFLOW_API_KEY"),
+    }
+    drop(_guard);
+
+    // /build must not redirect when env supplies a key — `handle_build` only
+    // gates on Init/LlmConfig/ApiKey/AgentDeploy steps, all of which are
+    // satisfied by the workspace fixture + env key. (The `/` gate is
+    // intentionally stricter — it requires spec_done + artifacts_done too,
+    // so we don't assert on it here.)
+    assert_eq!(
+        build_status, 200,
+        "GET /build with SILICONFLOW_API_KEY in env must return 200 (not redirect to /welcome); head={build_head}"
+    );
+    assert!(
+        !build_head.to_lowercase().contains("location: /welcome"),
+        "GET /build must not emit Location: /welcome; head={build_head}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Test 2: POST /api/welcome/api-key rejects malformed keys with 400.
 // ---------------------------------------------------------------------------
 
