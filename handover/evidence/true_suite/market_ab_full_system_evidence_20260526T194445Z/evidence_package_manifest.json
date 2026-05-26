@@ -1,0 +1,86 @@
+{
+  "package_count": 8,
+  "packages": [
+    {
+      "archive_bytes": 66780,
+      "archive_path": "market_ab/arm_A/cas.dotgit.tar.gz",
+      "archive_sha256": "19483d25bd98a0290eeb46bfa29382c051a61ae21d5ad3ec403c786e9144de62",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_A/cas",
+      "source_path": "market_ab/arm_A/cas/.git"
+    },
+    {
+      "archive_bytes": 3710,
+      "archive_path": "market_ab/arm_A/cas.worktree.tar.gz",
+      "archive_sha256": "b32cf26010e2e64af301a4d7ab3036129a4af6a993e850e23677c1a8c6d5fd95",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_A/cas",
+      "source_path": "market_ab/arm_A/cas"
+    },
+    {
+      "archive_bytes": 27459,
+      "archive_path": "market_ab/arm_A/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "64204cacbd449b5cd6d85372fb062e3755573967cef168d52ab73725ec1ce3df",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_A/runtime_repo",
+      "source_path": "market_ab/arm_A/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1437,
+      "archive_path": "market_ab/arm_A/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "3d4cc428ffe283ff69e731352534196813e0297edf06e0bdd8bfeb2352a4fb23",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_A/runtime_repo",
+      "source_path": "market_ab/arm_A/runtime_repo"
+    },
+    {
+      "archive_bytes": 66676,
+      "archive_path": "market_ab/arm_D/cas.dotgit.tar.gz",
+      "archive_sha256": "bd7538c0ff44af7a338f49bbd6ff9919a1ecc250db6892eedb6072b661c34d5c",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_D/cas",
+      "source_path": "market_ab/arm_D/cas/.git"
+    },
+    {
+      "archive_bytes": 3681,
+      "archive_path": "market_ab/arm_D/cas.worktree.tar.gz",
+      "archive_sha256": "1b3327baa57e876b760cb2231d0339e431e1a2d207b4e54e52fb82ba34f331ff",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_D/cas",
+      "source_path": "market_ab/arm_D/cas"
+    },
+    {
+      "archive_bytes": 27411,
+      "archive_path": "market_ab/arm_D/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "4d2c614def0f8372fcdf3c4e401c5c55c0ed8ffc234314059a6c8b18e61ff2ae",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_D/runtime_repo",
+      "source_path": "market_ab/arm_D/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1441,
+      "archive_path": "market_ab/arm_D/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "d1acc900eae59c6a75b5e066d7d8942527afc09e73757c02e076bb260c2cf6fb",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_D/runtime_repo",
+      "source_path": "market_ab/arm_D/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

@@ -76,7 +76,7 @@ id = "market_ab_performance_fresh"
 problem_type = "market_economy"
 status = "fresh_required"
 tape_kind = "canonical_l4"
-entrypoint = "scripts/run_real16_market_performance_benchmark.sh"
+entrypoint = "scripts/run_true_suite_market_ab_current_kernel.sh"
 module_groups = [
   "canonical_tape_cas_state",
   "predicate_registry_top_white",
@@ -99,11 +99,19 @@ anti_contamination_guards = [
 ]
 evidence_artifacts = []
 final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
   "handover/evidence/true_suite/<run>/market_ab/arm_config_manifests/",
-  "handover/evidence/true_suite/<run>/market_ab/cas/",
-  "handover/evidence/true_suite/<run>/market_ab/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/market_ab/arm_A/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/market_ab/arm_A/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/market_ab/arm_A/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_ab/arm_A/aggregate_verdict.json",
+  "handover/evidence/true_suite/<run>/market_ab/arm_D/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/market_ab/arm_D/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/market_ab/arm_D/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_ab/arm_D/aggregate_verdict.json",
+  "handover/evidence/true_suite/<run>/market_ab/REAL16_VERIFIER_INPUT.json",
   "handover/evidence/true_suite/<run>/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
-  "handover/evidence/true_suite/<run>/market_ab/replay_report.json",
+  "handover/evidence/true_suite/<run>/market_ab/market_ab_run_manifest.json",
   "handover/evidence/true_suite/<run>/market_ab/full_system_participation.json",
 ]
 

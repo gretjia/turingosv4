@@ -1,0 +1,69 @@
+{
+  "schema_version": "real14.e2_candidate_verifier.v1",
+  "l4_router_tx_count": 2,
+  "submitted_trace_tx_count": 1,
+  "exact_join_count": 1,
+  "matched_tx_ids": [
+    "router-Agent_1-full-system-augment"
+  ],
+  "unmatched_l4_router_tx_ids": [
+    "router-task-outcome-Agent_0-true-suite-market"
+  ],
+  "unmatched_submitted_trace_tx_ids": [],
+  "duplicate_l4_router_tx_id_count": 0,
+  "duplicate_submitted_trace_tx_id_count": 0,
+  "scripted_fixture_tx_count": 0,
+  "policy_counts_for_e2": false,
+  "direct_prompt_capsule_provenance_count": 0,
+  "indirect_prompt_capsule_provenance_count": 0,
+  "missing_direct_prompt_capsule_provenance_count": 1,
+  "matched_tx_provenance": [
+    {
+      "tx_id": "router-Agent_1-full-system-augment",
+      "l4_buyer": "Agent_1",
+      "l4_event_id": "node_survive:worktx-true-suite-market-market_ab_full_system_evidence_20260526T194445Z-arm-A-true-suite-market",
+      "l4_direction": "BuyYes",
+      "l4_pay_coin_micro": 10000,
+      "l4_min_out_shares": 0,
+      "market_decision_trace_count": 1,
+      "market_decision_trace_cids": [
+        "cid:bb5a526cc0403731d8a7f76ef5be037f58ce567db639ea6ec5ffd7311036aff2"
+      ],
+      "market_decision_provenance_link_cids": [],
+      "market_decision_agent_id": "Agent_1",
+      "market_decision_chosen_node_id": "worktx-true-suite-market-market_ab_full_system_evidence_20260526T194445Z-arm-A-true-suite-market",
+      "market_decision_direction": "BuyYes",
+      "market_decision_amount_micro": 10000,
+      "ev_decision_trace_count": 0,
+      "ev_decision_trace_cids": [],
+      "ev_actions": [],
+      "ev_reasons": [],
+      "market_opportunity_trace_count": 0,
+      "market_opportunity_trace_cids": [],
+      "prompt_capsule_linkage": "missing",
+      "prompt_capsule_cids": [],
+      "role_turn_trace_count": 0,
+      "role_turn_trace_cids": [],
+      "live_agent_role": null,
+      "actor_is_policy_trader": false,
+      "actor_is_live_agent_role": false,
+      "residual_risks": []
+    }
+  ],
+  "bcast_shielding": {
+    "librarian_digest_count": 0,
+    "librarian_role_crop_count": 0,
+    "visible_context_count": 0,
+    "verdict": "PASS",
+    "failure_reasons": []
+  },
+  "verdict": "VETO",
+  "failure_reasons": [
+    "matched tx router-Agent_1-full-system-augment has no EVDecisionTrace/economic rationale",
+    "matched tx router-Agent_1-full-system-augment has no MarketOpportunityTrace",
+    "matched tx router-Agent_1-full-system-augment has no PromptCapsule/visible-context linkage",
+    "matched tx router-Agent_1-full-system-augment actor is not a live trader-like agent role"
+  ],
+  "e2_verifier_exit_code": 1,
+  "claim_boundary": "candidate-only; VETO is recorded but does not fail liveness"
+}

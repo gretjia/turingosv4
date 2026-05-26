@@ -1,0 +1,219 @@
+{
+  "schema_version": "turingosv4.true_suite.full_system_participation.v1",
+  "run_id": "market_ab_full_system_evidence_20260526T194445Z",
+  "family_id": "market_ab_performance_current_kernel",
+  "entrypoint": "scripts/run_true_suite_market_ab_current_kernel.sh",
+  "authority": "ChainTape + CAS + replay verifier; stdout/dashboard are non-authoritative",
+  "evidence_paths": {
+    "runtime_repo": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/runtime_repo",
+    "cas": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/cas",
+    "replay_report": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/replay_report.json",
+    "genesis_report": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/genesis_report.json",
+    "domain_manifest": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+    "fc3_index": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/governance_capsule_index.json"
+  },
+  "replay": {
+    "l4_entries": 19,
+    "l4e_entries": 0,
+    "ledger_root_verified": true,
+    "system_signatures_verified": true,
+    "state_reconstructed": true,
+    "economic_state_reconstructed": true,
+    "cas_payloads_retrievable": true,
+    "agent_signatures_verified": true,
+    "proposal_telemetry_cas_retrievable": true,
+    "all_indicators_pass": true,
+    "initial_q_state_loaded_from_disk": true,
+    "final_state_root_hex": "34cdf14bd6f403e66fb5410560cf1c04124868a120069bb4244e44321c66d801",
+    "final_ledger_root_hex": "7c05d4fc83c5418477a709f67f16e11a2830f76fbee6938f825a974a42a3996d",
+    "head_commit_oid_hex": "294493318da223fc26592aeae86bfe2baf054ed0"
+  },
+  "tx_kind_counts": {
+    "work": 1,
+    "verify": 0,
+    "challenge": 0,
+    "reuse": 0,
+    "task_open": 2,
+    "escrow_lock": 1,
+    "complete_set_mint": 0,
+    "complete_set_redeem": 0,
+    "market_seed": 2,
+    "complete_set_merge": 0,
+    "cpmm_pool": 2,
+    "cpmm_swap": 0,
+    "buy_with_coin_router": 2,
+    "finalize_reward": 0,
+    "challenge_resolve": 0,
+    "terminal_summary": 1,
+    "task_expire": 0,
+    "task_bankruptcy": 0,
+    "event_resolve": 0,
+    "predicate_binding_activate": 1,
+    "map_reduce_tick": 1,
+    "log_feedback_archive": 1,
+    "architect_proposal": 1,
+    "veto_decision": 1,
+    "architect_commit": 1,
+    "reinit_request": 1,
+    "reinit_boot": 1
+  },
+  "tx_kind_counts_source": "derived from Git2LedgerWriter L4 entries",
+  "tx_kind_sequence": [
+    "PredicateBindingActivate",
+    "MapReduceTick",
+    "TaskOpen",
+    "MarketSeed",
+    "CpmmPool",
+    "BuyWithCoinRouter",
+    "EscrowLock",
+    "Work",
+    "TaskOpen",
+    "MarketSeed",
+    "CpmmPool",
+    "BuyWithCoinRouter",
+    "LogFeedbackArchive",
+    "ArchitectProposal",
+    "VetoDecision",
+    "ArchitectCommit",
+    "TerminalSummary",
+    "ReinitRequest",
+    "ReinitBoot"
+  ],
+  "fc1": {
+    "present": true,
+    "accepted_work_txs": 1,
+    "l4e_entries": 0,
+    "work_or_rejection_landed": true,
+    "proposal_telemetry_cas_retrievable": true,
+    "domain_manifest_work_tx_landed": null
+  },
+  "fc2": {
+    "present": true,
+    "genesis_report_present": true,
+    "initial_q_state_loaded_from_disk": true,
+    "map_reduce_tick_present": true,
+    "replay_verified": true
+  },
+  "fc3": {
+    "present": true,
+    "typed_meta_roles_present": true,
+    "reinit_semantics_present": true,
+    "log_feedback_archive_txs": 1,
+    "architect_proposal_txs": 1,
+    "veto_decision_txs": 1,
+    "architect_commit_txs": 1,
+    "reinit_request_txs": 1,
+    "reinit_boot_txs": 1,
+    "fc3_index_present": true,
+    "external_pr_ceremony_used_as_fc3": false
+  },
+  "market": {
+    "present": true,
+    "mode": "invest",
+    "l4_market_tx_count": 6,
+    "market_seed_txs": 2,
+    "cpmm_pool_txs": 2,
+    "cpmm_swap_txs": 0,
+    "buy_with_coin_router_txs": 2,
+    "event_resolve_txs": 0,
+    "agent_market_action_txs": 2,
+    "market_decision_trace_count": 1,
+    "market_decision_submitted_count": 1,
+    "market_decision_no_trade_count": 0,
+    "market_decision_declined_count": 0,
+    "market_opportunity_trace_count": 0
+  },
+  "domain_manifest": {
+    "arm_count": 2,
+    "arms": [
+      {
+        "arm_id": "A",
+        "audit_tape_verdict": "PROCEED",
+        "cost_per_solved_proof_tokens": null,
+        "e2_verifier_failure_reasons": [
+          "matched tx router-Agent_1-full-system-augment has no EVDecisionTrace/economic rationale",
+          "matched tx router-Agent_1-full-system-augment has no MarketOpportunityTrace",
+          "matched tx router-Agent_1-full-system-augment has no PromptCapsule/visible-context linkage",
+          "matched tx router-Agent_1-full-system-augment actor is not a live trader-like agent role"
+        ],
+        "e2_verifier_verdict": "VETO",
+        "ev_to_action_conversion_bps": 0,
+        "evidence_dir": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_A",
+        "exact_join_count": 0,
+        "failed_branch_count": 0,
+        "market_pressure_enabled": false,
+        "market_tx_count": 6,
+        "metric_source": "ChainTapeCasVerifier",
+        "role_diversity_bps": 0,
+        "solved_count": 0,
+        "task_count": 1,
+        "verification_latency_ms_total": 0,
+        "verified_pput_micro": 0,
+        "wasted_attempt_count": 1
+      },
+      {
+        "arm_id": "D",
+        "audit_tape_verdict": "PROCEED",
+        "cost_per_solved_proof_tokens": null,
+        "e2_verifier_failure_reasons": [
+          "matched tx router-Agent_1-full-system-augment has no EVDecisionTrace/economic rationale",
+          "matched tx router-Agent_1-full-system-augment has no MarketOpportunityTrace",
+          "matched tx router-Agent_1-full-system-augment has no PromptCapsule/visible-context linkage",
+          "matched tx router-Agent_1-full-system-augment actor is not a live trader-like agent role"
+        ],
+        "e2_verifier_verdict": "VETO",
+        "ev_to_action_conversion_bps": 10000,
+        "evidence_dir": "/tmp/turingosv4-obl005-next7/handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D",
+        "exact_join_count": 1,
+        "failed_branch_count": 0,
+        "market_pressure_enabled": true,
+        "market_tx_count": 6,
+        "metric_source": "ChainTapeCasVerifier",
+        "role_diversity_bps": 0,
+        "solved_count": 0,
+        "task_count": 1,
+        "verification_latency_ms_total": 0,
+        "verified_pput_micro": 0,
+        "wasted_attempt_count": 1
+      }
+    ],
+    "baseline_arm_id": "A",
+    "best_arm_id": "D",
+    "claim_boundary": "clean-negative; no E4 candidate",
+    "e4_candidate": false,
+    "failure_reasons": [
+      "e2_verifier_not_proceed",
+      "e2_verifier_failure_reasons_present"
+    ],
+    "improved_metrics": [
+      "ev_to_action_conversion"
+    ],
+    "liveness_claim_boundary": "candidate-only market performance report; VETO/CleanNegative does not fail full-system liveness",
+    "real16_verifier_exit_code": 1,
+    "schema_version": "real16.market_performance_e4.v1",
+    "solve_rate_wilson_95_ci_by_arm": {
+      "A": {
+        "lower_bps": 0,
+        "point_bps": 0,
+        "successes": 0,
+        "trials": 1,
+        "upper_bps": 7935
+      },
+      "D": {
+        "lower_bps": 0,
+        "point_bps": 0,
+        "successes": 0,
+        "trials": 1,
+        "upper_bps": 7935
+      }
+    },
+    "source_boundary": "ChainTape/CAS/exact-join verifier-derived metrics only; dashboard text and evaluator stdout are not source of truth",
+    "verdict": "Veto"
+  },
+  "verdict": {
+    "full_system_participation": true,
+    "full_system_verdict": "FULL_SYSTEM_LIT",
+    "missing": [],
+    "final_closure_possible": false
+  }
+}

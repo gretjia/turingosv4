@@ -94,6 +94,12 @@ families = ["replay_cas", "tamper", "current_kernel", "full_system_participation
 evidence = ["ChainTape", "CAS", "replay", "restore_replay", "tamper_detection", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
+id = "market_ab_full_system_evidence_20260526T194445Z"
+path = "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z"
+families = ["market_ab", "market", "current_kernel", "full_system_participation", "fc3"]
+evidence = ["ChainTape", "CAS", "audit_tape", "REAL16_candidate_report", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
 id = "real13_market_pressure"
 path = "handover/evidence/real13_market_pressure_probe_20260516T070534Z"
 families = ["market_pressure", "economic_judgment", "ev_trace"]
@@ -166,6 +172,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/replay_report.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/aggregate_verdict.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
 evidence_requires = ["L4", "L4.E", "CAS", "replay"]
 
@@ -249,6 +258,10 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
 evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
 
@@ -365,6 +378,12 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_A/aggregate_verdict.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_A/replay_report.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/aggregate_verdict.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/replay_report.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/evidence_package_manifest.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
 
@@ -409,6 +428,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/governance_capsule_index.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
@@ -455,6 +477,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
@@ -509,6 +532,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_VERIFIER_INPUT.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/REAL16_ARM_D_E2_VERIFIER.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
 evidence_requires = ["market decision trace", "economic judgment", "role differentiation"]
 
