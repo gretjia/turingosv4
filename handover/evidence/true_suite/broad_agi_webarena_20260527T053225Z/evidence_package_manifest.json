@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 69533,
+      "archive_path": "webarena/cas.dotgit.tar.gz",
+      "archive_sha256": "5c75e6ca10013cef7ce05a695d1e448db1afbe6f3d1507e09a5d49193fa33bc9",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "webarena/cas",
+      "source_path": "webarena/cas/.git"
+    },
+    {
+      "archive_bytes": 3865,
+      "archive_path": "webarena/cas.worktree.tar.gz",
+      "archive_sha256": "8a5a48c0aa41f344cb9e78c467e0c04a87872a13c329fd27a9d51d0bd5bd7329",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "webarena/cas",
+      "source_path": "webarena/cas"
+    },
+    {
+      "archive_bytes": 24744,
+      "archive_path": "webarena/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "ba3cfb675c2ec4f4055064b9dc2390db989cc8de17eacc418f6dcd03c1f3e45a",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "webarena/runtime_repo",
+      "source_path": "webarena/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1384,
+      "archive_path": "webarena/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "d5c497e9e5b59fb40de819553453ac7418fa73130431eeb364b8e4211522d6d4",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "webarena/runtime_repo",
+      "source_path": "webarena/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

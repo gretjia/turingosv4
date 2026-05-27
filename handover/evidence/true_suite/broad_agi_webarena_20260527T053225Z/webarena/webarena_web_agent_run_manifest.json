@@ -1,0 +1,29 @@
+{
+  "schema_version": "turingosv4.true_suite.webarena_web_agent_run.v1",
+  "run_id": "broad_agi_webarena_20260527T053225Z",
+  "git_head": "50a6d2bc6e46065ddb668e9329f2bb72ba955bd3",
+  "entrypoint": "scripts/run_true_suite_webarena_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "webarena_config_url": "https://raw.githubusercontent.com/web-arena-x/webarena/main/config_files/test.raw.json",
+  "webarena_source_file": "config_files/test.raw.json",
+  "webarena_task_index": 0,
+  "runtime_repo": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/runtime_repo",
+  "cas": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/cas",
+  "genesis_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/genesis_report.json",
+  "webarena_manifest": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/webarena_web_agent_manifest.json",
+  "fc_trace_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/fc_trace_report.json",
+  "failure_taxonomy": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_webarena_20260527T053225Z/webarena/full_system_participation.json",
+  "notes": [
+    "WebArena task metadata comes from web-arena-x/webarena config_files/test.raw.json unless WEBARENA_SAMPLE_JSON is explicitly supplied",
+    "WEBARENA_OBSERVATION_HTML can supply an offline browser snapshot; the default snapshot records task metadata only",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "no live website or account side effects are performed by this runner",
+    "benchmark accuracy is not treated as liveness closure"
+  ]
+}
