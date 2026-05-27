@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 70228,
+      "archive_path": "cybench/cas.dotgit.tar.gz",
+      "archive_sha256": "39cf9df9d7fa0b2928fc50cb4ddc29c184198c4f53897fe267ccedf9d4a902dc",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "cybench/cas",
+      "source_path": "cybench/cas/.git"
+    },
+    {
+      "archive_bytes": 3852,
+      "archive_path": "cybench/cas.worktree.tar.gz",
+      "archive_sha256": "4660dde52e91ac6f6d8129bc237adcecd3cdb461a6bb720f918cec7a28117c53",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "cybench/cas",
+      "source_path": "cybench/cas"
+    },
+    {
+      "archive_bytes": 24949,
+      "archive_path": "cybench/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "f316729fc8515f3ed3903e5d9e3fea75798cbdcfad9650befa6a13b1bffe15ae",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "cybench/runtime_repo",
+      "source_path": "cybench/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1403,
+      "archive_path": "cybench/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "e7f9ff5dfceb5abd38163302b62962a3dc5937fb0b3cce5d74294c4e06bc38d0",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "cybench/runtime_repo",
+      "source_path": "cybench/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

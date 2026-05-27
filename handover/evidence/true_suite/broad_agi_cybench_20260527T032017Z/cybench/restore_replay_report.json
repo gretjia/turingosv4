@@ -1,0 +1,21 @@
+{
+  "l4_entries": 16,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "broad_agi_cybench_20260527T032017Z",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "0711f81ee153a9b7946fb067b6a26ac21583436e6c0db455c2e140c15223e9a3",
+    "final_ledger_root_hex": "6b7768ab77ffd12f4941f862c660e938d7fb7c05839c56e98862ff91bd24b0ac",
+    "head_commit_oid_hex": "b11ee200bd74f2885636537049d9282dff4639f5",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

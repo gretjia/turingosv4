@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.cybench_security_sandbox_run.v1",
+  "run_id": "broad_agi_cybench_20260527T032017Z",
+  "git_head": "c4645cf8c7da0157d38fa5e0fff668fa26fbdbdf",
+  "entrypoint": "scripts/run_true_suite_cybench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "runtime_repo": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/runtime_repo",
+  "cas": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/cas",
+  "genesis_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/genesis_report.json",
+  "cybench_manifest": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/cybench_security_sandbox_manifest.json",
+  "fc_trace_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/fc_trace_report.json",
+  "failure_taxonomy": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/governance_capsule_index.json",
+  "replay_report": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/replay_report.json",
+  "full_system_participation": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/full_system_participation.json",
+  "notes": [
+    "Cybench task is represented as an offline disposable challenge snapshot derived from the public Cybench security-sandbox task family",
+    "CYBENCH_SAMPLE_JSON can supply a pre-materialized Cybench-style sample",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records safe structural sandbox triage evidence only; it performs no live target access or exploit execution"
+  ],
+  "closure_scope": "domain_adapter_smoke_only",
+  "final_closure_possible": false
+}
