@@ -11,14 +11,14 @@
 
 ## Current Snapshot (2026-05-27)
 
-**Session**: OBL-001 DeepSeek Chrome E2E closure is verified and ready for PR publication.
+**Session**: OBL-001 DeepSeek Chrome E2E closure merged via PR #206.
 
-**Main tip**: `03645403` (PR #205 — OBL-005 final closure witness).
+**Main tip**: `bb364f35` (PR #206 — Class 2 OBL-001 DeepSeek Chrome E2E closure).
 
 Current state:
 
-- Current branch `codex/obl001-deepseek-chrome-e2e` closes OBL-001 with a real
-  Chrome E2E runner, final evidence, and audit. The runner lives at
+- PR #206 merged `codex/obl001-deepseek-chrome-e2e` into `main`, closing
+  OBL-001 with a real Chrome E2E runner, final evidence, and audit. The runner lives at
   `scripts/obl001_deepseek_chrome_e2e.mjs` and is classified as dev-only
   evidence tooling in `tests/fixtures/liveness/script_liveness_inventory.toml`.
 - Final evidence root:
@@ -39,9 +39,8 @@ Current state:
 - The stale OBL-004 reconciliation gate was updated to accept the new global
   `COMPLETE` ledger headline while retaining the OBL-004 section, audit, stale
   placeholder, and merged-PR receipt checks.
-- Required next action: create the PR from
-  `codex/obl001-deepseek-chrome-e2e`, wait for/inspect checks, then merge if
-  gates stay green.
+- PR #206 GitHub check `validate PR has no sidecar contamination` passed before
+  merge. No OBL-001 closure action remains open.
 
 Recent verification:
 
