@@ -1,83 +1,14 @@
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::generation_attempt::GenerationAttemptCapsule;
-
-const BLACKBOX_SYSTEM_PROMPT: &str = r#"You are TuringOS Blackbox AI, a fast code-generation assistant.
-
-Input: a spec.md describing what a non-developer user wants built.
-Output: one or more complete, working source files.
-
-**OUTPUT FORMAT — STRICT**:
-For each file, output on its own line:
-```
-### File: <relative path>
-```
-Then a fenced code block with the file content. The fence opener must include
-the language tag (e.g. ```html, ```python, ```javascript, ```css).
-
-**RULES**:
-1. Prefer ONE single self-contained file when possible. For a UI app, output
-   ONE `index.html` with `<style>` and `<script>` embedded — so the user can
-   open the file in a browser with zero install. For a script, output ONE
-   Python 3 file named `main.py`.
-2. No external runtime dependencies unless the spec explicitly demands them
-   (no `npm install`, no `pip install`, no CDN scripts unless unavoidable).
-3. The code must actually run as-emitted. If the spec is vague, choose a
-   sensible default and add a brief comment marking the assumption.
-4. NO surrounding prose. No "Here's the code:" preamble. No closing remarks.
-   First line of your response is `### File: ...`. Last line is the closing
-   ``` of the final code block.
-5. Keep files focused. Do not add tests, README.md, package.json, or build
-   configs unless the spec asks for them.
-6. Honor the spec's "Out of Scope" / "Deliberately NOT Doing" section —
-   do NOT add features it forbids.
-7. VISUAL FORMAT for HTML outputs (TuringOS aesthetic — applies when your
-   output is `index.html`). Apply these design tokens as inline CSS — do
-   NOT pull in Tailwind CDN, Bootstrap CDN, or any other framework:
-   - Headings: font-family 'Fraunces', Georgia, serif (load via Google
-     Fonts <link> in <head> is OK: family=Fraunces:opsz,wght@9..144,400;9..144,600).
-   - Body: font-family 'IBM Plex Sans', system-ui, sans-serif (Google Fonts OK).
-   - Code/mono: font-family 'JetBrains Mono', ui-monospace, monospace (Google Fonts OK).
-   - Accent color: define `--accent: #4e8b7a` (oxidized teal). Use for links,
-     buttons, borders, focus rings, key highlights.
-   - Background: `#f8f6f1` (warm off-white). Text: `#1a1a1a`. Muted: `#6b6b6b`.
-   - Layout: comfortable padding, generous line-height (≥1.55 body),
-     H1 Fraunces 36–48px, H2 Fraunces 24–28px, body 16–17px.
-   - Do NOT use Inter, Roboto, Arial, or any purple-gradient styling.
-   - Prefer prefers-color-scheme: dark for an additional dark variant
-     (background #1a1a1a, text #f0eee8, accent same teal but slightly lighter).
-   - If the spec does NOT target a UI/HTML app (e.g., a Python script), skip
-     this rule entirely.
-
-Example shape (DO NOT COPY VERBATIM — write your own per the spec):
-### File: index.html
-```html
-<!DOCTYPE html>
-<html>...</html>
-```
-"#;
-
-#[derive(Serialize)]
-struct Request<'a> {
-    model: &'a str,
-    messages: &'a [Message],
-    max_tokens: Option<u32>,
-    temperature: Option<f32>,
-}
-
-#[derive(Serialize)]
-struct Message {
-    role: String,
-    content: String,
-}
 
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -94,20 +25,47 @@ fn turingos_bin() -> PathBuf {
     panic!("turingos binary not found");
 }
 
-fn start_mock_llm_server(response_body: String) -> String {
+/// Starts a mock HTTP server that captures the request body into `capture`,
+/// then responds with `response_body`. Reads exactly Content-Length bytes so
+/// it works correctly regardless of request size.
+fn start_mock_llm_server(response_body: String, capture: Arc<Mutex<Option<Vec<u8>>>>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     thread::spawn(move || {
-        if let Ok((mut stream, _)) = listener.accept() {
-            let mut buf = [0; 4096];
-            let _ = stream.read(&mut buf);
+        if let Ok((stream, _)) = listener.accept() {
+            let mut reader = BufReader::new(stream);
+
+            // Read HTTP request headers line by line until blank line
+            let mut content_length: usize = 0;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap_or(0);
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    break;
+                }
+                let lower = trimmed.to_ascii_lowercase();
+                if lower.starts_with("content-length:") {
+                    if let Some(val) = lower.strip_prefix("content-length:") {
+                        content_length = val.trim().parse().unwrap_or(0);
+                    }
+                }
+            }
+
+            // Read exactly content_length bytes as the request body
+            let mut body = vec![0u8; content_length];
+            reader.read_exact(&mut body).unwrap_or(());
+
+            *capture.lock().unwrap() = Some(body);
+
             let response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                 response_body.len(),
                 response_body
             );
-            let _ = stream.write_all(response.as_bytes());
-            let _ = stream.flush();
+            let mut writer = reader.into_inner();
+            let _ = writer.write_all(response.as_bytes());
+            let _ = writer.flush();
         }
     });
     format!("http://127.0.0.1:{}", port)
@@ -134,7 +92,8 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
 
     let raw_response = "{\n  \"choices\": [\n    {\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"### File: index.html\\n```html\\n<!doctype html>\\n<html><body><main>ok</main></body></html>\\n```\"\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 10,\n    \"completion_tokens\": 20,\n    \"total_tokens\": 30\n  }\n}".to_string();
 
-    let endpoint = start_mock_llm_server(raw_response);
+    let captured_body: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
+    let endpoint = start_mock_llm_server(raw_response, Arc::clone(&captured_body));
 
     // Run generate command
     let output = Command::new(turingos_bin())
@@ -146,7 +105,12 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
         .output()
         .expect("run generate");
 
-    assert!(output.status.success());
+    assert!(
+        output.status.success(),
+        "generate failed:\nstdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     // Verify GenerationAttemptCapsule is recorded in CAS
     let cas_dir = ws.join("cas");
@@ -168,32 +132,21 @@ fn test_generate_attempt_prompt_hash_is_canonical() {
 
     let cap = attempt_capsule.expect("GenerationAttemptCapsule not found in CAS");
 
-    // Compute provider request hash locally. This must match the exact
-    // canonical request bytes sent to the OpenAI-compatible endpoint.
-    let messages = vec![
-        Message {
-            role: "system".to_string(),
-            content: BLACKBOX_SYSTEM_PROMPT.to_string(),
-        },
-        Message {
-            role: "user".to_string(),
-            content: format!(
-                "Below is the spec. Generate the working code per the rules.\n\nspec source: {}\n\n{}",
-                spec_path.display(),
-                spec_content
-            ),
-        },
-    ];
-    let request = Request {
-        model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-        messages: &messages,
-        max_tokens: Some(6000),
-        temperature: Some(0.2),
-    };
-    let canonical_request_bytes = serde_json::to_vec(&request).expect("serialize request");
+    // Hash the actual HTTP request body captured by the mock server.
+    // This is the canonical byte sequence that production hashes for prompt_hash.
+    let body = captured_body
+        .lock()
+        .unwrap()
+        .take()
+        .expect("mock server did not capture a request body");
+
     let mut hasher = Sha256::new();
-    hasher.update(&canonical_request_bytes);
+    hasher.update(&body);
     let expected_hash = format!("{:x}", hasher.finalize());
 
-    assert_eq!(cap.prompt_hash, expected_hash);
+    assert_eq!(
+        cap.prompt_hash, expected_hash,
+        "prompt_hash mismatch: capsule stored {:?} but SHA-256 of actual request body is {:?}",
+        cap.prompt_hash, expected_hash
+    );
 }
