@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>泡茶计时器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #4e8b7a;
+  --accent-light: #5fa390;
+  --bg: #f8f6f1;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --surface: #ffffff;
+  --border: #d9d5ce;
+  --shadow: rgba(0,0,0,0.06);
+  font-size: 17px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --text: #f0eee8;
+    --muted: #9c9c9c;
+    --surface: #2a2826;
+    --border: #3c3a36;
+    --shadow: rgba(0,0,0,0.3);
+    --accent: #65b8a1;
+    --accent-light: #7ecdb6;
+  }
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+.container {
+  max-width: 420px;
+  width: 100%;
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 8px 24px var(--shadow);
+  border: 1px solid var(--border);
+}
+h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+  color: var(--accent);
+}
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 1.25rem;
+}
+.tea-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.tea-option {
+  display: flex;
+  align-items: center;
+  padding: 0.65rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: transparent;
+}
+.tea-option:hover {
+  border-color: var(--accent-light);
+}
+.tea-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.tea-option input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  margin-right: 0.75rem;
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color 0.2s;
+}
+.tea-option input[type="radio"]:checked {
+  border-color: var(--accent);
+  border-width: 5px;
+}
+.tea-label {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.tea-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+.tea-detail {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.timer-display {
+  text-align: center;
+  margin: 1.5rem 0 1rem;
+}
+.time-remaining {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 3.5rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+.temp-display {
+  font-size: 1rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+.btn {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 1rem;
+  padding: 0.6rem 1.6rem;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  font-weight: 500;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--border);
+  box-shadow: none;
+}
+.btn-secondary:hover {
+  border-color: var(--muted);
+}
+.btn-danger {
+  background: #c0392b;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(192,57,43,0.25);
+}
+.footer-note {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🍵 泡茶计时</h1>
+  <p class="subtitle">选择茶类，一键开始</p>
+
+  <div class="tea-selection" id="teaSelection">
+    <!-- dynamic radio options -->
+  </div>
+
+  <div class="timer-display">
+    <div class="time-remaining" id="timeDisplay">--:--</div>
+    <div class="temp-display" id="tempDisplay">-- °C</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="startBtn">开始冲泡</button>
+    <button class="btn btn-secondary" id="resetBtn" disabled>重置</button>
+  </div>
+
+  <div class="footer-note">倒计时最后1分钟会响起轻柔提示音</div>
+</div>
+
+<script>
+(function() {
+  // ===== Preset Data =====
+  const TEAS = [
+    { id: 'green',    name: '绿茶',   temp: 80,  duration: 120 },
+    { id: 'black',    name: '红茶',   temp: 95,  duration: 180 },
+    { id: 'pu-erh',   name: '普洱茶', temp: 100, duration: 300 }
+  ];
+
+  // ===== State =====
+  let state = {
+    selectedId: 'green',
+    remaining: 0,               // seconds
+    isRunning: false,
+    intervalId: null,
+    notifPlayed60: false,       // 60s alert played?
+    lastNotifSecond: -1         // last second we played per-second tick (for last 10)
+  };
+
+  // ===== DOM refs =====
+  const teaSelection = document.getElementById('teaSelection');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const tempDisplay = document.getElementById('tempDisplay');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // ===== Load saved preference =====
+  function loadSaved() {
+    try {
+      const saved = localStorage.getItem('teaTimer_selected');
+      if (saved && TEAS.some(t => t.id === saved)) {
+        state.selectedId = saved;
+      }
+    } catch(e) { /* ignore */ }
+  }
+  function saveSelected() {
+    try {
+      localStorage.setItem('teaTimer_selected', state.selectedId);
+    } catch(e) { /* ignore */ }
+  }
+
+  // ===== Audio helper (Web Audio API, no external files) =====
+  let audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtx;
+  }
+  function playTone(frequency, durationSec, volume) {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationSec);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + durationSec);
+    } catch(e) {
+      // silently fail if audio not available (e.g. autoplay restrictions)
+    }
+  }
+  function playFinalMinuteAlert() {
+    // Soft two-tone alert
+    playTone(392, 0.4, 0.08);  // G4
+    setTimeout(() => playTone(523, 0.5, 0.07), 200); // C5
+  }
+  function playTick() {
+    // Very soft short tick
+    playTone(880, 0.06, 0.03);
+  }
+
+  // ===== Timer logic =====
+  function getSelectedTea() {
+    return TEAS.find(t => t.id === state.selectedId) || TEAS[0];
+  }
+
+  function updateDisplay() {
+    const tea = getSelectedTea();
+    if (state.isRunning) {
+      const mins = Math.floor(state.remaining / 60);
+      const secs = state.remaining % 60;
+      timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      tempDisplay.textContent = `${tea.temp} °C`;
+    } else {
+      if (state.remaining > 0) {
+        // paused? we don't have pause, but after reset or finished, show default
+        timeDisplay.textContent = `--:--`;
+        tempDisplay.textContent = `${tea.temp} °C`;
+      } else {
+        timeDisplay.textContent = `--:--`;
+        tempDisplay.textContent = `${tea.temp} °C`;
+      }
+    }
+  }
+
+  function stopTimer(resetRemaining = true) {
+    if (state.intervalId) {
+      clearInterval(state.intervalId);
+      state.intervalId = null;
+    }
+    state.isRunning = false;
+    if (resetRemaining) {
+      state.remaining = 0;
+    }
+    state.notifPlayed60 = false;
+    state.lastNotifSecond = -1;
+    startBtn.textContent = '开始冲泡';
+    startBtn.disabled = false;
+    resetBtn.disabled = true;
+    // enable selection
+    document.querySelectorAll('.tea-option input').forEach(el => el.disabled = false);
+    updateDisplay();
+  }
+
+  function startTimer() {
+    const tea = getSelectedTea();
+    if (state.intervalId) {
+      stopTimer(false); // restart if already running (shouldn't happen because button disabled)
+    }
+    // re-enable audio context (user gesture)
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    state.remaining = tea.duration;
+    state.isRunning = true;
+    state.notifPlayed60 = false;
+    state.lastNotifSecond = -1;
+    startBtn.textContent = '冲泡中…';
+    startBtn.disabled = true;
+    resetBtn.disabled = false;
+    // disable selection
+    document.querySelectorAll('.tea-option input').forEach(el => el.disabled = true);
+
+    updateDisplay();
+
+    state.intervalId = setInterval(() => {
+      state.remaining -= 1;
+      if (state.remaining <= 0) {
+        // finished
+        stopTimer(true);
+        timeDisplay.textContent = '00:00';
+        // play finish sound (slightly longer)
+        playTone(660, 0.6, 0.1);
+        setTimeout(() => playTone(880, 0.8, 0.08), 300);
+        return;
+      }
+      // alert at 60 seconds (last minute start)
+      if (state.remaining === 60 && !state.notifPlayed60) {
+        state.notifPlayed60 = true;
+        playFinalMinuteAlert();
+      }
+      // per-second tick for last 10 seconds
+      if (state.remaining <= 10 && state.remaining > 0) {
+        // avoid repeating same second
+        if (state.lastNotifSecond !== state.remaining) {
+          state.lastNotifSecond = state.remaining;
+          playTick();
+        }
+      }
+      updateDisplay();
+    }, 1000);
+  }
+
+  function resetTimer() {
+    stopTimer(true);
+    timeDisplay.textContent = '--:--';
+    const tea = getSelectedTea();
+    tempDisplay.textContent = `${tea.temp} °C`;
+  }
+
+  // ===== Rendering tea selection =====
+  function renderTeaOptions() {
+    teaSelection.innerHTML = '';
+    TEAS.forEach(tea => {
+      const label = document.createElement('label');
+      label.className = 'tea-option' + (tea.id === state.selectedId ? ' selected' : '');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'tea';
+      radio.value = tea.id;
+      radio.checked = tea.id === state.selectedId;
+      radio.addEventListener('change', () => {
+        if (radio.checked) {
+          state.selectedId = tea.id;
+          saveSelected();
+          // update visual selection
+          document.querySelectorAll('.tea-option').forEach(el => el.classList.remove('selected'));
+          label.classList.add('selected');
+          // update temp display
+          const t = getSelectedTea();
+          if (!state.isRunning) {
+            tempDisplay.textContent = `${t.temp} °C`;
+          }
+        }
+      });
+      const spanLabel = document.createElement('div');
+      spanLabel.className = 'tea-label';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'tea-name';
+      nameSpan.textContent = tea.name;
+      const detailSpan = document.createElement('span');
+      detailSpan.className = 'tea-detail';
+      detailSpan.textContent = `${tea.temp}°C  ·  ${Math.floor(tea.duration/60)}分${tea.duration%60 ? tea.duration%60+'秒' : ''}`;
+      spanLabel.appendChild(nameSpan);
+      spanLabel.appendChild(detailSpan);
+      label.appendChild(radio);
+      label.appendChild(spanLabel);
+      teaSelection.appendChild(label);
+    });
+    // restore temp display
+    const tea = getSelectedTea();
+    if (!state.isRunning) {
+      tempDisplay.textContent = `${tea.temp} °C`;
+    }
+  }
+
+  // ===== Event listeners =====
+  startBtn.addEventListener('click', () => {
+    if (state.isRunning) return; // button should be disabled but just in case
+    startTimer();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (!state.isRunning) return;
+    // confirm? spec says anti-mistouch, but reset button is explicit action, we just reset.
+    resetTimer();
+  });
+
+  // ===== Init =====
+  loadSaved();
+  renderTeaOptions();
+  // show default temp
+  const tea = getSelectedTea();
+  tempDisplay.textContent = `${tea.temp} °C`;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,2 @@
+# Raw run evidence is committed as captured payload, not source text.
+handover/evidence/** -diff

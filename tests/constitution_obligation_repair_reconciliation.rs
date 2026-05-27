@@ -34,8 +34,9 @@ fn obl004_ledger_is_closed_by_current_reconciliation() {
         .expect("ledger must include current overall status");
 
     assert!(
-        headline.contains("OBL-004 satisfied"),
-        "ledger headline must agree with the OBL-004 section status"
+        headline.contains("OBL-004 satisfied")
+            || (headline.contains("COMPLETE") && headline.contains("OBL-004")),
+        "ledger headline must agree with the OBL-004 section status (directly or via global COMPLETE)"
     );
     assert!(
         !headline.contains("OBL-004 in-progress"),

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>钢琴教学节拍器</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #4e8b7a;
+            --accent-light: #6baf9a;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --card-bg: #ffffff;
+            --border: #ddd9d1;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #f0eee8;
+                --muted: #a0a0a0;
+                --card-bg: #2a2a2a;
+                --border: #3a3a3a;
+                --accent: #6baf9a;
+                --accent-light: #8fc9b8;
+            }
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            line-height: 1.55;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        .container {
+            width: 100%;
+            max-width: 640px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+        }
+        h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 36px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .subtitle {
+            color: var(--muted);
+            font-size: 15px;
+            margin-bottom: 28px;
+        }
+        .indicator-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        .led {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: var(--muted);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            transition: background 0.05s, box-shadow 0.05s;
+            margin-bottom: 12px;
+        }
+        .led.active {
+            background: var(--accent);
+            box-shadow: 0 0 40px var(--accent-light);
+        }
+        .beat-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+        .controls {
+            display: grid;
+            gap: 20px;
+        }
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .control-group label {
+            font-weight: 500;
+            min-width: 60px;
+            color: var(--text);
+        }
+        .bpm-slider {
+            flex: 1;
+            min-width: 120px;
+            accent-color: var(--accent);
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            cursor: pointer;
+        }
+        .bpm-input {
+            width: 70px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            text-align: center;
+        }
+        .bpm-input:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+        .time-signature-group {
+            display: flex;
+            gap: 8px;
+        }
+        .ts-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text);
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ts-btn:hover {
+            border-color: var(--accent);
+        }
+        .ts-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .start-btn {
+            width: 100%;
+            padding: 14px 0;
+            border: none;
+            border-radius: 16px;
+            background: var(--accent);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'Fraunces', Georgia, serif;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 12px;
+        }
+        .start-btn:hover {
+            background: var(--accent-light);
+        }
+        .start-btn:active {
+            transform: scale(0.98);
+        }
+        .status-text {
+            text-align: center;
+            margin-top: 20px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+        @media (max-width: 480px) {
+            .container {
+                padding: 24px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            .led {
+                width: 90px;
+                height: 90px;
+            }
+            .beat-counter {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>节拍器</h1>
+        <p class="subtitle">钢琴教学专用 · 大屏指示灯</p>
+        <div class="indicator-area">
+            <div class="led" id="ledIndicator"></div>
+            <div class="beat-counter" id="beatCounter">0</div>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label for="bpmSlider">BPM</label>
+                <input type="range" id="bpmSlider" class="bpm-slider" min="20" max="250" value="120">
+                <input type="number" id="bpmInput" class="bpm-input" min="20" max="250" value="120">
+            </div>
+            <div class="control-group">
+                <label>拍号</label>
+                <div class="time-signature-group">
+                    <button class="ts-btn" data-beats="2">2/4</button>
+                    <button class="ts-btn" data-beats="3">3/4</button>
+                    <button class="ts-btn active" data-beats="4">4/4</button>
+                </div>
+            </div>
+            <button class="start-btn" id="startBtn">开始</button>
+        </div>
+        <div class="status-text" id="statusText">120 BPM · 4/4 拍</div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // DOM elements
+            const led = document.getElementById('ledIndicator');
+            const beatCounter = document.getElementById('beatCounter');
+            const bpmSlider = document.getElementById('bpmSlider');
+            const bpmInput = document.getElementById('bpmInput');
+            const tsBtns = document.querySelectorAll('.ts-btn');
+            const startBtn = document.getElementById('startBtn');
+            const statusText = document.getElementById('statusText');
+
+            // State
+            let bpm = 120;
+            let beatsPerMeasure = 4; // 2,3,4
+            let isPlaying = false;
+            let schedulerId = null;
+            let currentBeat = 0; // 0-based within measure
+            let audioCtx = null;
+            let nextTickTime = 0;
+            let timerId = null;
+
+            // Load saved settings
+            const saved = localStorage.getItem('metronomeSettings');
+            if (saved) {
+                try {
+                    const s = JSON.parse(saved);
+                    if (typeof s.bpm === 'number' && s.bpm >= 20 && s.bpm <= 250) {
+                        bpm = s.bpm;
+                    }
+                    if ([2,3,4].includes(s.beatsPerMeasure)) {
+                        beatsPerMeasure = s.beatsPerMeasure;
+                    }
+                } catch (e) {}
+            }
+
+            // Apply initial UI
+            bpmSlider.value = bpm;
+            bpmInput.value = bpm;
+            tsBtns.forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.beats) === beatsPerMeasure);
+            });
+            updateStatus();
+
+            // Audio context (lazy init)
+            function getAudioCtx() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                return audioCtx;
+            }
+
+            // Play tick sound
+            function playTick(accent) {
+                try {
+                    const ctx = getAudioCtx();
+                    if (ctx.state === 'suspended') {
+                        ctx.resume();
+                    }
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    // Accent: higher pitch
+                    osc.frequency.value = accent ? 1200 : 800;
+                    gain.gain.setValueAtTime(0.6, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.08);
+                } catch (e) {
+                    // ignore audio errors
+                }
+            }
+
+            // Schedule next beat
+            function scheduleBeat() {
+                if (!isPlaying) return;
+
+                const ctx = getAudioCtx();
+                const interval = 60.0 / bpm; // seconds per beat
+
+                // Ensure nextTickTime is in future
+                const now = ctx.currentTime;
+                if (nextTickTime < now) {
+                    nextTickTime = now;
+                }
+
+                // Schedule up to 10ms ahead
+                while (nextTickTime < now + 0.1) {
+                    const isAccent = (currentBeat === 0);
+                    // Schedule sound
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = isAccent ? 1200 : 800;
+                    gain.gain.setValueAtTime(0.6, nextTickTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, nextTickTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(nextTickTime);
+                    osc.stop(nextTickTime + 0.08);
+
+                    // Schedule LED / UI update via timeout (estimate)
+                    const delayMs = Math.max(0, (nextTickTime - now) * 1000);
+                    setTimeout(() => {
+                        if (!isPlaying) return;
+                        // Update LED
+                        led.classList.add('active');
+                        setTimeout(() => led.classList.remove('active'), 50);
+                        // Update counter
+                        beatCounter.textContent = currentBeat + 1;
+                        currentBeat = (currentBeat + 1) % beatsPerMeasure;
+                    }, delayMs);
+
+                    nextTickTime += interval;
+                }
+
+                timerId = setTimeout(scheduleBeat, Math.max(0, (nextTickTime - ctx.currentTime - 0.05) * 1000));
+            }
+
+            function startMetronome() {
+                if (isPlaying) return;
+                isPlaying = true;
+                currentBeat = 0;
+                nextTickTime = 0; // reset
+                const ctx = getAudioCtx();
+                if (ctx.state === 'suspended') ctx.resume();
+                nextTickTime = ctx.currentTime + 0.05; // slight delay
+                startBtn.textContent = '停止';
+                scheduleBeat();
+            }
+
+            function stopMetronome() {
+                if (!isPlaying) return;
+                isPlaying = false;
+                if (timerId) {
+                    clearTimeout(timerId);
+                    timerId = null;
+                }
+                led.classList.remove('active');
+                beatCounter.textContent = '0';
+                startBtn.textContent = '开始';
+            }
+
+            // Toggle play
+            function togglePlay() {
+                if (isPlaying) {
+                    stopMetronome();
+                } else {
+                    startMetronome();
+                }
+            }
+
+            // Update BPM
+            function setBpm(value) {
+                let v = Math.round(Number(value));
+                if (isNaN(v)) v = 120;
+                if (v < 20) v = 20;
+                if (v > 250) v = 250;
+                bpm = v;
+                bpmSlider.value = bpm;
+                bpmInput.value = bpm;
+                updateStatus();
+                saveSettings();
+                if (isPlaying) {
+                    // Restart to apply new tempo
+                    stopMetronome();
+                    startMetronome();
+                }
+            }
+
+            // Update time signature
+            function setTimeSignature(beats) {
+                if (![2,3,4].includes(beats)) return;
+                beatsPerMeasure = beats;
+                tsBtns.forEach(btn => {
+                    btn.classList.toggle('active', parseInt(btn.dataset.beats) === beats);
+                });
+                updateStatus();
+                saveSettings();
+                if (isPlaying) {
+                    stopMetronome();
+                    startMetronome();
+                }
+            }
+
+            // Update status text
+            function updateStatus() {
+                statusText.textContent = `${bpm} BPM · ${beatsPerMeasure}/4 拍`;
+            }
+
+            // Save to localStorage
+            function saveSettings() {
+                try {
+                    localStorage.setItem('metronomeSettings', JSON.stringify({
+                        bpm: bpm,
+                        beatsPerMeasure: beatsPerMeasure
+                    }));
+                } catch (e) {}
+            }
+
+            // Event listeners
+            bpmSlider.addEventListener('input', function() {
+                setBpm(this.value);
+            });
+            bpmInput.addEventListener('change', function() {
+                setBpm(this.value);
+            });
+            bpmInput.addEventListener('blur', function() {
+                setBpm(this.value);
+            });
+            tsBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    setTimeSignature(parseInt(this.dataset.beats));
+                });
+            });
+            startBtn.addEventListener('click', togglePlay);
+
+            // Keyboard shortcut
+            document.addEventListener('keydown', function(e) {
+                if (e.code === 'Space' && e.target === document.body) {
+                    e.preventDefault();
+                    togglePlay();
+                }
+            });
+
+            // Ensure we have a valid audio context on first interaction
+            document.addEventListener('click', function() {
+                const ctx = getAudioCtx();
+                if (ctx.state === 'suspended') ctx.resume();
+            }, { once: true });
+
+        })();
+    </script>
+</body>
+</html>

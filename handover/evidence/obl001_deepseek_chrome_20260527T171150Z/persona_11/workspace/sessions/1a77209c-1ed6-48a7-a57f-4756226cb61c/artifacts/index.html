@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>写作计时器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --surface: rgba(78, 139, 122, 0.12);
+      --surface-hover: rgba(78, 139, 122, 0.25);
+      --radius: 12px;
+      font-size: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #9a9a9a;
+        --surface: rgba(78, 139, 122, 0.2);
+        --surface-hover: rgba(78, 139, 122, 0.35);
+      }
+    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+    }
+    #input-layer {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 0;
+      padding: 2rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--text);
+      outline: none;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      /* cursor: text; */
+    }
+    #input-layer:focus { outline: none; }
+    #input-layer::before {
+      content: attr(data-placeholder);
+      color: var(--muted);
+      pointer-events: none;
+    }
+    #input-layer:empty::before {
+      content: "开始写作…";
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
+    }
+    #timer {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: clamp(3.5rem, 10vw, 6rem);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    #wordcount {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      font-weight: 400;
+      margin-top: 0.25em;
+      color: var(--muted);
+    }
+    #achieved-msg {
+      font-family: 'Fraunces', Georgia, serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      opacity: 0;
+      transition: opacity 0.5s;
+      margin-top: 0.5em;
+    }
+    #achieved-msg.show { opacity: 1; }
+
+    #settings {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 2;
+      background: var(--bg);
+      border-top: 1px solid var(--surface);
+      padding: 0.75rem 1.5rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem 2rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      backdrop-filter: blur(4px);
+      background: rgba(from var(--bg) r g b / 0.92);
+    }
+    .setting-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .setting-group label {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .setting-group input {
+      width: 5rem;
+      padding: 0.3rem 0.6rem;
+      border: 1px solid var(--surface);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .setting-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--surface);
+    }
+    .setting-group input[type="number"] { -moz-appearance: textfield; }
+    .setting-group input::-webkit-outer-spin-button,
+    .setting-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    #reset-btn {
+      background: none;
+      border: 1px solid var(--surface);
+      border-radius: var(--radius);
+      padding: 0.4rem 1rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 0.85rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #reset-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #particle-canvas {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="input-layer" contenteditable="true" spellcheck="false"></div>
+
+  <div id="overlay">
+    <div id="timer">25:00</div>
+    <div id="wordcount">0 / 500</div>
+    <div id="achieved-msg">🎉 达成！</div>
+  </div>
+
+  <div id="settings">
+    <div class="setting-group">
+      <label for="target-minutes">分钟</label>
+      <input type="number" id="target-minutes" min="1" max="120" value="25">
+    </div>
+    <div class="setting-group">
+      <label for="target-words">字数</label>
+      <input type="number" id="target-words" min="1" max="10000" value="500">
+    </div>
+    <button id="reset-btn">重新开始</button>
+  </div>
+
+  <canvas id="particle-canvas"></canvas>
+
+  <script>
+    (() => {
+      // DOM refs
+      const inputLayer = document.getElementById('input-layer');
+      const timerEl = document.getElementById('timer');
+      const wordcountEl = document.getElementById('wordcount');
+      const achievedMsg = document.getElementById('achieved-msg');
+      const minutesInput = document.getElementById('target-minutes');
+      const wordsInput = document.getElementById('target-words');
+      const resetBtn = document.getElementById('reset-btn');
+      const canvas = document.getElementById('particle-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // state
+      let targetMinutes = parseInt(minutesInput.value) || 25;
+      let targetWords = parseInt(wordsInput.value) || 500;
+      let currentSeconds = targetMinutes * 60;
+      let currentWords = 0;
+      let isRunning = false;
+      let isAchieved = false;
+      let timerInterval = null;
+      let animationId = null;
+      let particles = [];
+      let canvasW, canvasH;
+
+      // helper
+      function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+
+      function countWords(text) {
+        // remove leading/trailing whitespace, split by whitespace
+        const trimmed = text.trim();
+        if (trimmed === '') return 0;
+        // split by any whitespace (spaces, newlines, tabs)
+        const words = trimmed.split(/\s+/);
+        // filter empty strings (shouldn't happen after trim but just in case)
+        return words.filter(w => w.length > 0).length;
+      }
+
+      function updateDisplay() {
+        timerEl.textContent = formatTime(currentSeconds);
+        wordcountEl.textContent = `${currentWords} / ${targetWords}`;
+      }
+
+      function checkAchievement() {
+        if (isAchieved) return;
+        let achieved = false;
+        if (currentSeconds <= 0) {
+          achieved = true;
+        }
+        if (currentWords >= targetWords) {
+          achieved = true;
+        }
+        if (achieved) {
+          isAchieved = true;
+          if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+          }
+          isRunning = false;
+          achievedMsg.classList.add('show');
+          startParticles();
+        }
+      }
+
+      // timer tick
+      function tick() {
+        if (!isRunning || isAchieved) return;
+        currentSeconds--;
+        if (currentSeconds < 0) currentSeconds = 0;
+        updateDisplay();
+        checkAchievement();
+        if (currentSeconds <= 0 && timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      function startTimer() {
+        if (isRunning || isAchieved) return;
+        if (targetMinutes * 60 <= 0) return;
+        currentSeconds = targetMinutes * 60;
+        isRunning = true;
+        updateDisplay();
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(tick, 1000);
+      }
+
+      function stopTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        isRunning = false;
+      }
+
+      function resetState() {
+        // stop everything
+        stopTimer();
+        stopParticles();
+        // reset values
+        targetMinutes = parseInt(minutesInput.value) || 25;
+        targetWords = parseInt(wordsInput.value) || 500;
+        currentSeconds = targetMinutes * 60;
+        currentWords = countWords(inputLayer.textContent || '');
+        isAchieved = false;
+        achievedMsg.classList.remove('show');
+        updateDisplay();
+        // if there is text, auto-start? spec says on first input start. We'll wait for input.
+        // Do not auto-start here.
+        isRunning = false;
+      }
+
+      // Input handler
+      function onInput() {
+        if (isAchieved) return;
+        const text = inputLayer.textContent || '';
+        currentWords = countWords(text);
+        updateDisplay();
+        if (!isRunning) {
+          // start timer on first input
+          if (text.trim().length > 0) {
+            startTimer();
+          }
+        }
+        checkAchievement();
+      }
+
+      // settings change
+      function onSettingChange() {
+        resetState();
+        // focus input layer
+        inputLayer.focus();
+      }
+
+      // reset button
+      resetBtn.addEventListener('click', () => {
+        // clear text
+        inputLayer.textContent = '';
+        currentWords = 0;
+        resetState();
+        inputLayer.focus();
+      });
+
+      // event listeners
+      inputLayer.addEventListener('input', onInput);
+      minutesInput.addEventListener('change', onSettingChange);
+      wordsInput.addEventListener('change', onSettingChange);
+
+      // initial display
+      resetState();
+
+      // Focus input on load (but not on mobile if it causes keyboard?)
+      // Let user click to start typing.
+      // Optionally auto-focus? safer to not steal focus on load.
+      // We'll focus when clicking overlay? Actually overlay pointer-events: none, so click goes to input.
+      // But we can make clicking anywhere focus input:
+      document.addEventListener('click', () => {
+        if (!inputLayer.hasFocus()) {
+          inputLayer.focus();
+        }
+      });
+
+      // ########## Particle animation ##########
+      function resizeCanvas() {
+        canvasW = window.innerWidth;
+        canvasH = window.innerHeight;
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+      }
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+
+      function getRandomColor() {
+        const hue = Math.random() * 60 + 160; // greenish to teal range
+        return `hsl(${hue}, 70%, 60%)`;
+      }
+
+      class Particle {
+        constructor(x, y) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 200 + 100; // px/s
+          this.x = x;
+          this.y = y;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.radius = Math.random() * 6 + 2;
+          this.color = getRandomColor();
+          this.alpha = 1;
+          this.decay = 0.3 + Math.random() * 0.5; // alpha decay per second
+          this.gravity = 60; // px/s^2 downward
+        }
+        update(dt) {
+          this.x += this.vx * dt;
+          this.y += this.vy * dt;
+          this.vy += this.gravity * dt;
+          this.alpha -= this.decay * dt;
+          this.vx *= 0.98;
+          this.vy *= 0.98;
+        }
+        draw(ctx) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(this.alpha, 0);
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function startParticles() {
+        // spawn 200 particles from center of screen
+        const cx = canvasW / 2;
+        const cy = canvasH / 2;
+        particles = [];
+        for (let i = 0; i < 200; i++) {
+          particles.push(new Particle(cx, cy));
+        }
+        if (animationId) cancelAnimationFrame(animationId);
+        let lastTime = performance.now();
+        function frame(now) {
+          const dt = Math.min((now - lastTime) / 1000, 0.05);
+          lastTime = now;
+          ctx.clearRect(0, 0, canvasW, canvasH);
+          // update and draw
+          particles = particles.filter(p => p.alpha > 0.01);
+          for (const p of particles) {
+            p.update(dt);
+            p.draw(ctx);
+          }
+          if (particles.length > 0) {
+            animationId = requestAnimationFrame(frame);
+          } else {
+            ctx.clearRect(0, 0, canvasW, canvasH);
+            animationId = null;
+          }
+        }
+        animationId = requestAnimationFrame(frame);
+      }
+
+      function stopParticles() {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
+          animationId = null;
+        }
+        particles = [];
+        ctx.clearRect(0, 0, canvasW, canvasH);
+      }
+
+      // handle visibility change: if tab hidden, pause timer? optional.
+      // Not required by spec, but good: pause if hidden, resume if visible.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && isRunning) {
+          // pause timer but keep time
+          clearInterval(timerInterval);
+          timerInterval = null;
+          isRunning = false;
+        } else if (!document.hidden && !isRunning && !isAchieved && (inputLayer.textContent || '').trim().length > 0) {
+          // resume if we had text before hidden (but not achieved)
+          // Only resume if timer was running before? We track wasPaused state.
+          // simpler: check if seconds >0 and not achieved, restart timer.
+          // but user might have changed tab intentionally, we can keep paused.
+          // We'll not auto-resume to avoid surprise.
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

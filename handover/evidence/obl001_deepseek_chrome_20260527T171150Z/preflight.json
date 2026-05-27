@@ -1,0 +1,10 @@
+{
+  "timestamp": "20260527T171150Z",
+  "endpoint_host": "api.deepseek.com",
+  "turingos_bin": "/tmp/turingosv4-gaia-runner-next/target/debug/turingos",
+  "turingos_web_bin": "/tmp/turingosv4-gaia-runner-next/target/debug/turingos_web",
+  "port_8080_free_at_start": true,
+  "deepseek_api_key_present": true,
+  "deepseek_worker_key_present": true,
+  "timeout_ms": 1920000
+}

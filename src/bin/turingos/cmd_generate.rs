@@ -93,6 +93,11 @@ use turingosv4::state::sequencer::{
 };
 use turingosv4::state::typed_tx::{EventId, TypedTx};
 
+/// Max tokens for generation LLM calls. Real web-generated index.html artifacts
+/// were truncated before closing tags at 6000; 16000 gives adequate headroom
+/// for a full self-contained single-file HTML app.
+const GENERATE_MAX_TOKENS: u32 = 16000;
+
 /// TODO(genesis_payload): move these defaults to genesis_payload.toml
 /// [polymarket_defaults] in a follow-up. Karpathy nice-fix #1 + Constitution
 /// nice-fix-1: parametric runtime constants belong in the trust-rooted
@@ -461,7 +466,7 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
     let canonical_request_bytes = canonical_chat_request_bytes(
         &model_id,
         &messages,
-        Some(6000),
+        Some(GENERATE_MAX_TOKENS),
         Some(0.2),
         blackbox_thinking.clone(),
     )
@@ -1145,7 +1150,7 @@ fn chat_with_tdma_bounded(
         problem_text: String::new(),
         evidence_dir: evidence_dir.clone(),
         temperature: 0.2,
-        max_tokens: 6000,
+        max_tokens: GENERATE_MAX_TOKENS,
         max_attempts_per_stage: max_retries,
     };
 
@@ -1159,7 +1164,7 @@ fn chat_with_tdma_bounded(
         let canonical = canonical_chat_request_bytes(
             &model_owned,
             &messages,
-            Some(6000),
+            Some(GENERATE_MAX_TOKENS),
             Some(0.2),
             thinking_clone.clone(),
         )
@@ -1172,7 +1177,7 @@ fn chat_with_tdma_bounded(
             &api_key_owned,
             &model_owned,
             &messages,
-            Some(6000),
+            Some(GENERATE_MAX_TOKENS),
             Some(0.2),
             thinking_clone.clone(),
         )
@@ -1369,6 +1374,26 @@ fn blackbox_system_prompt() -> &'static str {
 
 Input: a spec.md describing what a non-developer user wants built.
 Output: one or more complete, working source files.
+
+**TDMA STATE UPDATE — REQUIRED FIRST LINE**:
+Before any artifact or code body, you MUST emit a single JSON object on its own
+line as the very first output. This is the TDMA state_update header. Emit it
+BEFORE the `### File:` markers and code fences:
+
+{"schema_version":"tdma-state-update/v1","status":"Proceed","task_id":"<task_id>","action":"PROCEED","failed_predicate":null,"reject_class":null,"next_action_hint":null,"evidence_hash":null}
+
+An optional `---BODY---` line may follow as a readability separator — the parser
+does not require it.
+
+Fields:
+- `schema_version`: always `"tdma-state-update/v1"` (required)
+- `status`: always `"Proceed"` for successful generation (required)
+- `task_id`: copy from the spec task identifier, or use `"generate"` if not specified (required)
+- `action`: always `"PROCEED"` for generation outputs (required)
+- `failed_predicate`, `reject_class`, `next_action_hint`, `evidence_hash`: always `null` (required)
+
+The state_update JSON header must appear FIRST — prior to any `### File:` line
+or code fence. The parser reads the first top-level JSON object; no outer wrapper.
 
 **OUTPUT FORMAT — STRICT**:
 For each file, output on its own line:
@@ -1877,7 +1902,7 @@ fn generate_additional_worker_candidate(
     let canonical_request_bytes = canonical_chat_request_bytes(
         model_id,
         &worker_messages,
-        Some(6000),
+        Some(GENERATE_MAX_TOKENS),
         Some(0.2),
         blackbox_thinking.clone(),
     )
@@ -2749,5 +2774,96 @@ mod tests {
             .collect();
         let workers = polymarket_workers_for_preseed(&ids, 3).expect("workers");
         assert_eq!(workers, vec!["worker-alpha"]);
+    }
+
+    /// RED gate (OBL-001 phase RED): blackbox_system_prompt() must contain a
+    /// parser-compatible TDMA example that matches what src/state_update.rs
+    /// actually deserializes. The parser expects a flat JSON object (no outer
+    /// "state_update" wrapper) with:
+    ///   schema_version = "tdma-state-update/v1"
+    ///   status         = "Proceed"
+    ///   task_id        (any value)
+    ///   action         = "PROCEED"
+    ///
+    /// This test is intentionally RED against the current prompt and will turn
+    /// GREEN only once the prompt is updated to show the correct example shape.
+    #[test]
+    fn blackbox_system_prompt_tdma_example_matches_parser_schema() {
+        let prompt = blackbox_system_prompt();
+
+        // 1. Must contain the exact schema_version string the parser accepts.
+        assert!(
+            prompt.contains("tdma-state-update/v1"),
+            "blackbox_system_prompt() example must use schema_version \
+             \"tdma-state-update/v1\" (parser-compatible); \
+             current prompt has wrong schema_version value"
+        );
+
+        // 2. Must contain the "status" field with value "Proceed".
+        assert!(
+            prompt.contains("\"status\""),
+            "blackbox_system_prompt() example must include a \"status\" field \
+             (parser requires it for deserialization)"
+        );
+        assert!(
+            prompt.contains("\"Proceed\""),
+            "blackbox_system_prompt() example must show status value \"Proceed\" \
+             (parser-compatible status string)"
+        );
+
+        // 3. Must show action = "PROCEED" (not "emit_artifact").
+        assert!(
+            prompt.contains("\"PROCEED\""),
+            "blackbox_system_prompt() example must use action value \"PROCEED\" \
+             (parser-compatible); current prompt uses \"emit_artifact\" which \
+             causes MalformedOrMissingStateUpdate rejection"
+        );
+
+        // 4. Must NOT show the wrapper shape {"state_update":{...}} — that
+        //    wrapping causes MalformedOrMissingStateUpdate because the parser
+        //    tries to deserialize the outer object directly into StateUpdate.
+        assert!(
+            !prompt.contains("\"state_update\":{"),
+            "blackbox_system_prompt() must NOT show the wrapped example \
+             shape {{\"state_update\":{{...}}}}; \
+             the parser deserializes the top-level object directly into \
+             StateUpdate — no outer wrapper is accepted"
+        );
+    }
+
+    /// Regression guard (OBL-001): blackbox_system_prompt() must contain an
+    /// explicit TDMA state_update protocol contract so the DeepSeek raw-HTML
+    /// failure cannot recur. Verifies all of: "state_update", "schema_version",
+    /// "task_id", "action" are present, and that the JSON is required *before*
+    /// the artifact/code body.
+    #[test]
+    fn blackbox_system_prompt_contains_tdma_state_update_contract() {
+        let prompt = blackbox_system_prompt();
+        for token in &["state_update", "schema_version", "task_id", "action"] {
+            assert!(
+                prompt.contains(token),
+                "blackbox_system_prompt() is missing required TDMA token: {:?}",
+                token
+            );
+        }
+        // The prompt must instruct the LLM to emit the state_update JSON
+        // *before* the artifact/code body, not after it.
+        let state_update_pos = prompt
+            .find("state_update")
+            .expect("blackbox_system_prompt() must contain 'state_update' (checked above)");
+        // Any of these anchor phrases indicate a "before code" requirement.
+        let before_anchors = ["before", "BEFORE", "first", "FIRST", "prior to", "ahead of"];
+        let context_window = &prompt
+            [state_update_pos.saturating_sub(300)..(state_update_pos + 300).min(prompt.len())];
+        let has_before_requirement = before_anchors
+            .iter()
+            .any(|anchor| context_window.contains(anchor));
+        assert!(
+            has_before_requirement,
+            "blackbox_system_prompt() must explicitly require emitting the \
+             state_update JSON BEFORE the artifact/code body; \
+             context around 'state_update': {:?}",
+            context_window
+        );
     }
 }

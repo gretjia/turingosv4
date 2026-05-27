@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>旅行打包清单</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --accent-light: #6bb09c;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #d6d3cd;
+      --card-bg: #ffffff;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+      --radius: 12px;
+      --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+      --font-heading: 'Fraunces', Georgia, serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.6;
+      padding: 2rem 1.5rem;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-family: var(--font-heading);
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      background: var(--accent-light);
+      box-shadow: 0 2px 12px rgba(78,139,122,0.25);
+    }
+    .btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+    }
+    .btn-secondary:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-sm {
+      padding: 0.3rem 0.7rem;
+      font-size: 0.85rem;
+    }
+    .btn-danger {
+      background: transparent;
+      color: #b34a4a;
+      border: 1.5px solid #b34a4a;
+    }
+    .btn-danger:hover {
+      background: #b34a4a;
+      color: #fff;
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+    .modal h2 {
+      font-family: var(--font-heading);
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.3rem;
+      color: var(--text);
+    }
+    .form-group select,
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .form-group select:focus,
+    .form-group input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+    .modal .btn-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.8rem;
+      margin-top: 1.5rem;
+    }
+    .list-meta {
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .list-meta span {
+      background: var(--card-bg);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .list-items {
+      list-style: none;
+      margin-bottom: 1.5rem;
+    }
+    .list-items li {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      transition: opacity 0.2s;
+    }
+    .list-items li:last-child {
+      border-bottom: none;
+    }
+    .list-items li .item-text {
+      flex: 1;
+    }
+    .list-items li .item-check {
+      width: 1.2rem;
+      height: 1.2rem;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .list-items li.checked .item-text {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    .list-items li .delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0.2rem;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .list-items li .delete-btn:hover {
+      color: #b34a4a;
+      background: rgba(179,74,74,0.08);
+    }
+    .add-item-row {
+      display: flex;
+      gap: 0.6rem;
+    }
+    .add-item-row input {
+      flex: 1;
+      padding: 0.5rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      background: var(--card-bg);
+      color: var(--text);
+    }
+    .add-item-row input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: -1px;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+    }
+    .empty-state p {
+      margin-bottom: 1rem;
+    }
+    .code-note {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--card-bg);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #9a9892;
+        --border: #3a3a35;
+        --card-bg: #252520;
+        --shadow: 0 2px 8px rgba(0,0,0,0.4);
+        --accent: #6bb09c;
+      }
+      .btn {
+        color: #1a1a1a;
+      }
+      .btn-secondary {
+        color: var(--accent);
+      }
+      .btn-secondary:hover {
+        color: #1a1a1a;
+      }
+      .btn-danger {
+        color: #e07a7a;
+        border-color: #e07a7a;
+      }
+      .btn-danger:hover {
+        color: #1a1a1a;
+        background: #e07a7a;
+      }
+      .modal {
+        background: #2a2a25;
+      }
+      .form-group select,
+      .form-group input[type="number"] {
+        background: #33332e;
+        color: var(--text);
+      }
+      .add-item-row input {
+        background: #33332e;
+        color: var(--text);
+      }
+      .code-note {
+        background: #33332e;
+      }
+      header h1 {
+        color: var(--text);
+      }
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 1rem; }
+      h1 { font-size: 1.6rem; }
+      .modal { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🧳 打包清单</h1>
+    <button class="btn" id="newListBtn">+ 新建清单</button>
+  </header>
+
+  <div id="listContainer">
+    <!-- 由 JS 渲染 -->
+  </div>
+</div>
+
+<!-- 新建清单模态框 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>新建旅行清单</h2>
+    <div class="form-group">
+      <label for="weatherSelect">目的天气</label>
+      <select id="weatherSelect">
+        <option value="hot">☀️ 炎热</option>
+        <option value="warm" selected>🌤 温暖</option>
+        <option value="cool">🌥 凉爽</option>
+        <option value="cold">❄️ 寒冷</option>
+        <option value="rainy">🌧 雨季</option>
+        <option value="snowy">🌨 雪季</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="daysInput">天数</label>
+      <input type="number" id="daysInput" min="1" max="90" value="3" required>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="cancelModalBtn">取消</button>
+      <button class="btn" id="generateBtn">生成清单</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ---------- 基础物品模板 ----------
+    const BASE_ITEMS = {
+      hot: [
+        '短袖T恤', '短裤', '凉鞋', '防晒霜', '太阳镜', '遮阳帽',
+        '泳衣', '沙滩巾', '水瓶', '止汗露'
+      ],
+      warm: [
+        '长袖T恤', '牛仔裤', '薄外套', '运动鞋', '防晒霜',
+        '太阳镜', '水瓶'
+      ],
+      cool: [
+        '长袖衬衫', '毛衣', '夹克', '长裤', '运动鞋',
+        '薄围巾', '保温杯'
+      ],
+      cold: [
+        '保暖内衣', '羽绒服', '毛衣', '围巾', '手套',
+        '保暖帽', '厚袜子', '雪地靴', '保温杯', '润唇膏'
+      ],
+      rainy: [
+        '雨伞', '防水外套', '防水鞋', '快干衣', '防水袋',
+        '手机防水套', '速干毛巾'
+      ],
+      snowy: [
+        '羽绒服', '雪地靴', '手套', '围巾', '保暖帽',
+        '暖宝宝', '护目镜（滑雪用）', '防滑鞋套', '保温杯',
+        '润肤霜'
+      ]
+    };
+    // 通用物品（无论天气都可能有）
+    const COMMON_ITEMS = [
+      '身份证/护照', '手机', '充电器', '耳机', '钱包',
+      '洗漱包', '换洗衣物（x天数）', '药品包', '零食'
+    ];
+
+    // ---------- 状态 ----------
+    const STORAGE_KEY = 'travel_packing_list';
+    let currentList = null; // { weather: string, days: number, items: [{text, checked}] }
+
+    // DOM 引用
+    const listContainer = document.getElementById('listContainer');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const newListBtn = document.getElementById('newListBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const generateBtn = document.getElementById('generateBtn');
+    const weatherSelect = document.getElementById('weatherSelect');
+    const daysInput = document.getElementById('daysInput');
+
+    // ---------- 工具函数 ----------
+    function generateItems(weather, days) {
+      const base = (BASE_ITEMS[weather] || BASE_ITEMS.warm).slice();
+      const common = COMMON_ITEMS.slice();
+      // 替换天数占位符
+      const items = [...base, ...common].map(text => {
+        const finalText = text.replace('x天数', `x${days}`);
+        return { text: finalText, checked: false };
+      });
+      return items;
+    }
+
+    function saveList(list) {
+      currentList = list;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function loadList() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.weather && parsed.days && Array.isArray(parsed.items)) {
+            return parsed;
+          }
+        } catch(e) {}
+      }
+      return null;
+    }
+
+    // ---------- 渲染函数 ----------
+    function render() {
+      if (!currentList) {
+        listContainer.innerHTML = `
+          <div class="empty-state">
+            <p>还没有旅行清单</p>
+            <p>点击右上角「新建清单」开始规划</p>
+          </div>
+        `;
+        return;
+      }
+
+      const { weather, days, items } = currentList;
+      const weatherLabel = {
+        hot: '☀️ 炎热', warm: '🌤 温暖', cool: '🌥 凉爽',
+        cold: '❄️ 寒冷', rainy: '🌧 雨季', snowy: '🌨 雪季'
+      }[weather] || weather;
+
+      const checkedCount = items.filter(i => i.checked).length;
+      const totalCount = items.length;
+
+      let itemsHtml = '';
+      items.forEach((item, idx) => {
+        itemsHtml += `
+          <li class="${item.checked ? 'checked' : ''}" data-index="${idx}">
+            <input type="checkbox" class="item-check" ${item.checked ? 'checked' : ''}>
+            <span class="item-text">${escapeHtml(item.text)}</span>
+            <button class="delete-btn" title="删除物品" aria-label="删除物品">&times;</button>
+          </li>
+        `;
+      });
+
+      listContainer.innerHTML = `
+        <div class="list-meta">
+          <span>${weatherLabel} · ${days} 天</span>
+          <span>已完成 ${checkedCount}/${totalCount}</span>
+        </div>
+        <ul class="list-items" id="itemsList">
+          ${itemsHtml}
+        </ul>
+        <div class="add-item-row">
+          <input type="text" id="newItemInput" placeholder="添加物品…" maxlength="60">
+          <button class="btn btn-sm" id="addItemBtn">添加</button>
+        </div>
+      `;
+
+      // 绑定事件
+      const itemsList = document.getElementById('itemsList');
+      const newItemInput = document.getElementById('newItemInput');
+      const addItemBtn = document.getElementById('addItemBtn');
+
+      // checkbox toggle
+      itemsList.addEventListener('change', (e) => {
+        if (e.target.classList.contains('item-check')) {
+          const li = e.target.closest('li');
+          const idx = parseInt(li.dataset.index, 10);
+          currentList.items[idx].checked = e.target.checked;
+          li.classList.toggle('checked', e.target.checked);
+          saveList(currentList);
+          // 更新计数
+          const metaSpan = document.querySelector('.list-meta span:last-child');
+          if (metaSpan) {
+            const c = currentList.items.filter(i => i.checked).length;
+            metaSpan.textContent = `已完成 ${c}/${currentList.items.length}`;
+          }
+        }
+      });
+
+      // delete button
+      itemsList.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+          const li = deleteBtn.closest('li');
+          const idx = parseInt(li.dataset.index, 10);
+          currentList.items.splice(idx, 1);
+          saveList(currentList);
+          render(); // 重新渲染
+        }
+      });
+
+      // 添加物品
+      addItemBtn.addEventListener('click', () => {
+        const text = newItemInput.value.trim();
+        if (!text) return;
+        currentList.items.push({ text, checked: false });
+        saveList(currentList);
+        newItemInput.value = '';
+        render();
+      });
+      newItemInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addItemBtn.click();
+      });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ---------- 模态框 ----------
+    function openModal() {
+      modalOverlay.classList.add('active');
+      weatherSelect.focus();
+    }
+
+    function closeModal() {
+      modalOverlay.classList.remove('active');
+    }
+
+    function generateNewList() {
+      const weather = weatherSelect.value;
+      const days = parseInt(daysInput.value, 10);
+      if (isNaN(days) || days < 1) {
+        alert('请输入有效的天数（≥1）');
+        return;
+      }
+      const items = generateItems(weather, days);
+      const list = { weather, days, items };
+      saveList(list);
+      closeModal();
+      render();
+    }
+
+    // ---------- 初始化 ----------
+    function init() {
+      const saved = loadList();
+      if (saved) {
+        currentList = saved;
+      } else {
+        // 首次使用：无清单，显示空状态
+        currentList = null;
+      }
+      render();
+
+      // 按钮事件
+      newListBtn.addEventListener('click', openModal);
+      cancelModalBtn.addEventListener('click', closeModal);
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+      });
+      generateBtn.addEventListener('click', generateNewList);
+      // 回车生成
+      daysInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') generateNewList();
+      });
+      weatherSelect.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') generateNewList();
+      });
+    }
+
+    init();
+  })();
+</script>
+</body>
+</html>

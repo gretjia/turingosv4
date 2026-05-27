@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>景深计算器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6bb09c;
+    --accent-dark: #3b6e5f;
+    --bg: #f8f6f1;
+    --surface: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #d9d5cd;
+    --radius: 10px;
+    --font-heading: 'Fraunces', Georgia, serif;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --shadow: 0 2px 8px rgba(0,0,0,.06);
+    --transition: .2s ease;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --surface: #242424;
+      --text: #f0eee8;
+      --muted: #9c9a94;
+      --border: #3a3a3a;
+      --accent: #6bb09c;
+      --accent-dark: #4e8b7a;
+      --shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px}
+  body{
+    font-family:var(--font-body);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    padding:2rem 1rem;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center
+  }
+  .container{
+    width:100%;
+    max-width:640px;
+    background:var(--surface);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:2rem 1.75rem 2.2rem;
+    border:1px solid var(--border)
+  }
+  h1{
+    font-family:var(--font-heading);
+    font-weight:600;
+    font-size:2rem;
+    line-height:1.25;
+    margin-bottom:.4rem;
+    color:var(--text);
+    letter-spacing:-.01em
+  }
+  .subtitle{
+    font-size:.88rem;
+    color:var(--muted);
+    margin-bottom:1.8rem;
+    border-bottom:1px solid var(--border);
+    padding-bottom:1rem
+  }
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1rem 1.25rem;
+    margin-bottom:1.8rem
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:.3rem
+  }
+  .field.full{grid-column:1/-1}
+  .field label{
+    font-size:.82rem;
+    font-weight:500;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.04em
+  }
+  .input-row{
+    display:flex;
+    align-items:center;
+    gap:.4rem;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:.1rem .3rem .1rem .7rem;
+    transition:border-color var(--transition),box-shadow var(--transition)
+  }
+  .input-row:focus-within{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(78,139,122,.18)
+  }
+  .input-row input{
+    flex:1;
+    min-width:0;
+    border:none;
+    background:transparent;
+    font-family:var(--font-mono);
+    font-size:.95rem;
+    padding:.5rem 0;
+    color:var(--text);
+    outline:none
+  }
+  .input-row input::placeholder{color:var(--muted);opacity:.55}
+  .input-row input[type=number]{-moz-appearance:textfield}
+  .input-row input[type=number]::-webkit-inner-spin-button,
+  .input-row input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  .unit-btn{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:5px;
+    font-family:var(--font-mono);
+    font-size:.75rem;
+    padding:.2rem .5rem;
+    cursor:pointer;
+    color:var(--muted);
+    white-space:nowrap;
+    flex-shrink:0;
+    transition:background var(--transition),color var(--transition),border-color var(--transition)
+  }
+  .unit-btn:hover{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent)
+  }
+  .unit-btn.active{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent)
+  }
+  select{
+    font-family:var(--font-body);
+    font-size:.9rem;
+    padding:.45rem .7rem;
+    border:1px solid var(--border);
+    border-radius:6px;
+    background:var(--bg);
+    color:var(--text);
+    cursor:pointer;
+    outline:none;
+    transition:border-color var(--transition),box-shadow var(--transition);
+    width:100%
+  }
+  select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(78,139,122,.18)
+  }
+  .results{
+    background:var(--bg);
+    border-radius:8px;
+    padding:1.25rem 1.4rem;
+    border:1px solid var(--border)
+  }
+  .results h2{
+    font-family:var(--font-heading);
+    font-weight:600;
+    font-size:1.15rem;
+    margin-bottom:.9rem;
+    color:var(--text)
+  }
+  .result-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    padding:.28rem 0;
+    border-bottom:1px dashed var(--border);
+    font-size:.9rem
+  }
+  .result-row:last-child{border-bottom:none}
+  .result-label{color:var(--muted)}
+  .result-value{
+    font-family:var(--font-mono);
+    font-weight:500;
+    color:var(--text);
+    text-align:right
+  }
+  .result-value.inf{color:var(--accent);font-style:italic}
+  .error-msg{
+    background:#fce8e6;
+    color:#b3261e;
+    border:1px solid #f5c6c2;
+    border-radius:6px;
+    padding:.5rem .9rem;
+    font-size:.85rem;
+    margin-bottom:1rem;
+    display:none;
+    font-weight:500
+  }
+  @media (prefers-color-scheme:dark){
+    .error-msg{
+      background:#3d1f1c;
+      color:#f2b8b2;
+      border-color:#5a2e2a
+    }
+  }
+  .note{
+    font-size:.8rem;
+    color:var(--muted);
+    margin-top:.8rem;
+    text-align:center
+  }
+  .note kbd{
+    font-family:var(--font-mono);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:3px;
+    padding:0 .35rem;
+    font-size:.78rem
+  }
+  @media (max-width:480px){
+    .container{padding:1.25rem 1rem}
+    h1{font-size:1.6rem}
+    .form-grid{grid-template-columns:1fr;gap:.85rem}
+    .field.full{grid-column:1}
+    .results{padding:1rem}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>景深计算器</h1>
+  <div class="subtitle">输入参数，自动计算景深与超焦距</div>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="form-grid">
+    <div class="field full">
+      <label for="sensor">画幅</label>
+      <select id="sensor">
+        <option value="36_24">全画幅 (36×24 mm)</option>
+        <option value="23.6_15.7">APS-C (Nikon/Sony/Fuji) (23.6×15.7 mm)</option>
+        <option value="22.3_14.9">APS-C (Canon) (22.3×14.9 mm)</option>
+        <option value="17.3_13">Micro Four Thirds (17.3×13 mm)</option>
+        <option value="12.8_9.6">1 英寸 (12.8×9.6 mm)</option>
+        <option value="44_33">中画幅数码 (44×33 mm)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="focalLength">焦距</label>
+      <div class="input-row">
+        <input type="number" id="focalLength" value="50" min="1" step="any" placeholder="50">
+        <button class="unit-btn" id="flUnit" data-mode="mm">mm</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="aperture">光圈 (f/)</label>
+      <div class="input-row">
+        <input type="number" id="aperture" value="2.8" min="1" max="32" step="any" placeholder="2.8">
+        <span style="font-family:var(--font-mono);font-size:.8rem;color:var(--muted);padding-right:.4rem">f/</span>
+      </div>
+    </div>
+
+    <div class="field full">
+      <label for="focusDistance">对焦距离</label>
+      <div class="input-row">
+        <input type="number" id="focusDistance" value="3" min="0" step="any" placeholder="3">
+        <button class="unit-btn" id="fdUnit" data-mode="m">m</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="results" id="results">
+    <h2>计算结果</h2>
+    <div class="result-row"><span class="result-label">超焦距</span><span class="result-value" id="hyperfocal">—</span></div>
+    <div class="result-row"><span class="result-label">近点界限</span><span class="result-value" id="nearLimit">—</span></div>
+    <div class="result-row"><span class="result-label">远点界限</span><span class="result-value" id="farLimit">—</span></div>
+    <div class="result-row"><span class="result-label">前景深</span><span class="result-value" id="frontDof">—</span></div>
+    <div class="result-row"><span class="result-label">后景深</span><span class="result-value" id="backDof">—</span></div>
+    <div class="result-row"><span class="result-label">总景深</span><span class="result-value" id="totalDof">—</span></div>
+  </div>
+
+  <div class="note">
+    提示：所有数值必须为正。光圈范围 f/1.0–f/32。点击单位按钮可切换 <kbd>m</kbd> <kbd>cm</kbd> <kbd>mm</kbd>。
+  </div>
+</div>
+
+<script>
+(function(){
+  // --- DOM refs ---
+  const sensorEl   = document.getElementById('sensor');
+  const flEl       = document.getElementById('focalLength');
+  const apEl       = document.getElementById('aperture');
+  const fdEl       = document.getElementById('focusDistance');
+  const flUnitBtn  = document.getElementById('flUnit');
+  const fdUnitBtn  = document.getElementById('fdUnit');
+  const errorMsg   = document.getElementById('errorMsg');
+  const outH       = document.getElementById('hyperfocal');
+  const outN       = document.getElementById('nearLimit');
+  const outF       = document.getElementById('farLimit');
+  const outFD      = document.getElementById('frontDof');
+  const outBD      = document.getElementById('backDof');
+  const outTD      = document.getElementById('totalDof');
+
+  // --- state ---
+  const FL_MODES  = ['mm','cm'];            // focal length units
+  const FD_MODES  = ['m','cm','mm'];        // distance units
+  const SENSOR_MAP = new Map([
+    ['36_24',     {w:36,   h:24,   label:'全画幅'}],
+    ['23.6_15.7', {w:23.6, h:15.7, label:'APS-C (Nikon/Sony/Fuji)'}],
+    ['22.3_14.9', {w:22.3, h:14.9, label:'APS-C (Canon)'}],
+    ['17.3_13',   {w:17.3, h:13,   label:'MFT'}],
+    ['12.8_9.6',  {w:12.8, h:9.6,  label:'1 英寸'}],
+    ['44_33',     {w:44,   h:33,   label:'中画幅数码'}]
+  ]);
+
+  let flModeIdx = 0;    // 0=mm, 1=cm
+  let fdModeIdx = 0;    // 0=m, 1=cm, 2=mm
+
+  // --- helpers ---
+  function showError(msg){
+    if(msg){
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    } else {
+      errorMsg.style.display = 'none';
+    }
+  }
+
+  // Convert stored base mm value to display unit
+  function mmToDisplay(mm, modeIdx, modes){
+    const unit = modes[modeIdx];
+    if(unit === 'm')  return mm / 1000;
+    if(unit === 'cm') return mm / 10;
+    return mm; // mm
+  }
+  function displayToMm(val, modeIdx, modes){
+    const unit = modes[modeIdx];
+    if(unit === 'm')  return val * 1000;
+    if(unit === 'cm') return val * 10;
+    return val; // mm
+  }
+
+  // For focal length: stored in mm
+  function flDisplay(){ return mmToDisplay(fl_mm, flModeIdx, FL_MODES); }
+  function flSetDisplay(val){
+    fl_mm = displayToMm(val, flModeIdx, FL_MODES);
+    if(fl_mm < 1) fl_mm = 1;
+  }
+  function fdDisplay(){ return mmToDisplay(fd_mm, fdModeIdx, FD_MODES); }
+  function fdSetDisplay(val){
+    fd_mm = displayToMm(val, fdModeIdx, FD_MODES);
+    if(fd_mm < 0) fd_mm = 0;
+  }
+
+  // Update input fields from internal mm values
+  function syncInputs(){
+    flEl.value = Number(flDisplay().toFixed(4));
+    fdEl.value = Number(fdDisplay().toFixed(4));
+    flUnitBtn.textContent = FL_MODES[flModeIdx];
+    fdUnitBtn.textContent = FD_MODES[fdModeIdx];
+  }
+
+  // Read from input fields into internal mm
+  function readInputs(){
+    const flIn = parseFloat(flEl.value);
+    const fdIn = parseFloat(fdEl.value);
+    if(!isNaN(flIn) && flIn>0) flSetDisplay(flIn);
+    if(!isNaN(fdIn) && fdIn>=0) fdSetDisplay(fdIn);
+    syncInputs();
+  }
+
+  // --- core calc ---
+  let fl_mm = 50;
+  let fd_mm = 3000; // 3m
+  let ap     = 2.8;
+  let sensorKey = '36_24';
+
+  function compute(){
+    readInputs(); // sync from inputs
+
+    // read sensor
+    const sk = sensorEl.value;
+    const ss = SENSOR_MAP.get(sk);
+    if(!ss){ showError('请选择有效画幅'); return; }
+
+    // read aperture
+    const apVal = parseFloat(apEl.value);
+    if(isNaN(apVal) || apVal<=0){ showError('光圈值必须为正数'); clearOutputs(); return; }
+    if(apVal < 1 || apVal > 32){ showError('光圈值请控制在 f/1.0 到 f/32 之间'); clearOutputs(); return; }
+
+    // read focal length (mm)
+    if(fl_mm < 1){ showError('焦距必须大于 0'); clearOutputs(); return; }
+
+    // read focus distance (mm)
+    if(fd_mm <= 0){ showError('对焦距离必须大于 0'); clearOutputs(); return; }
+
+    showError(null);
+
+    // --- compute ---
+    const f = fl_mm;          // mm
+    const N = apVal;
+    const s = fd_mm;          // mm
+    const diag = Math.sqrt(ss.w*ss.w + ss.h*ss.h);
+    const c = diag / 1500;    // CoC in mm
+
+    // Hyperfocal distance (mm) — standard formula: H = f²/(N·c)
+    const H = (f*f) / (N * c);
+
+    // Near & Far limits
+    const Dn = (H * s) / (H + s);
+    const Df = (s < H) ? (H * s) / (H - s) : Infinity;
+
+    // DoF values
+    const frontDof = s - Dn;
+    const backDof  = (s < H) ? (Df - s) : Infinity;
+    const totalDof = (s < H) ? (Df - Dn) : Infinity;
+
+    // --- display helpers (show in meters for readability, but respect focus distance unit) ---
+    const unit = FD_MODES[fdModeIdx]; // use same unit as focus distance for results
+    let factor;
+    let label;
+    if(unit === 'm'){
+      factor = 1000;
+      label = 'm';
+    } else if(unit === 'cm'){
+      factor = 10;
+      label = 'cm';
+    } else {
+      factor = 1;
+      label = 'mm';
+    }
+
+    function fmt(mm){
+      if(!isFinite(mm)) return '<span class="inf">∞</span>';
+      const val = mm / factor;
+      // choose precision
+      let dec;
+      if(unit==='m') dec = val<0.01 ? 4 : val<1 ? 3 : val<10 ? 2 : 1;
+      else if(unit==='cm') dec = val<1 ? 2 : val<100 ? 1 : 0;
+      else dec = val<10 ? 1 : 0;
+      return val.toFixed(dec) + ' ' + label;
+    }
+
+    outH.innerHTML  = fmt(H);
+    outN.innerHTML  = fmt(Dn);
+    outF.innerHTML  = fmt(Df);
+    outFD.innerHTML = fmt(frontDof);
+    outBD.innerHTML = fmt(backDof);
+    outTD.innerHTML = fmt(totalDof);
+  }
+
+  function clearOutputs(){
+    outH.textContent = '—';
+    outN.textContent = '—';
+    outF.textContent = '—';
+    outFD.textContent = '—';
+    outBD.textContent = '—';
+    outTD.textContent = '—';
+  }
+
+  // --- unit cycle ---
+  function cycleUnit(btn, modes, idxRef, isFL){
+    const oldMode = modes[idxRef.value];
+    idxRef.value = (idxRef.value + 1) % modes.length;
+    const newMode = modes[idxRef.value];
+    // convert the stored mm value to new display
+    // read current input value (in old unit), convert to mm, then to new unit
+    const currIn = parseFloat(isFL ? flEl.value : fdEl.value);
+    if(!isNaN(currIn)){
+      let mm;
+      if(oldMode === 'm') mm = currIn * 1000;
+      else if(oldMode === 'cm') mm = currIn * 10;
+      else mm = currIn; // mm
+      // convert to new unit
+      let newVal;
+      if(newMode === 'm') newVal = mm / 1000;
+      else if(newMode === 'cm') newVal = mm / 10;
+      else newVal = mm;
+      if(isFL){
+        fl_mm = mm;
+        flEl.value = Number(newVal.toFixed(4));
+      } else {
+        fd_mm = mm;
+        fdEl.value = Number(newVal.toFixed(4));
+      }
+    }
+    btn.textContent = newMode;
+    compute();
+  }
+
+  // --- localStorage save/restore ---
+  function saveState(){
+    try {
+      const st = {
+        sensor: sensorEl.value,
+        fl: fl_mm,
+        ap: apEl.value,
+        fd: fd_mm,
+        flMode: flModeIdx,
+        fdMode: fdModeIdx
+      };
+      localStorage.setItem('dof_calc_state', JSON.stringify(st));
+    } catch(_){}
+  }
+
+  function loadState(){
+    try {
+      const raw = localStorage.getItem('dof_calc_state');
+      if(!raw) return false;
+      const st = JSON.parse(raw);
+      if(st.sensor && SENSOR_MAP.has(st.sensor)) sensorEl.value = st.sensor;
+      if(typeof st.fl === 'number' && st.fl>0) fl_mm = st.fl;
+      if(typeof st.ap === 'number' && st.ap>0) apEl.value = st.ap;
+      if(typeof st.fd === 'number' && st.fd>0) fd_mm = st.fd;
+      if(typeof st.flMode === 'number') flModeIdx = st.flMode % FL_MODES.length;
+      if(typeof st.fdMode === 'number') fdModeIdx = st.fdMode % FD_MODES.length;
+      syncInputs();
+      return true;
+    } catch(_){ return false; }
+  }
+
+  // --- init ---
+  function init(){
+    const loaded = loadState();
+    if(!loaded){
+      // defaults: FF, 50mm, f/2.8, 3m
+      sensorEl.value = '36_24';
+      fl_mm = 50;
+      apEl.value = 2.8;
+      fd_mm = 3000;
+      flModeIdx = 0;
+      fdModeIdx = 0;
+      syncInputs();
+    }
+    // set unit button texts
+    flUnitBtn.textContent = FL_MODES[flModeIdx];
+    fdUnitBtn.textContent = FD_MODES[fdModeIdx];
+    compute();
+    saveState();
+  }
+
+  // --- event wiring ---
+  // Input events: recalculate on any change
+  [sensorEl, flEl, apEl, fdEl].forEach(el => {
+    el.addEventListener('input', () => { compute(); saveState(); });
+    el.addEventListener('change', () => { compute(); saveState(); });
+  });
+
+  // Unit buttons
+  flUnitBtn.addEventListener('click', function(){
+    const oldIdx = flModeIdx;
+    flModeIdx = (flModeIdx + 1) % FL_MODES.length;
+    // convert display value
+    const currIn = parseFloat(flEl.value);
+    if(!isNaN(currIn)){
+      let mm;
+      if(FL_MODES[oldIdx]==='cm') mm = currIn * 10;
+      else mm = currIn; // mm
+      fl_mm = mm;
+      const newVal = (FL_MODES[flModeIdx]==='cm') ? mm/10 : mm;
+      flEl.value = Number(newVal.toFixed(4));
+    }
+    this.textContent = FL_MODES[flModeIdx];
+    compute();
+    saveState();
+  });
+
+  fdUnitBtn.addEventListener('click', function(){
+    const oldIdx = fdModeIdx;
+    fdModeIdx = (fdModeIdx + 1) % FD_MODES.length;
+    const currIn = parseFloat(fdEl.value);
+    if(!isNaN(currIn)){
+      let mm;
+      if(FD_MODES[oldIdx]==='m') mm = currIn * 1000;
+      else if(FD_MODES[oldIdx]==='cm') mm = currIn * 10;
+      else mm = currIn;
+      fd_mm = mm;
+      let newVal;
+      if(FD_MODES[fdModeIdx]==='m') newVal = mm / 1000;
+      else if(FD_MODES[fdModeIdx]==='cm') newVal = mm / 10;
+      else newVal = mm;
+      fdEl.value = Number(newVal.toFixed(4));
+    }
+    this.textContent = FD_MODES[fdModeIdx];
+    compute();
+    saveState();
+  });
+
+  // additional check for aperture max
+  apEl.addEventListener('change', function(){
+    let v = parseFloat(this.value);
+    if(isNaN(v)) return;
+    if(v < 1)  this.value = 1;
+    if(v > 32) this.value = 32;
+    compute();
+    saveState();
+  });
+
+  // validate focal length min
+  flEl.addEventListener('change', function(){
+    let v = parseFloat(this.value);
+    if(isNaN(v) || v<1) this.value = 1;
+    readInputs();
+    compute();
+    saveState();
+  });
+
+  // validate focus distance > 0
+  fdEl.addEventListener('change', function(){
+    let v = parseFloat(this.value);
+    if(isNaN(v) || v<=0){ alert('对焦距离必须大于 0，请重新输入。'); this.value = fdDisplay(); return; }
+    readInputs();
+    compute();
+    saveState();
+  });
+
+  // start
+  init();
+})();
+</script>
+</body>
+</html>

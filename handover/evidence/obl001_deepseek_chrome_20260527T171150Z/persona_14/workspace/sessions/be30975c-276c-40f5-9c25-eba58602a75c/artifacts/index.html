@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桌游记分牌</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #4e8b7a;
+  --bg: #f8f6f1;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --card-bg: #ffffff;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --text: #f0eee8;
+    --muted: #a0a0a0;
+    --card-bg: #2a2a2a;
+    --card-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    --accent: #6abf9f;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  line-height: 1.55;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 36px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.btn {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px 20px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.btn:active { transform: scale(0.96); }
+.btn-danger {
+  border-color: #c0392b;
+  color: #c0392b;
+}
+.btn-danger:hover {
+  background: #c0392b;
+  color: #fff;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  filter: brightness(0.9);
+}
+.btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.player-name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+  width: 120px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  outline: none;
+  transition: background 0.15s;
+}
+.player-name:focus {
+  background: rgba(78, 139, 122, 0.1);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.edit-icon {
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--muted);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.edit-icon:hover { opacity: 1; }
+.score {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 1.1;
+  margin: 8px 0 16px;
+  color: var(--accent);
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.controls button {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.controls button:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.controls button:active { transform: scale(0.9); }
+.undo-btn {
+  margin-left: auto;
+  font-size: 14px;
+  border-color: var(--muted);
+  color: var(--muted);
+  width: auto;
+  padding: 0 12px;
+}
+.undo-btn:hover {
+  background: var(--muted);
+  color: #fff;
+}
+.empty-hint {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+@media (max-width: 500px) {
+  .grid { grid-template-columns: 1fr; }
+  h1 { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🎲 桌游记分牌</h1>
+  <p class="subtitle">每位玩家一个卡片，点击名字可编辑，加减分一键操作，支持撤销</p>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="newGameBtn">🔄 新一局（分数归零）</button>
+    <button class="btn" id="undoBtn" disabled>↩ 撤销</button>
+    <button class="btn btn-danger" id="resetNamesBtn">重置玩家名字</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // --- state ---
+  const DEFAULT_NAMES = ['玩家1', '玩家2', '玩家3', '玩家4', '玩家5', '玩家6'];
+  const STORAGE_KEY_NAMES = 'scoreboard_player_names';
+  const STORAGE_KEY_SESSION = 'scoreboard_session'; // not used for scores, but could persist names
+
+  // history for undo
+  let history = []; // each entry: { index, delta }
+
+  // current players array: { name, score }
+  let players = [];
+
+  // DOM refs
+  const grid = document.getElementById('grid');
+  const undoBtn = document.getElementById('undoBtn');
+
+  // --- helpers ---
+  function saveNames() {
+    const names = players.map(p => p.name);
+    localStorage.setItem(STORAGE_KEY_NAMES, JSON.stringify(names));
+  }
+
+  function loadNamesOrDefault() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_NAMES);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === 6 && arr.every(n => typeof n === 'string' && n.trim())) {
+          return arr.map(s => s.trim());
+        }
+      }
+    } catch (e) {}
+    return [...DEFAULT_NAMES];
+  }
+
+  function initPlayers() {
+    const names = loadNamesOrDefault();
+    history = [];
+    players = names.map((name, i) => ({
+      name: name,
+      score: 0
+    }));
+    render();
+    updateUndoBtn();
+  }
+
+  function resetScores() {
+    players.forEach(p => p.score = 0);
+    history = [];
+    render();
+    updateUndoBtn();
+  }
+
+  function resetNames() {
+    if (confirm('重置所有玩家名字为默认值？')) {
+      localStorage.removeItem(STORAGE_KEY_NAMES);
+      initPlayers();
+    }
+  }
+
+  function adjustScore(index, delta) {
+    if (index < 0 || index >= players.length) return;
+    players[index].score += delta;
+    history.push({ index, delta });
+    render();
+    updateUndoBtn();
+    // save names (in case they changed)
+    saveNames();
+  }
+
+  function undo() {
+    if (history.length === 0) return;
+    const last = history.pop();
+    players[last.index].score -= last.delta;
+    render();
+    updateUndoBtn();
+    saveNames();
+  }
+
+  function updateUndoBtn() {
+    undoBtn.disabled = history.length === 0;
+  }
+
+  // --- rendering ---
+  function render() {
+    grid.innerHTML = '';
+    players.forEach((player, index) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      // header: name + edit trigger
+      const header = document.createElement('div');
+      header.className = 'card-header';
+
+      const nameSpan = document.createElement('input');
+      nameSpan.type = 'text';
+      nameSpan.className = 'player-name';
+      nameSpan.value = player.name;
+      nameSpan.maxLength = 10;
+      // store original for change detection
+      nameSpan.dataset.original = player.name;
+      nameSpan.addEventListener('change', function(e) {
+        const newName = e.target.value.trim();
+        if (newName === '') {
+          // revert
+          e.target.value = player.name;
+          return;
+        }
+        if (newName !== player.name) {
+          player.name = newName;
+          saveNames();
+        }
+      });
+      nameSpan.addEventListener('blur', function(e) {
+        // trim whitespace
+        const trimmed = e.target.value.trim();
+        if (trimmed !== e.target.value) {
+          e.target.value = trimmed;
+        }
+        if (trimmed === '') {
+          e.target.value = player.name;
+        } else if (trimmed !== player.name) {
+          player.name = trimmed;
+          saveNames();
+        }
+      });
+
+      header.appendChild(nameSpan);
+
+      // subtle edit hint (clicking name also focuses)
+      const editHint = document.createElement('span');
+      editHint.className = 'edit-icon';
+      editHint.textContent = '✎';
+      editHint.title = '点击名字编辑';
+      editHint.addEventListener('click', function() {
+        nameSpan.focus();
+        nameSpan.select();
+      });
+      header.appendChild(editHint);
+
+      card.appendChild(header);
+
+      // score
+      const scoreDiv = document.createElement('div');
+      scoreDiv.className = 'score';
+      scoreDiv.textContent = player.score;
+      card.appendChild(scoreDiv);
+
+      // controls
+      const controls = document.createElement('div');
+      controls.className = 'controls';
+
+      const minusBtn = document.createElement('button');
+      minusBtn.textContent = '−1';
+      minusBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        adjustScore(index, -1);
+      });
+      controls.appendChild(minusBtn);
+
+      const plusBtn = document.createElement('button');
+      plusBtn.textContent = '+1';
+      plusBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        adjustScore(index, 1);
+      });
+      controls.appendChild(plusBtn);
+
+      // optional +5 / -5 for faster scoring? not required but helpful
+      const minus5Btn = document.createElement('button');
+      minus5Btn.textContent = '−5';
+      minus5Btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        adjustScore(index, -5);
+      });
+      controls.appendChild(minus5Btn);
+
+      const plus5Btn = document.createElement('button');
+      plus5Btn.textContent = '+5';
+      plus5Btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        adjustScore(index, 5);
+      });
+      controls.appendChild(plus5Btn);
+
+      card.appendChild(controls);
+      grid.appendChild(card);
+    });
+  }
+
+  // --- event binding ---
+  document.getElementById('newGameBtn').addEventListener('click', resetScores);
+  document.getElementById('resetNamesBtn').addEventListener('click', resetNames);
+  undoBtn.addEventListener('click', undo);
+
+  // keyboard shortcut: Ctrl+Z for undo
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault();
+      undo();
+    }
+  });
+
+  // --- start ---
+  initPlayers();
+})();
+</script>
+</body>
+</html>

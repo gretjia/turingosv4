@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>家务清单 — 小英雄积分榜</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #4e8b7a;
+  --accent-light: #6dab9a;
+  --bg: #f8f6f1;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --card-bg: #ffffff;
+  --border: #ddd9cf;
+  --success-bg: #e1f0e8;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a1a;
+    --text: #f0eee8;
+    --muted: #b0b0b0;
+    --card-bg: #2a2826;
+    --border: #3d3a37;
+    --success-bg: #2a4a3a;
+    --shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  padding: 1.5rem 1rem;
+  min-height: 100vh;
+}
+h1, h2, h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+h1 {
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: var(--accent);
+}
+.subhead {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 2rem;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  padding: 1.5rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.child-name {
+  font-size: 1.3rem;
+  flex: 1;
+}
+.points-area {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.1rem;
+  cursor: default;
+}
+.points-badge {
+  background: var(--accent);
+  color: #fff;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.points-edit {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.points-edit:hover { opacity: 1; background: var(--border); }
+.section-label {
+  font-family: 'Fraunces', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: var(--text);
+}
+.task-list {
+  list-style: none;
+  margin-bottom: 0.5rem;
+}
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.task-item:last-child { border-bottom: none; }
+.task-item label {
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  user-select: none;
+}
+.task-item input[type="checkbox"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  flex-shrink: 0;
+  position: relative;
+}
+.task-item input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.task-item input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 2px;
+  font-size: 16px;
+  line-height: 1;
+  color: #fff;
+}
+.task-item .task-name {
+  flex: 1;
+}
+.task-item .task-pts {
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.task-item.completed {
+  background: var(--success-bg);
+  border-radius: 6px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.reward-list {
+  list-style: none;
+}
+.reward-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.reward-item:last-child { border-bottom: none; }
+.reward-name {
+  flex: 1;
+}
+.reward-cost {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.reward-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.reward-btn:disabled {
+  background: var(--border);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.reward-btn:not(:disabled):hover {
+  background: var(--accent-light);
+}
+.message {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-top: 1.5rem;
+}
+</style>
+</head>
+<body>
+
+<h1>🧹 家务清单</h1>
+<p class="subhead">做完打勾，攒积分换奖励 🎁</p>
+
+<div class="grid" id="app"></div>
+
+<p class="message" id="infoMsg"></p>
+
+<script>
+// ---------- 默认数据 ----------
+const DEFAULTS = {
+  kids: [
+    {
+      name: '小宇',
+      tasks: [
+        { id: 'mu1', name: '整理床铺', points: 5 },
+        { id: 'mu2', name: '刷牙洗脸', points: 3 },
+        { id: 'mu3', name: '收拾玩具', points: 5 },
+        { id: 'mu4', name: '完成作业', points: 10 },
+        { id: 'mu5', name: '帮忙摆碗筷', points: 4 },
+      ],
+      rewards: [
+        { name: '看动画片 20 分钟', cost: 15 },
+        { name: '吃一颗巧克力', cost: 5 },
+        { name: '去楼下玩 30 分钟', cost: 20 },
+      ]
+    },
+    {
+      name: '小希',
+      tasks: [
+        { id: 'xi1', name: '整理床铺', points: 5 },
+        { id: 'xi2', name: '刷牙洗脸', points: 3 },
+        { id: 'xi3', name: '收拾书桌', points: 5 },
+        { id: 'xi4', name: '读绘本 15 分钟', points: 8 },
+        { id: 'xi5', name: '照顾植物', points: 4 },
+      ],
+      rewards: [
+        { name: '看动画片 20 分钟', cost: 15 },
+        { name: '吃一颗巧克力', cost: 5 },
+        { name: '和姐姐一起玩', cost: 10 },
+      ]
+    }
+  ]
+};
+
+// ---------- 存储 ----------
+const STORAGE_KEY = 'chores_data_v2';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.kids && parsed.completions) return parsed;
+    }
+  } catch (e) { /* ignore */ }
+  // 初始化默认
+  const data = {
+    kids: DEFAULTS.kids.map(k => ({ ...k, points: 0, tasks: k.tasks.map(t => ({...t})), rewards: k.rewards.map(r => ({...r})) })),
+    completions: {}
+  };
+  data.kids.forEach(k => { data.completions[k.name] = {}; });
+  saveData(data);
+  return data;
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ---------- 获取今天日期 ----------
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ---------- 渲染 ----------
+function render() {
+  const data = loadData();
+  const today = todayKey();
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+
+  data.kids.forEach((kid, kidIdx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    // 头部
+    const header = document.createElement('div');
+    header.className = 'card-header';
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = kid.name[0];
+    const nameEl = document.createElement('span');
+    nameEl.className = 'child-name';
+    nameEl.textContent = kid.name;
+
+    const ptsArea = document.createElement('div');
+    ptsArea.className = 'points-area';
+    const ptsBadge = document.createElement('span');
+    ptsBadge.className = 'points-badge';
+    ptsBadge.textContent = `${kid.points} 分`;
+    const editBtn = document.createElement('span');
+    editBtn.className = 'points-edit';
+    editBtn.textContent = '✎';
+    editBtn.title = '点击修改积分（家长用）';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const input = prompt(`修改 ${kid.name} 的积分（直接输入新数值）：`, kid.points);
+      if (input !== null) {
+        const val = parseInt(input, 10);
+        if (!isNaN(val) && val >= 0) {
+          kid.points = val;
+          saveData(data);
+          render();
+        } else {
+          alert('请输入 0 或正整数');
+        }
+      }
+    });
+
+    ptsArea.appendChild(ptsBadge);
+    ptsArea.appendChild(editBtn);
+    header.appendChild(avatar);
+    header.appendChild(nameEl);
+    header.appendChild(ptsArea);
+    card.appendChild(header);
+
+    // 任务列表
+    const taskLabel = document.createElement('div');
+    taskLabel.className = 'section-label';
+    taskLabel.textContent = '📋 今日任务';
+    card.appendChild(taskLabel);
+
+    const taskList = document.createElement('ul');
+    taskList.className = 'task-list';
+
+    const kidCompletions = data.completions[kid.name] || {};
+    const todayCompletions = kidCompletions[today] || {};
+
+    kid.tasks.forEach(task => {
+      const isDone = !!todayCompletions[task.id];
+      const li = document.createElement('li');
+      li.className = 'task-item' + (isDone ? ' completed' : '');
+
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = isDone;
+      cb.addEventListener('change', () => {
+        toggleTask(kid.name, task.id, task.points);
+      });
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'task-name';
+      nameSpan.textContent = task.name;
+      const ptsSpan = document.createElement('span');
+      ptsSpan.className = 'task-pts';
+      ptsSpan.textContent = `+${task.points}分`;
+
+      label.appendChild(cb);
+      label.appendChild(nameSpan);
+      li.appendChild(label);
+      li.appendChild(ptsSpan);
+      taskList.appendChild(li);
+    });
+    card.appendChild(taskList);
+
+    // 奖励列表
+    const rewardLabel = document.createElement('div');
+    rewardLabel.className = 'section-label';
+    rewardLabel.textContent = '🎁 积分兑换';
+    card.appendChild(rewardLabel);
+
+    const rewardList = document.createElement('ul');
+    rewardList.className = 'reward-list';
+
+    kid.rewards.forEach((reward, ridx) => {
+      const li = document.createElement('li');
+      li.className = 'reward-item';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'reward-name';
+      nameSpan.textContent = reward.name;
+      const costSpan = document.createElement('span');
+      costSpan.className = 'reward-cost';
+      costSpan.textContent = `${reward.cost} 分`;
+      const btn = document.createElement('button');
+      btn.className = 'reward-btn';
+      btn.textContent = '兑换';
+      btn.disabled = kid.points < reward.cost;
+      btn.addEventListener('click', () => {
+        if (kid.points >= reward.cost) {
+          if (confirm(`确认用 ${reward.cost} 积分兑换“${reward.name}”吗？`)) {
+            kid.points -= reward.cost;
+            saveData(data);
+            render();
+          }
+        }
+      });
+      li.appendChild(nameSpan);
+      li.appendChild(costSpan);
+      li.appendChild(btn);
+      rewardList.appendChild(li);
+    });
+    card.appendChild(rewardList);
+
+    app.appendChild(card);
+  });
+}
+
+// ---------- 切换任务完成状态 ----------
+function toggleTask(childName, taskId, points) {
+  const data = loadData();
+  const today = todayKey();
+  const kid = data.kids.find(k => k.name === childName);
+  if (!kid) return;
+
+  if (!data.completions[childName]) data.completions[childName] = {};
+  const kidCompletions = data.completions[childName];
+  if (!kidCompletions[today]) kidCompletions[today] = {};
+
+  const done = kidCompletions[today][taskId];
+  if (done) {
+    // 取消完成
+    delete kidCompletions[today][taskId];
+    kid.points = Math.max(0, kid.points - points);
+  } else {
+    kidCompletions[today][taskId] = true;
+    kid.points = (kid.points || 0) + points;
+  }
+
+  // 如果当天没有任务完成，清理空对象（可选）
+  if (Object.keys(kidCompletions[today]).length === 0) {
+    delete kidCompletions[today];
+  }
+
+  saveData(data);
+  render();
+}
+
+// ---------- 自动清理旧数据（按年，保留最近一年） ----------
+function cleanupOldData() {
+  const data = loadData();
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const cutoff = `${oneYearAgo.getFullYear()}-${String(oneYearAgo.getMonth()+1).padStart(2,'0')}-${String(oneYearAgo.getDate()).padStart(2,'0')}`;
+  data.kids.forEach(kid => {
+    const comp = data.completions[kid.name];
+    if (!comp) return;
+    Object.keys(comp).forEach(dateKey => {
+      if (dateKey < cutoff) {
+        delete comp[dateKey];
+      }
+    });
+  });
+  saveData(data);
+}
+
+// ---------- 启动 ----------
+cleanupOldData();
+render();
+
+// 显示状态信息（可选）
+document.getElementById('infoMsg').textContent = '✓ 数据自动保存在本机，关掉也没关系。';
+</script>
+</body>
+</html>

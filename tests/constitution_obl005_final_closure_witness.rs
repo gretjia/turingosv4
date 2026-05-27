@@ -1,13 +1,15 @@
 //! OBL-005 final closure witness.
 //!
 //! Verifies the complete final closure state of OBL-005 (三 Flowchart 全链路覆盖测试集设计与落地).
-//! This gate is the authoritative closure witness for OBL-005. It does not claim OBL-001
-//! is satisfied or that the global project is complete.
+//! This gate is the authoritative closure witness for OBL-005. The OBL-005 witness itself
+//! did not close OBL-001; global completion is validated via the separate completeness witness.
 
 use std::fs;
 
 const OBLIGATIONS_PATH: &str = "OBLIGATIONS.md";
 const WITNESS_PATH: &str = "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-05-27.md";
+const COMPLETENESS_WITNESS_PATH: &str =
+    "handover/audits/OBL001_OBLIGATION_COMPLETENESS_WITNESS_2026-05-27.md";
 const RECONCILIATION_MANIFEST: &str =
     "tests/fixtures/liveness/true_suite_evidence_reconciliation.toml";
 const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liveness.toml";
@@ -42,7 +44,7 @@ fn extract_obl_block(text: &str, obl_id: &str) -> String {
 }
 
 #[test]
-fn obl005_is_satisfied_and_obl001_remains_open() {
+fn obl005_is_satisfied_and_obl001_is_satisfied() {
     let text = read_text(OBLIGATIONS_PATH);
 
     let obl005_block = extract_obl_block(&text, "OBL-005");
@@ -54,8 +56,22 @@ fn obl005_is_satisfied_and_obl001_remains_open() {
 
     let obl001_block = extract_obl_block(&text, "OBL-001");
     assert!(
-        obl001_block.contains("Status: open") || obl001_block.contains("Status: **open**"),
-        "OBL-001 must remain Status: open; found block:\n{obl001_block}"
+        obl001_block.contains("Status: satisfied")
+            || obl001_block.contains("Status: **satisfied**"),
+        "OBL-001 must be Status: satisfied in OBLIGATIONS.md; found block:\n{obl001_block}"
+    );
+
+    assert!(
+        obl001_block.contains("metrics.json"),
+        "OBL-001 evidence must reference final metrics; found block:\n{obl001_block}"
+    );
+    assert!(
+        obl001_block.contains("redaction_audit.json"),
+        "OBL-001 evidence must reference redaction audit; found block:\n{obl001_block}"
+    );
+    assert!(
+        obl001_block.contains("CLEAN_CONTEXT_AUDIT"),
+        "OBL-001 evidence must reference clean-context audit; found block:\n{obl001_block}"
     );
 }
 
@@ -207,26 +223,25 @@ fn dev_only_and_historical_script_groups_do_not_count_for_closure() {
 }
 
 #[test]
-fn global_project_closure_is_not_claimed() {
+fn global_obligation_completion_is_validly_claimed() {
     let text = read_text(OBLIGATIONS_PATH);
     let headline: String = text.lines().take(15).collect::<Vec<_>>().join("\n");
 
     assert!(
-        headline.contains("OBL-001 open"),
-        "OBLIGATIONS.md headline must explicitly state OBL-001 is open; headline:\n{headline}"
+        headline.to_lowercase().contains("complete"),
+        "OBLIGATIONS.md headline must state COMPLETE; headline:\n{headline}"
     );
+
+    let completeness = read_text(COMPLETENESS_WITNESS_PATH);
     assert!(
-        !headline
-            .to_lowercase()
-            .contains("all obligations satisfied")
-            && !headline.to_lowercase().contains("project complete"),
-        "OBLIGATIONS.md headline must not claim global project completion"
+        completeness.contains("OBL-ALL-CLOSED"),
+        "obligation completeness witness must contain OBL-ALL-CLOSED"
     );
 
     let witness_text = read_text(WITNESS_PATH);
     let lower = witness_text.to_lowercase();
     assert!(
         !lower.contains("obl-001 satisfied") && !lower.contains("obl-001: satisfied"),
-        "witness must not claim OBL-001 is satisfied"
+        "OBL-005 witness must not itself claim OBL-001 is satisfied (scoped to OBL-005)"
     );
 }

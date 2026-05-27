@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>闪卡 · 西班牙语单词</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #4e8b7a;
+            --accent-lighter: #6caa99;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --border: #ddd8d0;
+            --card-bg: #ffffff;
+            --radius: 12px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #f0eee8;
+                --muted: #a0a09b;
+                --border: #3a3a3a;
+                --card-bg: #242424;
+                --accent: #6caa99;
+                --shadow: 0 2px 8px rgba(0,0,0,0.4);
+            }
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+        .container {
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 38px;
+            color: var(--accent);
+            margin: 0.8rem 0 0.2rem;
+            letter-spacing: -0.02em;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.8rem;
+        }
+        .btn-group {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+        button, .btn {
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 0.7rem 1.6rem;
+            border: 2px solid var(--accent);
+            border-radius: var(--radius);
+            background: transparent;
+            color: var(--accent);
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+            line-height: 1.3;
+        }
+        button:hover, .btn:hover {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(78,139,122,0.25);
+        }
+        button:focus-visible, .btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        button:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--accent-lighter);
+            border-color: var(--accent-lighter);
+        }
+        input[type="text"] {
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 1rem;
+            padding: 0.6rem 0.9rem;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--card-bg);
+            color: var(--text);
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(78,139,122,0.15);
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+        .form-row {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 120px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--muted);
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .word-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+        .word-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 1rem;
+        }
+        .word-item:last-child { border-bottom: none; }
+        .word-pair {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .word-es {
+            font-weight: 600;
+        }
+        .word-zh {
+            color: var(--muted);
+        }
+        .word-item button {
+            background: none;
+            border: none;
+            color: #c44;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 0.3rem;
+            line-height: 1;
+            border-radius: 4px;
+        }
+        .word-item button:hover {
+            background: rgba(204,68,68,0.1);
+        }
+        .flashcard-area {
+            text-align: center;
+            padding: 2rem 0.5rem;
+        }
+        .flashcard-word {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 2.8rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 0.5rem 0;
+        }
+        .flashcard-translation {
+            font-size: 1.8rem;
+            font-weight: 400;
+            color: var(--text);
+            margin: 0.5rem 0 1.5rem;
+            min-height: 2.5rem;
+            border-bottom: 2px dashed var(--border);
+            padding-bottom: 0.5rem;
+        }
+        .flashcard-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            padding: 2rem 0;
+        }
+        .empty-state p {
+            font-size: 1.1rem;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 1rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .hidden { display: none; }
+        .mt-1 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 1rem; }
+        .text-center { text-align: center; }
+        @media (max-width: 480px) {
+            h1 { font-size: 30px; }
+            .form-row { flex-direction: column; }
+            .form-group { min-width: unset; }
+            .flashcard-word { font-size: 2.2rem; }
+            .flashcard-translation { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>闪卡</h1>
+        <p class="subtitle">西班牙语 · 单词记忆</p>
+
+        <!-- 主菜单 -->
+        <div id="main-menu" class="btn-group">
+            <button id="btn-add" class="btn-primary">➕ 添加新卡片</button>
+            <button id="btn-review" class="btn">🎲 开始复习</button>
+        </div>
+
+        <!-- 添加 / 管理视图 -->
+        <div id="manage-view" class="hidden">
+            <div class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="es-input">西班牙语</label>
+                        <input type="text" id="es-input" placeholder="ej. gato" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="zh-input">中文</label>
+                        <input type="text" id="zh-input" placeholder="猫" autocomplete="off">
+                    </div>
+                    <button id="add-btn" class="btn-primary" style="align-self: flex-end;">添加</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2 style="font-family:'Fraunces',Georgia,serif; font-weight:600; font-size:1.25rem; margin-bottom:0.5rem; color:var(--accent);">单词列表</h2>
+                <ul id="word-list" class="word-list"></ul>
+                <div id="empty-msg" class="empty-state">
+                    <p>还没有单词，开始添加吧 ✏️</p>
+                </div>
+            </div>
+            <button id="back-from-manage" class="back-link">← 返回主菜单</button>
+        </div>
+
+        <!-- 复习视图 -->
+        <div id="review-view" class="hidden">
+            <div class="card">
+                <div class="flashcard-area">
+                    <div id="flashcard-word" class="flashcard-word">—</div>
+                    <div id="flashcard-translation" class="flashcard-translation"></div>
+                    <div class="flashcard-actions">
+                        <button id="reveal-btn">显示答案</button>
+                        <button id="next-btn" class="btn-primary hidden">下一张</button>
+                    </div>
+                </div>
+                <div id="review-empty" class="empty-state hidden">
+                    <p>单词列表是空的，先添加一些卡片吧 📚</p>
+                </div>
+            </div>
+            <button id="back-from-review" class="back-link">← 返回主菜单</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ---------- State ----------
+            const STORAGE_KEY = 'flashcards_es';
+
+            // 单词对象 { es, zh }
+            let cards = [];
+
+            // UI 元素
+            const mainMenu = document.getElementById('main-menu');
+            const manageView = document.getElementById('manage-view');
+            const reviewView = document.getElementById('review-view');
+            const esInput = document.getElementById('es-input');
+            const zhInput = document.getElementById('zh-input');
+            const addBtn = document.getElementById('add-btn');
+            const wordListEl = document.getElementById('word-list');
+            const emptyMsg = document.getElementById('empty-msg');
+            const backFromManage = document.getElementById('back-from-manage');
+            const btnAdd = document.getElementById('btn-add');
+            const btnReview = document.getElementById('btn-review');
+            const flashcardWord = document.getElementById('flashcard-word');
+            const flashcardTranslation = document.getElementById('flashcard-translation');
+            const revealBtn = document.getElementById('reveal-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const reviewEmpty = document.getElementById('review-empty');
+            const backFromReview = document.getElementById('back-from-review');
+
+            // 当前复习状态
+            let currentCard = null;
+            let revealed = false;
+
+            // ---------- Persistence ----------
+            function loadCards() {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    try {
+                        cards = JSON.parse(raw);
+                        // 确保每个对象有 es 和 zh
+                        cards = cards.filter(c => c && typeof c.es === 'string' && typeof c.zh === 'string');
+                    } catch {
+                        cards = [];
+                    }
+                } else {
+                    cards = [];
+                }
+            }
+
+            function saveCards() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+            }
+
+            // ---------- Render ----------
+            function renderWordList() {
+                wordListEl.innerHTML = '';
+                if (cards.length === 0) {
+                    emptyMsg.classList.remove('hidden');
+                    return;
+                }
+                emptyMsg.classList.add('hidden');
+                cards.forEach((card, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'word-item';
+                    li.innerHTML = `
+                        <div class="word-pair">
+                            <span class="word-es">${escapeHtml(card.es)}</span>
+                            <span class="word-zh">${escapeHtml(card.zh)}</span>
+                        </div>
+                        <button data-index="${index}" aria-label="删除" title="删除">✕</button>
+                    `;
+                    wordListEl.appendChild(li);
+                });
+                // 绑定删除事件
+                wordListEl.querySelectorAll('button[data-index]').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const idx = parseInt(this.getAttribute('data-index'), 10);
+                        if (isNaN(idx)) return;
+                        if (confirm(`确定删除「${cards[idx].es} — ${cards[idx].zh}」？`)) {
+                            cards.splice(idx, 1);
+                            saveCards();
+                            renderWordList();
+                        }
+                    });
+                });
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // ---------- View switching ----------
+            function showManageView() {
+                mainMenu.classList.add('hidden');
+                manageView.classList.remove('hidden');
+                reviewView.classList.add('hidden');
+                renderWordList();
+                esInput.focus();
+            }
+
+            function showReviewView() {
+                mainMenu.classList.add('hidden');
+                manageView.classList.add('hidden');
+                reviewView.classList.remove('hidden');
+                startReview();
+            }
+
+            function showMainMenu() {
+                mainMenu.classList.remove('hidden');
+                manageView.classList.add('hidden');
+                reviewView.classList.add('hidden');
+            }
+
+            // ---------- Review logic ----------
+            function startReview() {
+                if (cards.length === 0) {
+                    reviewEmpty.classList.remove('hidden');
+                    flashcardWord.textContent = '—';
+                    flashcardTranslation.textContent = '';
+                    revealBtn.classList.add('hidden');
+                    nextBtn.classList.add('hidden');
+                    return;
+                }
+                reviewEmpty.classList.add('hidden');
+                revealed = false;
+                pickRandomCard();
+                flashcardTranslation.textContent = '';
+                revealBtn.classList.remove('hidden');
+                nextBtn.classList.remove('hidden');
+                // 默认隐藏下一张，显示显示答案
+                nextBtn.classList.add('hidden');
+                revealBtn.classList.remove('hidden');
+            }
+
+            function pickRandomCard() {
+                const idx = Math.floor(Math.random() * cards.length);
+                currentCard = cards[idx];
+                flashcardWord.textContent = currentCard.es;
+            }
+
+            function revealAnswer() {
+                if (!currentCard) return;
+                revealed = true;
+                flashcardTranslation.textContent = currentCard.zh;
+                revealBtn.classList.add('hidden');
+                nextBtn.classList.remove('hidden');
+            }
+
+            function nextCard() {
+                revealed = false;
+                flashcardTranslation.textContent = '';
+                revealBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+                pickRandomCard();
+            }
+
+            // ---------- Event listeners ----------
+            // 添加卡片
+            addBtn.addEventListener('click', function() {
+                const es = esInput.value.trim();
+                const zh = zhInput.value.trim();
+                if (!es || !zh) {
+                    alert('请同时输入西班牙语和中文翻译。');
+                    return;
+                }
+                // 检查重复（可选，但允许重复）
+                cards.push({ es, zh });
+                saveCards();
+                renderWordList();
+                esInput.value = '';
+                zhInput.value = '';
+                esInput.focus();
+            });
+
+            // 回车添加
+            esInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    zhInput.focus();
+                }
+            });
+            zhInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    addBtn.click();
+                }
+            });
+
+            // 主菜单按钮
+            btnAdd.addEventListener('click', showManageView);
+            btnReview.addEventListener('click', showReviewView);
+
+            // 返回
+            backFromManage.addEventListener('click', showMainMenu);
+            backFromReview.addEventListener('click', showMainMenu);
+
+            // 复习按钮
+            revealBtn.addEventListener('click', revealAnswer);
+            nextBtn.addEventListener('click', nextCard);
+
+            // ---------- Bootstrap ----------
+            loadCards();
+            // 初始显示主菜单（没有数据时也是主菜单）
+            showMainMenu();
+            // 如果已有数据，列表不显示，但点击添加会显示
+            // 为了更好的体验，在manageView第一次显示时渲染列表
+            // 但数据已经加载，所以没问题。
+
+        })();
+    </script>
+</body>
+</html>

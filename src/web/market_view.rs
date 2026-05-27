@@ -40,6 +40,7 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::cid_hex::cid_from_hex_str;
+use turingosv4::runtime::predicate_registry_loader;
 use turingosv4::runtime::PinnedPubkeyManifest;
 use turingosv4::state::q_state::{AgentId, EconomicState, QState, TaskId, TaskMarketState, TxId};
 use turingosv4::state::typed_tx::{EventId, TypedTx};
@@ -253,7 +254,7 @@ fn build_market_view(
     // canonical primitive `verify_chaintape` uses.
     let initial_q = read_initial_q_state(&runtime_repo_path)?;
     let pinned = read_pinned_pubkeys(&runtime_repo_path)?;
-    let predicates = crate::runtime::predicate_registry_loader::load_replay_registry();
+    let predicates = predicate_registry_loader::load_replay_registry();
     let tools = ToolRegistry::new();
     let replayed_q: QState = replay_full_transition_with_predicate_binding(
         &initial_q,

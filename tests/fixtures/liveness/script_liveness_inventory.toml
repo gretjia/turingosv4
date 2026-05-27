@@ -201,6 +201,19 @@ covered_by = [
 ]
 
 [[script_group]]
+id = "obl001_deepseek_chrome_e2e_runner"
+classification = "evidence_packaging"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/obl001_deepseek_chrome_e2e.mjs",
+]
+covered_by = [
+  "OBLIGATIONS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
 id = "local_provider_probe_scripts"
 classification = "local_probe"
 status = "dev_only"
