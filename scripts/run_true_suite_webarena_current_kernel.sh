@@ -65,6 +65,7 @@ if [[ -n "${WEBARENA_SAMPLE_JSON:-}" ]]; then
 else
     echo "[dataset] materializing official WebArena task config sample"
     python3 - "$RUN_DIR/input_capsules" "$SAMPLE_JSON" "$WEBARENA_CONFIG_URL" "$WEBARENA_SOURCE_FILE" "$WEBARENA_TASK_INDEX" "${WEBARENA_OBSERVATION_HTML:-}" <<'PY'
+import hashlib
 import json
 import sys
 import urllib.request
@@ -77,17 +78,16 @@ source_file = sys.argv[4]
 task_index = int(sys.argv[5])
 observation_html_path = sys.argv[6]
 
-raw_path = input_dir / "webarena_test_raw.json"
 try:
     with urllib.request.urlopen(config_url, timeout=60) as response:
-        raw_path.write_bytes(response.read())
+        raw_bytes = response.read()
 except Exception as exc:
     raise SystemExit(
         "WebArena public config download failed. Set WEBARENA_SAMPLE_JSON to a "
         f"pre-materialized sample if the network is unavailable. Underlying error: {exc}"
     )
 
-loaded = json.loads(raw_path.read_text(encoding="utf-8"))
+loaded = json.loads(raw_bytes.decode("utf-8"))
 if not isinstance(loaded, list) or not loaded:
     raise SystemExit(f"WebArena config has no task rows: {config_url}")
 row = loaded[task_index % len(loaded)]
@@ -139,6 +139,7 @@ sample = {
     "source_family": "WebArena",
     "public_source": "https://github.com/web-arena-x/webarena/blob/main/config_files/test.raw.json",
     "source_file": source_file,
+    "source_config_sha256": hashlib.sha256(raw_bytes).hexdigest(),
     "task_id": task_id,
     "intent": intent,
     "start_url": start_url,
