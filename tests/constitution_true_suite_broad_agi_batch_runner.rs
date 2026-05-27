@@ -254,6 +254,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_math_competition_current_kernel.sh"));
     assert!(script.contains("run_true_suite_swebench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_webarena_current_kernel.sh"));
+    assert!(script.contains("run_true_suite_osworld_current_kernel.sh"));
     assert!(script.contains("run_true_suite_toolbench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_mind2web_current_kernel.sh"));
     assert!(script.contains("--continue-on-runner-failure"));
@@ -271,6 +272,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("math_competition_reasoning_fresh"));
     assert!(script.contains("swebench_live_coding_repair_fresh"));
     assert!(script.contains("webarena_web_agent_fresh"));
+    assert!(script.contains("osworld_computer_use_fresh"));
     assert!(script.contains("toolbench_api_tool_use_fresh"));
     assert!(script.contains("mind2web_open_web_fresh"));
     assert!(script.contains("memory_feedback_reinit"));
@@ -279,6 +281,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("math_formal_proof"));
     assert!(script.contains("swebench_live_coding_repair"));
     assert!(script.contains("webarena_web_agent"));
+    assert!(script.contains("osworld_computer_use"));
     assert!(script.contains("toolbench_api_tool_use"));
     assert!(script.contains("mind2web_open_web"));
     assert!(script.contains("benchmark_adapter_pending"));
@@ -560,11 +563,9 @@ fn broad_agi_batch_parses_partial_participation_report_content() {
             .get("full_system_missing")
             .and_then(Value::as_array)
             .expect("missing");
-        assert!(
-            missing
-                .iter()
-                .any(|v| { v.as_str() == Some("market_economy_invest_or_visible_abstention") })
-        );
+        assert!(missing
+            .iter()
+            .any(|v| { v.as_str() == Some("market_economy_invest_or_visible_abstention") }));
     }
     assert_eq!(
         aggregate
@@ -634,11 +635,9 @@ fn broad_agi_batch_rejects_claimed_full_report_with_missing_market_row() {
         .get("full_system_missing")
         .and_then(Value::as_array)
         .expect("missing");
-    assert!(
-        missing
-            .iter()
-            .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention"))
-    );
+    assert!(missing
+        .iter()
+        .any(|v| v.as_str() == Some("market_economy_invest_or_visible_abstention")));
 }
 
 #[test]
