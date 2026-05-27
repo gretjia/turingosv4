@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_failure_taxonomy.v1",
+  "run_id": "broad_agi_osworld_20260527T035423Z",
+  "family_id": "osworld_computer_use",
+  "failure_class": "model_task_failure",
+  "rationale_guard_passed": true,
+  "action_match": false,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": true,
+  "infrastructure_failure": false,
+  "sandbox_escape_attempt": false
+}

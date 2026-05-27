@@ -1,0 +1,17 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_task_capsule.v1",
+  "sample_id": "osworld:offline-rename-draft-note",
+  "source_family": "OSWorld",
+  "public_source": "https://arxiv.org/abs/2404.07972",
+  "source_file": "offline_osworld_style_sample.json",
+  "task_id": "offline-rename-draft-note",
+  "instruction": "In the sandboxed desktop, rename /home/oai/share/notes/draft.txt to /home/oai/share/notes/final.txt and report completion.",
+  "environment": "ubuntu_desktop_sandbox",
+  "network_policy": "offline_no_network",
+  "allowed_tools": [
+    "computer_sandbox"
+  ],
+  "snapshot_capsule_cid": "30d01d7e531ca0fcbf1f8a8d991da1cc3891e518b8d2c439a31e3767de5a2fdb",
+  "expected_action_sha256": "f4dd21a0bf2e15cee6f0092295954d3866a3bcafd410f8a70481dd488a2600e1",
+  "expected_final_state_sha256": "6a2e301d8d441b5ebbde479adf0e58c70f87a90e0df60e0d3bbcb74d06cac12c"
+}

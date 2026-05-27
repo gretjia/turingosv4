@@ -88,6 +88,12 @@ families = ["cybench", "security_sandbox", "current_kernel", "full_system_partic
 evidence = ["offline_cybench_style_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
+id = "broad_agi_osworld_20260527T035423Z"
+path = "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z"
+families = ["osworld", "computer_use", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["offline_osworld_style_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
 id = "tdma_full_system_evidence_20260526T160425Z"
 path = "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z"
 families = ["tdma", "proof", "current_kernel", "full_system_participation", "market", "fc3"]
@@ -394,6 +400,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/osworld_computer_use_manifest.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/full_system_participation.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/tamper_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
@@ -455,6 +466,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/governance_capsule_index.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/full_system_participation.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/governance_capsule_index.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/full_system_participation.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
@@ -502,6 +516,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/cybench_security_sandbox_manifest.json",
+  "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/osworld_computer_use_manifest.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
 ]
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]

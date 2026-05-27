@@ -1,0 +1,8 @@
+Offline OSWorld-style sandbox snapshot
+Environment: Ubuntu desktop sandbox, network disabled
+Visible file tree:
+  /home/oai/share/notes/draft.txt
+  /home/oai/share/notes/archive/
+Task-relevant observation:
+  draft.txt contains a short project note ready to be renamed.
+No host filesystem or live desktop side effects are performed by this runner.
