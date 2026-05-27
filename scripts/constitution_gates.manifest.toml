@@ -822,6 +822,11 @@ authority = "OBL-005 cross-run true-suite evidence reconciliation: every fresh r
 added = "2026-05-27"
 
 [[gate]]
+name = "constitution_obligation_repair_reconciliation"
+authority = "OBL-004 repair reconciliation: stale PR-B/PR-C/PR-D/PR-E planned branch placeholders must not remain live blockers once current merged receipts and gates close the underlying constitutional repair surfaces"
+added = "2026-05-27"
+
+[[gate]]
 name = "constitution_script_liveness_inventory"
 authority = "OBL-005 no-zombie script inventory: every retained scripts/ file must be classified exactly once and production true-suite entrypoints must bind to realworld or broad contracts"
 added = "2026-05-27"
