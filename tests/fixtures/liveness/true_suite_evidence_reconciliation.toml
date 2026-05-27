@@ -1,0 +1,116 @@
+schema_version = "turingosv4.true_suite.evidence_reconciliation.v1"
+authority = "constitution.md + immutable true-suite evidence roots"
+reconciliation_status = "FULL_SYSTEM_RECONCILIATION_CANDIDATE"
+final_closure_claimed = false
+rewrites_historical_evidence = false
+required_full_system_schema = "turingosv4.true_suite.full_system_participation.v1"
+notes = [
+  "This manifest reconciles distributed evidence roots after runner PRs were merged.",
+  "It must not rewrite or aggregate into historical evidence directories.",
+  "OBL-005 closure still requires explicit audit/witness after this candidate gate is green.",
+]
+
+[[coverage_task]]
+id = "market_external_agent_fresh"
+evidence_run = "market_external_agent_full_system_20260526T163638Z"
+evidence_subdir = "market_action"
+
+[[coverage_task]]
+id = "market_ab_performance_fresh"
+evidence_run = "market_ab_full_system_evidence_20260526T194445Z"
+evidence_subdir = "market_ab"
+
+[[coverage_task]]
+id = "generate_artifact_chain_fresh"
+evidence_run = "generate_artifact_full_system_20260526T170808Z"
+evidence_subdir = "generate_artifact"
+
+[[coverage_task]]
+id = "swebench_live_coding_repair_fresh"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "swebench"
+
+[[coverage_task]]
+id = "osworld_computer_use_fresh"
+evidence_run = "broad_agi_osworld_20260527T035423Z"
+evidence_subdir = "osworld"
+
+[[coverage_task]]
+id = "cybench_security_sandbox_fresh"
+evidence_run = "broad_agi_cybench_20260527T032017Z"
+evidence_subdir = "cybench"
+
+[[coverage_task]]
+id = "tdma_real_proof_fresh"
+evidence_run = "tdma_full_system_evidence_20260526T160425Z"
+evidence_subdir = "tdma"
+
+[[coverage_task]]
+id = "fc3_governance_reinit_fresh"
+evidence_run = "fc3_full_system_evidence_20260526T174426Z"
+evidence_subdir = "fc3"
+
+[[coverage_task]]
+id = "replay_cas_tamper_repair_current"
+evidence_run = "replay_cas_full_system_evidence_20260526T190754Z"
+evidence_subdir = "replay_cas"
+
+[[coverage_task]]
+id = "boot_cli_current_kernel_fresh"
+evidence_run = "boot_cli_full_system_evidence_20260526T182219Z"
+evidence_subdir = "boot_cli"
+
+[[broad_family]]
+id = "gaia_general_assistant"
+evidence_run = "broad_agi_gaia_20260527T042703Z"
+evidence_subdir = "gaia"
+
+[[broad_family]]
+id = "gpqa_science_reasoning"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "gpqa"
+
+[[broad_family]]
+id = "math_formal_proof"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "math"
+
+[[broad_family]]
+id = "swebench_live_coding_repair"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "swebench"
+
+[[broad_family]]
+id = "webarena_web_agent"
+evidence_run = "broad_agi_webarena_20260527T053225Z"
+evidence_subdir = "webarena"
+
+[[broad_family]]
+id = "mind2web_open_web"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "mind2web"
+
+[[broad_family]]
+id = "osworld_computer_use"
+evidence_run = "broad_agi_osworld_20260527T035423Z"
+evidence_subdir = "osworld"
+
+[[broad_family]]
+id = "toolbench_api_tool_use"
+evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_subdir = "toolbench"
+
+[[broad_family]]
+id = "cybench_security_sandbox"
+evidence_run = "broad_agi_cybench_20260527T032017Z"
+evidence_subdir = "cybench"
+
+[[broad_family]]
+id = "market_economy_polymarket"
+evidence_run = "market_external_agent_full_system_20260526T163638Z"
+evidence_subdir = "market_action"
+
+[[broad_family]]
+id = "memory_feedback_reinit"
+evidence_run = "fc3_full_system_evidence_20260526T174426Z"
+evidence_subdir = "fc3"
