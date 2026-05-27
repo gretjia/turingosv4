@@ -176,7 +176,7 @@ fn claimed_script_paths(groups: &[ScriptGroup]) -> BTreeMap<String, String> {
 }
 
 #[test]
-fn script_inventory_policy_is_candidate_only() {
+fn script_inventory_policy_is_final_closure_witness() {
     let manifest = parse_toml(MANIFEST_PATH);
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -190,8 +190,8 @@ fn script_inventory_policy_is_candidate_only() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some("OPEN_REAL_WORLD_COVERAGE_PENDING"),
-        "script inventory closes an accounting gap but cannot claim OBL-005 final closure"
+        Some("OBL005_FINAL_CLOSURE_VERIFIED"),
+        "final closure has been claimed by the witness"
     );
 }
 

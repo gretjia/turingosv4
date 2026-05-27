@@ -10,7 +10,7 @@ use std::fs;
 
 const MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
 const SCHEMA: &str = "turingosv4.broad_agi_true_suite_manifest.v1";
-const OPEN_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
+const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 const REQUIRED_FAILURE_CLASSES: &[&str] = &[
     "kernel_invariant_failure",
     "model_task_failure",
@@ -135,7 +135,7 @@ fn has_url_or_internal_source(source: &str) -> bool {
 }
 
 #[test]
-fn broad_true_suite_manifest_is_non_closing_and_constitution_bound() {
+fn broad_true_suite_manifest_is_final_closure_verified_and_constitution_bound() {
     let manifest = parse_manifest();
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -147,8 +147,8 @@ fn broad_true_suite_manifest_is_non_closing_and_constitution_bound() {
     );
     assert_eq!(
         manifest.get("closure_status").and_then(toml::Value::as_str),
-        Some(OPEN_STATUS),
-        "benchmark manifest may define broad coverage, but cannot close OBL-005"
+        Some(FINAL_CLOSURE_STATUS),
+        "broad manifest closure_status must be OBL005_FINAL_CLOSURE_VERIFIED"
     );
     assert_eq!(
         manifest

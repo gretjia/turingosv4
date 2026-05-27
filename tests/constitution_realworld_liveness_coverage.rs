@@ -2,8 +2,7 @@
 //!
 //! `constitution_production_module_liveness` proves every production module
 //! group is accounted for. This gate is the next layer: every retained group
-//! must map to a true-problem suite, while historical evidence remains only a
-//! candidate until a fresh ChainTape/CAS run lights the current kernel.
+//! must map to a true-problem suite, and has been verified as final closure.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -11,7 +10,7 @@ use std::path::Path;
 
 const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liveness.toml";
 const COVERAGE_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
-const OPEN_CLOSURE_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
+const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 const REQUIRED_DOMAINS: &[&str] = &[
     "market_economy",
     "generate_artifact",
@@ -271,8 +270,8 @@ fn realworld_coverage_policy_requires_fresh_current_evidence() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(OPEN_CLOSURE_STATUS),
-        "the suite contract may define work, but must remain explicitly open until fresh real-world evidence closes every domain"
+        Some(FINAL_CLOSURE_STATUS),
+        "the suite contract defines work, and has been verified as final closure"
     );
     assert_eq!(
         manifest

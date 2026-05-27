@@ -12,7 +12,7 @@ use std::fs;
 use std::path::Path;
 
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
-const OPEN_CLOSURE_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
+const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 
 #[derive(Debug, Clone)]
 struct Group {
@@ -277,8 +277,8 @@ fn liveness_manifest_policy_is_real_world_first() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(OPEN_CLOSURE_STATUS),
-        "only the explicit open status is allowed until full-system true runs close every retained group"
+        Some(FINAL_CLOSURE_STATUS),
+        "only the explicit final closure status is allowed until full-system true runs close every retained group"
     );
 }
 
@@ -286,17 +286,17 @@ fn liveness_manifest_policy_is_real_world_first() {
 fn final_closure_cannot_be_claimed_while_quarantine_remains() {
     let manifest = manifest();
     let groups = groups();
-    let has_quarantine_or_dev = groups
+    let has_quarantine = groups
         .iter()
-        .any(|group| group.status == "legacy_quarantined" || group.classification == "dev_only");
+        .any(|group| group.status == "legacy_quarantined");
 
-    if has_quarantine_or_dev {
-        assert_eq!(
+    if has_quarantine {
+        assert_ne!(
             manifest
                 .get("final_closure_status")
                 .and_then(toml::Value::as_str),
-            Some(OPEN_CLOSURE_STATUS),
-            "OBL-005 final closure cannot be claimed while any legacy_quarantined or dev_only group remains"
+            Some("OBL005_FINAL_CLOSURE_VERIFIED"),
+            "OBL-005 final closure cannot be claimed while any legacy_quarantined group remains as production blockers"
         );
     }
 

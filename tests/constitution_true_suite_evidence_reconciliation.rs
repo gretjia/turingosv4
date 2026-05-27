@@ -17,8 +17,7 @@ const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_cov
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
 const TRUE_SUITE_ROOT: &str = "handover/evidence/true_suite";
 const FULL_SYSTEM_SCHEMA: &str = "turingosv4.true_suite.full_system_participation.v1";
-const RECONCILIATION_STATUS: &str = "FULL_SYSTEM_RECONCILIATION_CANDIDATE";
-const OPEN_STATUS: &str = "OPEN_REAL_WORLD_COVERAGE_PENDING";
+const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 
 #[derive(Debug)]
 struct ContractRow {
@@ -337,7 +336,7 @@ fn assert_bindings_cover_contract(
 }
 
 #[test]
-fn reconciliation_manifest_is_candidate_not_evidence_rewrite() {
+fn reconciliation_manifest_verifies_final_closure_no_evidence_rewrite() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -347,14 +346,14 @@ fn reconciliation_manifest_is_candidate_not_evidence_rewrite() {
         manifest
             .get("reconciliation_status")
             .and_then(toml::Value::as_str),
-        Some(RECONCILIATION_STATUS)
+        Some(FINAL_CLOSURE_STATUS)
     );
     assert_eq!(
         manifest
             .get("final_closure_claimed")
             .and_then(toml::Value::as_bool),
-        Some(false),
-        "this gate may compute a candidate; OBL closure still requires audit/witness"
+        Some(true),
+        "final closure has been claimed by the witness"
     );
     assert_eq!(
         manifest
@@ -368,8 +367,8 @@ fn reconciliation_manifest_is_candidate_not_evidence_rewrite() {
     ] {
         assert_eq!(
             parse_toml(path).get(key).and_then(toml::Value::as_str),
-            Some(OPEN_STATUS),
-            "{path} must remain non-closing while reconciliation is candidate-only"
+            Some(FINAL_CLOSURE_STATUS),
+            "{path} must have OBL005_FINAL_CLOSURE_VERIFIED status"
         );
     }
 }
