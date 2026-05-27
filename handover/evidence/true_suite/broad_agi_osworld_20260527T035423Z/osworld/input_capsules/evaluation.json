@@ -1,0 +1,16 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_evaluation_capsule.v1",
+  "sample_id": "osworld:offline-rename-draft-note",
+  "task_capsule_cid": "b77a8da5343f02fac009f10849dfb1b686f5622f2ce74ecb79d8ddc59512646c",
+  "snapshot_capsule_cid": "30d01d7e531ca0fcbf1f8a8d991da1cc3891e518b8d2c439a31e3767de5a2fdb",
+  "answer_claim_capsule_cid": "85d7c9f7f8e3ecbc179d1860df2c6835a1923ce338b91c86a66d43a1af0b22b0",
+  "sandbox_action_trace_cid": "36b6c588827393d9f4753c2715ab091873403f574c4d01ef49ef1a8efd143dd8",
+  "expected_action_sha256": "f4dd21a0bf2e15cee6f0092295954d3866a3bcafd410f8a70481dd488a2600e1",
+  "expected_final_state_sha256": "6a2e301d8d441b5ebbde479adf0e58c70f87a90e0df60e0d3bbcb74d06cac12c",
+  "predicted_action": "Execute 'mv /home/oai/share/notes/draft.txt /home/oai/share/notes/final.txt' in the terminal.",
+  "predicted_final_answer": "Renamed /home/oai/share/notes/draft.txt to /home/oai/share/notes/final.txt.",
+  "rationale_guard_passed": true,
+  "action_match": false,
+  "benchmark_verdict": "sandbox_action_mismatch",
+  "failure_class": "model_task_failure"
+}

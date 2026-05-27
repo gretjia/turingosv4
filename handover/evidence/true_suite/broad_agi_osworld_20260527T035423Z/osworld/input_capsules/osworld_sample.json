@@ -1,0 +1,17 @@
+{
+  "allowed_tools": [
+    "computer_sandbox"
+  ],
+  "environment": "ubuntu_desktop_sandbox",
+  "expected_action": "rename /home/oai/share/notes/draft.txt to /home/oai/share/notes/final.txt",
+  "expected_final_state": "/home/oai/share/notes/final.txt exists and /home/oai/share/notes/draft.txt is absent",
+  "instruction": "In the sandboxed desktop, rename /home/oai/share/notes/draft.txt to /home/oai/share/notes/final.txt and report completion.",
+  "network_policy": "offline_no_network",
+  "public_source": "https://arxiv.org/abs/2404.07972",
+  "sample_id": "osworld:offline-rename-draft-note",
+  "sandbox_snapshot_text": "Offline OSWorld-style sandbox snapshot\nEnvironment: Ubuntu desktop sandbox, network disabled\nVisible file tree:\n  /home/oai/share/notes/draft.txt\n  /home/oai/share/notes/archive/\nTask-relevant observation:\n  draft.txt contains a short project note ready to be renamed.\nNo host filesystem or live desktop side effects are performed by this runner.",
+  "schema_version": "turingosv4.true_suite.osworld_sample.v1",
+  "source_family": "OSWorld",
+  "source_file": "offline_osworld_style_sample.json",
+  "task_id": "offline-rename-draft-note"
+}

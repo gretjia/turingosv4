@@ -1,0 +1,21 @@
+{
+  "l4_entries": 16,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "broad_agi_osworld_20260527T035423Z",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "bfb09f373c6f1d7017512bd122fbe472060abafdd45e6499a657f7396a38e421",
+    "final_ledger_root_hex": "ec282d7df427890dc7d8f45776da184a5c0909c5b388f72c8e29bca03010c489",
+    "head_commit_oid_hex": "8d653cb9bac096eff8e2486625a833a0bb7718fb",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
