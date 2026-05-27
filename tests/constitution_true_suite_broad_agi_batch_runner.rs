@@ -247,6 +247,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_replay_cas_tamper_current_kernel.sh"));
     assert!(script.contains("run_true_suite_market_external_agent.sh"));
     assert!(script.contains("run_true_suite_generate_artifact_current_kernel.sh"));
+    assert!(script.contains("run_true_suite_gaia_general_assistant_current_kernel.sh"));
     assert!(script.contains("run_true_suite_tdma_current_kernel.sh"));
     assert!(script.contains("run_true_suite_fc3_governance_reinit_current_kernel.sh"));
     assert!(script.contains("run_true_suite_gpqa_science_reasoning_current_kernel.sh"));
@@ -264,12 +265,14 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("mode in {\"execute-installed\", \"aggregate-existing\"}"));
     assert!(script.contains("evidence_package_manifest"));
     assert!(script.contains("fc3_governance_reinit_fresh"));
+    assert!(script.contains("gaia_general_assistant_fresh"));
     assert!(script.contains("gpqa_science_reasoning_fresh"));
     assert!(script.contains("math_competition_reasoning_fresh"));
     assert!(script.contains("swebench_live_coding_repair_fresh"));
     assert!(script.contains("toolbench_api_tool_use_fresh"));
     assert!(script.contains("mind2web_open_web_fresh"));
     assert!(script.contains("memory_feedback_reinit"));
+    assert!(script.contains("gaia_general_assistant"));
     assert!(script.contains("gpqa_science_reasoning"));
     assert!(script.contains("math_formal_proof"));
     assert!(script.contains("swebench_live_coding_repair"));

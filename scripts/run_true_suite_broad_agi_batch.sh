@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="plan-only"
 RUN_ID="broad_agi_batch_$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_ROOT=""
-SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,math_competition_reasoning_fresh,swebench_live_coding_repair_fresh,toolbench_api_tool_use_fresh,mind2web_open_web_fresh}"
+SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,gaia_general_assistant_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,math_competition_reasoning_fresh,swebench_live_coding_repair_fresh,toolbench_api_tool_use_fresh,mind2web_open_web_fresh}"
 CONTINUE_ON_RUNNER_FAILURE=0
 
 while [[ $# -gt 0 ]]; do
@@ -76,6 +76,9 @@ run_selected_runner() {
             ;;
         generate_artifact_chain_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_generate_artifact_current_kernel.sh" "$RUN_ID"
+            ;;
+        gaia_general_assistant_fresh)
+            "$PROJECT_ROOT/scripts/run_true_suite_gaia_general_assistant_current_kernel.sh" "$RUN_ID"
             ;;
         tdma_real_proof_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_tdma_current_kernel.sh" "$RUN_ID"
@@ -236,6 +239,10 @@ installed = {
         "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
         "family_ids": ["gaia_general_assistant"],
     },
+    "gaia_general_assistant_fresh": {
+        "entrypoint": "scripts/run_true_suite_gaia_general_assistant_current_kernel.sh",
+        "family_ids": ["gaia_general_assistant"],
+    },
     "tdma_real_proof_fresh": {
         "entrypoint": "scripts/run_true_suite_tdma_current_kernel.sh",
         "family_ids": ["math_formal_proof"],
@@ -270,7 +277,7 @@ family_runner_status = {
     "market_economy_polymarket": "domain_runner_installed_evidence_required",
     "math_formal_proof": "domain_runner_installed_evidence_required",
     "swebench_live_coding_repair": "domain_runner_installed_evidence_required",
-    "gaia_general_assistant": "substrate_runner_installed_benchmark_adapter_pending",
+    "gaia_general_assistant": "domain_runner_installed_evidence_required",
     "gpqa_science_reasoning": "domain_runner_installed_evidence_required",
     "memory_feedback_reinit": "domain_runner_installed_evidence_required",
     "toolbench_api_tool_use": "domain_runner_installed_evidence_required",
