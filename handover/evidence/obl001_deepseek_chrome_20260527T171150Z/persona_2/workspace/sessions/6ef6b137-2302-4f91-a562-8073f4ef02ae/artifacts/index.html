@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>厨房换算</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #4e8b7a;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --card-bg: #ffffff;
+            --input-bg: #ffffff;
+            --border: #d9d5ce;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #f0eee8;
+                --muted: #9c9a94;
+                --card-bg: #2a2a28;
+                --input-bg: #2a2a28;
+                --border: #4a4844;
+                --accent: #5fad99;
+            }
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            margin: 0;
+        }
+        .app {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 24px 20px 32px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+        }
+        h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 36px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+        .mode-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+        .mode-toggle button {
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--input-bg);
+            color: var(--text);
+            border: 2px solid var(--border);
+            border-radius: 40px;
+            padding: 8px 24px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .mode-toggle button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .mode-toggle button:active {
+            transform: scale(0.96);
+        }
+        .convert-section {
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .convert-section.active {
+            display: flex;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--input-bg);
+            border: 2px solid var(--border);
+            border-radius: 14px;
+            padding: 4px 16px;
+            transition: border-color 0.2s;
+        }
+        .input-group:focus-within {
+            border-color: var(--accent);
+        }
+        .input-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted);
+            white-space: nowrap;
+            min-width: 32px;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+        }
+        .input-group input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text);
+            padding: 12px 0;
+            min-width: 0;
+            outline: none;
+        }
+        .input-group input::placeholder {
+            color: var(--muted);
+            font-weight: 400;
+            opacity: 0.6;
+        }
+        .clear-btn {
+            display: block;
+            margin: 20px auto 0;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 40px;
+            transition: background 0.15s, color 0.15s;
+            touch-action: manipulation;
+        }
+        .clear-btn:hover,
+        .clear-btn:focus-visible {
+            background: var(--border);
+            color: var(--text);
+        }
+        .clear-btn:active {
+            transform: scale(0.92);
+        }
+        .clear-btn:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        .footer-note {
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 16px;
+            opacity: 0.5;
+        }
+        /* 移动端输入优化 */
+        input[type="text"] {
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+        @media (max-width: 420px) {
+            .app { padding: 20px 16px 28px; }
+            h1 { font-size: 32px; }
+            .input-group input { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app" role="main">
+        <h1>厨房换算</h1>
+
+        <div class="mode-toggle">
+            <button id="toggleBtn" aria-label="切换换算模式">温度转换</button>
+        </div>
+
+        <!-- 重量换算部分 (默认) -->
+        <div id="weightSection" class="convert-section active">
+            <div class="input-group">
+                <label for="grams">克</label>
+                <input type="text" id="grams" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done">
+            </div>
+            <div class="input-group">
+                <label for="ounces">盎司</label>
+                <input type="text" id="ounces" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done">
+            </div>
+        </div>
+
+        <!-- 温度换算部分 -->
+        <div id="tempSection" class="convert-section">
+            <div class="input-group">
+                <label for="celsius">°C</label>
+                <input type="text" id="celsius" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done">
+            </div>
+            <div class="input-group">
+                <label for="fahrenheit">°F</label>
+                <input type="text" id="fahrenheit" inputmode="decimal" placeholder="0" autocomplete="off" enterkeyhint="done">
+            </div>
+        </div>
+
+        <button class="clear-btn" id="clearBtn" aria-label="清空所有输入">✕ 清除</button>
+        <div class="footer-note">默认显示克 → 盎司</div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // DOM 元素
+            const toggleBtn = document.getElementById('toggleBtn');
+            const weightSection = document.getElementById('weightSection');
+            const tempSection   = document.getElementById('tempSection');
+            const gramsInput    = document.getElementById('grams');
+            const ouncesInput   = document.getElementById('ounces');
+            const celsiusInput  = document.getElementById('celsius');
+            const fahrenheitInput = document.getElementById('fahrenheit');
+            const clearBtn      = document.getElementById('clearBtn');
+
+            // 当前模式: 'weight' | 'temp'，默认 weight
+            let currentMode = 'weight';
+
+            // ----- 输入过滤：只允许数字、小数点、负号（实际上不需要负号但保留）----
+            function sanitizeInput(value) {
+                // 允许数字、小数点、负号（仅首位）
+                return value.replace(/[^0-9.\-]/g, '');
+            }
+
+            // ----- 重量换算 -----
+            const GRAMS_PER_OUNCE = 28.349523125;
+
+            function gramsToOunces(g) { return g / GRAMS_PER_OUNCE; }
+            function ouncesToGrams(oz) { return oz * GRAMS_PER_OUNCE; }
+
+            // ----- 温度换算 -----
+            function celsiusToFahrenheit(c) { return c * 9/5 + 32; }
+            function fahrenheitToCelsius(f) { return (f - 32) * 5/9; }
+
+            // ----- 格式化显示（保留 3 位小数，去掉多余的 0）-----
+            function formatNumber(num) {
+                if (isNaN(num) || !isFinite(num)) return '';
+                // 保留 5 位有效数字，最多 4 位小数
+                let s = num.toPrecision(5);
+                // 如果包含 'e' 则用固定小数
+                if (s.includes('e')) {
+                    s = num.toFixed(4);
+                }
+                // 去掉末尾多余的 0 和小数点
+                s = s.replace(/\.?0+$/, '');
+                return s;
+            }
+
+            // 安全解析
+            function parseInput(value) {
+                const cleaned = sanitizeInput(value);
+                if (cleaned === '' || cleaned === '-' || cleaned === '.') return NaN;
+                const num = parseFloat(cleaned);
+                return isNaN(num) ? NaN : num;
+            }
+
+            // ----- 转换更新（自动双向）-----
+            let updating = false; // 防止循环
+
+            function updateWeight(source) {
+                if (updating) return;
+                updating = true;
+
+                const gramsVal = parseInput(gramsInput.value);
+                const ouncesVal = parseInput(ouncesInput.value);
+
+                if (source === 'grams' && !isNaN(gramsVal)) {
+                    const oz = gramsToOunces(gramsVal);
+                    ouncesInput.value = formatNumber(oz);
+                } else if (source === 'ounces' && !isNaN(ouncesVal)) {
+                    const g = ouncesToGrams(ouncesVal);
+                    gramsInput.value = formatNumber(g);
+                } else if (source === null) {
+                    // clear 或初始化时不做转换
+                }
+
+                updating = false;
+            }
+
+            function updateTemp(source) {
+                if (updating) return;
+                updating = true;
+
+                const cVal = parseInput(celsiusInput.value);
+                const fVal = parseInput(fahrenheitInput.value);
+
+                if (source === 'celsius' && !isNaN(cVal)) {
+                    const f = celsiusToFahrenheit(cVal);
+                    fahrenheitInput.value = formatNumber(f);
+                } else if (source === 'fahrenheit' && !isNaN(fVal)) {
+                    const c = fahrenheitToCelsius(fVal);
+                    celsiusInput.value = formatNumber(c);
+                }
+
+                updating = false;
+            }
+
+            // ----- 输入事件处理 -----
+            function onWeightInput(e) {
+                const target = e.target;
+                // 先清理非法字符
+                target.value = sanitizeInput(target.value);
+                const id = target.id;
+                if (id === 'grams' || id === 'ounces') {
+                    updateWeight(id);
+                }
+            }
+
+            function onTempInput(e) {
+                const target = e.target;
+                target.value = sanitizeInput(target.value);
+                const id = target.id;
+                if (id === 'celsius' || id === 'fahrenheit') {
+                    updateTemp(id);
+                }
+            }
+
+            // ----- 切换模式 -----
+            function setMode(mode) {
+                currentMode = mode;
+                if (mode === 'weight') {
+                    weightSection.classList.add('active');
+                    tempSection.classList.remove('active');
+                    toggleBtn.textContent = '温度转换';
+                    // 清空温度输入
+                    celsiusInput.value = '';
+                    fahrenheitInput.value = '';
+                } else {
+                    weightSection.classList.remove('active');
+                    tempSection.classList.add('active');
+                    toggleBtn.textContent = '重量转换';
+                    // 清空重量输入
+                    gramsInput.value = '';
+                    ouncesInput.value = '';
+                }
+            }
+
+            toggleBtn.addEventListener('click', function() {
+                if (currentMode === 'weight') {
+                    setMode('temp');
+                } else {
+                    setMode('weight');
+                }
+            });
+
+            // ----- 清除逻辑 -----
+            function clearAll() {
+                gramsInput.value = '';
+                ouncesInput.value = '';
+                celsiusInput.value = '';
+                fahrenheitInput.value = '';
+                // 没有弹窗，直接清空
+            }
+
+            clearBtn.addEventListener('click', clearAll);
+
+            // 键盘 Enter 也可以触发清除？不需要，仅按钮。
+
+            // ----- 事件绑定 -----
+            gramsInput.addEventListener('input', onWeightInput);
+            ouncesInput.addEventListener('input', onWeightInput);
+            celsiusInput.addEventListener('input', onTempInput);
+            fahrenheitInput.addEventListener('input', onTempInput);
+
+            // 阻止输入框的 keydown 导致提交等
+            document.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault(); // 防止可能表单提交
+                        // 可选让焦点跳下一个，但这里不需要
+                    }
+                });
+            });
+
+            // ----- 启动时显示默认：克转盎司，清空所有 -----
+            // specs: 下次打开App，界面最顶上还是显示克转盎司
+            // 我们已经默认 weight 激活，且输入为空，显示 placeholder 0
+            // 不需要保存任何上次选择。
+
+            // 额外：为了体验，如果用户曾经在本次会话中切换过模式，再次打开页面后重置为重量。
+            // 所以无需 localStorage。
+            // 但根据对话中的 "最好能保存最后用的那对单位" 其实是指同一会话内或未来版本，
+            // 我们不做持久化以保持简单。
+
+            // 启动时刻意外处理：如果浏览器自动填充，我们需要让输入合法
+            // 手动触发一次初始清理
+            clearAll();
+
+            // 顺便防浏览器保存密码样式
+            console.log('厨房换算已启动');
+        })();
+    </script>
+</body>
+</html>

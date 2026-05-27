@@ -11,55 +11,67 @@
 
 ## Current Snapshot (2026-05-27)
 
-**Session**: OBL-005 no-zombie/no-drift closure remains in progress.
+**Session**: OBL-001 DeepSeek Chrome E2E closure is verified and ready for PR publication.
 
-**Main tip**: `145366c9` (PR #190 — design-system liveness accounting guard).
+**Main tip**: `03645403` (PR #205 — OBL-005 final closure witness).
 
 Current state:
 
-- Open PRs: none. PR #137 (`codex/design-system-warm-ember`) was closed as
-  stale against current OBL-005 gates because it added `design-system/`
-  retained code without `design_system_product_surface` liveness accounting.
-  A fresh/reopened design-system PR must rebase on current `main` and classify
-  that surface as either `product_workload` with smoke + real product-path
-  evidence or `dev_only` with an explicit exclusion rationale.
-- OBL-005 gates are active. `tests/constitution_production_module_liveness.rs`
-  now accounts for Rust modules, frontend product code, and future
-  `design-system/` additions. `tests/constitution_realworld_liveness_coverage.rs`
-  still requires current-kernel real-world ChainTape/CAS evidence before final
-  closure.
-- Current branch `codex/obl005-wal-sdktool-closure` implements the ratified
-  Class 4 WAL/SDK closure after user phrase
-  `APPROVED-CLASS4-TRUSTROOT-WAL-CLOSURE`: `src/wal.rs` and
-  `tests/wal_resume.rs` are deleted; `pub mod wal`, `TuringBus::with_wal_path`,
-  the bus WAL field/writes, legacy f64 `ToolSignal::{YieldReward, InvestOnly}`,
-  and `BetDirection` are removed; the liveness manifest rejects
-  `legacy_wal_and_sdk_tool_surfaces` reintroduction; and
-  `genesis_payload.toml` removes the retired WAL trust-root entry while
-  rehashing surviving pinned files.
-- Clean-context Class 4 audit is saved at
-  `handover/audits/OBL005_WAL_SDKTOOL_CLOSURE_CLEAN_CONTEXT_AUDIT_2026-05-27.md`
-  and returned `NO-VIOLATION`.
-- Required next action: PR-only publication. OBL-005 is still in progress until
-  the PR merges; this branch only removes the current WAL/SDK no-zombie blocker.
+- Current branch `codex/obl001-deepseek-chrome-e2e` closes OBL-001 with a real
+  Chrome E2E runner, final evidence, and audit. The runner lives at
+  `scripts/obl001_deepseek_chrome_e2e.mjs` and is classified as dev-only
+  evidence tooling in `tests/fixtures/liveness/script_liveness_inventory.toml`.
+- Final evidence root:
+  `handover/evidence/obl001_deepseek_chrome_20260527T171150Z/`. `metrics.json`
+  records `ok=true`, `status=complete`, `Completed 15/15 personas`, 18 attempted
+  personas, and 15 completed personas. Per-persona transcripts/screenshots,
+  redacted configs, workspaces, ChainTape/L4 refs, and CAS artifacts are under
+  the same root.
+- Secret hygiene is clean for the final run: `redaction_audit.json` has
+  `secrets_found=false` and `findings=[]`; an independent `rg` scan for
+  `hf_...`/`sk-...` patterns over the final evidence and runner script returned
+  no matches.
+- Clean-context audit artifact:
+  `handover/audits/OBL001_DEEPSEEK_CHROME_E2E_CLEAN_CONTEXT_AUDIT_2026-05-27.md`
+  returned `NO-VIOLATION`. Auxiliary AGY evidence retry also found no blocker.
+- `OBLIGATIONS.md` now marks OBL-001 as `satisfied`; OBL-002 through OBL-005
+  are already satisfied.
+- The stale OBL-004 reconciliation gate was updated to accept the new global
+  `COMPLETE` ledger headline while retaining the OBL-004 section, audit, stale
+  placeholder, and merged-PR receipt checks.
+- Required next action: create the PR from
+  `codex/obl001-deepseek-chrome-e2e`, wait for/inspect checks, then merge if
+  gates stay green.
 
 Recent verification:
 
 ```text
-cargo test --test constitution_production_module_liveness -- --nocapture
-# 11 passed
+rustfmt --edition 2021 --check src/bin/turingos/cmd_generate.rs src/web/generate.rs src/web/spec.rs src/web/welcome.rs src/web/market_view.rs tests/constitution_obl005_final_closure_witness.rs tests/constitution_obligation_repair_reconciliation.rs
+# exit 0
 
-cargo test --test constitution_realworld_liveness_coverage -- --nocapture
-# 4 passed
+node --check scripts/obl001_deepseek_chrome_e2e.mjs
+# exit 0
 
+git diff --check
+# exit 0
+
+cargo check --features web --bin turingos --bin turingos_web
+# exit 0
+
+cargo test --features web --bin turingos blackbox_system_prompt_contains_tdma_state_update_contract
+cargo test --features web --bin turingos blackbox_system_prompt_tdma_example_matches_parser_schema
+cargo test --features web --bin turingos_web web_subprocess_timeout_is_at_least_1800_secs
+cargo test --features web --bin turingos_web accepted_turns_force_synthesis_above_threshold
+cargo test --features web --test cli_web_generate_smoke web_generate_args_include_entrypoint_index_html
+cargo test --features web --test cli_web_welcome_smoke welcome_init
+cargo test --test constitution_obligation_repair_reconciliation -- --nocapture
+cargo test --test constitution_obl005_final_closure_witness -- --nocapture
 cargo test --test constitution_matrix_drift
-# 3 passed
+cargo test --test constitution_script_liveness_inventory -- --nocapture
+# all exit 0
 
 bash scripts/run_constitution_gates.sh
-# [k-1-5] total=157 failed=0
-
-cargo test --workspace --no-fail-fast
-# passed
+# [k-1-5] total=165 failed=0
 ```
 
 ## Previous Snapshot

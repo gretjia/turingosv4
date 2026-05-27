@@ -1232,11 +1232,15 @@ pub(crate) async fn spec_turn_handler(
         .get("confidence")
         .and_then(|x| x.as_f64())
         .unwrap_or(0.0);
-    let done = envelope
+    let llm_done = envelope
         .get("done")
         .and_then(|x| x.as_bool())
         .unwrap_or(false);
-    let playback = if done {
+    let force_synthesis =
+        should_force_synthesis(new_turn_index, ACCEPTED_TURNS_FORCE_SYNTHESIS_THRESHOLD);
+    let done = llm_done || force_synthesis;
+    // Preserve playback only for llm_done; forced synthesis has no playback.
+    let playback = if llm_done {
         envelope.get("playback").cloned()
     } else {
         None
@@ -1515,6 +1519,8 @@ pub(crate) async fn spec_turn_handler(
             final_spec_capsule_cid: final_spec_capsule_cid_hex.clone(),
             termination_reason: if final_spec_capsule_cid_hex.is_empty() {
                 "predicate_done_synth_failed".to_string()
+            } else if force_synthesis {
+                "accepted_turns_ceiling_forced_synthesis".to_string()
             } else {
                 "llm_done_predicate_pass".to_string()
             },
@@ -1539,6 +1545,8 @@ pub(crate) async fn spec_turn_handler(
             // Synthesis fired but CAS write failed — surface that distinctly
             // rather than the pre-A6 "_pending_synthesis" placeholder.
             "predicate_done_synth_failed".to_string()
+        } else if force_synthesis {
+            "accepted_turns_ceiling_forced_synthesis".to_string()
         } else {
             "llm_done_predicate_pass".to_string()
         });
@@ -1729,6 +1737,32 @@ fn build_web_turn_prompt_json(
     }));
 
     serde_json::json!({ "messages": messages }).to_string()
+}
+
+// ---------------------------------------------------------------------------
+// Accepted-turns force-synthesis decision (OBL001 fallback)
+// ---------------------------------------------------------------------------
+
+/// Default accepted-Meta-turn threshold above which synthesis is forced even
+/// when the LLM has not set `done=true`.
+///
+/// Rationale: persona_1 reached 13 accepted turns in OBL001 without the LLM
+/// emitting `done=true`; the session timed out. Forcing synthesis at 10 gives
+/// the user a spec while leaving enough turns for the LLM to converge naturally.
+#[cfg(feature = "web")]
+const ACCEPTED_TURNS_FORCE_SYNTHESIS_THRESHOLD: u32 = 10;
+
+/// Returns `true` when `meta_turns_accepted >= threshold`, meaning the web
+/// handler should force synthesis/termination rather than shell out to the
+/// Meta LLM for another turn.
+///
+/// Threshold is a parameter (not hard-coded) so unit tests can verify the
+/// boundary condition without depending on the production constant.
+///
+/// Force synthesis when accepted turns reach the threshold.
+#[cfg(feature = "web")]
+fn should_force_synthesis(meta_turns_accepted: u32, threshold: u32) -> bool {
+    meta_turns_accepted >= threshold
 }
 
 // ---------------------------------------------------------------------------
@@ -2635,6 +2669,56 @@ mod tests {
             cid.len(),
             "placeholder_".len() + 16,
             "placeholder_cid length must be stable: {cid}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // OBL001 regression: accepted-turns hard-synthesis fallback
+    // -----------------------------------------------------------------------
+
+    /// Regression guard (OBL001_SPEC_FALLBACK):
+    ///
+    /// After `meta_turns_accepted >= ACCEPTED_TURNS_FORCE_SYNTHESIS_THRESHOLD`
+    /// with `done=false`, the web handler must force synthesis/termination
+    /// instead of shelling out to the Meta LLM for another question.
+    ///
+    /// Root cause observed: persona_1 reached 13 accepted turns without the
+    /// LLM emitting `done=true`; the runner reported "Spec interview timed out
+    /// or did not complete correctly."
+    ///
+    /// Decision rule (pure, no I/O):
+    ///   should_force_synthesis(accepted, threshold) = accepted >= threshold
+    ///
+    /// Regression guard: `should_force_synthesis` is implemented as
+    /// `meta_turns_accepted >= threshold` and wired into `spec_turn_handler`
+    /// so a threshold turn terminates through the existing in-process synthesis
+    /// path instead of asking another question.
+    #[test]
+    fn accepted_turns_force_synthesis_above_threshold() {
+        // At the threshold: must force synthesis.
+        assert!(
+            should_force_synthesis(10, 10),
+            "at threshold (10 accepted turns) must force synthesis; \
+             got false"
+        );
+
+        // Above the threshold (the persona_1 failure case: 13 accepted turns).
+        assert!(
+            should_force_synthesis(13, 10),
+            "above threshold (13 accepted turns, persona_1 case) must force synthesis; \
+             got false"
+        );
+
+        // One below the threshold: must NOT force synthesis.
+        assert!(
+            !should_force_synthesis(9, 10),
+            "one below threshold (9 accepted turns) must NOT force synthesis"
+        );
+
+        // Zero accepted turns: must NOT force synthesis.
+        assert!(
+            !should_force_synthesis(0, 10),
+            "zero accepted turns must not force synthesis"
         );
     }
 }

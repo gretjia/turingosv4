@@ -1,0 +1,9 @@
+TuringOS Phase 7 Web MVP — workspace: /tmp/turingosv4-gaia-runner-next/handover/evidence/obl001_deepseek_chrome_20260527T171150Z/persona_7/workspace
+  (set TURINGOS_WEB_WORKSPACE to override; TURINGOS_BACKEND_OVERRIDE to replace the turingos binary)
+TuringOS Phase 7 Web MVP listening on http://127.0.0.1:8080
+[2026-05-27T18:07:54Z INFO  turingos_web::web::welcome] welcome_init_handler: bin="/tmp/turingosv4-gaia-runner-next/target/debug/turingos" workspace="/tmp/turingosv4-gaia-runner-next/handover/evidence/obl001_deepseek_chrome_20260527T171150Z/persona_7/workspace" template=multi-agent
+[2026-05-27T18:07:54Z INFO  turingos_web::web::welcome] welcome_set_api_key_handler: api_key updated (value redacted)
+[2026-05-27T18:07:54Z INFO  turingos_web::web::welcome] welcome_agent_deploy_handler: bin="/tmp/turingosv4-gaia-runner-next/target/debug/turingos" workspace="/tmp/turingosv4-gaia-runner-next/handover/evidence/obl001_deepseek_chrome_20260527T171150Z/persona_7/workspace" id=agent_001 role=Solver
+[a6 synth] wrote SpecCapsule CID=6db86457a6570dd8fa1f3753c08d6dcee9d84ac42bb05ae0698e89c6f5a4d9e3 session_id=d0deacfc-1fcd-43dd-b126-fd1eb264315b
+[2026-05-27T18:13:34Z INFO  turingos_web::web::generate] generate_handler: bin="/tmp/turingosv4-gaia-runner-next/target/debug/turingos" session_id="d0deacfc-1fcd-43dd-b126-fd1eb264315b" session_dir="/tmp/turingosv4-gaia-runner-next/handover/evidence/obl001_deepseek_chrome_20260527T171150Z/persona_7/workspace/sessions/d0deacfc-1fcd-43dd-b126-fd1eb264315b" from_capsule=false max_files=None max_attempts=3 verify_mode=MinimumBar
+[2026-05-27T18:16:18Z INFO  turingos_web::subprocess_timing] turingos generate subprocess completed subprocess_total_ms=163814 subprocess_exit_code=Some(0) subprocess_timed_out=false subprocess_retry_index=0 subprocess_session_id=d0deacfc-1fcd-43dd-b126-fd1eb264315b

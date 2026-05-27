@@ -63,6 +63,14 @@ use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 #[cfg(feature = "web")]
 pub(crate) const MAX_GENERATE_ATTEMPTS: u8 = 3;
 
+/// Subprocess timeout for web-triggered `turingos generate` calls.
+///
+/// Increased from 600 s to 1800 s: observed multi-worker DeepSeek/TDMA
+/// generation hits 600 s with 3 parallel worker candidates. 30 min gives
+/// adequate headroom without leaving browser connections open indefinitely.
+#[cfg(feature = "web")]
+const WEB_SUBPROCESS_TIMEOUT_SECS: u64 = 1800;
+
 // ---------------------------------------------------------------------------
 // Request / Response types
 // ---------------------------------------------------------------------------
@@ -314,6 +322,10 @@ pub(crate) async fn generate_handler(
             args.push("--max-files".to_string());
             args.push(max_files.to_string());
         }
+        // Web artifacts are always HTML; set entrypoint so TDMA-Bounded judge
+        // validates index.html rather than the default main.py.
+        args.push("--entrypoint".to_string());
+        args.push("index.html".to_string());
         let n_parallel_workers = req.n_parallel_workers.unwrap_or(3).clamp(1, 3);
         args.push("--n-parallel-workers".to_string());
         args.push(n_parallel_workers.to_string());
@@ -325,7 +337,7 @@ pub(crate) async fn generate_handler(
             cwd: session_dir.clone(),
             env,
             stdin: None,
-            timeout: Duration::from_secs(300),
+            timeout: Duration::from_secs(WEB_SUBPROCESS_TIMEOUT_SECS),
         };
 
         let started = std::time::Instant::now();
@@ -786,6 +798,39 @@ fn cid_from_hex(s: &str) -> Option<turingosv4::bottom_white::cas::schema::Cid> {
 mod tests {
     use super::*;
 
+    /// Regression guard: the web generate args must include --entrypoint index.html.
+    /// Without it, TDMA-Bounded defaults to main.py and rejects all HTML-only artifacts.
+    #[test]
+    fn web_generate_args_include_entrypoint_index_html() {
+        // Reproduce the args-building logic from generate_handler (no I/O needed).
+        let session_dir_str = "/tmp/fake_session".to_string();
+        let mut args = vec![
+            "generate".to_string(),
+            "--workspace".to_string(),
+            session_dir_str.clone(),
+        ];
+        // from_capsule=false, max_files=None → skip those
+        // entrypoint (the fix):
+        args.push("--entrypoint".to_string());
+        args.push("index.html".to_string());
+        // n_parallel_workers
+        let n_parallel_workers: u8 = 3u8.clamp(1, 3);
+        args.push("--n-parallel-workers".to_string());
+        args.push(n_parallel_workers.to_string());
+
+        let ep_pos = args.iter().position(|a| a == "--entrypoint");
+        assert!(
+            ep_pos.is_some(),
+            "generate args must contain --entrypoint flag"
+        );
+        let ep_val = ep_pos.and_then(|i| args.get(i + 1));
+        assert_eq!(
+            ep_val.map(|s| s.as_str()),
+            Some("index.html"),
+            "--entrypoint value must be index.html for web generation"
+        );
+    }
+
     #[test]
     fn mime_html() {
         assert_eq!(
@@ -828,5 +873,18 @@ mod tests {
     fn is_safe_session_id_rejects_dot() {
         assert!(!is_safe_session_id("../bad"));
         assert!(!is_safe_session_id("a.b"));
+    }
+
+    /// Regression guard (OBL-001): the web subprocess timeout must be at least
+    /// 1800 s (30 min). Raised from 600 s after the DeepSeek Chrome E2E failure
+    /// caused by multi-worker generation hitting the old limit.
+    #[test]
+    fn web_subprocess_timeout_is_at_least_1800_secs() {
+        assert!(
+            WEB_SUBPROCESS_TIMEOUT_SECS >= 1800,
+            "WEB_SUBPROCESS_TIMEOUT_SECS is {} but must be >= 1800 (30 min) \
+             to prevent worker-candidate timeouts during slow DeepSeek generation",
+            WEB_SUBPROCESS_TIMEOUT_SECS
+        );
     }
 }

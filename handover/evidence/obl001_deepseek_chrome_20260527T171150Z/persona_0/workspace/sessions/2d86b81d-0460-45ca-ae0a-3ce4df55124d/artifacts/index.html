@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>超大对比计算器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  /* ===== CSS Reset & Variables ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6cbca8;
+    --bg: #1a1a1a;
+    --text: #f0eee8;
+    --muted: #9a9a9a;
+    --btn-bg: #2d2d2d;
+    --btn-active: #3d3d3d;
+    --btn-op-bg: #3a5a52;
+    --btn-op-active: #4e8b7a;
+    --btn-eq-bg: #4e8b7a;
+    --btn-eq-active: #6cbca8;
+    --btn-clear-bg: #4a2e2e;
+    --btn-clear-active: #6b3e3e;
+    --history-bg: #222222;
+    --border-radius: 10px;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-heading: 'Fraunces', Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  /* ===== Light mode override (user prefers light) ===== */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --btn-bg: #e8e5de;
+      --btn-active: #d6d2c9;
+      --btn-op-bg: #c3ddd4;
+      --btn-op-active: #a8ccc0;
+      --btn-eq-bg: #4e8b7a;
+      --btn-eq-active: #3d7363;
+      --btn-clear-bg: #dbb5b5;
+      --btn-clear-active: #c99a9a;
+      --history-bg: #eceae4;
+    }
+  }
+  /* ===== General ===== */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 8px;
+    gap: 8px;
+  }
+  /* ===== History ===== */
+  #history-panel {
+    flex: 0 0 auto;
+    max-height: 25vh;
+    min-height: 60px;
+    overflow-y: auto;
+    background: var(--history-bg);
+    border-radius: var(--border-radius);
+    padding: 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent) transparent;
+  }
+  #history-panel::-webkit-scrollbar { width: 6px; }
+  #history-panel::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+  #history-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .history-item {
+    font-family: var(--font-mono);
+    font-size: clamp(18px, 4vw, 28px);
+    color: var(--text);
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(128,128,128,0.15);
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-empty {
+    font-size: 16px;
+    color: var(--muted);
+    text-align: center;
+    padding: 12px 0;
+  }
+  /* ===== Display ===== */
+  #display {
+    flex: 0 0 auto;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    border-radius: var(--border-radius);
+    padding: 12px 16px;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 4px;
+    word-break: break-all;
+  }
+  #expression {
+    font-family: var(--font-mono);
+    font-size: clamp(24px, 5vw, 36px);
+    color: var(--muted);
+    min-height: 1.5em;
+    text-align: right;
+    line-height: 1.3;
+  }
+  #result {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: clamp(48px, 10vw, 80px);
+    color: var(--text);
+    text-align: right;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    transition: font-size 0.1s;
+  }
+  /* ===== Keyboard ===== */
+  #keyboard {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    align-content: stretch;
+    padding-bottom: 8px;
+  }
+  .key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: clamp(28px, 6vw, 48px);
+    background: var(--btn-bg);
+    color: var(--text);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: background 0.08s, transform 0.06s;
+    min-height: 60px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+  }
+  .key:active {
+    transform: scale(0.96);
+  }
+  .key-op {
+    background: var(--btn-op-bg);
+  }
+  .key-op:active {
+    background: var(--btn-op-active);
+  }
+  .key-eq {
+    background: var(--btn-eq-bg);
+    color: #fff;
+    font-size: clamp(36px, 7vw, 56px);
+  }
+  .key-eq:active {
+    background: var(--btn-eq-active);
+  }
+  .key-clear {
+    background: var(--btn-clear-bg);
+  }
+  .key-clear:active {
+    background: var(--btn-clear-active);
+  }
+  .key-wide {
+    grid-column: span 2;
+  }
+  /* Override light mode for eq button text in light */
+  @media (prefers-color-scheme: light) {
+    .key-eq { color: #fff; }
+  }
+  /* responsive adjustments for very narrow screens */
+  @media (max-width: 360px) {
+    .key { font-size: 24px; min-height: 50px; }
+    #result { font-size: 40px; }
+  }
+  /* ensure button text is centered */
+  .key span { line-height: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- History -->
+  <div id="history-panel">
+    <ul id="history-list"></ul>
+  </div>
+  <!-- Display -->
+  <div id="display">
+    <div id="expression"></div>
+    <div id="result">0</div>
+  </div>
+  <!-- Keyboard -->
+  <div id="keyboard">
+    <button class="key key-clear" data-action="ac">AC</button>
+    <button class="key key-clear" data-action="backspace">⌫</button>
+    <button class="key key-op" data-action="divide">÷</button>
+    <button class="key key-op" data-action="multiply">×</button>
+
+    <button class="key" data-action="7">7</button>
+    <button class="key" data-action="8">8</button>
+    <button class="key" data-action="9">9</button>
+    <button class="key key-op" data-action="subtract">−</button>
+
+    <button class="key" data-action="4">4</button>
+    <button class="key" data-action="5">5</button>
+    <button class="key" data-action="6">6</button>
+    <button class="key key-op" data-action="add">+</button>
+
+    <button class="key" data-action="1">1</button>
+    <button class="key" data-action="2">2</button>
+    <button class="key" data-action="3">3</button>
+    <button class="key key-eq" data-action="equals">=</button>
+
+    <button class="key" data-action="0">0</button>
+    <button class="key" data-action="decimal">.</button>
+    <!-- empty cell to complete 4x5 grid -->
+    <div></div>
+    <div></div>
+  </div>
+</div>
+<script>
+(function() {
+  'use strict';
+
+  // ---- DOM refs ----
+  const exprEl = document.getElementById('expression');
+  const resultEl = document.getElementById('result');
+  const historyList = document.getElementById('history-list');
+  const keyboard = document.getElementById('keyboard');
+
+  // ---- State ----
+  let state = {
+    current: '0',        // current number being edited (string)
+    operator: null,      // '+', '-', '*', '/'
+    operand: null,       // first operand (number) when operator set
+    waiting: false,      // true after operator, waiting for second operand
+    justEvaluated: false // true right after =, next digit restarts
+  };
+
+  // ---- History ----
+  const HISTORY_KEY = 'calc_history';
+  let history = [];
+
+  // Load history from localStorage
+  function loadHistory() {
+    try {
+      const stored = localStorage.getItem(HISTORY_KEY);
+      if (stored) {
+        history = JSON.parse(stored);
+        if (!Array.isArray(history)) history = [];
+        // keep max 50
+        if (history.length > 50) history = history.slice(-50);
+      }
+    } catch(e) { history = []; }
+  }
+
+  function saveHistory() {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch(e) { /* ignore quota errors */ }
+  }
+
+  function addHistory(expr, result) {
+    const entry = expr + ' = ' + result;
+    history.push(entry);
+    if (history.length > 50) history.shift();
+    saveHistory();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (history.length === 0) {
+      historyList.innerHTML = '<li class="history-empty">暂无记录</li>';
+      return;
+    }
+    // Show latest first (reverse order)
+    const fragment = document.createDocumentFragment();
+    for (let i = history.length - 1; i >= 0; i--) {
+      const li = document.createElement('li');
+      li.className = 'history-item';
+      li.textContent = history[i];
+      fragment.appendChild(li);
+    }
+    historyList.innerHTML = '';
+    historyList.appendChild(fragment);
+    // auto-scroll to top (latest)
+    const panel = document.getElementById('history-panel');
+    panel.scrollTop = 0;
+  }
+
+  // ---- Display update ----
+  function formatNumber(numStr) {
+    // For display: limit length to avoid overflow, but keep as string
+    if (numStr.length > 15) {
+      // Show in scientific notation if too long
+      const n = parseFloat(numStr);
+      if (isFinite(n)) {
+        return n.toExponential(6);
+      }
+    }
+    return numStr;
+  }
+
+  function updateDisplay() {
+    // expression line: show if operator is set
+    if (state.operator && state.operand !== null) {
+      const opSymbol = { '+': '+', '-': '−', '*': '×', '/': '÷' }[state.operator] || state.operator;
+      exprEl.textContent = formatNumber(String(state.operand)) + ' ' + opSymbol;
+    } else {
+      exprEl.textContent = '';
+    }
+
+    // result line: show current number
+    let displayVal = state.current;
+    // If just after evaluation, show result (which is in current)
+    resultEl.textContent = formatNumber(displayVal);
+  }
+
+  // ---- Core actions ----
+  function inputDigit(digit) {
+    if (state.justEvaluated) {
+      // Start fresh
+      resetState();
+      state.current = digit;
+      state.justEvaluated = false;
+      updateDisplay();
+      return;
+    }
+    if (state.waiting) {
+      state.current = digit;
+      state.waiting = false;
+      updateDisplay();
+      return;
+    }
+    // Avoid multiple leading zeros
+    if (state.current === '0' && digit !== '.') {
+      state.current = digit;
+    } else if (state.current.length < 16) {
+      state.current += digit;
+    }
+    updateDisplay();
+  }
+
+  function inputDecimal() {
+    if (state.justEvaluated) {
+      resetState();
+      state.current = '0.';
+      state.justEvaluated = false;
+      updateDisplay();
+      return;
+    }
+    if (state.waiting) {
+      state.current = '0.';
+      state.waiting = false;
+      updateDisplay();
+      return;
+    }
+    if (!state.current.includes('.')) {
+      state.current += '.';
+    }
+    updateDisplay();
+  }
+
+  function handleOperator(op) {
+    const num = parseFloat(state.current);
+    if (isNaN(num)) return;
+
+    if (state.operator && !state.waiting) {
+      // Chain: evaluate previous operation first
+      const result = compute(state.operand, num, state.operator);
+      if (!isFinite(result)) {
+        showError('错误');
+        return;
+      }
+      state.operand = result;
+      state.current = String(result);
+      state.operator = op;
+      state.waiting = true;
+      state.justEvaluated = false;
+    } else {
+      // First operator
+      state.operand = num;
+      state.operator = op;
+      state.waiting = true;
+      state.justEvaluated = false;
+    }
+    updateDisplay();
+  }
+
+  function compute(a, b, op) {
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return (b === 0) ? Infinity : a / b;
+      default: return NaN;
+    }
+  }
+
+  function evaluate() {
+    if (!state.operator || state.waiting) {
+      // nothing to evaluate, just show current
+      state.justEvaluated = true;
+      updateDisplay();
+      return;
+    }
+    const a = state.operand;
+    const b = parseFloat(state.current);
+    if (isNaN(a) || isNaN(b)) return;
+    const result = compute(a, b, state.operator);
+    if (!isFinite(result)) {
+      showError('错误');
+      return;
+    }
+    const opSymbol = { '+': '+', '-': '−', '*': '×', '/': '÷' }[state.operator] || state.operator;
+    const expr = formatNumber(String(a)) + ' ' + opSymbol + ' ' + formatNumber(state.current);
+    const resultStr = formatNumber(String(result));
+    // Save to history
+    addHistory(expr, resultStr);
+    state.current = String(result);
+    state.operator = null;
+    state.operand = null;
+    state.waiting = false;
+    state.justEvaluated = true;
+    updateDisplay();
+  }
+
+  function backspace() {
+    if (state.justEvaluated) {
+      // after =, backspace resets
+      resetState();
+      updateDisplay();
+      return;
+    }
+    if (state.waiting) {
+      // if waiting, clear current and go back to after operator? 
+      // simplifiy: clear current to '0' and remain waiting
+      state.current = '0';
+      updateDisplay();
+      return;
+    }
+    if (state.current.length > 1) {
+      state.current = state.current.slice(0, -1);
+      if (state.current === '-' && state.current.length === 1) {
+        state.current = '0';
+      }
+      if (state.current === '' || state.current === '-') state.current = '0';
+    } else {
+      state.current = '0';
+    }
+    updateDisplay();
+  }
+
+  function clearEntry() {
+    // CE: clear current number, but keep operator
+    state.current = '0';
+    state.waiting = false;
+    updateDisplay();
+  }
+
+  function allClear() {
+    resetState();
+    updateDisplay();
+  }
+
+  function resetState() {
+    state.current = '0';
+    state.operator = null;
+    state.operand = null;
+    state.waiting = false;
+    state.justEvaluated = false;
+  }
+
+  function showError(msg) {
+    state.current = msg;
+    state.operator = null;
+    state.operand = null;
+    state.waiting = false;
+    state.justEvaluated = true;
+    updateDisplay();
+  }
+
+  // ---- Keyboard handler ----
+  keyboard.addEventListener('click', function(e) {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    const action = key.dataset.action;
+    switch (action) {
+      // digits
+      case '0': case '1': case '2': case '3': case '4':
+      case '5': case '6': case '7': case '8': case '9':
+        inputDigit(action);
+        break;
+      case 'decimal':
+        inputDecimal();
+        break;
+      case 'add':
+        handleOperator('+');
+        break;
+      case 'subtract':
+        handleOperator('-');
+        break;
+      case 'multiply':
+        handleOperator('*');
+        break;
+      case 'divide':
+        handleOperator('/');
+        break;
+      case 'equals':
+        evaluate();
+        break;
+      case 'backspace':
+        backspace();
+        break;
+      case 'ac':
+        allClear();
+        break;
+      case 'ce':
+        clearEntry();
+        break;
+      default:
+        // ignore
+    }
+  });
+
+  // ---- Keyboard input support (physical keyboard) ----
+  document.addEventListener('keydown', function(e) {
+    const key = e.key;
+    if (key >= '0' && key <= '9') {
+      e.preventDefault();
+      inputDigit(key);
+    } else if (key === '.') {
+      e.preventDefault();
+      inputDecimal();
+    } else if (key === '+') {
+      e.preventDefault();
+      handleOperator('+');
+    } else if (key === '-') {
+      e.preventDefault();
+      handleOperator('-');
+    } else if (key === '*') {
+      e.preventDefault();
+      handleOperator('*');
+    } else if (key === '/') {
+      e.preventDefault();
+      handleOperator('/');
+    } else if (key === 'Enter' || key === '=') {
+      e.preventDefault();
+      evaluate();
+    } else if (key === 'Backspace') {
+      e.preventDefault();
+      backspace();
+    } else if (key === 'Escape') {
+      e.preventDefault();
+      allClear();
+    } else if (key === 'c' || key === 'C') {
+      e.preventDefault();
+      allClear();
+    }
+  });
+
+  // ---- Init ----
+  loadHistory();
+  renderHistory();
+  resetState();
+  updateDisplay();
+})();
+</script>
+</body>
+</html>

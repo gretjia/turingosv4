@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>浇水提醒清单</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        /* ===== Design Tokens ===== */
+        :root {
+            --accent: #4e8b7a;
+            --accent-light: #6dab98;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --text-muted: #6b6b6b;
+            --border: #d4d0c8;
+            --card-bg: #ffffff;
+            --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            --danger: #c0392b;
+            --radius: 12px;
+            --font-serif: 'Fraunces', Georgia, serif;
+            --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #f0eee8;
+                --text-muted: #a09c94;
+                --border: #3a3a3a;
+                --card-bg: #242424;
+                --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                --accent: #6dab98;
+                --accent-light: #8cc4b0;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 16px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 640px;
+            width: 100%;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-size: 36px;
+            font-weight: 600;
+            margin: 0 0 8px;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+        }
+        h2 {
+            font-family: var(--font-serif);
+            font-size: 24px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            line-height: 1.2;
+        }
+        h3 {
+            font-family: var(--font-sans);
+            font-size: 18px;
+            font-weight: 500;
+            margin: 0 0 8px;
+        }
+
+        /* ===== Add Plant Form ===== */
+        .plant-form {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+        }
+        .plant-form .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .plant-form .field-group {
+            flex: 1 1 140px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .plant-form label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        .plant-form input {
+            font-family: var(--font-sans);
+            font-size: 16px;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.2s;
+            outline: none;
+            width: 100%;
+        }
+        .plant-form input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(78, 139, 122, 0.15);
+        }
+        .plant-form input.error {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.12);
+        }
+        .field-error {
+            font-size: 13px;
+            color: var(--danger);
+            min-height: 1.2em;
+        }
+        .btn-add {
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 16px;
+            padding: 10px 24px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+            flex: 0 0 auto;
+            white-space: nowrap;
+            min-height: 44px;
+        }
+        .btn-add:hover:not(:disabled) {
+            background: var(--accent-light);
+        }
+        .btn-add:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        /* ===== Plant List ===== */
+        .plant-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .plant-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            padding: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .plant-info {
+            flex: 1 1 180px;
+        }
+        .plant-name {
+            font-weight: 600;
+            font-size: 17px;
+        }
+        .plant-details {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .plant-next {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+        .plant-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-water {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 500;
+            padding: 6px 16px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            min-height: 36px;
+        }
+        .btn-water:hover {
+            background: var(--accent-light);
+        }
+        .btn-delete {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            padding: 6px 12px;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+            min-height: 36px;
+        }
+        .btn-delete:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        /* ===== Weekly View ===== */
+        .weekly-view {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--card-shadow);
+            padding: 16px;
+            margin-top: 24px;
+        }
+        .week-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .week-nav {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .week-nav button {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            padding: 4px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text);
+            transition: background 0.2s;
+            min-height: 36px;
+        }
+        .week-nav button:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .week-label {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .week-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+        .day-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 8px 4px;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .day-card.today {
+            background: rgba(78, 139, 122, 0.12);
+            outline: 2px solid var(--accent);
+            outline-offset: -2px;
+        }
+        .day-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .day-date {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .day-plants {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--accent);
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .day-plants .empty {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* ===== Empty State ===== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state p {
+            font-size: 17px;
+            line-height: 1.5;
+        }
+
+        /* ===== Utilities ===== */
+        .mt-16 { margin-top: 16px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        @media (max-width: 480px) {
+            .plant-form .form-row {
+                flex-direction: column;
+            }
+            .plant-form .field-group {
+                flex: 1 1 auto;
+            }
+            .btn-add {
+                width: 100%;
+            }
+            .week-days {
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+            }
+            .day-card {
+                padding: 6px 2px;
+                min-height: 50px;
+            }
+            .day-plants {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <h1>💧 浇水提醒</h1>
+        <p style="color: var(--text-muted); margin-bottom: 16px;">自动计算下次浇水日期，按周查看。</p>
+
+        <!-- Add Plant Form -->
+        <div class="plant-form">
+            <div class="form-row">
+                <div class="field-group">
+                    <label for="plantName">植物名</label>
+                    <input type="text" id="plantName" placeholder="例如：绿萝" maxlength="50" autocomplete="off">
+                    <span class="field-error" id="nameError"></span>
+                </div>
+                <div class="field-group">
+                    <label for="plantInterval">间隔天数</label>
+                    <input type="number" id="plantInterval" placeholder="7" min="1" max="365">
+                    <span class="field-error" id="intervalError"></span>
+                </div>
+                <div class="field-group">
+                    <label for="lastWaterDate">上次浇水</label>
+                    <input type="date" id="lastWaterDate">
+                    <span class="field-error"></span>
+                </div>
+                <button class="btn-add" id="addBtn" disabled>添加植物</button>
+            </div>
+        </div>
+
+        <!-- Plant List -->
+        <h2>🌱 我的植物</h2>
+        <div id="plantList" class="plant-list"></div>
+
+        <!-- Weekly View -->
+        <div class="weekly-view">
+            <div class="week-header">
+                <span class="week-label" id="weekLabel"></span>
+                <div class="week-nav">
+                    <button id="prevWeek">‹ 上一周</button>
+                    <button id="nextWeek">下一周 ›</button>
+                    <button id="todayWeek">今天</button>
+                </div>
+            </div>
+            <div class="week-days" id="weekDays"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== State =====
+            let plants = [];
+            let currentWeekOffset = 0; // 0 = current week, -1 = last week, +1 = next week
+
+            // ===== DOM refs =====
+            const nameInput = document.getElementById('plantName');
+            const intervalInput = document.getElementById('plantInterval');
+            const lastWaterInput = document.getElementById('lastWaterDate');
+            const addBtn = document.getElementById('addBtn');
+            const nameError = document.getElementById('nameError');
+            const intervalError = document.getElementById('intervalError');
+            const plantListEl = document.getElementById('plantList');
+            const weekLabel = document.getElementById('weekLabel');
+            const weekDays = document.getElementById('weekDays');
+            const prevWeekBtn = document.getElementById('prevWeek');
+            const nextWeekBtn = document.getElementById('nextWeek');
+            const todayWeekBtn = document.getElementById('todayWeek');
+
+            // ===== Helpers =====
+            function parseDate(str) {
+                if (!str) return null;
+                const parts = str.split('-');
+                if (parts.length !== 3) return null;
+                const d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+                if (isNaN(d.getTime())) return null;
+                return d;
+            }
+
+            function toDateString(date) {
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, '0');
+                const d = String(date.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            // calculate next watering date based on last water date and interval
+            function calcNextDate(lastDateStr, intervalDays) {
+                if (!lastDateStr || intervalDays <= 0) return null;
+                const d = parseDate(lastDateStr);
+                if (!d) return null;
+                d.setDate(d.getDate() + intervalDays);
+                return toDateString(d);
+            }
+
+            // get start (Monday) of a week relative to current week
+            function getWeekStart(offset) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+                // Monday = 1
+                const mondayOffset = (dayOfWeek === 0) ? -6 : 1 - dayOfWeek;
+                const monday = new Date(today);
+                monday.setDate(monday.getDate() + mondayOffset + offset * 7);
+                return monday;
+            }
+
+            function formatWeekLabel(monday) {
+                const sunday = new Date(monday);
+                sunday.setDate(sunday.getDate() + 6);
+                const mStr = `${monday.getMonth()+1}.${monday.getDate()}`;
+                const sStr = `${sunday.getMonth()+1}.${sunday.getDate()}`;
+                return `${mStr} – ${sStr}`;
+            }
+
+            // ===== Validation =====
+            function validate() {
+                let valid = true;
+
+                // Name
+                const name = nameInput.value.trim();
+                if (name === '') {
+                    nameError.textContent = '请输入植物名称';
+                    nameInput.classList.add('error');
+                    valid = false;
+                } else {
+                    nameError.textContent = '';
+                    nameInput.classList.remove('error');
+                }
+
+                // Interval
+                const intervalRaw = intervalInput.value.trim();
+                const interval = parseInt(intervalRaw, 10);
+                if (intervalRaw === '' || isNaN(interval) || interval < 1 || interval > 365) {
+                    intervalError.textContent = '请输入1–365的整数';
+                    intervalInput.classList.add('error');
+                    valid = false;
+                } else {
+                    intervalError.textContent = '';
+                    intervalInput.classList.remove('error');
+                }
+
+                addBtn.disabled = !valid;
+                return valid;
+            }
+
+            // ===== Persistence =====
+            function savePlants() {
+                localStorage.setItem('watering_plants', JSON.stringify(plants));
+            }
+
+            function loadPlants() {
+                const data = localStorage.getItem('watering_plants');
+                if (data) {
+                    try {
+                        plants = JSON.parse(data);
+                    } catch(e) {
+                        plants = [];
+                    }
+                } else {
+                    plants = [];
+                }
+            }
+
+            // ===== Render =====
+            function render() {
+                renderPlantList();
+                renderWeek();
+                validate(); // re-validate to keep button state consistent after changes
+            }
+
+            function renderPlantList() {
+                if (plants.length === 0) {
+                    plantListEl.innerHTML = `
+                        <div class="empty-state">
+                            <p>还没有植物 🌱<br>从上方表单添加第一个吧！</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                for (let i = 0; i < plants.length; i++) {
+                    const p = plants[i];
+                    const nextDate = calcNextDate(p.lastWaterDate, p.interval);
+                    const nextStr = nextDate ? `下次浇水: ${nextDate}` : '请设置上次浇水日期';
+                    html += `
+                        <div class="plant-card" data-index="${i}">
+                            <div class="plant-info">
+                                <div class="plant-name">${escHtml(p.name)}</div>
+                                <div class="plant-details">每 ${p.interval} 天 · 上次: ${p.lastWaterDate || '未设置'}</div>
+                                <div class="plant-next">${nextStr}</div>
+                            </div>
+                            <div class="plant-actions">
+                                <button class="btn-water" data-index="${i}">💧 浇水了</button>
+                                <button class="btn-delete" data-index="${i}">删除</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                plantListEl.innerHTML = html;
+
+                // Attach event listeners (delegation easier but inline bind is fine)
+                document.querySelectorAll('.btn-water').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const idx = parseInt(this.dataset.index, 10);
+                        waterPlant(idx);
+                    });
+                });
+                document.querySelectorAll('.btn-delete').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const idx = parseInt(this.dataset.index, 10);
+                        deletePlant(idx);
+                    });
+                });
+            }
+
+            function renderWeek() {
+                const monday = getWeekStart(currentWeekOffset);
+                const label = formatWeekLabel(monday);
+                weekLabel.textContent = label;
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayStr = toDateString(today);
+
+                let daysHtml = '';
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(monday);
+                    day.setDate(day.getDate() + i);
+                    const dateStr = toDateString(day);
+                    const isToday = dateStr === todayStr;
+                    const dayName = ['日', '一', '二', '三', '四', '五', '六'][day.getDay()];
+                    const dateDisplay = `${day.getMonth()+1}/${day.getDate()}`;
+
+                    // Find plants that need watering on this day
+                    const plantsToday = plants.filter(p => {
+                        const next = calcNextDate(p.lastWaterDate, p.interval);
+                        return next === dateStr;
+                    });
+
+                    let plantsHtml = '';
+                    if (plantsToday.length === 0) {
+                        plantsHtml = '<span class="empty">—</span>';
+                    } else {
+                        plantsHtml = plantsToday.map(p => escHtml(p.name)).join('<br>');
+                    }
+
+                    daysHtml += `
+                        <div class="day-card ${isToday ? 'today' : ''}">
+                            <div class="day-name">${dayName}</div>
+                            <div class="day-date">${dateDisplay}</div>
+                            <div class="day-plants">${plantsHtml}</div>
+                        </div>
+                    `;
+                }
+                weekDays.innerHTML = daysHtml;
+            }
+
+            function escHtml(str) {
+                const div = document.createElement('div');
+                div.appendChild(document.createTextNode(str));
+                return div.innerHTML;
+            }
+
+            // ===== Actions =====
+            function addPlant() {
+                if (!validate()) return;
+
+                const name = nameInput.value.trim();
+                const interval = parseInt(intervalInput.value.trim(), 10);
+                let lastWaterDate = lastWaterInput.value || toDateString(new Date());
+
+                // Prevent duplicate name? Not required, but we can allow duplicates.
+
+                plants.push({
+                    name: name,
+                    interval: interval,
+                    lastWaterDate: lastWaterDate
+                });
+                savePlants();
+                render();
+
+                // Reset form
+                nameInput.value = '';
+                intervalInput.value = '';
+                // Keep lastWaterDate as today default (set separately)
+                lastWaterInput.value = toDateString(new Date());
+                validate();
+                nameInput.focus();
+            }
+
+            function waterPlant(index) {
+                const p = plants[index];
+                if (!p) return;
+                p.lastWaterDate = toDateString(new Date());
+                savePlants();
+                render();
+            }
+
+            function deletePlant(index) {
+                if (index >= 0 && index < plants.length) {
+                    plants.splice(index, 1);
+                    savePlants();
+                    render();
+                }
+            }
+
+            // ===== Event listeners =====
+            nameInput.addEventListener('input', validate);
+            intervalInput.addEventListener('input', validate);
+
+            // Set default date for lastWaterInput on page load
+            function setDefaultLastWater() {
+                lastWaterInput.value = toDateString(new Date());
+            }
+            setDefaultLastWater();
+
+            addBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                addPlant();
+            });
+
+            // Allow Enter key to submit
+            document.querySelectorAll('#plantName, #plantInterval, #lastWaterDate').forEach(el => {
+                el.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (!addBtn.disabled) {
+                            addBtn.click();
+                        }
+                    }
+                });
+            });
+
+            prevWeekBtn.addEventListener('click', function() {
+                currentWeekOffset--;
+                renderWeek();
+            });
+            nextWeekBtn.addEventListener('click', function() {
+                currentWeekOffset++;
+                renderWeek();
+            });
+            todayWeekBtn.addEventListener('click', function() {
+                currentWeekOffset = 0;
+                renderWeek();
+            });
+
+            // ===== Initialize =====
+            loadPlants();
+            render();
+
+            // If plants exist, ensure they have lastWaterDate set (migration)
+            plants.forEach(p => {
+                if (!p.lastWaterDate) {
+                    p.lastWaterDate = toDateString(new Date());
+                }
+            });
+            if (plants.length > 0) savePlants();
+
+        })();
+    </script>
+</body>
+</html>

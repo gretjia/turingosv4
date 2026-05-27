@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>猫咪喂食记录</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6aa898;
+    --bg: #f8f6f1;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --card-bg: #ffffff;
+    --border: #ddd8cf;
+    --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --text: #f0eee8;
+      --muted: #a09e96;
+      --card-bg: #2a2824;
+      --border: #3d3a35;
+      --accent: #7ab8a6;
+      --accent-light: #9cd0c0;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 24px 16px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  h1, h2, h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+  }
+  h1 { font-size: 36px; margin-bottom: 0.3em; }
+  h2 { font-size: 24px; margin-bottom: 0.4em; margin-top: 1.2em; }
+  h3 { font-size: 20px; margin-bottom: 0.3em; }
+  .accent { color: var(--accent); }
+  .muted { color: var(--muted); font-size: 0.9em; }
+  button, input, select {
+    font: inherit;
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  button:hover { background: var(--accent-light); }
+  button.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1.5px solid var(--accent);
+  }
+  button.secondary:hover { background: var(--accent); color: #fff; }
+  button.danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1.5px solid var(--danger);
+  }
+  button.danger:hover { background: var(--danger); color: #fff; }
+  input, select {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text);
+    width: 100%;
+  }
+  input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .flex {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .flex > * { flex: 1; min-width: 120px; }
+  .flex .shrink { flex: 0; min-width: auto; }
+  .record-entry {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .record-entry:last-child { border-bottom: none; }
+  .countdown { font-size: 1.1em; font-weight: 600; }
+  .badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 0.8em;
+    font-weight: 500;
+  }
+  .stat-row { display: flex; justify-content: space-between; padding: 4px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; }
+  .mt-1 { margin-top: 8px; }
+  .mb-1 { margin-bottom: 8px; }
+  .gap-1 { gap: 8px; }
+</style>
+</head>
+<body>
+<h1>🐱 喂食记录</h1>
+<p class="muted">记录每只猫的喂食时间与克数，自动计算间隔与食量变化</p>
+
+<div id="cat-manager" class="card">
+  <div class="flex">
+    <select id="cat-select" style="flex:3;"></select>
+    <button id="add-cat-btn" class="secondary shrink">+ 添加猫</button>
+    <button id="remove-cat-btn" class="danger shrink" style="display:none;">移除</button>
+  </div>
+  <div id="add-cat-form" class="mt-1 flex" style="display:none;">
+    <input type="text" id="new-cat-name" placeholder="猫咪名字" style="flex:3;">
+    <button id="confirm-add-cat" class="shrink">确定</button>
+    <button id="cancel-add-cat" class="secondary shrink">取消</button>
+  </div>
+</div>
+
+<div id="feeding-form" class="card">
+  <h3>记录喂食</h3>
+  <div class="flex">
+    <input type="number" id="feed-amount" placeholder="克数 (g)" min="1" step="1" style="flex:2;">
+    <button id="feed-btn">记录</button>
+  </div>
+  <p class="muted mt-1" id="feed-status"></p>
+</div>
+
+<div id="current-cat-display" class="card">
+  <h2 id="display-cat-name">——</h2>
+  <div class="stat-row"><span>上次喂食</span><span id="last-feed-time">暂无记录</span></div>
+  <div class="stat-row"><span>上次克数</span><span id="last-feed-amount">—</span></div>
+  <div class="stat-row"><span>距上次已过</span><span id="since-last" class="countdown accent">—</span></div>
+  <div class="stat-row"><span>近 7 天平均</span><span id="weekly-avg">—</span></div>
+  <div class="stat-row"><span>今日平均</span><span id="today-avg">—</span></div>
+  <div class="stat-row"><span>与平均差</span><span id="diff-from-avg">—</span></div>
+</div>
+
+<div id="recent-records" class="card">
+  <h3>最近记录</h3>
+  <div id="records-list"></div>
+</div>
+
+<script>
+(function() {
+  // ---- helpers ----
+  const LS_KEY = 'catFeedingRecords';
+
+  function loadData() {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return { cats: ['默认'], records: {} };
+    try { return JSON.parse(raw); } catch(e) { return { cats: ['默认'], records: {} }; }
+  }
+
+  function saveData(data) {
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }
+
+  // ---- state ----
+  let data = loadData();
+  let currentCat = data.cats[0] || '默认';
+  let timerInterval = null;
+
+  // ---- DOM refs ----
+  const catSelect = document.getElementById('cat-select');
+  const addCatBtn = document.getElementById('add-cat-btn');
+  const removeCatBtn = document.getElementById('remove-cat-btn');
+  const addCatForm = document.getElementById('add-cat-form');
+  const newCatName = document.getElementById('new-cat-name');
+  const confirmAddCat = document.getElementById('confirm-add-cat');
+  const cancelAddCat = document.getElementById('cancel-add-cat');
+  const feedAmount = document.getElementById('feed-amount');
+  const feedBtn = document.getElementById('feed-btn');
+  const feedStatus = document.getElementById('feed-status');
+  const displayCatName = document.getElementById('display-cat-name');
+  const lastFeedTime = document.getElementById('last-feed-time');
+  const lastFeedAmount = document.getElementById('last-feed-amount');
+  const sinceLast = document.getElementById('since-last');
+  const weeklyAvg = document.getElementById('weekly-avg');
+  const todayAvg = document.getElementById('today-avg');
+  const diffFromAvg = document.getElementById('diff-from-avg');
+  const recordsList = document.getElementById('records-list');
+
+  // ---- init cats ----
+  function ensureCatInRecords(cat) {
+    if (!data.records[cat]) data.records[cat] = [];
+  }
+
+  function populateSelect() {
+    catSelect.innerHTML = '';
+    data.cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      if (c === currentCat) opt.selected = true;
+      catSelect.appendChild(opt);
+    });
+    removeCatBtn.style.display = data.cats.length > 1 ? 'inline-block' : 'none';
+  }
+
+  function selectCat(cat) {
+    currentCat = cat;
+    populateSelect();
+    updateDisplay();
+  }
+
+  // ---- feeding ----
+  function addFeeding(cat, amountGrams) {
+    ensureCatInRecords(cat);
+    const now = new Date();
+    const entry = {
+      time: now.toISOString(),
+      amount: amountGrams
+    };
+    data.records[cat].push(entry);
+    saveData(data);
+    updateDisplay();
+    feedStatus.textContent = `✓ 已记录 ${cat} 在 ${now.toLocaleString('zh-CN')} 吃了 ${amountGrams}g`;
+    feedAmount.value = '';
+  }
+
+  // ---- display ----
+  function getPastDaysRecords(cat, days) {
+    const all = data.records[cat] || [];
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return all.filter(r => new Date(r.time) >= cutoff);
+  }
+
+  function getTodayRecords(cat) {
+    const all = data.records[cat] || [];
+    const todayStart = new Date();
+    todayStart.setHours(0,0,0,0);
+    return all.filter(r => new Date(r.time) >= todayStart);
+  }
+
+  function average(arr) {
+    if (arr.length === 0) return null;
+    const sum = arr.reduce((a,b) => a + b, 0);
+    return sum / arr.length;
+  }
+
+  function formatDuration(ms) {
+    if (ms < 0) return '刚刚';
+    const sec = Math.floor(ms / 1000);
+    const min = Math.floor(sec / 60);
+    const hr = Math.floor(min / 60);
+    const day = Math.floor(hr / 24);
+    if (day > 0) return `${day} 天 ${hr % 24} 小时`;
+    if (hr > 0) return `${hr} 小时 ${min % 60} 分钟`;
+    if (min > 0) return `${min} 分钟`;
+    return `${sec} 秒`;
+  }
+
+  function updateDisplay() {
+    const cat = currentCat;
+    ensureCatInRecords(cat);
+    displayCatName.textContent = cat;
+
+    const records = data.records[cat] || [];
+    // last record
+    if (records.length === 0) {
+      lastFeedTime.textContent = '暂无记录';
+      lastFeedAmount.textContent = '—';
+      sinceLast.textContent = '—';
+      weeklyAvg.textContent = '—';
+      todayAvg.textContent = '—';
+      diffFromAvg.textContent = '—';
+      recordsList.innerHTML = '<div class="muted">还没有喂食记录</div>';
+      return;
+    }
+
+    const last = records[records.length - 1];
+    const lastDate = new Date(last.time);
+    lastFeedTime.textContent = lastDate.toLocaleString('zh-CN');
+    lastFeedAmount.textContent = `${last.amount}g`;
+
+    // since last
+    const now = Date.now();
+    const elapsed = now - lastDate.getTime();
+    sinceLast.textContent = formatDuration(elapsed);
+
+    // weekly avg (last 7 days)
+    const weekRecords = getPastDaysRecords(cat, 7);
+    const weekAmounts = weekRecords.map(r => r.amount);
+    const weekAvg = average(weekAmounts);
+    weeklyAvg.textContent = weekAvg !== null ? `${weekAvg.toFixed(1)}g` : '—';
+
+    // today avg
+    const todayRecords = getTodayRecords(cat);
+    const todayAmounts = todayRecords.map(r => r.amount);
+    const tAvg = average(todayAmounts);
+    todayAvg.textContent = tAvg !== null ? `${tAvg.toFixed(1)}g` : '—';
+
+    // diff from avg
+    const lastAmount = last.amount;
+    if (weekAvg !== null) {
+      const diff = lastAmount - weekAvg;
+      const sign = diff >= 0 ? '+' : '';
+      diffFromAvg.textContent = `${sign}${diff.toFixed(1)}g`;
+      diffFromAvg.style.color = diff < 0 ? 'var(--danger)' : 'var(--accent)';
+    } else {
+      diffFromAvg.textContent = '—';
+    }
+
+    // recent records list (last 10)
+    const recent = records.slice(-10).reverse();
+    recordsList.innerHTML = recent.map(r => {
+      const d = new Date(r.time);
+      return `<div class="record-entry flex" style="gap:8px;justify-content:space-between;">
+        <span>${d.toLocaleString('zh-CN')}</span>
+        <span><strong>${r.amount}g</strong></span>
+      </div>`;
+    }).join('');
+  }
+
+  // ---- timer ----
+  function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      // only update sinceLast and maybe diff (but diff changes slowly)
+      const cat = currentCat;
+      const records = data.records[cat] || [];
+      if (records.length > 0) {
+        const last = records[records.length - 1];
+        const elapsed = Date.now() - new Date(last.time).getTime();
+        sinceLast.textContent = formatDuration(elapsed);
+      }
+    }, 1000);
+  }
+
+  // ---- event handlers ----
+  catSelect.addEventListener('change', function() {
+    selectCat(this.value);
+  });
+
+  addCatBtn.addEventListener('click', function() {
+    addCatForm.style.display = 'flex';
+    newCatName.value = '';
+    newCatName.focus();
+  });
+
+  cancelAddCat.addEventListener('click', function() {
+    addCatForm.style.display = 'none';
+  });
+
+  confirmAddCat.addEventListener('click', function() {
+    const name = newCatName.value.trim();
+    if (!name) { alert('请输入猫咪名字'); return; }
+    if (data.cats.includes(name)) { alert('该名字已存在'); return; }
+    data.cats.push(name);
+    data.records[name] = [];
+    saveData(data);
+    selectCat(name);
+    addCatForm.style.display = 'none';
+  });
+
+  removeCatBtn.addEventListener('click', function() {
+    if (data.cats.length <= 1) { alert('至少保留一只猫'); return; }
+    if (!confirm(`确定移除猫咪「${currentCat}」及其全部记录？`)) return;
+    const idx = data.cats.indexOf(currentCat);
+    data.cats.splice(idx, 1);
+    delete data.records[currentCat];
+    saveData(data);
+    selectCat(data.cats[0] || '默认');
+  });
+
+  feedBtn.addEventListener('click', function() {
+    const amount = parseInt(feedAmount.value, 10);
+    if (!amount || amount <= 0) { alert('请输入有效的克数（正整数）'); return; }
+    addFeeding(currentCat, amount);
+  });
+
+  feedAmount.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') feedBtn.click();
+  });
+
+  // ---- initial load ----
+  populateSelect();
+  updateDisplay();
+  startTimer();
+
+  // ---- handle visibility changes to keep timer accurate ----
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      updateDisplay();
+      startTimer();
+    }
+  });
+
+})();
+</script>
+</body>
+</html>

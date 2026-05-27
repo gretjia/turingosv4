@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>正则调试器 · 轻量</title>
+  <!-- Google Fonts: Fraunces, IBM Plex Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    /* TuringOS Design Tokens */
+    :root {
+      --accent: #4e8b7a;
+      --accent-light: #6ba99c;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #d6d2cb;
+      --error: #c0392b;
+      --mark-bg: rgba(78, 139, 122, 0.2);
+      --group-colors: #e67e22, #2980b9, #27ae60, #8e44ad, #d35400, #16a085, #c0392b, #2c3e50;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1, h2, h3 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+    }
+    h1 { font-size: 36px; margin-bottom: 12px; }
+    h2 { font-size: 24px; margin-bottom: 8px; }
+    code, .mono {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .flex-row {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .left-panel {
+      flex: 2;
+      min-width: 300px;
+    }
+    .right-panel {
+      flex: 1;
+      min-width: 260px;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: var(--text);
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px 12px;
+      font-size: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(78, 139, 122, 0.2);
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+    .flags-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .flags-row label {
+      font-weight: 400;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .error-msg {
+      color: var(--error);
+      font-size: 13px;
+      margin-top: 4px;
+      min-height: 18px;
+    }
+    .highlight-area {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    mark {
+      background: var(--mark-bg);
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+    .match-count {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .match-list-container {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      position: relative;
+      overflow-y: auto;
+      height: 280px; /* fixed height for virtual scroll */
+    }
+    .match-list-inner {
+      position: relative;
+      width: 100%;
+    }
+    .match-item {
+      position: absolute;
+      left: 0;
+      right: 0;
+      padding: 6px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .match-index {
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 30px;
+    }
+    .group-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #fff;
+      background: var(--accent);
+    }
+    .group-tag.named {
+      background: #8e44ad;
+    }
+    .group-tag.unnamed {
+      background: #2980b9;
+    }
+    .history-panel {
+      margin-top: 20px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .history-panel h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .history-list {
+      list-style: none;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .history-item {
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-item:hover {
+      background: #f0f0ec;
+    }
+    .history-item .pattern-preview {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--accent);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-item .time-preview {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .history-item .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 14px;
+      padding: 0 4px;
+    }
+    .clear-history {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--accent);
+      cursor: pointer;
+      background: none;
+      border: none;
+      text-decoration: underline;
+    }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: var(--accent-light);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #a8a39b;
+        --border: #3a3a3a;
+        --mark-bg: rgba(78, 139, 122, 0.35);
+      }
+      input[type="text"], textarea, .highlight-area, .match-list-container, .history-panel {
+        background: #2a2a2a;
+        color: #f0eee8;
+        border-color: #3a3a3a;
+      }
+      .history-item:hover {
+        background: #333;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🧪 正则调试器</h1>
+  </header>
+  <div class="flex-row">
+    <div class="left-panel">
+      <div class="input-group">
+        <label for="pattern">正则表达式</label>
+        <input type="text" id="pattern" placeholder="例如：(\d{4})-(\d{2})-(\d{2})" autocomplete="off">
+        <div class="error-msg" id="pattern-error"></div>
+      </div>
+      <div class="input-group">
+        <label for="test-text">测试文本</label>
+        <textarea id="test-text" placeholder="在此输入要测试的文本…"></textarea>
+      </div>
+      <div class="flags-row">
+        <label><input type="checkbox" id="flag-g" checked> global (g)</label>
+        <label><input type="checkbox" id="flag-i"> ignoreCase (i)</label>
+        <label><input type="checkbox" id="flag-m"> multiline (m)</label>
+        <label><input type="checkbox" id="flag-s"> dotAll (s)</label>
+        <label><input type="checkbox" id="flag-u"> unicode (u)</label>
+      </div>
+      <div style="margin-top: 12px;">
+        <label>高亮匹配结果</label>
+        <div class="highlight-area" id="highlight-output"></div>
+        <div class="match-count" id="match-count"></div>
+      </div>
+      <div style="margin-top: 16px;">
+        <label>捕获组列表 <span style="font-weight:400; font-size:13px; color:var(--muted)">(虚拟滚动)</span></label>
+        <div class="match-list-container" id="match-list-container">
+          <div class="match-list-inner" id="match-list-inner"></div>
+        </div>
+      </div>
+    </div>
+    <div class="right-panel">
+      <div class="history-panel">
+        <h3>历史记录</h3>
+        <ul class="history-list" id="history-list"></ul>
+        <button class="clear-history" id="clear-history">清除历史</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- DOM refs ----------
+  const patternInput = document.getElementById('pattern');
+  const testText = document.getElementById('test-text');
+  const errorMsg = document.getElementById('pattern-error');
+  const highlightOutput = document.getElementById('highlight-output');
+  const matchCount = document.getElementById('match-count');
+  const matchListContainer = document.getElementById('match-list-container');
+  const matchListInner = document.getElementById('match-list-inner');
+  const historyList = document.getElementById('history-list');
+  const clearHistoryBtn = document.getElementById('clear-history');
+  const flagG = document.getElementById('flag-g');
+  const flagI = document.getElementById('flag-i');
+  const flagM = document.getElementById('flag-m');
+  const flagS = document.getElementById('flag-s');
+  const flagU = document.getElementById('flag-u');
+
+  // ---------- State ----------
+  let history = [];   // array of {pattern, flags, text, timestamp}
+  const MAX_HISTORY = 10;
+  let currentMatchData = []; // array of {match: string, index: number, groups: object, namedGroups: object}
+  let virtualScrollState = {
+    itemHeight: 36,
+    totalItems: 0,
+    visibleStart: 0,
+    visibleEnd: 0,
+  };
+
+  // group color palette (循环)
+  const groupColors = ['#e67e22','#2980b9','#27ae60','#8e44ad','#d35400','#16a085','#c0392b','#2c3e50'];
+  function getGroupColor(idx) { return groupColors[idx % groupColors.length]; }
+
+  // ---------- Helpers ----------
+  function getFlags() {
+    let flags = '';
+    if (flagG.checked) flags += 'g';
+    if (flagI.checked) flags += 'i';
+    if (flagM.checked) flags += 'm';
+    if (flagS.checked) flags += 's';
+    if (flagU.checked) flags += 'u';
+    return flags;
+  }
+
+  function buildRegExp(pattern, flags) {
+    try {
+      return new RegExp(pattern, flags);
+    } catch (e) {
+      throw new Error(e.message);
+    }
+  }
+
+  // ---------- Persistence ----------
+  function loadHistory() {
+    try {
+      const stored = localStorage.getItem('regex_history');
+      if (stored) history = JSON.parse(stored);
+      if (!Array.isArray(history)) history = [];
+    } catch { history = []; }
+  }
+  function saveHistory() {
+    localStorage.setItem('regex_history', JSON.stringify(history));
+  }
+  function addHistory(pattern, flags, text) {
+    // 去重：如果相同 pattern+flags+text 已存在，更新时间戳并移到最前
+    const existingIndex = history.findIndex(h => h.pattern === pattern && h.flags === flags && h.text === text);
+    if (existingIndex !== -1) {
+      // 移到最前
+      const item = history.splice(existingIndex, 1)[0];
+      item.timestamp = Date.now();
+      history.unshift(item);
+    } else {
+      history.unshift({ pattern, flags, text, timestamp: Date.now() });
+      if (history.length > MAX_HISTORY) history.pop();
+    }
+    saveHistory();
+    renderHistory();
+  }
+  function deleteHistoryItem(index) {
+    history.splice(index, 1);
+    saveHistory();
+    renderHistory();
+  }
+
+  // ---------- History Render ----------
+  function renderHistory() {
+    historyList.innerHTML = '';
+    history.forEach((item, idx) => {
+      const li = document.createElement('li');
+      li.className = 'history-item';
+      li.dataset.index = idx;
+      const preview = document.createElement('span');
+      preview.className = 'pattern-preview';
+      preview.textContent = item.pattern || '(空)';
+      const time = document.createElement('span');
+      time.className = 'time-preview';
+      const date = new Date(item.timestamp);
+      time.textContent = date.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const del = document.createElement('button');
+      del.className = 'delete-btn';
+      del.textContent = '✕';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteHistoryItem(idx);
+      });
+      li.appendChild(preview);
+      li.appendChild(time);
+      li.appendChild(del);
+      li.addEventListener('click', () => {
+        // 恢复
+        patternInput.value = item.pattern;
+        testText.value = item.text;
+        // 设置 flags
+        const f = item.flags || '';
+        flagG.checked = f.includes('g');
+        flagI.checked = f.includes('i');
+        flagM.checked = f.includes('m');
+        flagS.checked = f.includes('s');
+        flagU.checked = f.includes('u');
+        updateResults();
+      });
+      historyList.appendChild(li);
+    });
+  }
+
+  // ---------- Virtual Scroll for Match List ----------
+  function renderMatchListVirtual() {
+    const { itemHeight, totalItems, visibleStart, visibleEnd } = virtualScrollState;
+    // 设置 inner 总高度
+    const totalHeight = totalItems * itemHeight;
+    matchListInner.style.height = totalHeight + 'px';
+
+    // 清除之前的所有子项 (保留占位元素？直接清空重建)
+    matchListInner.innerHTML = '';
+
+    // 如果没有匹配项，显示空状态
+    if (totalItems === 0) {
+      const empty = document.createElement('div');
+      empty.style.padding = '12px';
+      empty.style.color = 'var(--muted)';
+      empty.textContent = '无匹配';
+      matchListInner.appendChild(empty);
+      return;
+    }
+
+    // 创建可见范围的项
+    const fragment = document.createDocumentFragment();
+    for (let i = visibleStart; i < visibleEnd; i++) {
+      const data = currentMatchData[i];
+      if (!data) continue;
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'match-item';
+      itemDiv.style.top = (i * itemHeight) + 'px';
+      itemDiv.style.height = itemHeight + 'px';
+
+      // 索引
+      const idxSpan = document.createElement('span');
+      idxSpan.className = 'match-index';
+      idxSpan.textContent = `#${i+1}`;
+      itemDiv.appendChild(idxSpan);
+
+      // 匹配文本
+      const matchSpan = document.createElement('span');
+      matchSpan.className = 'mono';
+      matchSpan.style.color = '#c0392b';
+      matchSpan.textContent = data.match;
+      itemDiv.appendChild(matchSpan);
+
+      // 捕获组
+      const groups = data.groups || {};
+      const keys = Object.keys(groups);
+      const namedGroups = data.namedGroups || {};
+      // 先显示编号组（非命名）
+      for (let k = 1; k <= keys.length; k++) {
+        if (namedGroups[k] !== undefined) continue; // 命名组跳过
+        const val = groups[k];
+        if (val === undefined) continue;
+        const tag = document.createElement('span');
+        tag.className = 'group-tag unnamed';
+        tag.style.background = getGroupColor(parseInt(k)-1);
+        tag.textContent = `$${k}=${val}`;
+        itemDiv.appendChild(tag);
+      }
+      // 命名组
+      for (const [name, val] of Object.entries(namedGroups)) {
+        const tag = document.createElement('span');
+        tag.className = 'group-tag named';
+        tag.style.background = getGroupColor(Object.keys(namedGroups).indexOf(name) % groupColors.length);
+        tag.textContent = `?<${name}>=${val}`;
+        itemDiv.appendChild(tag);
+      }
+
+      fragment.appendChild(itemDiv);
+    }
+    matchListInner.appendChild(fragment);
+  }
+
+  function onMatchListScroll() {
+    const scrollTop = matchListContainer.scrollTop;
+    const clientHeight = matchListContainer.clientHeight;
+    const itemHeight = virtualScrollState.itemHeight;
+    const totalItems = virtualScrollState.totalItems;
+    if (totalItems === 0) return;
+    const start = Math.floor(scrollTop / itemHeight);
+    const end = Math.min(start + Math.ceil(clientHeight / itemHeight) + 2, totalItems);
+    if (start !== virtualScrollState.visibleStart || end !== virtualScrollState.visibleEnd) {
+      virtualScrollState.visibleStart = start;
+      virtualScrollState.visibleEnd = end;
+      renderMatchListVirtual();
+    }
+  }
+
+  // ---------- Main Update ----------
+  function updateResults() {
+    const pattern = patternInput.value;
+    const text = testText.value;
+    const flags = getFlags();
+
+    // 清除错误
+    errorMsg.textContent = '';
+
+    // 如果没有 pattern，清空所有输出
+    if (!pattern.trim()) {
+      highlightOutput.textContent = text || '';
+      matchCount.textContent = '';
+      currentMatchData = [];
+      virtualScrollState.totalItems = 0;
+      renderMatchListVirtual();
+      // 不保存历史
+      return;
+    }
+
+    // 构建正则
+    let re;
+    try {
+      re = buildRegExp(pattern, flags);
+    } catch (e) {
+      errorMsg.textContent = e.message;
+      // 保留之前的高亮？清空
+      highlightOutput.textContent = text || '';
+      matchCount.textContent = '';
+      currentMatchData = [];
+      virtualScrollState.totalItems = 0;
+      renderMatchListVirtual();
+      return;
+    }
+
+    // 执行匹配
+    const matches = [];
+    let m;
+    // 如果正则没有 global flag，则只匹配一次; 但为了展示高亮，我们手动循环（use lastIndex）
+    const global = flags.includes('g');
+    let lastIndex = 0;
+    // 重置 lastIndex
+    if (global) re.lastIndex = 0;
+    // 高亮构建
+    let htmlSegments = [];
+    let lastPos = 0;
+    const matchData = [];
+
+    // 如果 global，循环；否则只匹配一次
+    const maxMatches = 10000; // 安全限制
+    let matchCountVal = 0;
+    while ((m = re.exec(text)) !== null && matchCountVal < maxMatches) {
+      matchCountVal++;
+      // 匹配信息
+      const matchStr = m[0];
+      const index = m.index;
+      // 捕获组（包括命名）
+      const groups = {};
+      const namedGroups = {};
+      // 编号组
+      for (let i = 0; i < m.length; i++) {
+        if (i === 0) continue; // 完整匹配
+        groups[i] = m[i];
+      }
+      // 命名组
+      if (m.groups) {
+        for (const [k, v] of Object.entries(m.groups)) {
+          namedGroups[k] = v;
+          // 也放入数字组？保持兼容
+          // 编号组中可能重复，约定数字组只放未命名的
+        }
+      }
+      matchData.push({ match: matchStr, index, groups, namedGroups });
+
+      // 高亮片段
+      if (index > lastPos) {
+        htmlSegments.push(escapeHtml(text.slice(lastPos, index)));
+      }
+      htmlSegments.push(`<mark>${escapeHtml(matchStr)}</mark>`);
+      lastPos = index + matchStr.length;
+
+      if (!global) break; // 非 global 只一次
+    }
+
+    // 剩余文本
+    if (lastPos < text.length) {
+      htmlSegments.push(escapeHtml(text.slice(lastPos)));
+    }
+
+    // 更新高亮区域
+    highlightOutput.innerHTML = htmlSegments.join('');
+
+    // 更新匹配计数
+    matchCount.textContent = matchData.length > 0 ? `共 ${matchData.length} 个匹配` : '无匹配';
+
+    // 更新匹配列表数据
+    currentMatchData = matchData;
+    const totalItems = matchData.length;
+    const containerHeight = matchListContainer.clientHeight;
+    const itemHeight = virtualScrollState.itemHeight;
+    const visibleStart = Math.floor(matchListContainer.scrollTop / itemHeight);
+    const visibleEnd = Math.min(visibleStart + Math.ceil(containerHeight / itemHeight) + 2, totalItems);
+    virtualScrollState.totalItems = totalItems;
+    virtualScrollState.visibleStart = visibleStart;
+    virtualScrollState.visibleEnd = visibleEnd;
+    renderMatchListVirtual();
+
+    // 自动保存历史（防抖，但简单处理：每次有效输入保存）
+    // 仅当有 pattern 和 text 时保存（避免空保存）
+    if (pattern.trim() && text.trim()) {
+      addHistory(pattern, flags, text);
+    }
+  }
+
+  // Helper escape
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  // ---------- Debounce ----------
+  let updateTimeout;
+  function debouncedUpdate() {
+    clearTimeout(updateTimeout);
+    updateTimeout = setTimeout(updateResults, 200);
+  }
+
+  // ---------- Event Listeners ----------
+  patternInput.addEventListener('input', debouncedUpdate);
+  testText.addEventListener('input', debouncedUpdate);
+  [flagG, flagI, flagM, flagS, flagU].forEach(flag => flag.addEventListener('change', debouncedUpdate));
+  matchListContainer.addEventListener('scroll', onMatchListScroll);
+
+  // 清除历史
+  clearHistoryBtn.addEventListener('click', () => {
+    history = [];
+    saveHistory();
+    renderHistory();
+  });
+
+  // ---------- Init ----------
+  // 加载历史
+  loadHistory();
+  renderHistory();
+
+  // 检查是否有上次状态（使用 localStorage 存储上次的 pattern/text/flags）
+  function loadLastState() {
+    try {
+      const lastPattern = localStorage.getItem('regex_last_pattern');
+      const lastText = localStorage.getItem('regex_last_text');
+      const lastFlags = localStorage.getItem('regex_last_flags');
+      if (lastPattern !== null && lastText !== null) {
+        patternInput.value = lastPattern;
+        testText.value = lastText;
+        if (lastFlags) {
+          flagG.checked = lastFlags.includes('g');
+          flagI.checked = lastFlags.includes('i');
+          flagM.checked = lastFlags.includes('m');
+          flagS.checked = lastFlags.includes('s');
+          flagU.checked = lastFlags.includes('u');
+        }
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+  function saveLastState() {
+    try {
+      localStorage.setItem('regex_last_pattern', patternInput.value);
+      localStorage.setItem('regex_last_text', testText.value);
+      localStorage.setItem('regex_last_flags', getFlags());
+    } catch {}
+  }
+  // 定期保存状态（每次更新时）
+  function debouncedSaveState() {
+    clearTimeout(window._saveStateTimer);
+    window._saveStateTimer = setTimeout(saveLastState, 500);
+  }
+  // 在 updateResults 末尾也会保存历史，但还需要保存当前状态
+  // 我们额外监听保存
+  const originalUpdate = updateResults;
+  updateResults = function() {
+    originalUpdate.call(this);
+    saveLastState();
+  };
+  // 但为了避免循环，我们直接覆盖原有函数?上面已经覆盖了
+
+  // 首次加载
+  const hasLast = loadLastState();
+  if (!hasLast) {
+    // 示例数据
+    patternInput.value = '(\\d{4})-(\\d{2})-(\\d{2})';
+    testText.value = '2025-06-27 和 2024-01-15 是两个日期，还有1999-12-31。';
+    flagG.checked = true;
+    // 强制更新 flags（其他地方已保存但未显示）
+  }
+  // 执行第一次更新
+  updateResults();
+
+  // 窗口关闭前保存状态
+  window.addEventListener('beforeunload', saveLastState);
+
+  // 监听 resize 重新计算虚拟滚动
+  window.addEventListener('resize', () => {
+    onMatchListScroll();
+  });
+
+  // 当匹配列表重新渲染后可能 scroll 需要更新
+  // 并且在容器高度变化时重新计算
+  // 我们额外在每次渲染后触发一次scroll事件处理
+  // 使用MutationObserver观察内部变化? 简单的在updateResults末尾调用onMatchListScroll
+  // 修改updateResults来触发
+  const originalRender = renderMatchListVirtual;
+  renderMatchListVirtual = function() {
+    originalRender.call(this);
+    // 更新后触发一次 scroll 同步
+    onMatchListScroll();
+  };
+
+})();
+</script>
+</body>
+</html>

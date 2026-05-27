@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>红黑棋钟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --red: #c0392b;
+      --black: #1a1a1a;
+      --white: #f0eee8;
+      --card-bg: #ffffff;
+      --border: #e0ddd5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #9a9a9a;
+        --card-bg: #2a2a2a;
+        --border: #3a3a3a;
+        --accent: #6ab0a0;
+        --red: #e74c3c;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .app {
+      max-width: 520px;
+      width: 100%;
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 2rem 1.5rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+    }
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    h2 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 1.25rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .preset-btn {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 1.5rem;
+      padding: 1.5rem 0.5rem;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, transform 0.1s;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .preset-btn:hover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--card-bg));
+    }
+    .preset-btn:active {
+      transform: scale(0.96);
+    }
+    .preset-btn .sub {
+      display: block;
+      font-size: 0.85rem;
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 0.3rem;
+    }
+    .timer-screen {
+      display: none;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .timer-screen.active {
+      display: flex;
+    }
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.2rem;
+      border-radius: 16px;
+      border: 2px solid var(--border);
+      background: var(--card-bg);
+      position: relative;
+    }
+    .player-row.active-turn {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+    .player-label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      min-width: 3.5rem;
+    }
+    .player-label.red { color: var(--red); }
+    .player-label.black { color: var(--black); }
+    .player-time {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 2.4rem;
+      font-weight: 500;
+      flex: 1;
+      text-align: center;
+      line-height: 1;
+    }
+    .player-time.warning {
+      color: var(--red);
+    }
+    .player-move-btn {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .player-move-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .player-move-btn:hover:not(:disabled) {
+      opacity: 0.85;
+    }
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-top: 0.5rem;
+    }
+    .control-btn {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .control-btn:hover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 6%, var(--card-bg));
+    }
+    .control-btn.danger {
+      border-color: var(--red);
+      color: var(--red);
+    }
+    .control-btn.danger:hover {
+      background: color-mix(in srgb, var(--red) 10%, var(--card-bg));
+    }
+    .preset-selector {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .back-btn {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+    }
+    .back-btn:hover {
+      text-decoration: underline;
+    }
+    .message {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+    .hidden { display: none; }
+    .preset-screen { 
+      display: block;
+    }
+    .preset-screen.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <!-- 预设选择界面 -->
+    <div id="presetScreen" class="preset-screen">
+      <h1>红黑棋钟</h1>
+      <p style="text-align:center; color:var(--muted); margin-bottom:0.5rem;">选择预设，点击即开始</p>
+      <div class="preset-grid">
+        <button class="preset-btn" data-preset="5+3">
+          5+3
+          <span class="sub">5分钟 · 每步+3秒</span>
+        </button>
+        <button class="preset-btn" data-preset="3+2">
+          3+2
+          <span class="sub">3分钟 · 每步+2秒</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 计时界面 -->
+    <div id="timerScreen" class="timer-screen">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="back-btn" id="backBtn">← 返回预设</button>
+        <span id="presetLabel" style="font-family:'Fraunces',serif; font-weight:600;">5+3</span>
+      </div>
+      <div class="player-row" id="redRow">
+        <span class="player-label red">红方</span>
+        <span class="player-time" id="redTime">05:00</span>
+        <button class="player-move-btn" id="redMoveBtn">走一步</button>
+      </div>
+      <div class="player-row" id="blackRow">
+        <span class="player-label black">黑方</span>
+        <span class="player-time" id="blackTime">05:00</span>
+        <button class="player-move-btn" id="blackMoveBtn">走一步</button>
+      </div>
+      <div class="controls">
+        <button class="control-btn" id="pauseBtn">暂停</button>
+        <button class="control-btn danger" id="resetBtn">重新开局</button>
+      </div>
+      <div class="message" id="statusMsg">红方先走</div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ---------- 预设参数 ----------
+      const PRESETS = {
+        '5+3': { base: 5 * 60, increment: 3 },
+        '3+2': { base: 3 * 60, increment: 2 }
+      };
+
+      // ---------- DOM 引用 ----------
+      const presetScreen = document.getElementById('presetScreen');
+      const timerScreen = document.getElementById('timerScreen');
+      const presetBtns = document.querySelectorAll('.preset-btn');
+      const backBtn = document.getElementById('backBtn');
+      const presetLabel = document.getElementById('presetLabel');
+      const redTimeEl = document.getElementById('redTime');
+      const blackTimeEl = document.getElementById('blackTime');
+      const redRow = document.getElementById('redRow');
+      const blackRow = document.getElementById('blackRow');
+      const redMoveBtn = document.getElementById('redMoveBtn');
+      const blackMoveBtn = document.getElementById('blackMoveBtn');
+      const pauseBtn = document.getElementById('pauseBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const statusMsg = document.getElementById('statusMsg');
+
+      // ---------- 状态 ----------
+      let state = {
+        preset: null,          // '5+3' | '3+2'
+        baseTime: 0,           // 秒
+        increment: 0,          // 秒
+        redRemaining: 0,       // 秒
+        blackRemaining: 0,     // 秒
+        activeTurn: 'red',     // 'red' | 'black' | null (暂停/结束)
+        running: false,
+        started: false,
+        finished: false
+      };
+
+      let timerInterval = null;
+      const SAVE_KEY = 'redblack_chess_clock_state';
+
+      // ---------- 保存 / 恢复 ----------
+      function saveState() {
+        try {
+          const toSave = {
+            preset: state.preset,
+            baseTime: state.baseTime,
+            increment: state.increment,
+            redRemaining: state.redRemaining,
+            blackRemaining: state.blackRemaining,
+            activeTurn: state.activeTurn,
+            running: state.running,
+            started: state.started,
+            finished: state.finished
+          };
+          localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
+        } catch(e) { /* ignore */ }
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(SAVE_KEY);
+          if (!raw) return null;
+          const saved = JSON.parse(raw);
+          // 基本完整性检查
+          if (saved && saved.preset && PRESETS[saved.preset]) {
+            return saved;
+          }
+        } catch(e) { /* ignore */ }
+        return null;
+      }
+
+      function clearSavedState() {
+        try { localStorage.removeItem(SAVE_KEY); } catch(e) { /* ignore */ }
+      }
+
+      // ---------- 格式化时间 mm:ss ----------
+      function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      }
+
+      // ---------- 更新显示 ----------
+      function updateDisplay() {
+        redTimeEl.textContent = formatTime(state.redRemaining);
+        blackTimeEl.textContent = formatTime(state.blackRemaining);
+
+        // 高亮当前走棋方
+        redRow.classList.toggle('active-turn', state.activeTurn === 'red');
+        blackRow.classList.toggle('active-turn', state.activeTurn === 'black');
+
+        // 时间变红警告（低于30秒）
+        redTimeEl.classList.toggle('warning', state.redRemaining <= 30 && state.redRemaining > 0);
+        blackTimeEl.classList.toggle('warning', state.blackRemaining <= 30 && state.blackRemaining > 0);
+
+        // 按钮禁用
+        redMoveBtn.disabled = state.activeTurn !== 'red' || state.finished;
+        blackMoveBtn.disabled = state.activeTurn !== 'black' || state.finished;
+
+        // 暂停按钮文字
+        if (state.finished) {
+          pauseBtn.textContent = '已结束';
+          pauseBtn.disabled = true;
+        } else if (state.running) {
+          pauseBtn.textContent = '暂停';
+          pauseBtn.disabled = false;
+        } else {
+          pauseBtn.textContent = state.started ? '继续' : '开始';
+          pauseBtn.disabled = false;
+        }
+
+        // 状态消息
+        if (state.finished) {
+          const loser = state.activeTurn === 'red' ? '红方' : '黑方';
+          statusMsg.textContent = `${loser} 超时！游戏结束。`;
+        } else if (!state.started) {
+          statusMsg.textContent = '红方先走';
+        } else if (state.running) {
+          statusMsg.textContent = state.activeTurn === 'red' ? '红方思考中…' : '黑方思考中…';
+        } else {
+          statusMsg.textContent = '暂停中';
+        }
+      }
+
+      // ---------- 计时器 tick ----------
+      function tick() {
+        if (!state.running || state.finished) return;
+
+        if (state.activeTurn === 'red') {
+          state.redRemaining -= 0.1;
+          if (state.redRemaining <= 0) {
+            state.redRemaining = 0;
+            state.finished = true;
+            state.running = false;
+            state.activeTurn = null;
+            clearInterval(timerInterval);
+            timerInterval = null;
+          }
+        } else if (state.activeTurn === 'black') {
+          state.blackRemaining -= 0.1;
+          if (state.blackRemaining <= 0) {
+            state.blackRemaining = 0;
+            state.finished = true;
+            state.running = false;
+            state.activeTurn = null;
+            clearInterval(timerInterval);
+            timerInterval = null;
+          }
+        }
+        updateDisplay();
+        saveState();
+      }
+
+      // ---------- 开始计时 ----------
+      function startTimer() {
+        if (timerInterval) return;
+        state.running = true;
+        timerInterval = setInterval(tick, 100); // 每100ms更新，显示精度0.1秒但UI只显示整秒
+        updateDisplay();
+        saveState();
+      }
+
+      // ---------- 暂停 ----------
+      function pauseTimer() {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        state.running = false;
+        updateDisplay();
+        saveState();
+      }
+
+      // ---------- 切换走棋方 (走一步) ----------
+      function move(player) {
+        if (state.finished) return;
+        if (!state.started) {
+          // 首次走棋开始计时
+          state.started = true;
+          state.activeTurn = 'red'; // 默认红方先走
+          startTimer();
+          return;
+        }
+        // 必须是对应玩家的回合
+        if ((player === 'red' && state.activeTurn !== 'red') ||
+            (player === 'black' && state.activeTurn !== 'black')) {
+          return;
+        }
+        // 添加加秒
+        if (player === 'red') {
+          state.redRemaining += state.increment;
+        } else {
+          state.blackRemaining += state.increment;
+        }
+        // 切换回合
+        state.activeTurn = (player === 'red') ? 'black' : 'red';
+        // 如果计时器未运行，重新启动
+        if (!state.running) {
+          startTimer();
+        }
+        updateDisplay();
+        saveState();
+      }
+
+      // ---------- 重置（新游戏） ----------
+      function resetGame(confirm = true) {
+        if (confirm && state.started) {
+          const ok = window.confirm('确定要重新开局吗？当前对局进度将丢失。');
+          if (!ok) return;
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        state.redRemaining = state.baseTime;
+        state.blackRemaining = state.baseTime;
+        state.activeTurn = 'red';
+        state.running = false;
+        state.started = false;
+        state.finished = false;
+        updateDisplay();
+        clearSavedState();
+      }
+
+      // ---------- 设置预设并进入计时界面 ----------
+      function startWithPreset(presetKey) {
+        const p = PRESETS[presetKey];
+        if (!p) return;
+        // 如果当前有进行中的对局，先询问
+        if (state.started && !state.finished) {
+          const ok = window.confirm('当前有对局进行中，确定要切换预设吗？');
+          if (!ok) return;
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        state.preset = presetKey;
+        state.baseTime = p.base;
+        state.increment = p.increment;
+        state.redRemaining = p.base;
+        state.blackRemaining = p.base;
+        state.activeTurn = 'red';
+        state.running = false;
+        state.started = false;
+        state.finished = false;
+        presetLabel.textContent = presetKey;
+        presetScreen.classList.add('hidden');
+        timerScreen.classList.add('active');
+        updateDisplay();
+        clearSavedState();
+        saveState();
+      }
+
+      // ---------- 返回预设选择 ----------
+      function goBackToPresets() {
+        if (state.started && !state.finished) {
+          const ok = window.confirm('返回预设选择将结束当前对局。确定吗？');
+          if (!ok) return;
+        }
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+        timerScreen.classList.remove('active');
+        presetScreen.classList.remove('hidden');
+        clearSavedState();
+        // 不清理state，但返回后如果再点预设会替换
+      }
+
+      // ---------- 恢复挂起的游戏 ----------
+      function restoreSavedGame(saved) {
+        if (!saved) return false;
+        const p = PRESETS[saved.preset];
+        if (!p) return false;
+        // 检查是否有进行中的状态
+        if (saved.finished || (!saved.started)) return false;
+        // 恢复
+        state.preset = saved.preset;
+        state.baseTime = saved.baseTime;
+        state.increment = saved.increment;
+        state.redRemaining = saved.redRemaining;
+        state.blackRemaining = saved.blackRemaining;
+        state.activeTurn = saved.activeTurn;
+        state.running = saved.running;
+        state.started = saved.started;
+        state.finished = saved.finished;
+        presetLabel.textContent = saved.preset;
+        presetScreen.classList.add('hidden');
+        timerScreen.classList.add('active');
+        // 如果之前正在运行，恢复计时器
+        if (state.running && !state.finished) {
+          startTimer();
+        }
+        updateDisplay();
+        return true;
+      }
+
+      // ---------- 事件绑定 ----------
+      // 预设按钮
+      presetBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+          const preset = this.dataset.preset;
+          startWithPreset(preset);
+        });
+      });
+
+      // 返回
+      backBtn.addEventListener('click', goBackToPresets);
+
+      // 走一步
+      redMoveBtn.addEventListener('click', function() { move('red'); });
+      blackMoveBtn.addEventListener('click', function() { move('black'); });
+
+      // 暂停/继续
+      pauseBtn.addEventListener('click', function() {
+        if (state.finished) return;
+        if (state.running) {
+          pauseTimer();
+        } else {
+          if (!state.started) {
+            // 直接开始（红方先走）
+            state.started = true;
+            state.activeTurn = 'red';
+            startTimer();
+          } else {
+            startTimer();
+          }
+        }
+      });
+
+      // 重置
+      resetBtn.addEventListener('click', function() {
+        if (!state.started && !state.finished) return; // 尚未开始，重置无意义
+        resetGame(true);
+      });
+
+      // ---------- 页面加载时尝试恢复 ----------
+      const saved = loadState();
+      if (saved && restoreSavedGame(saved)) {
+        // 已恢复
+      } else {
+        // 默认显示预设页面
+        presetScreen.classList.remove('hidden');
+        timerScreen.classList.remove('active');
+        // 初始化默认预设？不，让用户选择
+        // 但先清理可能残留的state
+        resetGame(false);
+      }
+
+      // 页面关闭前保存
+      window.addEventListener('beforeunload', function() {
+        if (state.started && !state.finished) {
+          saveState();
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+{
+  "all_prompts_within_budget": true,
+  "b_prompt_max": 5800,
+  "chaintape_sha256": "3da61185ad79fd707c9e8188ab05647b0b7af03515f9913467c4d31e7dc5e881",
+  "compression_ratio": 0.0,
+  "distinct_judge_classes": [],
+  "leak_in_any_prompt": false,
+  "max_attempts_per_stage": 5,
+  "max_zero_gain_streak": 0,
+  "model_label": "deepseek-v4-flash",
+  "per_stage": [
+    {
+      "attempts_used": 1,
+      "final_constraints": 0,
+      "outcome": "passed",
+      "stage": "Compile"
+    }
+  ],
+  "probes_sha256": "8e6b623410afc8a93ac8a97d57fa3dd88e6beee71790106f617df4be0aa91313",
+  "problem_label": "turingos generate (TDMA-Bounded wire-up)",
+  "prompt_tokens_max": 0,
+  "prompt_tokens_min": 0,
+  "prompt_tokens_variance": 0,
+  "run_id": "turingos-generate-d0deacfc-1fcd-43dd-b126-fd1eb264315b",
+  "stages_completed": 1,
+  "stages_escalated": [],
+  "stages_total": 1,
+  "temperature": 0.20000000298023224,
+  "total_attempts": 1,
+  "total_bbs_bytes_estimated": 0,
+  "total_failed_attempts": 0,
+  "total_llm_completion_tokens": 6506,
+  "total_llm_prompt_tokens": 2266,
+  "total_raw_stderr_bytes": 0,
+  "total_wall_clock_ms": 43136
+}

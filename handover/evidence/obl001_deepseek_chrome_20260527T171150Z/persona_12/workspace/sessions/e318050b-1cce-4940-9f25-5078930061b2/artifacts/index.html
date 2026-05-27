@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>配速计算器</title>
+    <!-- TuringOS 字体: Fraunces / IBM Plex Sans / JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #4e8b7a;
+            --accent-light: #68a996;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --card-bg: #ffffff;
+            --border: #e0ddd5;
+            --error: #c44545;
+            --success: #3a7d5e;
+            --radius: 12px;
+            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #f0eee8;
+                --muted: #9a9892;
+                --card-bg: #262626;
+                --border: #3a3a3a;
+                --shadow: 0 2px 12px rgba(0,0,0,0.4);
+                --accent: #68a996;
+                --accent-light: #8bc2ae;
+            }
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px 16px 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 36px;
+            letter-spacing: -0.01em;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .subhead {
+            font-size: 15px;
+            color: var(--muted);
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 24px 20px;
+        }
+
+        .field-group {
+            margin-bottom: 20px;
+        }
+        .field-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 17px;
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            transition: border-color 0.2s;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(78,139,122,0.15);
+        }
+        input::placeholder {
+            color: var(--muted);
+            opacity: 0.6;
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            font-size: 15px;
+        }
+
+        .inline-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .inline-row .field-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .result-area {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 8px 0;
+        }
+        .result-label {
+            font-size: 14px;
+            color: var(--muted);
+        }
+        .result-value {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 20px;
+            font-weight: 500;
+        }
+        .result-value strong {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            margin: 0 2px;
+        }
+        .result-value .hint {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        .target-row {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .target-row .field-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .target-row .field-group label {
+            font-size: 13px;
+        }
+        .btn-clear {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.15s;
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+            white-space: nowrap;
+            flex-shrink: 0;
+            height: fit-content;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+        .btn-clear:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .prediction-box {
+            margin-top: 12px;
+            background: rgba(78,139,122,0.07);
+            border: 1px solid var(--accent-light);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .prediction-box .result-label {
+            font-size: 13px;
+        }
+        .prediction-box .result-value {
+            font-size: 18px;
+        }
+        .prediction-box .result-value strong {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+        }
+
+        .error-msg {
+            color: var(--error);
+            font-size: 14px;
+            margin-top: 6px;
+            min-height: 1.4em;
+            font-weight: 500;
+        }
+
+        .empty-state {
+            color: var(--muted);
+            font-size: 15px;
+            text-align: center;
+            padding: 16px 0;
+        }
+
+        /* 隐藏默认数字上下箭头 */
+        input[type="text"]::-webkit-outer-spin-button,
+        input[type="text"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="text"] {
+            -moz-appearance: textfield;
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 16px 12px 32px; }
+            h1 { font-size: 32px; }
+            .card { padding: 20px 16px; }
+            .target-row { flex-wrap: wrap; }
+            .target-row .field-group { min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>配速计算器</h1>
+        <div class="subhead">输入距离和时间，一键算出配速</div>
+
+        <div class="card">
+            <!-- 主要输入：距离 & 时间 -->
+            <div class="inline-row">
+                <div class="field-group">
+                    <label for="dist">距离（公里）</label>
+                    <input type="text" id="dist" inputmode="decimal" placeholder="例：10.5" value="">
+                </div>
+                <div class="field-group">
+                    <label for="time">用时（分:秒）</label>
+                    <input type="text" id="time" inputmode="text" placeholder="例：45:30" value="">
+                </div>
+            </div>
+            <div class="error-msg" id="errorMsg"></div>
+
+            <!-- 结果区 -->
+            <div class="result-area" id="resultArea">
+                <div class="result-item">
+                    <span class="result-label">配速</span>
+                    <span class="result-value" id="paceDisplay">—</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">每公里</span>
+                    <span class="result-value" id="pacePerKmDisplay" style="font-size:17px; color:var(--muted);">—</span>
+                </div>
+            </div>
+
+            <!-- 目标配速 & 预测 -->
+            <div class="target-row">
+                <div class="field-group">
+                    <label for="targetPace">目标配速（分:秒/公里）</label>
+                    <input type="text" id="targetPace" inputmode="text" placeholder="例：5:00" value="">
+                </div>
+                <button class="btn-clear" id="clearTargetBtn" title="清除保存的目标配速">清除</button>
+            </div>
+            <div id="predictionBox" class="prediction-box" style="display:none;">
+                <div class="result-item">
+                    <span class="result-label">预计完赛时间</span>
+                    <span class="result-value" id="predictionDisplay">—</span>
+                </div>
+                <div class="result-item" style="padding-top:2px;">
+                    <span class="result-label">与目标对比</span>
+                    <span class="result-value" id="comparisonDisplay" style="font-size:16px;">—</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="font-size:13px; color:var(--muted); text-align:center; margin-top:20px;">
+            💡 配速 = 用时 ÷ 距离 · 目标配速自动保存
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // DOM 引用
+            const distInput = document.getElementById('dist');
+            const timeInput = document.getElementById('time');
+            const targetPaceInput = document.getElementById('targetPace');
+            const errorMsg = document.getElementById('errorMsg');
+            const paceDisplay = document.getElementById('paceDisplay');
+            const pacePerKmDisplay = document.getElementById('pacePerKmDisplay');
+            const predictionBox = document.getElementById('predictionBox');
+            const predictionDisplay = document.getElementById('predictionDisplay');
+            const comparisonDisplay = document.getElementById('comparisonDisplay');
+            const clearTargetBtn = document.getElementById('clearTargetBtn');
+
+            // 存储键
+            const STORAGE_KEY = 'turings_pace_target';
+
+            // ---------- 工具函数 ----------
+            // 解析时间 "mm:ss" 返回总分钟数，失败返回 null
+            function parseTime(str) {
+                if (typeof str !== 'string') return null;
+                const trimmed = str.trim();
+                if (!trimmed) return null;
+                // 尝试匹配 "m:ss" 或 "mm:ss" 或 "h:mm:ss"? spec 只要求 分:秒
+                const match = trimmed.match(/^(\d{1,3}):(\d{1,2})$/);
+                if (match) {
+                    const minutes = parseInt(match[1], 10);
+                    const seconds = parseInt(match[2], 10);
+                    if (seconds >= 60) return null; // 秒数不能>=60
+                    return minutes + seconds / 60;
+                }
+                // 也允许纯数字（当作分钟）
+                const pureNum = parseFloat(trimmed);
+                if (!isNaN(pureNum) && pureNum >= 0) {
+                    return pureNum;
+                }
+                return null;
+            }
+
+            // 解析配速 "mm:ss" 返回分钟数（每公里），失败返回 null
+            function parsePace(str) {
+                return parseTime(str); // 格式相同
+            }
+
+            // 将分钟数格式化为 "m:ss" (整数分钟, 秒钟)
+            function formatMinutes(totalMinutes) {
+                if (totalMinutes == null || isNaN(totalMinutes)) return '—';
+                const mins = Math.floor(totalMinutes);
+                const secs = Math.round((totalMinutes - mins) * 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            // 将分钟数格式化为 "h:mm:ss" (用于完赛时间)
+            function formatHours(totalMinutes) {
+                if (totalMinutes == null || isNaN(totalMinutes)) return '—';
+                const hours = Math.floor(totalMinutes / 60);
+                const mins = Math.floor(totalMinutes % 60);
+                const secs = Math.round((totalMinutes - Math.floor(totalMinutes)) * 60);
+                if (hours > 0) {
+                    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                } else {
+                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+            }
+
+            // ---------- 核心计算 ----------
+            function calculate() {
+                // 清除错误
+                errorMsg.textContent = '';
+                // 读取值
+                const distStr = distInput.value.trim();
+                const timeStr = timeInput.value.trim();
+
+                // 检查是否至少填了距离和时间
+                if (!distStr && !timeStr) {
+                    // 空状态，显示占位
+                    paceDisplay.textContent = '—';
+                    pacePerKmDisplay.textContent = '—';
+                    updatePrediction();
+                    return;
+                }
+
+                // 验证距离
+                const dist = parseFloat(distStr);
+                if (distStr === '' || isNaN(dist) || dist <= 0) {
+                    if (distStr !== '') {
+                        errorMsg.textContent = '请输入有效的距离（数字，单位公里）';
+                    }
+                    paceDisplay.textContent = '—';
+                    pacePerKmDisplay.textContent = '—';
+                    updatePrediction();
+                    return;
+                }
+
+                // 验证时间
+                const totalMinutes = parseTime(timeStr);
+                if (timeStr !== '' && totalMinutes === null) {
+                    errorMsg.textContent = '时间格式不对，请用 分钟:秒（如 45:30）';
+                    paceDisplay.textContent = '?';
+                    pacePerKmDisplay.textContent = '—';
+                    updatePrediction();
+                    return;
+                }
+                if (totalMinutes === null || totalMinutes <= 0) {
+                    if (timeStr !== '') {
+                        errorMsg.textContent = '请输入有效的时间';
+                    }
+                    paceDisplay.textContent = '—';
+                    pacePerKmDisplay.textContent = '—';
+                    updatePrediction();
+                    return;
+                }
+
+                // 计算配速（分钟/公里）
+                const paceMinPerKm = totalMinutes / dist;
+                paceDisplay.textContent = formatMinutes(paceMinPerKm) + ' /公里';
+                pacePerKmDisplay.textContent = `${paceMinPerKm.toFixed(2)} 分钟/公里`;
+
+                // 更新预测（依赖当前距离和目标配速）
+                updatePrediction(dist);
+            }
+
+            // ---------- 预测（完赛时间 & 对比） ----------
+            function updatePrediction(dist) {
+                // dist 可选，若未传入则从输入读取
+                if (dist === undefined) {
+                    const distStr = distInput.value.trim();
+                    dist = parseFloat(distStr);
+                    if (isNaN(dist) || dist <= 0) {
+                        predictionBox.style.display = 'none';
+                        return;
+                    }
+                }
+
+                const targetStr = targetPaceInput.value.trim();
+                if (!targetStr) {
+                    predictionBox.style.display = 'none';
+                    return;
+                }
+
+                const targetPace = parsePace(targetStr);
+                if (targetPace === null || targetPace <= 0) {
+                    // 目标配速无效，隐藏预测
+                    predictionBox.style.display = 'none';
+                    return;
+                }
+
+                // 计算完赛时间（分钟）
+                const totalMin = targetPace * dist;
+                const formattedTime = formatHours(totalMin);
+                predictionDisplay.textContent = formattedTime;
+
+                // 对比：如果当前有计算出的配速（从显示区域取）
+                const currentPaceText = paceDisplay.textContent;
+                let comparison = '';
+                if (currentPaceText && currentPaceText !== '—' && currentPaceText !== '?' && currentPaceText.includes('/公里')) {
+                    // 提取当前配速分钟数（从格式化字符串）
+                    const parts = currentPaceText.split(' /公里')[0];
+                    const paceParts = parts.split(':');
+                    if (paceParts.length === 2) {
+                        const currMin = parseInt(paceParts[0], 10) + parseInt(paceParts[1], 10) / 60;
+                        const diff = currMin - targetPace;
+                        if (Math.abs(diff) < 0.01) {
+                            comparison = '✓ 正好达标';
+                        } else if (diff < 0) {
+                            comparison = `快 ${formatMinutes(Math.abs(diff))} /公里`;
+                        } else {
+                            comparison = `慢 ${formatMinutes(Math.abs(diff))} /公里`;
+                        }
+                    } else {
+                        comparison = '—';
+                    }
+                } else {
+                    comparison = '—';
+                }
+                comparisonDisplay.textContent = comparison;
+
+                predictionBox.style.display = 'block';
+            }
+
+            // ---------- 持久化目标配速 ----------
+            function loadTargetPace() {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        targetPaceInput.value = saved;
+                    }
+                } catch(e) {
+                    // localStorage 不可用则忽略
+                }
+            }
+
+            function saveTargetPace() {
+                try {
+                    const val = targetPaceInput.value.trim();
+                    if (val) {
+                        localStorage.setItem(STORAGE_KEY, val);
+                    } else {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
+                } catch(e) {
+                    // ignore
+                }
+            }
+
+            function clearTargetPace() {
+                targetPaceInput.value = '';
+                saveTargetPace();
+                calculate(); // 刷新
+            }
+
+            // ---------- 事件绑定 ----------
+            // 主要输入变化 => 计算
+            distInput.addEventListener('input', function() {
+                calculate();
+            });
+            timeInput.addEventListener('input', function() {
+                calculate();
+            });
+
+            // 目标配速输入变化 => 保存并刷新预测
+            targetPaceInput.addEventListener('input', function() {
+                saveTargetPace();
+                calculate(); // 触发更新预测
+            });
+
+            // 清除目标
+            clearTargetBtn.addEventListener('click', function() {
+                clearTargetPace();
+                targetPaceInput.focus();
+            });
+
+            // 页面加载
+            loadTargetPace();
+            calculate(); // 初始计算（可能空）
+
+            // 如果输入框有值（如浏览器自动填充），重新计算
+            window.addEventListener('load', function() {
+                calculate();
+            });
+
+            // 支持回车切换焦点
+            document.querySelectorAll('input').forEach(inp => {
+                inp.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const inputs = [distInput, timeInput, targetPaceInput];
+                        const idx = inputs.indexOf(this);
+                        if (idx !== -1 && idx < inputs.length - 1) {
+                            inputs[idx + 1].focus();
+                        }
+                    }
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

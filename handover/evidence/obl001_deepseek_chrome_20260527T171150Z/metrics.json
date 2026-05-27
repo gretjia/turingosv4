@@ -1,0 +1,291 @@
+{
+  "agent": "agy",
+  "task_id": "OBL001_SCRIPT_MINIMAL",
+  "workspace": "/tmp/turingosv4-gaia-runner-next",
+  "ok": true,
+  "status": "complete",
+  "summary": "Completed 15/15 personas.",
+  "timestamp": "2026-05-27T19:33:24.469Z",
+  "timeout_ms": 1920000,
+  "target_completed": 15,
+  "max_personas": 18,
+  "browser": {
+    "chrome_version": "148.0.7778.178",
+    "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+  },
+  "global_duration_ms": 8493570,
+  "completed_personas_count": 15,
+  "total_personas_attempted": 18,
+  "personas": [
+    {
+      "index": 0,
+      "name": "退休会计师老张",
+      "success": true,
+      "session_id": "2d86b81d-0460-45ca-ae0a-3ce4df55124d",
+      "spec_capsule_cid": "0e652e2f…c5ca04d6",
+      "duration_ms": 467698,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 1,
+      "name": "物理老师李老师",
+      "success": false,
+      "session_id": "3c936b84-9810-4d45-91ea-cd19fca3ab97",
+      "spec_capsule_cid": "",
+      "duration_ms": 490730,
+      "tape_presence": {
+        "spec_md": false,
+        "artifacts_count": 0,
+        "chaintape_l4": false,
+        "rejections_jsonl": false,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 2,
+      "name": "主厨阿明",
+      "success": true,
+      "session_id": "6ef6b137-2302-4f91-a562-8073f4ef02ae",
+      "spec_capsule_cid": "d4679122…8e8fbc7b",
+      "duration_ms": 478341,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 3,
+      "name": "园艺爱好者小芳",
+      "success": true,
+      "session_id": "e11697dc-cf36-47e2-9e56-460361444259",
+      "spec_capsule_cid": "6988047d…1b466c99",
+      "duration_ms": 492277,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 4,
+      "name": "前端工程师小陈",
+      "success": true,
+      "session_id": "2cecca19-103d-45ea-9bb2-29ffcc82dbe3",
+      "spec_capsule_cid": "8181b1f1…1a341b67",
+      "duration_ms": 603893,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 5,
+      "name": "棋友老刘",
+      "success": true,
+      "session_id": "205b3f2e-0b39-43aa-8e0d-b600590f4c84",
+      "spec_capsule_cid": "897e3bdd…b2de451b",
+      "duration_ms": 399306,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 6,
+      "name": "西语学生小美",
+      "success": true,
+      "session_id": "36913b4c-0fec-4366-80af-938e6dde78fa",
+      "spec_capsule_cid": "01673908…5c611be6",
+      "duration_ms": 422862,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 7,
+      "name": "咖啡发烧友大强",
+      "success": true,
+      "session_id": "d0deacfc-1fcd-43dd-b126-fd1eb264315b",
+      "spec_capsule_cid": "6db86457…f5a4d9e3",
+      "duration_ms": 506104,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 8,
+      "name": "音乐教师王老师",
+      "success": false,
+      "session_id": "3f5e7098-0484-4d2f-b221-d64501ae6d00",
+      "spec_capsule_cid": "9e2e9737…fcd64f25",
+      "duration_ms": 648929,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 9,
+      "name": "宝妈丽萨",
+      "success": true,
+      "session_id": "a47de8da-4463-4dfd-8dc5-6be3d434ddab",
+      "spec_capsule_cid": "0505346e…f136fcf0",
+      "duration_ms": 464580,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 10,
+      "name": "徒步旅行者老野",
+      "success": true,
+      "session_id": "4f408f86-d1e1-4c5a-bbbd-95a241555df5",
+      "spec_capsule_cid": "8ebb0685…debfe891",
+      "duration_ms": 467984,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 11,
+      "name": "自由撰稿人阿秋",
+      "success": true,
+      "session_id": "1a77209c-1ed6-48a7-a57f-4756226cb61c",
+      "spec_capsule_cid": "98d59942…54cbc093",
+      "duration_ms": 410336,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 12,
+      "name": "马拉松跑者大飞",
+      "success": true,
+      "session_id": "e318050b-1cce-4940-9f25-5078930061b2",
+      "spec_capsule_cid": "f581c688…d1978bfb",
+      "duration_ms": 426222,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 13,
+      "name": "茶艺爱好者静静",
+      "success": true,
+      "session_id": "4c3714e7-8334-4b23-8f53-a87a447a9bc0",
+      "spec_capsule_cid": "9360086d…cfa22404",
+      "duration_ms": 373320,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 14,
+      "name": "桌游玩家阿豪",
+      "success": false,
+      "session_id": "be30975c-276c-40f5-9c25-eba58602a75c",
+      "spec_capsule_cid": "c0dc1588…b819cc0c",
+      "duration_ms": 504790,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 15,
+      "name": "猫奴小吴",
+      "success": true,
+      "session_id": "9c355794-33a3-4753-adff-28ea11e90d6b",
+      "spec_capsule_cid": "886a3838…8b832529",
+      "duration_ms": 461777,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 16,
+      "name": "网页设计师阿雅",
+      "success": true,
+      "session_id": "fbee8c8c-6077-4677-b036-438561f14139",
+      "spec_capsule_cid": "ff75f333…c05c6955",
+      "duration_ms": 387998,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    },
+    {
+      "index": 17,
+      "name": "摄影爱好者老麦",
+      "success": true,
+      "session_id": "7481730d-a8be-4c6b-90f7-b0ddba0bf977",
+      "spec_capsule_cid": "1b82100f…11b3df14",
+      "duration_ms": 467161,
+      "tape_presence": {
+        "spec_md": true,
+        "artifacts_count": 2,
+        "chaintape_l4": true,
+        "rejections_jsonl": true,
+        "cas_dir": true
+      }
+    }
+  ]
+}

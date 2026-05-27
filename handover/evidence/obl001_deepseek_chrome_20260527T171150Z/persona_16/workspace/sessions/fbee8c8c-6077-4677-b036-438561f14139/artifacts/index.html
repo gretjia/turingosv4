@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>颜色对比度检查器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #4e8b7a;
+      --accent-light: #6bb5a0;
+      --bg: #f8f6f1;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #d4d0c8;
+      --card-bg: #ffffff;
+      --success: #2e7d32;
+      --fail: #c62828;
+      font-size: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --text: #f0eee8;
+        --muted: #b0aea8;
+        --border: #3a3835;
+        --card-bg: #2a2825;
+        --success: #66bb6a;
+        --fail: #ef5350;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    h1 {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      margin-bottom: 0.25rem;
+      color: var(--text);
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 1.8rem 2rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .input-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .input-group {
+      flex: 1;
+      min-width: 140px;
+    }
+    .input-group label {
+      display: block;
+      font-weight: 500;
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+      color: var(--muted);
+    }
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .input-wrapper input[type="text"] {
+      flex: 1;
+      padding: 0.6rem 0.8rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      min-width: 0;
+    }
+    .input-wrapper input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(78, 139, 122, 0.2);
+    }
+    .input-wrapper input[type="text"].error {
+      border-color: var(--fail);
+      box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.15);
+    }
+    .color-swatch {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      background-color: #000;
+    }
+    .error-msg {
+      font-size: 0.8rem;
+      color: var(--fail);
+      margin-top: 0.25rem;
+      min-height: 1.1rem;
+    }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    .btn {
+      padding: 0.6rem 1.6rem;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .btn:hover { background: var(--accent-light); }
+    .btn:active { transform: scale(0.97); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+    }
+    .btn-secondary:hover { background: rgba(78,139,122,0.08); }
+    .result-area {
+      min-height: 6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-row:last-child { border-bottom: none; }
+    .ratio-badge {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .wcag-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .wcag-pass { background: var(--success); color: #fff; }
+    .wcag-fail { background: var(--fail); color: #fff; }
+    .wcag-aaa { background: #1565c0; color: #fff; }
+    .example-pair {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+    .example-swatch {
+      width: 1.8rem;
+      height: 1.8rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .history-title {
+      font-family: 'Fraunces', Georgia, serif;
+      font-weight: 600;
+      font-size: 1.2rem;
+      margin-bottom: 0.8rem;
+    }
+    .history-list {
+      list-style: none;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+      border-radius: 4px;
+      padding-left: 0.3rem;
+    }
+    .history-item:hover { background: var(--bg); }
+    .history-item .colors {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 0.9rem;
+    }
+    .history-item .hm-swatch {
+      width: 1.4rem;
+      height: 1.4rem;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+    }
+    .history-item .hm-ratio {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .history-item .delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      transition: background 0.15s;
+    }
+    .history-item .delete-btn:hover { background: rgba(198,40,40,0.1); color: var(--fail); }
+    .empty-history {
+      color: var(--muted);
+      font-style: italic;
+      text-align: center;
+      padding: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>颜色对比度检查器</h1>
+    <p class="subtitle">输入十六进制颜色代码，自动计算 WCAG 对比度等级</p>
+
+    <div class="card">
+      <div class="input-row">
+        <div class="input-group">
+          <label for="fgInput">前景色 (文字)</label>
+          <div class="input-wrapper">
+            <input type="text" id="fgInput" value="#000000" placeholder="#000000" maxlength="7" spellcheck="false">
+            <div class="color-swatch" id="fgSwatch" style="background-color:#000000"></div>
+          </div>
+          <div class="error-msg" id="fgError"></div>
+        </div>
+        <div class="input-group">
+          <label for="bgInput">背景色</label>
+          <div class="input-wrapper">
+            <input type="text" id="bgInput" value="#FFFFFF" placeholder="#FFFFFF" maxlength="7" spellcheck="false">
+            <div class="color-swatch" id="bgSwatch" style="background-color:#ffffff"></div>
+          </div>
+          <div class="error-msg" id="bgError"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="calcBtn">计算对比度</button>
+        <button class="btn btn-secondary" id="swapBtn">↔ 交换颜色</button>
+        <button class="btn btn-secondary" id="resetBtn">重置默认</button>
+      </div>
+
+      <div class="result-area" id="resultArea">
+        <div class="result-row">
+          <span>对比度</span>
+          <span class="ratio-badge" id="ratioDisplay">—</span>
+        </div>
+        <div class="result-row">
+          <span>WCAG AA (正常文本 ≥ 4.5:1)</span>
+          <span id="wcagAABadge" class="wcag-badge wcag-fail">—</span>
+        </div>
+        <div class="result-row">
+          <span>WCAG AA (大文本 ≥ 3:1)</span>
+          <span id="wcagAALargeBadge" class="wcag-badge wcag-fail">—</span>
+        </div>
+        <div class="result-row">
+          <span>WCAG AAA (正常文本 ≥ 7:1)</span>
+          <span id="wcagAAABadge" class="wcag-badge wcag-fail">—</span>
+        </div>
+        <div class="result-row">
+          <span>WCAG AAA (大文本 ≥ 4.5:1)</span>
+          <span id="wcagAAALargeBadge" class="wcag-badge wcag-fail">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="historyCard">
+      <div class="history-title">📋 最近对比记录</div>
+      <ul class="history-list" id="historyList">
+        <li class="empty-history">还没有记录，计算一次就会出现在这里</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // ---------- helpers ----------
+      function hexToRgb(hex) {
+        hex = hex.replace(/^#/, '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        if (hex.length !== 6) return null;
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
+        return { r, g, b };
+      }
+
+      function srgbLinearChannel(c) {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+      }
+
+      function relativeLuminance(r, g, b) {
+        const R = srgbLinearChannel(r);
+        const G = srgbLinearChannel(g);
+        const B = srgbLinearChannel(b);
+        return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+      }
+
+      function contrastRatio(L1, L2) {
+        const lighter = Math.max(L1, L2);
+        const darker = Math.min(L1, L2);
+        return (lighter + 0.05) / (darker + 0.05);
+      }
+
+      function validateHex(hex) {
+        if (typeof hex !== 'string') return false;
+        return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(hex);
+      }
+
+      function formatColor(hex) {
+        return hex.toUpperCase();
+      }
+
+      // ---------- DOM refs ----------
+      const fgInput = document.getElementById('fgInput');
+      const bgInput = document.getElementById('bgInput');
+      const fgSwatch = document.getElementById('fgSwatch');
+      const bgSwatch = document.getElementById('bgSwatch');
+      const fgError = document.getElementById('fgError');
+      const bgError = document.getElementById('bgError');
+      const calcBtn = document.getElementById('calcBtn');
+      const swapBtn = document.getElementById('swapBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const ratioDisplay = document.getElementById('ratioDisplay');
+      const wcagAABadge = document.getElementById('wcagAABadge');
+      const wcagAALargeBadge = document.getElementById('wcagAALargeBadge');
+      const wcagAAABadge = document.getElementById('wcagAAABadge');
+      const wcagAAALargeBadge = document.getElementById('wcagAAALargeBadge');
+      const historyList = document.getElementById('historyList');
+
+      // ---------- state ----------
+      const HISTORY_KEY = 'contrast_history';
+      const MAX_HISTORY = 10;
+
+      function getHistory() {
+        try {
+          const raw = localStorage.getItem(HISTORY_KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch { return []; }
+      }
+
+      function setHistory(entries) {
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+        } catch { /* ignore */ }
+      }
+
+      function addHistoryEntry(fg, bg, ratio) {
+        const entries = getHistory();
+        const newEntry = { fg: fg.toUpperCase(), bg: bg.toUpperCase(), ratio: ratio.toFixed(2) };
+        // remove duplicates (same pair)
+        const filtered = entries.filter(e => !(e.fg === newEntry.fg && e.bg === newEntry.bg));
+        filtered.unshift(newEntry);
+        if (filtered.length > MAX_HISTORY) filtered.length = MAX_HISTORY;
+        setHistory(filtered);
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const entries = getHistory();
+        if (entries.length === 0) {
+          historyList.innerHTML = '<li class="empty-history">还没有记录，计算一次就会出现在这里</li>';
+          return;
+        }
+        let html = '';
+        entries.forEach((entry, idx) => {
+          const fgHex = entry.fg;
+          const bgHex = entry.bg;
+          html += `<li class="history-item" data-fg="${fgHex}" data-bg="${bgHex}">
+            <div class="colors">
+              <span class="hm-swatch" style="background:${fgHex}"></span>
+              <span>${fgHex}</span>
+              <span style="color:var(--muted)">on</span>
+              <span class="hm-swatch" style="background:${bgHex}"></span>
+              <span>${bgHex}</span>
+              <span class="hm-ratio">${entry.ratio}:1</span>
+            </div>
+            <button class="delete-btn" data-index="${idx}" title="删除记录">✕</button>
+          </li>`;
+        });
+        historyList.innerHTML = html;
+        // bind click on items to load colors
+        document.querySelectorAll('.history-item').forEach(item => {
+          item.addEventListener('click', function(e) {
+            if (e.target.closest('.delete-btn')) return;
+            const fg = this.dataset.fg;
+            const bg = this.dataset.bg;
+            fgInput.value = fg;
+            bgInput.value = bg;
+            updateSwatches();
+            computeContrast();
+          });
+        });
+        // bind delete buttons
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const idx = parseInt(this.dataset.index);
+            const entries = getHistory();
+            entries.splice(idx, 1);
+            setHistory(entries);
+            renderHistory();
+          });
+        });
+      }
+
+      // ---------- UI update ----------
+      function updateSwatches() {
+        const fgVal = fgInput.value.trim();
+        const bgVal = bgInput.value.trim();
+        if (validateHex(fgVal)) {
+          fgSwatch.style.backgroundColor = fgVal;
+        } else {
+          fgSwatch.style.backgroundColor = 'transparent';
+        }
+        if (validateHex(bgVal)) {
+          bgSwatch.style.backgroundColor = bgVal;
+        } else {
+          bgSwatch.style.backgroundColor = 'transparent';
+        }
+      }
+
+      function setError(el, msg) {
+        el.textContent = msg;
+        const input = el.previousElementSibling?.querySelector('input');
+        if (input) {
+          if (msg) input.classList.add('error');
+          else input.classList.remove('error');
+        }
+      }
+
+      function clearErrors() {
+        setError(fgError, '');
+        setError(bgError, '');
+      }
+
+      function computeContrast() {
+        const fgVal = fgInput.value.trim();
+        const bgVal = bgInput.value.trim();
+        clearErrors();
+        let valid = true;
+
+        if (!fgVal) {
+          setError(fgError, '请输入前景色');
+          valid = false;
+        } else if (!validateHex(fgVal)) {
+          setError(fgError, '无效的十六进制颜色 (如 #000 或 #1a2b3c)');
+          valid = false;
+        }
+        if (!bgVal) {
+          setError(bgError, '请输入背景色');
+          valid = false;
+        } else if (!validateHex(bgVal)) {
+          setError(bgError, '无效的十六进制颜色');
+          valid = false;
+        }
+
+        if (!valid) {
+          ratioDisplay.textContent = '—';
+          wcagAABadge.textContent = '—';
+          wcagAABadge.className = 'wcag-badge wcag-fail';
+          wcagAALargeBadge.textContent = '—';
+          wcagAALargeBadge.className = 'wcag-badge wcag-fail';
+          wcagAAABadge.textContent = '—';
+          wcagAAABadge.className = 'wcag-badge wcag-fail';
+          wcagAAALargeBadge.textContent = '—';
+          wcagAAALargeBadge.className = 'wcag-badge wcag-fail';
+          return;
+        }
+
+        const fgRgb = hexToRgb(fgVal);
+        const bgRgb = hexToRgb(bgVal);
+        if (!fgRgb || !bgRgb) {
+          setError(fgError, '颜色解析失败');
+          setError(bgError, '颜色解析失败');
+          return;
+        }
+
+        const L1 = relativeLuminance(fgRgb.r, fgRgb.g, fgRgb.b);
+        const L2 = relativeLuminance(bgRgb.r, bgRgb.g, bgRgb.b);
+        const ratio = contrastRatio(L1, L2);
+        const ratioStr = ratio.toFixed(2);
+
+        ratioDisplay.textContent = ratioStr + ':1';
+
+        // WCAG badges
+        function makeBadge(pass, level) {
+          let cls = 'wcag-badge ';
+          let text;
+          if (pass === 'AAA') {
+            cls += 'wcag-aaa';
+            text = '通过 AAA';
+          } else if (pass === 'AA') {
+            cls += 'wcag-pass';
+            text = '通过 AA';
+          } else if (pass === 'AA_large') {
+            cls += 'wcag-pass';
+            text = '通过 AA (大字)';
+          } else if (pass === 'fail') {
+            cls += 'wcag-fail';
+            text = '未通过';
+          } else {
+            cls += 'wcag-fail';
+            text = '—';
+          }
+          return `<span class="${cls}">${text}</span>`;
+        }
+
+        // AA normal >= 4.5
+        const aaNorm = ratio >= 4.5;
+        // AA large >= 3
+        const aaLarge = ratio >= 3.0;
+        // AAA normal >= 7
+        const aaaNorm = ratio >= 7.0;
+        // AAA large >= 4.5
+        const aaaLarge = ratio >= 4.5;
+
+        wcagAABadge.textContent = aaNorm ? '通过 AA' : '未通过';
+        wcagAABadge.className = 'wcag-badge ' + (aaNorm ? 'wcag-pass' : 'wcag-fail');
+        wcagAALargeBadge.textContent = aaLarge ? '通过 AA' : '未通过';
+        wcagAALargeBadge.className = 'wcag-badge ' + (aaLarge ? 'wcag-pass' : 'wcag-fail');
+        wcagAAABadge.textContent = aaaNorm ? '通过 AAA' : '未通过';
+        wcagAAABadge.className = 'wcag-badge ' + (aaaNorm ? 'wcag-aaa' : 'wcag-fail');
+        wcagAAALargeBadge.textContent = aaaLarge ? '通过 AAA' : '未通过';
+        wcagAAALargeBadge.className = 'wcag-badge ' + (aaaLarge ? 'wcag-aaa' : 'wcag-fail');
+
+        // Add to history
+        addHistoryEntry(fgVal, bgVal, ratio);
+      }
+
+      // ---------- event binding ----------
+      fgInput.addEventListener('input', () => {
+        updateSwatches();
+        // auto-compute if both inputs are valid
+        const fgOk = validateHex(fgInput.value.trim());
+        const bgOk = validateHex(bgInput.value.trim());
+        if (fgOk && bgOk) {
+          computeContrast();
+        } else {
+          // clear results but keep swatches updated
+          clearErrors();
+          // still update swatches as before
+          const fgVal = fgInput.value.trim();
+          if (fgVal && !validateHex(fgVal)) setError(fgError, '无效的十六进制颜色');
+          else setError(fgError, '');
+          const bgVal = bgInput.value.trim();
+          if (bgVal && !validateHex(bgVal)) setError(bgError, '无效的十六进制颜色');
+          else setError(bgError, '');
+        }
+      });
+
+      bgInput.addEventListener('input', () => {
+        updateSwatches();
+        const fgOk = validateHex(fgInput.value.trim());
+        const bgOk = validateHex(bgInput.value.trim());
+        if (fgOk && bgOk) {
+          computeContrast();
+        } else {
+          clearErrors();
+          const fgVal = fgInput.value.trim();
+          if (fgVal && !validateHex(fgVal)) setError(fgError, '无效的十六进制颜色');
+          else setError(fgError, '');
+          const bgVal = bgInput.value.trim();
+          if (bgVal && !validateHex(bgVal)) setError(bgError, '无效的十六进制颜色');
+          else setError(bgError, '');
+        }
+      });
+
+      calcBtn.addEventListener('click', computeContrast);
+
+      swapBtn.addEventListener('click', () => {
+        const fg = fgInput.value.trim();
+        const bg = bgInput.value.trim();
+        fgInput.value = bg || '';
+        bgInput.value = fg || '';
+        updateSwatches();
+        computeContrast();
+      });
+
+      resetBtn.addEventListener('click', () => {
+        fgInput.value = '#000000';
+        bgInput.value = '#FFFFFF';
+        updateSwatches();
+        computeContrast();
+      });
+
+      // ---------- initial render ----------
+      updateSwatches();
+      computeContrast();
+      renderHistory();
+
+      // also update swatches on load
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>咖啡冲煮助手</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=IBM+Plex+Sans:wght@400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #4e8b7a;
+            --accent-light: #6db09b;
+            --bg: #f8f6f1;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --surface: #fffefb;
+            --border: #d6d2ca;
+            --radius: 12px;
+            --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+            --font-heading: 'Fraunces', Georgia, serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --surface: #2a2a2a;
+                --text: #f0eee8;
+                --muted: #a09e98;
+                --border: #3a3a3a;
+                --accent: #6db09b;
+                --accent-light: #8ecdb8;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: start;
+            padding: 24px 16px;
+        }
+
+        .container {
+            max-width: 480px;
+            width: 100%;
+            background: var(--surface);
+            border-radius: var(--radius);
+            padding: 32px 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-family: var(--font-heading);
+            font-size: 36px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+
+        .field {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(78, 139, 122, 0.2);
+        }
+
+        .input-group .unit {
+            font-size: 14px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .ratio-water {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .ratio-water .item {
+            text-align: center;
+        }
+
+        .ratio-water .item .value {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .ratio-water .item .label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .segment-controls {
+            margin-bottom: 20px;
+        }
+
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .segment-header label {
+            margin-bottom: 0;
+        }
+
+        .segment-count {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .segment-count button {
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .segment-count button:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .segment-count span {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            min-width: 24px;
+            text-align: center;
+        }
+
+        .segments-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .segment-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .segment-row .seg-label {
+            font-size: 14px;
+            color: var(--muted);
+            min-width: 56px;
+        }
+
+        .segment-row input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 16px;
+            font-family: var(--font-mono);
+            background: var(--surface);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .segment-row input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(78, 139, 122, 0.2);
+        }
+
+        .segment-row .seg-unit {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .timer-area {
+            margin: 24px 0;
+            text-align: center;
+        }
+
+        .timer-display {
+            font-family: var(--font-mono);
+            font-size: 56px;
+            font-weight: 600;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+
+        .timer-status {
+            margin-top: 4px;
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .timer-status.active {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: var(--font-body);
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-light);
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #b8b2a8;
+        }
+
+        .btn-reset {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+        }
+
+        .btn-reset:hover {
+            background: var(--border);
+        }
+
+        .finish-msg {
+            font-family: var(--font-heading);
+            font-size: 28px;
+            color: var(--accent);
+            margin-top: 12px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 16px;
+            }
+            h1 {
+                font-size: 28px;
+            }
+            .timer-display {
+                font-size: 44px;
+            }
+            .ratio-water .item .value {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>☕ 冲煮助手</h1>
+        <div class="subtitle">1:15 比例 · 分段计时</div>
+
+        <div class="field">
+            <label for="dose">粉量</label>
+            <div class="input-group">
+                <input type="number" id="dose" min="0" step="0.1" placeholder="18" autocomplete="off">
+                <span class="unit">克</span>
+            </div>
+        </div>
+
+        <div class="ratio-water">
+            <div class="item">
+                <div class="value" id="ratioDisplay">1 : 15</div>
+                <div class="label">粉水比</div>
+            </div>
+            <div class="item">
+                <div class="value" id="waterDisplay">—</div>
+                <div class="label">水量 (ml)</div>
+            </div>
+        </div>
+
+        <div class="segment-controls">
+            <div class="segment-header">
+                <label>注水段数</label>
+                <div class="segment-count">
+                    <button id="segDec" aria-label="减少段数">−</button>
+                    <span id="segCountDisplay">3</span>
+                    <button id="segInc" aria-label="增加段数">+</button>
+                </div>
+            </div>
+            <div class="segments-list" id="segmentsList"></div>
+        </div>
+
+        <div class="timer-area">
+            <div class="timer-display" id="timerDisplay">00:00</div>
+            <div class="timer-status" id="timerStatus">就绪</div>
+            <div id="finishMsg" class="finish-msg hidden">✅ 冲煮完成！</div>
+        </div>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="startPauseBtn">开始计时</button>
+            <button class="btn btn-secondary" id="resetBtn">重置</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ----- state -----
+            const STORAGE_KEY = 'coffee_brew_tool_state';
+
+            // default state
+            let state = {
+                dose: 18,               // grams
+                segCount: 3,
+                segTimes: [30, 30, 30], // seconds per segment
+                timerRunning: false,
+                timerPaused: false,
+                currentSeg: 0,          // 0-based
+                remainingSec: 0,        // current segment remaining seconds
+                // for resume: store total elapsed offset
+                startTimestamp: null,   // Date.now() when timer started (real start)
+                pausedRemaining: 0,     // remaining when paused
+            };
+
+            // DOM refs
+            const $dose = document.getElementById('dose');
+            const $waterDisplay = document.getElementById('waterDisplay');
+            const $segCountDisplay = document.getElementById('segCountDisplay');
+            const $segmentsList = document.getElementById('segmentsList');
+            const $timerDisplay = document.getElementById('timerDisplay');
+            const $timerStatus = document.getElementById('timerStatus');
+            const $finishMsg = document.getElementById('finishMsg');
+            const $startPauseBtn = document.getElementById('startPauseBtn');
+            const $resetBtn = document.getElementById('resetBtn');
+            const $segDec = document.getElementById('segDec');
+            const $segInc = document.getElementById('segInc');
+
+            let ticker = null; // interval id
+
+            // ----- helpers -----
+            function formatTime(sec) {
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            }
+
+            function saveState() {
+                const toSave = {
+                    dose: state.dose,
+                    segCount: state.segCount,
+                    segTimes: state.segTimes,
+                    timerRunning: state.timerRunning,
+                    timerPaused: state.timerPaused,
+                    currentSeg: state.currentSeg,
+                    remainingSec: state.remainingSec,
+                    startTimestamp: state.startTimestamp,
+                    pausedRemaining: state.pausedRemaining,
+                };
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+                } catch(e) {}
+            }
+
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return false;
+                    const saved = JSON.parse(raw);
+                    // validate essential fields
+                    if (typeof saved.dose === 'number' && Array.isArray(saved.segTimes)) {
+                        Object.assign(state, saved);
+                        return true;
+                    }
+                } catch(e) {}
+                return false;
+            }
+
+            function clearTimer() {
+                if (ticker) {
+                    clearInterval(ticker);
+                    ticker = null;
+                }
+            }
+
+            // ----- UI update -----
+            function updateWater() {
+                const dose = parseFloat($dose.value) || 0;
+                const water = dose * 15;
+                $waterDisplay.textContent = water > 0 ? water.toFixed(1) : '—';
+                state.dose = dose;
+            }
+
+            function renderSegments() {
+                const n = state.segCount;
+                // ensure segTimes length matches
+                while (state.segTimes.length < n) state.segTimes.push(30);
+                if (state.segTimes.length > n) state.segTimes.length = n;
+
+                $segCountDisplay.textContent = n;
+                let html = '';
+                for (let i = 0; i < n; i++) {
+                    html += `
+                        <div class="segment-row" data-index="${i}">
+                            <span class="seg-label">段 ${i+1}</span>
+                            <input type="number" class="seg-time-input" value="${state.segTimes[i]}" min="1" step="1">
+                            <span class="seg-unit">秒</span>
+                        </div>
+                    `;
+                }
+                $segmentsList.innerHTML = html;
+
+                // attach events
+                document.querySelectorAll('.seg-time-input').forEach(input => {
+                    input.addEventListener('input', function() {
+                        const idx = parseInt(this.closest('.segment-row').dataset.index);
+                        const val = parseInt(this.value) || 1;
+                        state.segTimes[idx] = Math.max(1, val);
+                        saveState();
+                    });
+                });
+            }
+
+            function updateTimerDisplay() {
+                $timerDisplay.textContent = formatTime(state.remainingSec);
+                if (state.timerRunning && !state.timerPaused && state.currentSeg < state.segCount) {
+                    $timerStatus.textContent = `第 ${state.currentSeg+1} / ${state.segCount} 段`;
+                    $timerStatus.className = 'timer-status active';
+                } else if (state.timerPaused) {
+                    $timerStatus.textContent = '已暂停';
+                    $timerStatus.className = 'timer-status';
+                } else if (state.currentSeg >= state.segCount) {
+                    $timerStatus.textContent = '';
+                    $timerStatus.className = 'timer-status';
+                } else {
+                    $timerStatus.textContent = '就绪';
+                    $timerStatus.className = 'timer-status';
+                }
+            }
+
+            function syncUIFromState() {
+                $dose.value = state.dose;
+                updateWater();
+                renderSegments();
+                updateTimerDisplay();
+                // finish message
+                if (state.currentSeg >= state.segCount && state.timerRunning === false) {
+                    $finishMsg.classList.remove('hidden');
+                    $timerDisplay.textContent = '00:00';
+                    $timerStatus.textContent = '';
+                } else {
+                    $finishMsg.classList.add('hidden');
+                }
+                // button label
+                if (state.timerRunning && !state.timerPaused) {
+                    $startPauseBtn.textContent = '暂停';
+                } else if (state.timerPaused || (state.timerRunning && state.timerPaused)) {
+                    $startPauseBtn.textContent = '继续';
+                } else {
+                    $startPauseBtn.textContent = '开始计时';
+                }
+            }
+
+            // ----- timer core -----
+            function startTimer() {
+                if (state.currentSeg >= state.segCount) {
+                    // already finished, reset first
+                    resetTimer();
+                }
+                clearTimer();
+                state.timerRunning = true;
+                state.timerPaused = false;
+                state.startTimestamp = Date.now(); // real start of this segment
+                // calculate remaining for current seg
+                state.remainingSec = state.segTimes[state.currentSeg];
+                updateTimerDisplay();
+                saveState();
+
+                ticker = setInterval(() => {
+                    if (!state.timerRunning || state.timerPaused) return;
+                    // decrement by 1 second
+                    state.remainingSec -= 1;
+                    if (state.remainingSec <= 0) {
+                        // segment finished
+                        state.remainingSec = 0;
+                        updateTimerDisplay();
+                        // move to next segment
+                        state.currentSeg++;
+                        if (state.currentSeg >= state.segCount) {
+                            // all done
+                            clearTimer();
+                            state.timerRunning = false;
+                            state.timerPaused = false;
+                            state.startTimestamp = null;
+                            $finishMsg.classList.remove('hidden');
+                            $timerStatus.textContent = '';
+                            $startPauseBtn.textContent = '开始计时';
+                            saveState();
+                            updateTimerDisplay();
+                            return;
+                        }
+                        // start next seg
+                        state.remainingSec = state.segTimes[state.currentSeg];
+                        state.startTimestamp = Date.now();
+                        saveState();
+                        updateTimerDisplay();
+                    } else {
+                        updateTimerDisplay();
+                        saveState();
+                    }
+                }, 1000);
+            }
+
+            function pauseTimer() {
+                if (!state.timerRunning) return;
+                state.timerPaused = true;
+                state.pausedRemaining = state.remainingSec;
+                clearTimer();
+                $startPauseBtn.textContent = '继续';
+                $timerStatus.textContent = '已暂停';
+                saveState();
+            }
+
+            function resumeTimer() {
+                if (!state.timerRunning || !state.timerPaused) return;
+                state.timerPaused = false;
+                state.remainingSec = state.pausedRemaining;
+                state.startTimestamp = Date.now(); // reset start for remaining
+                updateTimerDisplay();
+                saveState();
+
+                ticker = setInterval(() => {
+                    if (!state.timerRunning || state.timerPaused) return;
+                    state.remainingSec -= 1;
+                    if (state.remainingSec <= 0) {
+                        state.remainingSec = 0;
+                        updateTimerDisplay();
+                        state.currentSeg++;
+                        if (state.currentSeg >= state.segCount) {
+                            clearTimer();
+                            state.timerRunning = false;
+                            state.timerPaused = false;
+                            state.startTimestamp = null;
+                            $finishMsg.classList.remove('hidden');
+                            $timerStatus.textContent = '';
+                            $startPauseBtn.textContent = '开始计时';
+                            saveState();
+                            updateTimerDisplay();
+                            return;
+                        }
+                        state.remainingSec = state.segTimes[state.currentSeg];
+                        state.startTimestamp = Date.now();
+                        saveState();
+                        updateTimerDisplay();
+                    } else {
+                        updateTimerDisplay();
+                        saveState();
+                    }
+                }, 1000);
+            }
+
+            function resetTimer() {
+                clearTimer();
+                state.timerRunning = false;
+                state.timerPaused = false;
+                state.currentSeg = 0;
+                state.remainingSec = 0;
+                state.startTimestamp = null;
+                $finishMsg.classList.add('hidden');
+                syncUIFromState();
+                saveState();
+            }
+
+            // recover from saved state: if timer was running and not paused, calculate remaining
+            function recoverState() {
+                if (state.timerRunning && !state.timerPaused && state.startTimestamp) {
+                    // already running when closed – compute elapsed
+                    const elapsed = (Date.now() - state.startTimestamp) / 1000;
+                    if (elapsed >= state.segTimes[state.currentSeg]) {
+                        // segment might have finished while closed
+                        // advance segments until remaining > 0 or finished
+                        let rem = state.segTimes[state.currentSeg] - elapsed;
+                        while (rem <= 0 && state.currentSeg < state.segCount) {
+                            state.currentSeg++;
+                            if (state.currentSeg < state.segCount) {
+                                rem = state.segTimes[state.currentSeg];
+                                state.startTimestamp = Date.now(); // adjust? better to reset start
+                            } else {
+                                rem = 0;
+                            }
+                        }
+                        if (state.currentSeg >= state.segCount) {
+                            // finished
+                            clearTimer();
+                            state.timerRunning = false;
+                            state.timerPaused = false;
+                            state.startTimestamp = null;
+                            state.remainingSec = 0;
+                            $finishMsg.classList.remove('hidden');
+                            $startPauseBtn.textContent = '开始计时';
+                        } else {
+                            state.remainingSec = Math.ceil(rem);
+                            // restart timer
+                            startTimer();
+                            return;
+                        }
+                    } else {
+                        state.remainingSec = Math.ceil(state.segTimes[state.currentSeg] - elapsed);
+                        // restart timer
+                        startTimer();
+                        return;
+                    }
+                } else if (state.timerRunning && state.timerPaused && state.pausedRemaining > 0) {
+                    // paused state resume: just show, timer not ticking
+                    state.remainingSec = state.pausedRemaining;
+                    clearTimer();
+                }
+                syncUIFromState();
+                // if timer was running and not paused but we fell through, just sync
+                if (state.timerRunning && !state.timerPaused) {
+                    // should have been handled above – fallback safety
+                    clearTimer();
+                    state.timerRunning = false;
+                    syncUIFromState();
+                    saveState();
+                }
+            }
+
+            // ----- events -----
+            $dose.addEventListener('input', function() {
+                updateWater();
+                state.dose = parseFloat(this.value) || 0;
+                saveState();
+            });
+
+            $segDec.addEventListener('click', function() {
+                if (state.segCount > 1) {
+                    state.segCount--;
+                    if (state.segTimes.length > state.segCount) {
+                        state.segTimes.length = state.segCount;
+                    }
+                    renderSegments();
+                    saveState();
+                }
+            });
+            $segInc.addEventListener('click', function() {
+                if (state.segCount < 10) {
+                    state.segCount++;
+                    if (state.segTimes.length < state.segCount) {
+                        state.segTimes.push(30);
+                    }
+                    renderSegments();
+                    saveState();
+                }
+            });
+
+            $startPauseBtn.addEventListener('click', function() {
+                if (!state.timerRunning) {
+                    // start
+                    if (state.currentSeg >= state.segCount) resetTimer();
+                    startTimer();
+                } else if (state.timerPaused) {
+                    resumeTimer();
+                } else {
+                    pauseTimer();
+                }
+            });
+
+            $resetBtn.addEventListener('click', function() {
+                resetTimer();
+            });
+
+            // initialization
+            const loaded = loadState();
+            syncUIFromState();
+            if (loaded) {
+                recoverState();
+            } else {
+                // set defaults
+                state.dose = 18;
+                state.segCount = 3;
+                state.segTimes = [30, 30, 30];
+                syncUIFromState();
+                saveState();
+            }
+
+            // save on page hide to persist immediate state
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    saveState();
+                }
+            });
+            window.addEventListener('beforeunload', function() {
+                saveState();
+            });
+
+        })();
+    </script>
+</body>
+</html>
