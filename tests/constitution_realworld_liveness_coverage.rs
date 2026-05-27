@@ -17,6 +17,7 @@ const REQUIRED_DOMAINS: &[&str] = &[
     "generate_artifact",
     "swebench_coding_repair",
     "osworld_computer_use",
+    "cybench_security_sandbox",
     "tdma_proof",
     "fc3_governance_reinit",
     "replay_cas",

@@ -255,6 +255,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("run_true_suite_swebench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_webarena_current_kernel.sh"));
     assert!(script.contains("run_true_suite_osworld_current_kernel.sh"));
+    assert!(script.contains("run_true_suite_cybench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_toolbench_current_kernel.sh"));
     assert!(script.contains("run_true_suite_mind2web_current_kernel.sh"));
     assert!(script.contains("--continue-on-runner-failure"));
@@ -273,6 +274,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("swebench_live_coding_repair_fresh"));
     assert!(script.contains("webarena_web_agent_fresh"));
     assert!(script.contains("osworld_computer_use_fresh"));
+    assert!(script.contains("cybench_security_sandbox_fresh"));
     assert!(script.contains("toolbench_api_tool_use_fresh"));
     assert!(script.contains("mind2web_open_web_fresh"));
     assert!(script.contains("memory_feedback_reinit"));
@@ -282,6 +284,7 @@ fn broad_agi_batch_script_preserves_external_boundary_and_no_overclaim_guards() 
     assert!(script.contains("swebench_live_coding_repair"));
     assert!(script.contains("webarena_web_agent"));
     assert!(script.contains("osworld_computer_use"));
+    assert!(script.contains("cybench_security_sandbox"));
     assert!(script.contains("toolbench_api_tool_use"));
     assert!(script.contains("mind2web_open_web"));
     assert!(script.contains("benchmark_adapter_pending"));

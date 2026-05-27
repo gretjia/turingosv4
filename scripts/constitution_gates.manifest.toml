@@ -787,6 +787,11 @@ authority = "OBL-005 broad AGI true-suite OSWorld execution layer: offline sandb
 added = "2026-05-27"
 
 [[gate]]
+name = "constitution_true_suite_cybench_runner"
+authority = "OBL-005 broad AGI true-suite Cybench security-sandbox execution layer: offline disposable challenge snapshot plus external local-proxy LLM safe triage action must be CAS-bound, recorded as ProposalTelemetry ToolCallRecord hashes, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads, hidden flag/expected-action leakage, live target contact, exploit execution, or old-15 contamination"
+added = "2026-05-27"
+
+[[gate]]
 name = "constitution_true_suite_toolbench_runner"
 authority = "OBL-005 broad AGI true-suite ToolBench execution layer: public benchmark API-selection input plus external local-proxy LLM tool choice must be CAS-bound, recorded as ProposalTelemetry ToolCallRecord hashes, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads or old-15 contamination"
 added = "2026-05-26"

@@ -529,8 +529,16 @@ kernel_liveness_modules = [
 evidence_shape = [
   "challenge_snapshot_hash",
   "sandbox_network_policy_hash",
-  "verdict_capsule_cid",
+  "challenge_capsule_cid",
+  "answer_claim_capsule_cid",
+  "sandbox_trace_cid",
+  "evaluation_capsule_cid",
+  "proposal_telemetry_cid",
+  "artifact_state_diff_hash",
+  "benchmark_verdict",
+  "work_tx_or_l4e",
   "replay_report",
+  "fc_trace_report",
 ]
 failure_taxonomy = [
   "kernel_invariant_failure",
@@ -542,16 +550,31 @@ failure_taxonomy = [
   "unsafe_exploit_attempt",
 ]
 anti_contamination_guards = [
-  "no live target systems",
+  "challenge context is an offline disposable sandbox snapshot hashed into CAS before the model call",
+  "expected safe action, final state, and hidden flag must not enter the model prompt",
   "network egress must be disabled or allowlisted",
   "exploit success is not allowed outside controlled challenge sandbox",
+  "raw provider prompt/response must not be persisted",
+  "live target contact is an unsafe-exploit failure, not benchmark success",
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/cybench/challenge_snapshots/",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/cybench/cas/",
+  "handover/evidence/true_suite/<run>/cybench/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/cybench/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/genesis_report.json",
+  "handover/evidence/true_suite/<run>/cybench/cybench_security_sandbox_manifest.json",
+  "handover/evidence/true_suite/<run>/cybench/cybench_security_sandbox_run_manifest.json",
   "handover/evidence/true_suite/<run>/cybench/replay_report.json",
+  "handover/evidence/true_suite/<run>/cybench/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/cybench/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/cybench/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/cybench/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/cybench/failure_taxonomy.json",
+  "handover/evidence/true_suite/<run>/cybench/fc_trace_report.json",
 ]
 
 [[family]]

@@ -13,7 +13,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="plan-only"
 RUN_ID="broad_agi_batch_$(date -u +%Y%m%dT%H%M%SZ)"
 RUN_ROOT=""
-SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,gaia_general_assistant_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,math_competition_reasoning_fresh,swebench_live_coding_repair_fresh,webarena_web_agent_fresh,osworld_computer_use_fresh,toolbench_api_tool_use_fresh,mind2web_open_web_fresh}"
+SELECTED_RUNNERS="${BROAD_TRUE_SUITE_RUNNERS:-boot_cli_current_kernel_fresh,replay_cas_tamper_repair_current,market_external_agent_fresh,generate_artifact_chain_fresh,gaia_general_assistant_fresh,tdma_real_proof_fresh,fc3_governance_reinit_fresh,gpqa_science_reasoning_fresh,math_competition_reasoning_fresh,swebench_live_coding_repair_fresh,webarena_web_agent_fresh,osworld_computer_use_fresh,cybench_security_sandbox_fresh,toolbench_api_tool_use_fresh,mind2web_open_web_fresh}"
 CONTINUE_ON_RUNNER_FAILURE=0
 
 while [[ $# -gt 0 ]]; do
@@ -100,6 +100,9 @@ run_selected_runner() {
             ;;
         osworld_computer_use_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_osworld_current_kernel.sh" "$RUN_ID"
+            ;;
+        cybench_security_sandbox_fresh)
+            "$PROJECT_ROOT/scripts/run_true_suite_cybench_current_kernel.sh" "$RUN_ID"
             ;;
         toolbench_api_tool_use_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_toolbench_current_kernel.sh" "$RUN_ID"
@@ -277,6 +280,10 @@ installed = {
         "entrypoint": "scripts/run_true_suite_osworld_current_kernel.sh",
         "family_ids": ["osworld_computer_use"],
     },
+    "cybench_security_sandbox_fresh": {
+        "entrypoint": "scripts/run_true_suite_cybench_current_kernel.sh",
+        "family_ids": ["cybench_security_sandbox"],
+    },
     "toolbench_api_tool_use_fresh": {
         "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
         "family_ids": ["toolbench_api_tool_use"],
@@ -296,6 +303,7 @@ family_runner_status = {
     "memory_feedback_reinit": "domain_runner_installed_evidence_required",
     "webarena_web_agent": "domain_runner_installed_evidence_required",
     "osworld_computer_use": "domain_runner_installed_evidence_required",
+    "cybench_security_sandbox": "domain_runner_installed_evidence_required",
     "toolbench_api_tool_use": "domain_runner_installed_evidence_required",
     "mind2web_open_web": "domain_runner_installed_evidence_required",
 }
