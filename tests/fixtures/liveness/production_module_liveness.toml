@@ -783,10 +783,10 @@ status = "historical_real_world_candidate"
 risk_class = 3
 allowed_as_fc_authority = true
 restricted_surface = false
-module_ids = ["bottom_white::tools", "bottom_white::tools::registry"]
-paths = ["src/bottom_white/tools/registry.rs"]
+module_ids = ["bottom_white::tools", "bottom_white::tools::registry", "sdk::tool"]
+paths = ["src/bottom_white/tools/registry.rs", "src/sdk/tool.rs"]
 constitutional_anchors = ["FC2:tools", "FC3:tools-to-log"]
-necessity = "Tool permissions must be rooted in a deterministic registry for FC3 tool/log boundaries."
+necessity = "Tool permissions and lifecycle hook signals must be rooted in deterministic tool substrate for FC3 tool/log boundaries."
 smoke_gates = ["tests/constitution_fc3_closure.rs"]
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
@@ -794,29 +794,6 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["tool registry root", "system-only meta tx"]
-
-[[group]]
-id = "legacy_wal_and_sdk_tool_surfaces"
-classification = "legacy_quarantine"
-status = "legacy_quarantined"
-risk_class = 3
-allowed_as_fc_authority = false
-restricted_surface = true
-module_ids = [
-  "wal",
-  "sdk::tool",
-]
-paths = ["src/wal.rs", "src/sdk/tool.rs"]
-constitutional_anchors = ["Art.0.2", "FC1:wtool", "FC3:tools"]
-necessity = "Retained WAL and SDK compatibility surfaces; they cannot be cited as current FC authority unless re-bound to typed ChainTape/CAS."
-smoke_gates = [
-  "tests/tb_7_authoritative_routing.rs",
-  "tests/wal_resume.rs",
-  "tests/production_shellouts_must_use_sanitized_runner.rs",
-]
-real_world_evidence = []
-evidence_requires = ["no authoritative write imports", "legacy quarantine", "delete-or-rebind"]
-closure_action = "Delete WAL if no current-kernel product path needs it; rebind sdk::tool only through ToolRegistry plus ChainTape/CAS invocation evidence."
 
 [[group]]
 id = "dev_harness"

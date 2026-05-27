@@ -104,7 +104,7 @@ EC=$?
 [ $EC -eq 2 ] && pass "T-017: R-002 blocks fund_agent (exit 2)" || fail "T-017: Should block fund_agent" "exit $EC"
 
 # T-018: R-003 blocks WAL deletion pattern
-OUTPUT=$(echo "std::fs::remove_file(wal_path)" | python3 "$ENGINE" --file "src/wal.rs" --rules-dir "$RULES" --log /dev/null --traces-dir "$TRACES" 2>&1)
+OUTPUT=$(echo "std::fs::remove_file(wal_path)" | python3 "$ENGINE" --file "src/bus.rs" --rules-dir "$RULES" --log /dev/null --traces-dir "$TRACES" 2>&1)
 EC=$?
 # R-003 checks for wal deletion — may or may not match depending on glob
 if echo "$OUTPUT" | grep -q "R-003"; then

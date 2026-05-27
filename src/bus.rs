@@ -5,12 +5,11 @@
 // V3L-31: supervisor loop, never silent exit
 // V3L-32: cascade failure protection
 
-use crate::kernel::{Kernel, KernelError};
-use crate::ledger::{EventType, Ledger, Node, NodeId, TapeError};
+use crate::kernel::Kernel;
+use crate::ledger::{EventType, Ledger, Node, NodeId};
 use crate::sdk::tool::{ToolSignal, TuringTool};
 use crate::state::sequencer::{Sequencer, SubmissionReceipt, SubmitError};
 use crate::state::typed_tx::TypedTx;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -31,7 +30,7 @@ pub(crate) const PENDING_COMPLETION_TOKENS_CO1_1_4: u32 = 0;
 
 /// Bus configuration. V3L-23: no hardcoded values, all configurable.
 ///
-/// TB-14 Atom 6 (2026-05-03): `system_lp_amount: f64` was excised together
+/// TB-14 Atom 6 (2026-05-03): the old system LP field was excised together
 /// with `kernel.create_market` (legacy CPMM scaffolding). Pricing is now a
 /// derived view over `EconomicState` via `state::compute_price_index`; no
 /// LP injection at bus level.
@@ -65,8 +64,6 @@ pub struct TuringBus {
     pub tx_count: u64,
     pub generation: u32,
     graveyard: HashMap<String, Vec<String>>,
-    // Phase 1 (C-037 candidate): durable Q_t. None = legacy in-memory mode.
-    wal: Option<crate::wal::Wal>,
     /// CO1.7-extra D3: typed-tx Sequencer; `None` when bus runs in legacy
     /// ledger-only mode. Spec § 2.1 + D3 STEP_B Branch A. `#[serde(skip)]`
     /// is conditional on TuringBus having serde derives — it currently
@@ -91,10 +88,10 @@ pub enum RejectionScope {
 /// Result of a bus append operation.
 ///
 /// TB-14 Atom 6 follow-up (2026-05-03; closing internal auditor F1):
-/// dead `Invested { node_id, shares: f64 }` variant excised — was a
+/// dead `Invested` variant excised — was a
 /// pre-TB-9 invest-path residual with zero call sites and zero match
 /// arms (`grep -rn "BusResult::Invested\|Invested {"` returned only
-/// its own declaration site). Closes G-14.11 "no f64 in TB-14 module
+/// its own declaration site). Closes G-14.11 "no floating money in TB-14 module
 /// surface" residual flagged by the internal Class 3 audit.
 #[derive(Debug)]
 pub enum BusResult {
@@ -113,7 +110,6 @@ impl TuringBus {
             tx_count: 0,
             generation: 0,
             graveyard: HashMap::new(),
-            wal: None,
             sequencer: None,
         }
     }
@@ -144,46 +140,6 @@ impl TuringBus {
         }
     }
 
-    /// Phase 1: open with WAL persistence. If the path exists, replay it to
-    /// rebuild tape + ledger state (resume mode). If not, start fresh and append
-    /// to the WAL going forward (durable mode). Either way, the Wal handle is
-    /// retained and every successful tape.append / ledger.append persists.
-    pub fn with_wal_path(
-        kernel: Kernel,
-        config: BusConfig,
-        wal_path: impl Into<std::path::PathBuf>,
-    ) -> Result<Self, std::io::Error> {
-        let wal_path = wal_path.into();
-        let mut bus = Self::new(kernel, config);
-        // Replay first (if file exists), then open in append mode.
-        let (nodes, events) = crate::wal::Wal::replay(&wal_path)?;
-        let resumed_nodes = nodes.len();
-        let resumed_events = events.len();
-        for n in nodes {
-            // Replay errors are tolerable — duplicates and dangling cites can
-            // happen if the WAL was concurrently appended at a stale point. We
-            // log and skip; the surviving prefix is canonical Q_t.
-            if let Err(e) = bus.kernel.append(n.clone()) {
-                eprintln!("[wal/replay] skip node {}: {}", n.id, e);
-            }
-        }
-        for e in events {
-            // Re-append events through the ledger so hash chain is recomputed
-            // from this process's perspective. Original hashes are discarded.
-            bus.ledger
-                .append(e.event_type, e.node_id, e.agent, e.detail)
-                .ok();
-        }
-        if resumed_nodes > 0 || resumed_events > 0 {
-            eprintln!(
-                "[wal/replay] resumed {} nodes, {} events from {:?}",
-                resumed_nodes, resumed_events, wal_path
-            );
-        }
-        bus.wal = Some(crate::wal::Wal::open(&wal_path)?);
-        Ok(bus)
-    }
-
     /// Mount a tool into the bus. Tools execute in mount order.
     pub fn mount_tool(&mut self, tool: Box<dyn TuringTool>) {
         self.tools.push(tool);
@@ -206,12 +162,7 @@ impl TuringBus {
         for tool in &mut self.tools {
             tool.on_init(agent_ids);
         }
-        if let Ok(evt) = self.ledger.append(EventType::RunStart, None, None, None) {
-            let evt_clone = evt.clone();
-            if let Some(w) = self.wal.as_mut() {
-                let _ = w.write_event(&evt_clone);
-            }
-        }
+        let _ = self.ledger.append(EventType::RunStart, None, None, None);
     }
 
     /// The main append pipeline — 6 phases.
@@ -284,26 +235,19 @@ impl TuringBus {
         }
 
         // Phase 1: Tool pre-append hooks
-        // TB-9 collapse (2026-05-02): InvestOnly routing deleted along with the
-        // bus-level f64 wallet mutators (debit_wallet/credit_wallet/settle_portfolios).
-        // Per architect directive 2026-05-02 line 1574 ("no f64 mutation;
+        // TB-9 collapse (2026-05-02): legacy invest routing was deleted along with
+        // the bus-level wallet mutators (debit_wallet/credit_wallet/settle_portfolios).
+        // Per architect directive 2026-05-02 line 1574 ("no floating mutation;
         // EconomicState canonical"), the v3 share-buy path is gone. Stake
         // commitment now lives in `state::typed_tx::WorkTx.stake` mutating
         // `EconomicState.stakes_t` via the canonical sequencer dispatch arm.
-        // YieldReward signals continue to be observed but are not routed to a
-        // f64 mutator — they live for downstream tool hooks only.
         for tool in &mut self.tools {
             match tool.on_pre_append(author, payload) {
                 ToolSignal::Veto(reason) => {
                     self.record_rejection(author, &reason);
                     return Ok(BusResult::Vetoed { reason });
                 }
-                ToolSignal::InvestOnly { .. } => {
-                    let reason = "veto:invest_disabled_tb9".to_string();
-                    self.record_rejection(author, &reason);
-                    return Ok(BusResult::Vetoed { reason });
-                }
-                ToolSignal::YieldReward { .. } | ToolSignal::Pass => {}
+                ToolSignal::Pass => {}
             }
         }
 
@@ -327,44 +271,24 @@ impl TuringBus {
             .append(node.clone())
             .map_err(|e| e.to_string())?;
 
-        // Phase 1 WAL: persist node AFTER successful in-memory append, BEFORE
-        // any downstream effects. At-most-one-loss-on-crash semantics: if the
-        // process dies between in-memory insert and this write, the node is
-        // lost on replay but every prior node survives. Log+continue on I/O
-        // error rather than aborting the run (Q_t durability is best-effort
-        // when disk is the failing component).
-        if let Some(w) = self.wal.as_mut() {
-            if let Err(e) = w.write_node(&node) {
-                log::warn!("[wal] write_node({}) failed: {}", node.id, e);
-            }
-        }
-
         // Phase 4: TB-14 Atom 6 (2026-05-03 closing OBS_TB_12_LEGACY_CPMM_QUARANTINE):
         // legacy `kernel.create_market(node_id, system_lp_amount)` per-append
         // CPMM market open was excised together with `prediction_market.rs`.
         // Pricing is now a derived view over canonical `EconomicState`
         // (`state::compute_price_index`) populated by typed-tx admission via
-        // `Sequencer::dispatch_transition` — never by bus-level f64 LP grant.
+        // `Sequencer::dispatch_transition` — never by a bus-level LP grant.
 
         // Phase 5: Tool post-append hooks
         for tool in &mut self.tools {
             tool.on_post_append(author, &node_id);
         }
 
-        if let Ok(evt) = self.ledger.append(
+        let _ = self.ledger.append(
             EventType::Append,
             Some(node_id.clone()),
             Some(author.to_string()),
             None,
-        ) {
-            // Phase 1 WAL: persist ledger event for full hash-chain recovery.
-            if let Some(w) = self.wal.as_mut() {
-                let evt_clone = evt.clone();
-                if let Err(e) = w.write_event(&evt_clone) {
-                    log::warn!("[wal] write_event(Append) failed: {}", e);
-                }
-            }
-        }
+        );
         self.tx_count += 1;
         self.clock += 1;
 
@@ -385,12 +309,7 @@ impl TuringBus {
             tool.on_halt(&gp);
         }
 
-        if let Ok(evt) = self.ledger.append(EventType::RunEnd, None, None, None) {
-            let evt_clone = evt.clone();
-            if let Some(w) = self.wal.as_mut() {
-                let _ = w.write_event(&evt_clone);
-            }
-        }
+        let _ = self.ledger.append(EventType::RunEnd, None, None, None);
         Ok(())
     }
 
@@ -658,8 +577,8 @@ mod tests {
     }
 
     /// TB-9 collapse (2026-05-02): pre-TB-9 the WalletTool's `on_pre_append`
-    /// vetoed unknown agents because they had no f64 balance row. After the
-    /// projection collapse (no f64 ledger, `on_pre_append` returns `Pass`
+    /// vetoed unknown agents because they had no legacy balance row. After the
+    /// projection collapse (no legacy ledger, `on_pre_append` returns `Pass`
     /// unconditionally), the v3 bus append path is genuinely Law 1 free for
     /// any author — typed_tx admission gates own author/balance veto logic at
     /// the canonical layer. Test renamed + inverted to lock in the new

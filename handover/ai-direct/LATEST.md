@@ -9,7 +9,7 @@
 
 ---
 
-## Current Snapshot (2026-05-26)
+## Current Snapshot (2026-05-27)
 
 **Session**: OBL-005 no-zombie/no-drift closure remains in progress.
 
@@ -28,15 +28,20 @@ Current state:
   `design-system/` additions. `tests/constitution_realworld_liveness_coverage.rs`
   still requires current-kernel real-world ChainTape/CAS evidence before final
   closure.
-- Current hard blocker: `legacy_wal_and_sdk_tool_surfaces` remains in
-  `tests/fixtures/liveness/production_module_liveness.toml`. Live code still
-  exports `src/wal.rs` through `src/lib.rs`, keeps `TuringBus::with_wal_path`
-  / `wal: Option<crate::wal::Wal>` in `src/bus.rs`, and keeps legacy f64
-  `ToolSignal::{YieldReward, InvestOnly}` plus `BetDirection` in
-  `src/sdk/tool.rs`.
-- Required next action: user/architect must ratify
-  `APPROVED-WAL-SDKTOOL-CLOSURE` before implementation, because the closure
-  touches Class 3 persistence/economy surfaces and `src/bus.rs`.
+- Current branch `codex/obl005-wal-sdktool-closure` implements the ratified
+  Class 4 WAL/SDK closure after user phrase
+  `APPROVED-CLASS4-TRUSTROOT-WAL-CLOSURE`: `src/wal.rs` and
+  `tests/wal_resume.rs` are deleted; `pub mod wal`, `TuringBus::with_wal_path`,
+  the bus WAL field/writes, legacy f64 `ToolSignal::{YieldReward, InvestOnly}`,
+  and `BetDirection` are removed; the liveness manifest rejects
+  `legacy_wal_and_sdk_tool_surfaces` reintroduction; and
+  `genesis_payload.toml` removes the retired WAL trust-root entry while
+  rehashing surviving pinned files.
+- Clean-context Class 4 audit is saved at
+  `handover/audits/OBL005_WAL_SDKTOOL_CLOSURE_CLEAN_CONTEXT_AUDIT_2026-05-27.md`
+  and returned `NO-VIOLATION`.
+- Required next action: PR-only publication. OBL-005 is still in progress until
+  the PR merges; this branch only removes the current WAL/SDK no-zombie blocker.
 
 Recent verification:
 
@@ -52,6 +57,9 @@ cargo test --test constitution_matrix_drift
 
 bash scripts/run_constitution_gates.sh
 # [k-1-5] total=157 failed=0
+
+cargo test --workspace --no-fail-fast
+# passed
 ```
 
 ## Previous Snapshot
