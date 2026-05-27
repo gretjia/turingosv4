@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 64083,
+      "archive_path": "gaia/cas.dotgit.tar.gz",
+      "archive_sha256": "62473b56af748821fe7f07d9b0f388a10fa7ec2c6327e0d04878501d6ff7fde1",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gaia/cas",
+      "source_path": "gaia/cas/.git"
+    },
+    {
+      "archive_bytes": 3537,
+      "archive_path": "gaia/cas.worktree.tar.gz",
+      "archive_sha256": "c7c0d2cab2a65228fc4190fd0355bda7cd64dd4a56203204cba40dd2b102901b",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "gaia/cas",
+      "source_path": "gaia/cas"
+    },
+    {
+      "archive_bytes": 24696,
+      "archive_path": "gaia/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "aa54e41fb6eca60c26ba407236416e10071dde1e1f902c21dfeb0850c06e03f0",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gaia/runtime_repo",
+      "source_path": "gaia/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1402,
+      "archive_path": "gaia/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "72a16b98322802aa34dccf21afd272efddb07d70adf51df24fde9e9f01916691",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "gaia/runtime_repo",
+      "source_path": "gaia/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/tmp/turingosv4-gaia-runner-next/handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
