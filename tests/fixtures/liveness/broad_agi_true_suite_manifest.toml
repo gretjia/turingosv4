@@ -405,9 +405,15 @@ kernel_liveness_modules = [
 ]
 evidence_shape = [
   "sandbox_snapshot_hash",
-  "tool_log_capsule_cid",
+  "task_capsule_cid",
+  "answer_claim_capsule_cid",
+  "sandbox_action_trace_cid",
+  "evaluation_capsule_cid",
+  "proposal_telemetry_cid",
   "file_state_diff_hash",
+  "work_tx_or_l4e",
   "replay_report",
+  "fc_trace_report",
 ]
 failure_taxonomy = [
   "kernel_invariant_failure",
@@ -419,16 +425,30 @@ failure_taxonomy = [
   "sandbox_escape_attempt",
 ]
 anti_contamination_guards = [
-  "all OS actions run in disposable sandbox",
+  "all OS actions are represented by offline disposable sandbox snapshots",
   "file diffs are evidence only if hash-bound",
+  "expected action and final state must not enter the model prompt",
+  "raw provider prompt/response must not be persisted",
   "unsafe action attempts become L4.E or quarantine",
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/osworld/sandbox_snapshots/",
+  "handover/evidence/true_suite/<run>/osworld/runtime_repo/",
+  "handover/evidence/true_suite/<run>/osworld/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/osworld/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/osworld/cas/",
+  "handover/evidence/true_suite/<run>/osworld/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/osworld/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/osworld/genesis_report.json",
+  "handover/evidence/true_suite/<run>/osworld/osworld_computer_use_manifest.json",
+  "handover/evidence/true_suite/<run>/osworld/osworld_computer_use_run_manifest.json",
   "handover/evidence/true_suite/<run>/osworld/replay_report.json",
+  "handover/evidence/true_suite/<run>/osworld/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/osworld/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/osworld/restore_replay_report.json",
   "handover/evidence/true_suite/<run>/osworld/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/osworld/failure_taxonomy.json",
+  "handover/evidence/true_suite/<run>/osworld/fc_trace_report.json",
 ]
 
 [[family]]

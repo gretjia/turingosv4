@@ -16,6 +16,7 @@ const REQUIRED_DOMAINS: &[&str] = &[
     "market_economy",
     "generate_artifact",
     "swebench_coding_repair",
+    "osworld_computer_use",
     "tdma_proof",
     "fc3_governance_reinit",
     "replay_cas",
