@@ -1,0 +1,215 @@
+schema_version = "turingosv4.script_liveness_inventory.v1"
+authority = "constitution.md + script inventory + ChainTape/CAS evidence"
+policy = "all_retained_scripts_classified"
+final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+notes = [
+  "This is a derived inventory over scripts/ files.",
+  "It closes script accounting, not OBL-005 final closure.",
+  "Historical smoke runners may stay retained only when explicitly marked non-closing.",
+]
+
+[[script_group]]
+id = "constitution_gate_scripts"
+classification = "constitution_gate"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/alignment_coverage.py",
+  "scripts/audit_legacy_bypass.sh",
+  "scripts/check_tr_ratification_chain.sh",
+  "scripts/check_trace_matrix.py",
+  "scripts/constitution_gates.manifest.toml",
+  "scripts/constitutional_check.sh",
+  "scripts/fc_witness_aggregate.py",
+  "scripts/fc_witness_extract.py",
+  "scripts/run_constitution_gates.sh",
+  "scripts/tests",
+  "scripts/update_trace_matrix_reverse_map.py",
+]
+covered_by = [
+  "tests/constitution_matrix_drift.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+  "scripts/run_constitution_gates.sh",
+]
+
+[[script_group]]
+id = "git_pr_hygiene_scripts"
+classification = "git_hygiene"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/hooks",
+  "scripts/install_hooks.sh",
+  "scripts/setup_branch_protection.sh",
+]
+covered_by = [
+  "AGENTS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "true_suite_production_entrypoints"
+classification = "production_entrypoint"
+status = "active_replay_bound"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/run_true_suite_boot_cli_current_kernel.sh",
+  "scripts/run_true_suite_cybench_current_kernel.sh",
+  "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh",
+  "scripts/run_true_suite_gaia_general_assistant_current_kernel.sh",
+  "scripts/run_true_suite_generate_artifact_current_kernel.sh",
+  "scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh",
+  "scripts/run_true_suite_market_ab_current_kernel.sh",
+  "scripts/run_true_suite_market_external_agent.sh",
+  "scripts/run_true_suite_math_competition_current_kernel.sh",
+  "scripts/run_true_suite_mind2web_current_kernel.sh",
+  "scripts/run_true_suite_osworld_current_kernel.sh",
+  "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+  "scripts/run_true_suite_swebench_current_kernel.sh",
+  "scripts/run_true_suite_tdma_current_kernel.sh",
+  "scripts/run_true_suite_toolbench_current_kernel.sh",
+  "scripts/run_true_suite_webarena_current_kernel.sh",
+]
+covered_by = [
+  "tests/constitution_realworld_liveness_coverage.rs",
+  "tests/constitution_broad_agi_true_suite_manifest.rs",
+  "tests/constitution_true_suite_evidence_reconciliation.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+realworld_task_ids = [
+  "market_external_agent_fresh",
+  "market_ab_performance_fresh",
+  "generate_artifact_chain_fresh",
+  "swebench_live_coding_repair_fresh",
+  "osworld_computer_use_fresh",
+  "cybench_security_sandbox_fresh",
+  "tdma_real_proof_fresh",
+  "fc3_governance_reinit_fresh",
+  "replay_cas_tamper_repair_current",
+  "boot_cli_current_kernel_fresh",
+]
+broad_family_ids = [
+  "gaia_general_assistant",
+  "gpqa_science_reasoning",
+  "math_formal_proof",
+  "swebench_live_coding_repair",
+  "webarena_web_agent",
+  "mind2web_open_web",
+  "osworld_computer_use",
+  "toolbench_api_tool_use",
+  "cybench_security_sandbox",
+  "market_economy_polymarket",
+  "memory_feedback_reinit",
+]
+
+[[script_group]]
+id = "true_suite_orchestration_and_packaging"
+classification = "true_suite_orchestrator"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/package_true_suite_evidence.sh",
+  "scripts/restore_true_suite_chain_evidence.sh",
+  "scripts/run_true_suite_broad_agi_batch.sh",
+]
+covered_by = [
+  "tests/constitution_true_suite_broad_agi_batch_runner.rs",
+  "tests/constitution_true_suite_evidence_packaging.rs",
+  "tests/constitution_true_suite_evidence_reconciliation.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "historical_market_and_g_phase_runners"
+classification = "historical_smoke"
+status = "historical_smoke"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/run_g_phase_batch.sh",
+  "scripts/run_market_autonomy_research_preflight.sh",
+  "scripts/run_real11_e2_micro_probe.sh",
+  "scripts/run_real11_router_positive_control.sh",
+  "scripts/run_real12_task_market_probe.sh",
+  "scripts/run_real13_market_pressure_probe.sh",
+  "scripts/run_real16_market_performance_benchmark.sh",
+  "scripts/run_real8_market_ab_benchmark.sh",
+  "scripts/run_stage_b3.sh",
+  "scripts/run_tb8_smoke_2026-05-02.sh",
+  "scripts/run_tb9_smoke_2026-05-02.sh",
+  "scripts/run_tdma_rc1_real_evidence.py",
+]
+covered_by = [
+  "tests/constitution_real8_market_ab_benchmark.rs",
+  "tests/constitution_real11_router_positive_control.rs",
+  "tests/constitution_real12_task_market_action.rs",
+  "tests/constitution_real13h_market_pressure_probe.rs",
+  "tests/constitution_real16_market_performance.rs",
+  "tests/constitution_market_autonomy_research_envelope.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "phase63_product_e2e_helpers"
+classification = "historical_smoke"
+status = "historical_smoke"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/phase63_e2e_demo.sh",
+  "scripts/phase63_functional_play.js",
+  "scripts/phase63_verify_artifact.py",
+]
+covered_by = [
+  "tests/cli_phase63_cas_wire.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "stress_harness_scripts"
+classification = "stress_harness"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/stress",
+]
+covered_by = [
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "evidence_maintenance_historical"
+classification = "evidence_packaging"
+status = "historical_smoke"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/regenerate_post_fix_evidence.sh",
+]
+covered_by = [
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "subagent_dispatch_harness"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/dispatch_subagent.sh",
+]
+covered_by = [
+  "AGENTS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "local_provider_probe_scripts"
+classification = "local_probe"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/_smoke_siliconflow.py",
+  "scripts/smoke_siliconflow.sh",
+  "scripts/test_llm_proxy.py",
+]
+covered_by = [
+  "tests/constitution_script_liveness_inventory.rs",
+]

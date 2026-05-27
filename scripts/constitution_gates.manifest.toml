@@ -822,6 +822,11 @@ authority = "OBL-005 cross-run true-suite evidence reconciliation: every fresh r
 added = "2026-05-27"
 
 [[gate]]
+name = "constitution_script_liveness_inventory"
+authority = "OBL-005 no-zombie script inventory: every retained scripts/ file must be classified exactly once and production true-suite entrypoints must bind to realworld or broad contracts"
+added = "2026-05-27"
+
+[[gate]]
 name = "constitution_web_cli_kernel_invariant"
 authority = "Session #56 (2026-05-21): web layer must share src/runtime/* kernel with CLI binary. Two static-grep invariants — (1) src/web/* never calls chat_complete_blocking / siliconflow_client directly; (2) src/web/* never declares pub const *_SCHEMA_ID. See README.md 'V4 Product-CAK Hardening' section + session 56 audit docs."
 added = "2026-05-21"
