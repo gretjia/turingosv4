@@ -762,6 +762,11 @@ authority = "OBL-005 broad AGI true-suite GPQA execution layer: public benchmark
 added = "2026-05-25"
 
 [[gate]]
+name = "constitution_true_suite_gaia_runner"
+authority = "OBL-005 broad AGI true-suite GAIA general-assistant execution layer: public GAIA-compatible task input plus external local-proxy LLM answer must be CAS-bound, rationale-gated, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads, hidden expected-answer leakage, or old-15 contamination"
+added = "2026-05-27"
+
+[[gate]]
 name = "constitution_true_suite_math_runner"
 authority = "OBL-005 broad AGI true-suite MATH execution layer: public Hendrycks/EleutherAI benchmark problem plus external local-proxy LLM answer must be CAS-bound, rationale-gated, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads, hidden solution leakage, or old-15 contamination"
 added = "2026-05-26"
