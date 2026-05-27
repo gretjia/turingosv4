@@ -1,0 +1,20 @@
+{
+  "schema_version": "turingosv4.true_suite.gaia_fc_trace_report.v1",
+  "run_id": "broad_agi_gaia_20260527T042703Z",
+  "family_id": "gaia_general_assistant",
+  "fc_blocks_seen": [
+    "FC1",
+    "FC2",
+    "FC3"
+  ],
+  "question_capsule_cid": "15d20e7f5d2b78d2d9d6dd5c42cd2960304f9bbcf79d6eed22eb4a53ab399f8f",
+  "answer_claim_capsule_cid": "d688daf822f1d7a84af0cfe38305ab8a6c032f8633200de2493a89126e312e9e",
+  "evaluation_capsule_cid": "15dc844f3ac27a8781602d717b748c27f46fe06ee637d22f00e0bffe7ac93500",
+  "proposal_telemetry_cid": "9c283389ad19d819047dd6241f8345236cf52009e28007976453294a14c5c43a",
+  "work_tx_id": "worktx-gaia:c61d22de-5f6c-4958-a7f6-5e9707bd3466-true-suite-gaia",
+  "work_tx_landed": true,
+  "answer_correct": false,
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false
+}

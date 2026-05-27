@@ -46,6 +46,12 @@ families = ["gpqa", "science_reasoning", "current_kernel", "replay"]
 evidence = ["public_gpqa_sample", "local_openai_proxy", "ChainTape", "CAS", "replay", "restore_replay"]
 
 [[real_world_suite]]
+id = "broad_agi_gaia_20260527T042703Z"
+path = "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z"
+families = ["gaia", "general_assistant", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_gaia_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
 id = "broad_agi_installed_20260526T001843Z"
 path = "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z"
 families = ["boot_cli", "replay_cas", "market", "generate_artifact", "tdma", "fc3", "gpqa", "current_kernel"]
@@ -364,6 +370,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/gaia_general_assistant_manifest.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/replay_report.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/restore_replay_report.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/full_system_participation.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/restore_replay_report.json",
   "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/restore_replay_report.json",
   "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/full_system_participation.json",
@@ -469,6 +480,9 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/governance_capsule_index.json",
   "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/broad_agi_osworld_20260527T035423Z/osworld/full_system_participation.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/governance_capsule_index.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/full_system_participation.json",
 ]
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
@@ -507,6 +521,7 @@ smoke_gates = [
 real_world_evidence = [
   "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "handover/evidence/true_suite/broad_agi_gaia_20260527T042703Z/gaia/gaia_general_assistant_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",

@@ -1,0 +1,12 @@
+{
+  "schema_version": "turingosv4.true_suite.gaia_failure_taxonomy.v1",
+  "run_id": "broad_agi_gaia_20260527T042703Z",
+  "family_id": "gaia_general_assistant",
+  "failure_class": "model_task_failure",
+  "rationale_guard_passed": true,
+  "answer_correct": false,
+  "constitutional_rejection": false,
+  "kernel_invariant_failure": false,
+  "model_task_failure": true,
+  "infrastructure_failure": false
+}

@@ -1,0 +1,21 @@
+{
+  "l4_entries": 16,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "broad_agi_gaia_20260527T042703Z",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "186b838d4f62a56a9903b2eada3655efe3ebd1f0877d9ed427d7e75cd938fa20",
+    "final_ledger_root_hex": "d8e6a87f7540dedc0e804aabd1ef4a3a9b709804db35ec302ec5ba3815c86224",
+    "head_commit_oid_hex": "2bbde9dd81cd0602696af1d9807a8a1ced571466",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
