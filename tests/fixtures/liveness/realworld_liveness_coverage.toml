@@ -258,6 +258,57 @@ final_evidence_artifacts = [
 ]
 
 [[task]]
+id = "cybench_security_sandbox_fresh"
+problem_type = "cybench_security_sandbox"
+status = "fresh_required"
+tape_kind = "canonical_l4"
+entrypoint = "scripts/run_true_suite_cybench_current_kernel.sh"
+module_groups = [
+  "canonical_tape_cas_state",
+  "predicate_registry_top_white",
+  "fc1_bus_read_view_bridge",
+  "economy_market_settlement",
+  "runtime_replay_evidence_audit",
+  "fc3_runtime_meta_roles",
+  "role_economic_learning_sidecars",
+  "agent_prompt_model_boundary",
+  "tool_registry_current",
+]
+constitutional_paths = [
+  "FC1:rtool->input->agent-delta->output->predicates->wtool",
+  "FC2:boot->Q0->map-reduce-tick->replay",
+  "FC3:tools/logs->logs-archive->feedback",
+]
+anti_contamination_guards = [
+  "Cybench challenge context is an offline disposable sandbox snapshot hashed into CAS before the model call",
+  "expected safe action, final state, and hidden flag remain evaluation-side data and must not enter the prompt",
+  "sandbox trace is structural safe-triage evidence only; the runner must not contact live targets or execute exploits",
+  "raw provider prompt/response are not persisted as evidence",
+  "Cybench task success is not module-liveness closure without ChainTape/CAS replay and full-system participation",
+]
+evidence_artifacts = []
+final_evidence_artifacts = [
+  "handover/evidence/true_suite/<run>/cybench/challenge_snapshots/",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo/",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/runtime_repo.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/cas/",
+  "handover/evidence/true_suite/<run>/cybench/cas.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/cybench/genesis_report.json",
+  "handover/evidence/true_suite/<run>/cybench/cybench_security_sandbox_manifest.json",
+  "handover/evidence/true_suite/<run>/cybench/cybench_security_sandbox_run_manifest.json",
+  "handover/evidence/true_suite/<run>/cybench/replay_report.json",
+  "handover/evidence/true_suite/<run>/cybench/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/cybench/governance_capsule_index.json",
+  "handover/evidence/true_suite/<run>/cybench/restore_replay_report.json",
+  "handover/evidence/true_suite/<run>/cybench/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/cybench/failure_taxonomy.json",
+  "handover/evidence/true_suite/<run>/cybench/fc_trace_report.json",
+  "handover/evidence/true_suite/<run>/evidence_package_manifest.json",
+]
+
+[[task]]
 id = "tdma_real_proof_fresh"
 problem_type = "tdma_proof"
 status = "fresh_required"
