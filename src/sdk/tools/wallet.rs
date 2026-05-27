@@ -2,21 +2,21 @@
 //
 // **TB-9 collapse (2026-05-02)**: per architect directive 2026-05-02 Part C
 // line 1574 ("WalletTool read-only projection / EconomicState canonical /
-// no f64 mutation"), this tool no longer carries owned f64 ledger state.
+// no floating mutation"), this tool no longer carries owned legacy ledger state.
 // Balances are projected from `EconomicState.balances_t: BTreeMap<AgentId,
 // MicroCoin>` (the canonical chain-derived ledger written by typed_tx
 // dispatch arms since TB-3).
 //
 // Pre-TB-9 surface (deleted in this collapse):
-//   - `balances: HashMap<String, f64>` field
+//   - owned decimal balance field
 //   - `portfolios: HashMap<String, Portfolio>` field
 //   - `genesis_done`, `genesis_coins`
 //   - `deduct / credit / record_shares / ensure_agents`
 //   - `save_to_disk / load_from_disk` (legacy v3 cross-problem-continuity hook)
-//   - `on_init` minted f64 balances at genesis (replaced by `q_state::genesis()`
+//   - `on_init` minted decimal balances at genesis (replaced by `q_state::genesis()`
 //      writing `EconomicState.balances_t`)
 //
-// All deletions are permanent; bus.rs market f64 mutator path deleted in
+// All deletions are permanent; bus.rs market mutator path deleted in
 // the same atom (Atom 4). MicroCoin is the only currency unit going forward.
 
 use crate::economy::money::MicroCoin;

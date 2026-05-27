@@ -412,8 +412,8 @@ use crate::state::sequencer::{Sequencer, SubmissionEnvelope};
 /// Production ChainTape runtime configuration.
 ///
 /// Enabled by env var `TURINGOS_CHAINTAPE_PATH=<runtime_repo_path>`.
-/// When unset, the evaluator falls back to legacy `TuringBus::new` /
-/// `TuringBus::with_wal_path` (no on-disk ChainTape).
+/// When unset, the evaluator falls back to in-memory `TuringBus::new`
+/// (no on-disk ChainTape).
 #[derive(Debug, Clone)]
 pub struct RuntimeChaintapeConfig {
     /// Filesystem path to the on-disk runtime git repo.

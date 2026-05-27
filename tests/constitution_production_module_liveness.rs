@@ -482,22 +482,11 @@ fn legacy_shadow_tape_group_is_split_from_active_tdma_ledger() {
         "TDMA evidence group must name src/ledger.rs explicitly"
     );
 
-    let legacy = group_by_id(&groups, "legacy_wal_and_sdk_tool_surfaces");
     assert!(
-        !legacy.module_ids.iter().any(|id| id == "ledger"),
-        "legacy WAL/SDK quarantine must not absorb active TDMA ledger substrate"
-    );
-    assert!(
-        !legacy.module_ids.iter().any(|id| id == "sdk::tools::wallet"),
-        "legacy WAL/SDK quarantine must not absorb active wallet projection substrate"
-    );
-    assert!(
-        legacy
-            .closure_action
-            .as_deref()
-            .unwrap_or_default()
-            .contains("Delete WAL"),
-        "legacy WAL/SDK quarantine must carry a concrete delete-or-rebind closure plan"
+        groups
+            .iter()
+            .all(|group| group.id != "legacy_wal_and_sdk_tool_surfaces"),
+        "legacy WAL/SDK quarantine was closed; do not reintroduce it as an active liveness group"
     );
 
     let economy = group_by_id(&groups, "economy_market_settlement");

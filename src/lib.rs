@@ -35,4 +35,3 @@ pub mod tdma_runner;
 /// Phase E libgit2 substrate skeleton (Atom 20; bodies in Atoms 21/22).
 pub mod git_tape_ledger;
 pub mod top_white;
-pub mod wal;

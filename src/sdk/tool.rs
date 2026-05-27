@@ -12,21 +12,6 @@ pub enum ToolSignal {
     Pass,
     /// Reject the action with reason. V3L-09: always give explicit reason.
     Veto(String),
-    /// Accept with reward signal (for market pricing).
-    YieldReward { reward: f64 },
-    /// Route to investment (buy YES/NO on existing node, skip append).
-    InvestOnly {
-        target_node: String,
-        amount: f64,
-        direction: BetDirection,
-    },
-}
-
-/// Direction of a market bet.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BetDirection {
-    Long,  // Buy YES
-    Short, // Buy NO
 }
 
 /// The SKILL lifecycle trait for all tools.
