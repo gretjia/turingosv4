@@ -1,7 +1,7 @@
 schema_version = "turingosv4.script_liveness_inventory.v1"
 authority = "constitution.md + script inventory + ChainTape/CAS evidence"
 policy = "all_retained_scripts_classified"
-final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
 notes = [
   "This is a derived inventory over scripts/ files.",
   "It closes script accounting, not OBL-005 final closure.",

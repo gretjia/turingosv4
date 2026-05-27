@@ -1,7 +1,7 @@
 schema_version = "turingosv4.realworld_liveness_coverage.v1"
 authority = "constitution.md + fresh ChainTape/CAS real-world evidence"
 policy = "fresh_current_kernel_required_for_final"
-final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
 historical_evidence_is_final = false
 smoke_is_not_final_evidence = true
 full_system_required_for_final = true

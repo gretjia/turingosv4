@@ -1,7 +1,7 @@
 schema_version = "turingosv4.production_module_liveness.v1"
 authority = "constitution.md + ChainTape/CAS evidence"
 policy = "real_world_required_for_final"
-final_closure_status = "OPEN_REAL_WORLD_COVERAGE_PENDING"
+final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
 smoke_is_not_final_evidence = true
 constitution_blocks = [
   "constitution.md:455-509",

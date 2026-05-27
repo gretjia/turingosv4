@@ -1,13 +1,13 @@
 schema_version = "turingosv4.true_suite.evidence_reconciliation.v1"
 authority = "constitution.md + immutable true-suite evidence roots"
-reconciliation_status = "FULL_SYSTEM_RECONCILIATION_CANDIDATE"
-final_closure_claimed = false
+reconciliation_status = "OBL005_FINAL_CLOSURE_VERIFIED"
+final_closure_claimed = true
 rewrites_historical_evidence = false
 required_full_system_schema = "turingosv4.true_suite.full_system_participation.v1"
 notes = [
   "This manifest reconciles distributed evidence roots after runner PRs were merged.",
   "It must not rewrite or aggregate into historical evidence directories.",
-  "OBL-005 closure still requires explicit audit/witness after this candidate gate is green.",
+  "The witness has verified OBL-005 final closure, and historical evidence is not rewritten.",
 ]
 
 [[coverage_task]]
