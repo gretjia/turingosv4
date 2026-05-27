@@ -777,6 +777,11 @@ authority = "OBL-005 broad AGI true-suite SWE-bench execution layer: public codi
 added = "2026-05-26"
 
 [[gate]]
+name = "constitution_true_suite_webarena_runner"
+authority = "OBL-005 broad AGI true-suite WebArena execution layer: public WebArena task config plus offline browser observation and external local-proxy LLM browser action must be CAS-bound, recorded as ProposalTelemetry ToolCallRecord hashes, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads, hidden reference-answer leakage, live account side effects, or old-15 contamination"
+added = "2026-05-27"
+
+[[gate]]
 name = "constitution_true_suite_toolbench_runner"
 authority = "OBL-005 broad AGI true-suite ToolBench execution layer: public benchmark API-selection input plus external local-proxy LLM tool choice must be CAS-bound, recorded as ProposalTelemetry ToolCallRecord hashes, submitted through current-kernel signed WorkTx, and replayed without raw provider payloads or old-15 contamination"
 added = "2026-05-26"

@@ -282,10 +282,18 @@ kernel_liveness_modules = [
   "runtime_replay_evidence_audit",
 ]
 evidence_shape = [
+  "task_capsule_cid",
+  "observation_capsule_cid",
+  "answer_claim_capsule_cid",
+  "browser_action_trace_cid",
   "browser_action_trace_hash",
-  "tool_log_capsule_cid",
-  "task_success_predicate",
+  "proposal_telemetry_cid",
+  "work_tx_id",
+  "benchmark_verdict",
+  "failure_taxonomy",
+  "fc_trace_report",
   "replay_report",
+  "full_system_participation",
 ]
 failure_taxonomy = [
   "kernel_invariant_failure",
@@ -300,13 +308,27 @@ anti_contamination_guards = [
   "screenshots and DOM logs must be CAS-bound or quarantined",
   "browser success cannot bypass predicates",
   "no live account credentials or unscoped network side effects",
+  "hidden reference answers and eval fields must not enter the prompt",
+  "exact-match score cannot be treated as OBL-005 closure",
 ]
 final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/webarena/browser_traces/",
+  "handover/evidence/true_suite/<run>/webarena/input_capsules/",
+  "handover/evidence/true_suite/<run>/webarena/runtime_repo/",
+  "handover/evidence/true_suite/<run>/webarena/runtime_repo.worktree.tar.gz",
+  "handover/evidence/true_suite/<run>/webarena/runtime_repo.dotgit.tar.gz",
   "handover/evidence/true_suite/<run>/webarena/cas/",
+  "handover/evidence/true_suite/<run>/webarena/cas.worktree.tar.gz",
   "handover/evidence/true_suite/<run>/webarena/cas.dotgit.tar.gz",
+  "handover/evidence/true_suite/<run>/webarena/genesis_report.json",
+  "handover/evidence/true_suite/<run>/webarena/webarena_web_agent_manifest.json",
+  "handover/evidence/true_suite/<run>/webarena/webarena_web_agent_run_manifest.json",
   "handover/evidence/true_suite/<run>/webarena/replay_report.json",
+  "handover/evidence/true_suite/<run>/webarena/full_system_augmentation_manifest.json",
+  "handover/evidence/true_suite/<run>/webarena/governance_capsule_index.json",
   "handover/evidence/true_suite/<run>/webarena/full_system_participation.json",
+  "handover/evidence/true_suite/<run>/webarena/failure_taxonomy.json",
+  "handover/evidence/true_suite/<run>/webarena/fc_trace_report.json",
 ]
 
 [[family]]
