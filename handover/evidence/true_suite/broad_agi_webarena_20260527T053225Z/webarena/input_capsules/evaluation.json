@@ -1,0 +1,14 @@
+{
+  "schema_version": "turingosv4.true_suite.webarena_evaluation_capsule.v1",
+  "sample_id": "webarena:0",
+  "task_capsule_cid": "deb7b31b8309d0e3624f40d9e79232e26cd83117584da2cda61139da4cb9c5a6",
+  "observation_capsule_cid": "bc150ed98f0312e475755b95558a9deebe9e1e4f60af7b8be60209f3f5d17752",
+  "answer_claim_capsule_cid": "d33a93c200ff55ad7478b647b1bbc002eca204b812d870355670b08757ba4a94",
+  "browser_action_trace_cid": "9ab1691887b7ce0076941c3bf1560625ebe87d941cee4be52080ffc4836cc8ac",
+  "reference_answer_sha256": "d74cf3d18b34d043bd0dd9900897352e35abfd6887568b5767b1f3de6e73e289",
+  "predicted_answer": "The top-1 best-selling product in 2022 is not determinable from the visible observation snapshot.",
+  "rationale_guard_passed": true,
+  "answer_correct": false,
+  "benchmark_verdict": "browser_task_answer_mismatch",
+  "failure_class": "model_task_failure"
+}

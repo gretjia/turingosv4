@@ -1,0 +1,8 @@
+{
+  "schema_version": "turingosv4.true_suite.webarena_browser_action_trace.v1",
+  "sample_id": "webarena:0",
+  "task_capsule_cid": "deb7b31b8309d0e3624f40d9e79232e26cd83117584da2cda61139da4cb9c5a6",
+  "observation_capsule_cid": "bc150ed98f0312e475755b95558a9deebe9e1e4f60af7b8be60209f3f5d17752",
+  "browser_action": "Observed the visible snapshot which only shows a static HTML page with task description and no actual website content or sales data.",
+  "action_trace_sha256": "cb5c32a9bfc6f5d8ef10b86418b4c779e970e654309a027c5e86ea2a10bacc63"
+}
