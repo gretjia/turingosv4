@@ -357,6 +357,11 @@ fn build_market_view(
         })
         .collect();
 
+    // ── Real CPMM market projection (PR #209): pool reserves + per-agent
+    // YES/NO positions, read-only from replayed EconomicState. Surfaces who
+    // invested (YES shares) / shorted (NO shares) for the live dashboard.
+    let market_json = derive_market_projection(&replayed_q.economic_state_t, &event_id);
+
     let payload = serde_json::json!({
         "session_id": session_id,
         "task_id": task_id_str,
@@ -367,6 +372,7 @@ fn build_market_view(
         "buy_yes_count": buy_yes_count,
         "buy_no_count": buy_no_count,
         "winner_agent_id": winner_agent_id,
+        "market": market_json,
     });
     Ok(Some(payload.to_string()))
 }
@@ -436,7 +442,49 @@ fn winner_agent_id_for_market_state(
     })
 }
 
-fn derive_yes_signal_bp(econ: &EconomicState, event_id: &EventId) -> u32 {
+/// Read-only projection of the real CPMM market for this event: pool reserves,
+/// derived YES price, and per-agent YES/NO positions (who invested / shorted).
+/// Pure replay over EconomicState — never a truth source, never read by
+/// predicates/winner derivation.
+fn derive_market_projection(econ: &EconomicState, event_id: &EventId) -> serde_json::Value {
+    let (pool_yes, pool_no, pool_active) = match econ.cpmm_pools_t.0.get(event_id) {
+        Some(p) => (
+            p.pool_yes.units as u64,
+            p.pool_no.units as u64,
+            matches!(p.status, turingosv4::state::q_state::PoolStatus::Active),
+        ),
+        None => (0, 0, false),
+    };
+    // Per-agent positions on THIS event: yes_shares = invested YES,
+    // no_shares = shorted NO.
+    let positions: Vec<serde_json::Value> = econ
+        .conditional_share_balances_t
+        .0
+        .iter()
+        .filter_map(|(agent, by_event)| {
+            let pair = by_event.get(event_id)?;
+            let yes = pair.yes.units as u64;
+            let no = pair.no.units as u64;
+            if yes == 0 && no == 0 {
+                return None;
+            }
+            Some(serde_json::json!({
+                "agent": agent.0.as_str(),
+                "yes_shares": yes,
+                "no_shares": no,
+            }))
+        })
+        .collect();
+    serde_json::json!({
+        "pool_yes": pool_yes,
+        "pool_no": pool_no,
+        "pool_active": pool_active,
+        "yes_price_bp": derive_yes_signal_bp(econ, event_id),
+        "positions": positions,
+    })
+}
+
+pub(crate) fn derive_yes_signal_bp(econ: &EconomicState, event_id: &EventId) -> u32 {
     let pool = match econ.cpmm_pools_t.0.get(event_id) {
         Some(p) => p,
         None => {
@@ -491,18 +539,18 @@ fn find_rejected_worktxs_for_task(
     Ok(out)
 }
 
-fn hex_of_cid(cid: &turingosv4::bottom_white::cas::schema::Cid) -> String {
+pub(crate) fn hex_of_cid(cid: &turingosv4::bottom_white::cas::schema::Cid) -> String {
     cid.0.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
-fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Result<QState, String> {
+pub(crate) fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Result<QState, String> {
     let path = runtime_repo_path.join("initial_q_state.json");
     let json =
         std::fs::read_to_string(&path).map_err(|e| format!("read initial_q_state.json: {e}"))?;
     serde_json::from_str(&json).map_err(|e| format!("parse initial_q_state.json: {e}"))
 }
 
-fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSystemPubkeys, String> {
+pub(crate) fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSystemPubkeys, String> {
     let path = runtime_repo_path.join("pinned_pubkeys.json");
     let json =
         std::fs::read_to_string(&path).map_err(|e| format!("read pinned_pubkeys.json: {e}"))?;

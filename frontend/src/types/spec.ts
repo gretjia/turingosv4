@@ -72,10 +72,29 @@ export interface AgentCandidateView {
   is_winner: boolean;
 }
 
+/** One real router trade (PR #210): an agent buying YES or NO on the market. */
 export interface RouterTradeView {
   buyer: string;
   direction: 'buy_yes' | 'buy_no';
   pay_coin_micro: number;
+}
+
+/** One agent's CPMM position on the session market (PR #209 real market). */
+export interface MarketPosition {
+  agent: string;
+  /** YES shares held = invested on the candidate succeeding. */
+  yes_shares: number;
+  /** NO shares held = shorted. */
+  no_shares: number;
+}
+
+/** Real CPMM market projection (PR #209): pool reserves + price + positions. */
+export interface MarketProjection {
+  pool_yes: number;
+  pool_no: number;
+  pool_active: boolean;
+  yes_price_bp: number;
+  positions: MarketPosition[];
 }
 
 /**
@@ -91,6 +110,8 @@ export interface MarketViewResponse {
   buy_yes_count: number;
   buy_no_count: number;
   winner_agent_id: string | null;
+  /** Present once PR #209's real CPMM sequence has been admitted. */
+  market?: MarketProjection;
 }
 
 /**
@@ -109,6 +130,41 @@ export interface ProgressEvent {
 export interface ProgressViewResponse {
   session_id: string;
   events: ProgressEvent[];
+}
+
+/** One node in the citation DAG (GET /api/dag/by-session/<id>). */
+export interface DagNode {
+  tx_id: string;
+  parent_tx: string | null;
+  agent: string;
+  role: string;
+  tactic: string;
+  yes_units: number;
+  no_units: number;
+  bet_count: number;
+  whale: boolean;
+  price_bp: number;
+  price_marker: 'P1' | 'P0' | 'never';
+  dominance: 'BULL' | 'BEAR' | null;
+  oracle_verified: boolean;
+  on_golden_path: boolean;
+  depth: number;
+  children: string[];
+}
+
+export interface DagSummary {
+  role_activity: { agent: string; role: string; work: number; verify: number; challenge: number }[];
+  top_contested: { tx_id: string; yes: number; no: number; bets: number }[];
+  whales: { tx_id: string; agent: string; total: number }[];
+}
+
+/** Top-level response from GET /api/dag/by-session/<session_id>. */
+export interface DagViewResponse {
+  session_id: string;
+  root: { node_count: number; traded: number; untraded: number; roots: number };
+  nodes: DagNode[];
+  golden_path: string[];
+  summary: DagSummary;
 }
 
 /**

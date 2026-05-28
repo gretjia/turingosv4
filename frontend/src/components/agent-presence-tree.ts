@@ -21,6 +21,7 @@ import type { WsMessage } from '../ir.js';
 import type {
   MarketViewResponse,
   AgentCandidateView,
+  MarketProjection,
   ProgressEvent,
   ProgressViewResponse,
 } from '../types/spec.js';
@@ -232,14 +233,60 @@ export class TosAgentPresenceTree extends HTMLElement {
     grid.appendChild(this._buildSettledColumn(nodes));
     this.appendChild(grid);
 
+    // Real CPMM market panel (PR #209): pool reserves + price + positions.
+    const market = this._committed?.market;
+    if (market != null && (market.pool_yes > 0 || market.pool_no > 0)) {
+      this.appendChild(this._buildMarketPanel(market));
+    }
+
     if (this._committed !== null) {
       const footer = document.createElement('p');
       footer.className = 'apt-footer';
       footer.textContent =
-        `Treasury 赏金 ${this._committed.treasury_bounty_micro}µ · 状态 ${this._committed.market_state}` +
-        ' · 市场为国库单边开盘（暂无对手盘投资/做空）';
+        `Treasury 赏金 ${this._committed.treasury_bounty_micro}µ · 状态 ${this._committed.market_state}`;
       this.appendChild(footer);
     }
+  }
+
+  private _buildMarketPanel(m: MarketProjection): HTMLElement {
+    const panel = document.createElement('div');
+    panel.className = 'apt-market';
+
+    const head = document.createElement('div');
+    head.className = 'apt-market-head';
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'apt-col-eyebrow';
+    eyebrow.textContent = 'CPMM MARKET';
+    head.appendChild(eyebrow);
+    const price = document.createElement('span');
+    price.className = 'apt-market-price';
+    price.textContent = `YES 价格 ${(m.yes_price_bp / 100).toFixed(1)}%`;
+    head.appendChild(price);
+    panel.appendChild(head);
+
+    // Pool reserves
+    const pool = document.createElement('div');
+    pool.className = 'apt-market-pool';
+    pool.textContent = `流动性池  YES ${m.pool_yes}  /  NO ${m.pool_no}`;
+    panel.appendChild(pool);
+
+    // Positions: who invested (YES) / who shorted (NO)
+    const invested = m.positions.filter((p) => p.yes_shares > 0);
+    const shorted = m.positions.filter((p) => p.no_shares > 0);
+    const pos = document.createElement('div');
+    pos.className = 'apt-market-pos';
+    const investTxt =
+      invested.length > 0
+        ? '投资 YES：' + invested.map((p) => `${p.agent}(${p.yes_shares})`).join('、')
+        : '投资 YES：无';
+    const shortTxt =
+      shorted.length > 0
+        ? '做空 NO：' + shorted.map((p) => `${p.agent}(${p.no_shares})`).join('、')
+        : '做空 NO：无';
+    pos.textContent = `${investTxt}    ·    ${shortTxt}`;
+    panel.appendChild(pos);
+
+    return panel;
   }
 
   private _column(headEyebrow: string, headTitle: string): HTMLElement {
@@ -502,6 +549,23 @@ tos-agent-presence-tree {
 .apt-shimmer { animation: apt-shimmer 1.6s ease-in-out infinite; }
 @keyframes apt-shimmer { 0%,100% { opacity:1; } 50% { opacity:0.55; } }
 
+.apt-market {
+  margin-top: 1rem; padding: 0.7rem 0.9rem;
+  border: 1px solid var(--aap-border, #d8d4c8); border-left: 3px solid #4e8b7a;
+  border-radius: 8px; background: color-mix(in srgb, #4e8b7a 5%, transparent);
+}
+.apt-market-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.apt-market-price {
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.82rem;
+  font-weight: 600; color: #4e8b7a;
+}
+.apt-market-pool {
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.76rem;
+  color: #6b6b6b; margin-top: 6px;
+}
+.apt-market-pos {
+  font-size: 0.78rem; color: #1a1a1a; margin-top: 5px;
+}
 .apt-footer {
   font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.72rem; color: #6b6b6b;
   border-top: 1px solid var(--aap-border, #d8d4c8); padding-top: 0.5rem; margin-top: 0.9rem;
@@ -510,6 +574,8 @@ tos-agent-presence-tree {
   tos-agent-presence-tree { color: #e8e4da; }
   .apt-col-title, .apt-node-sub, .apt-node-phase, .apt-footer { color: #a8a59c; }
   .apt-node-meta { color: #8f8b7e; }
+  .apt-market-pos { color: #e8e4da; }
+  .apt-market-pool { color: #a8a59c; }
   .apt-node { background: #252320; border-color: #3a3830; }
   .apt-node--settled { background: #1f2e2a; }
   .apt-node-cid { background: #2a2820; color: #a8a59c; }
