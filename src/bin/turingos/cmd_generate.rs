@@ -75,9 +75,10 @@ use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 // deferred: peer-Worker challenges violate Art. III.3 horizontal-independence
 // unless routed through a dedicated isolated-context critic bot.
 use turingosv4::runtime::adapter::{
-    genesis_with_balances, make_real_escrow_lock_signed_by, make_real_market_seed_signed_by,
-    make_real_task_open_signed_by, make_real_verifytx_signed_by, make_real_worktx_signed_by,
-    tb8_emit_finalize_after_verify, tb_n2_emit_event_resolve_after_finalize,
+    genesis_with_balances, make_real_cpmm_pool_signed_by, make_real_escrow_lock_signed_by,
+    make_real_market_seed_signed_by, make_real_task_open_signed_by, make_real_verifytx_signed_by,
+    make_real_worktx_signed_by, tb8_emit_finalize_after_verify,
+    tb_n2_emit_event_resolve_after_finalize, tb_real6a_invest_task_outcome_to_router_tx,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::agent_keystore::keystore_password_from_env;
@@ -88,10 +89,11 @@ use turingosv4::runtime::{
 };
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{
+    buy_with_coin_router_accept_state_root, cpmm_pool_accept_state_root,
     escrow_lock_accept_state_root, market_seed_accept_state_root, task_open_accept_state_root,
-    verify_accept_state_root, worktx_accept_state_root,
+    worktx_accept_state_root,
 };
-use turingosv4::state::typed_tx::{EventId, TypedTx};
+use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 /// Max tokens for generation LLM calls. Real web-generated index.html artifacts
 /// were truncated before closing tags at 6000; 16000 gives adequate headroom
@@ -116,6 +118,7 @@ const MARKET_PROVIDER_AGENT_ID: &str = "market-provider";
 const DEFAULT_BOUNTY_MICRO: i64 = 1_000;
 const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 const DEFAULT_MARKET_SEED_MICRO: i64 = 100; // = bounty / 10 per architect manual §7.4
+const DEFAULT_MARKET_BUY_MICRO: i64 = 100;
 const DEFAULT_VERIFY_BOND_MICRO: i64 = 50;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
@@ -2328,6 +2331,25 @@ fn emit_polymarket_market_for_session(
             .map_err(|e| format!("q_snapshot @ existing market check: {e:?}"))?;
         let task_id = TaskId(task_id_str.clone());
         if let Some(existing_market) = existing_q.economic_state_t.task_markets_t.0.get(&task_id) {
+            let event_id = EventId(task_id.clone());
+            let existing_has_pool = existing_q
+                .economic_state_t
+                .cpmm_pools_t
+                .0
+                .contains_key(&event_id);
+            let existing_has_trade = existing_q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .iter()
+                .filter(|(agent, _)| agent.0 != market_provider)
+                .any(|(_, event_map)| {
+                    event_map
+                        .get(&event_id)
+                        .map(|pair| pair.yes.units > 0 || pair.no.units > 0)
+                        .unwrap_or(false)
+                });
+            let existing_real_market_opened = existing_has_pool && existing_has_trade;
             if existing_market.state == TaskMarketState::Finalized {
                 return Ok(PolymarketEmitSummary {
                     worker_agent: workers.join(","),
@@ -2337,18 +2359,18 @@ fn emit_polymarket_market_for_session(
                         .chars()
                         .take(16)
                         .collect::<String>(),
-                    market_opened: true,
-                    rejection_note: None,
+                    market_opened: existing_real_market_opened,
+                    rejection_note: if existing_real_market_opened {
+                        None
+                    } else {
+                        Some(
+                            "historical finalized market lacks CpmmPool/BuyWithCoinRouter; not retroactively rewritten"
+                                .into(),
+                        )
+                    },
                 });
             }
-            let event_id = EventId(task_id.clone());
-            if existing_market.state != TaskMarketState::Open
-                || existing_q
-                    .economic_state_t
-                    .conditional_collateral_t
-                    .0
-                    .contains_key(&event_id)
-            {
+            if existing_market.state != TaskMarketState::Open || existing_real_market_opened {
                 return Ok(PolymarketEmitSummary {
                     worker_agent: workers.join(","),
                     task_id: task_id_str,
@@ -2357,7 +2379,7 @@ fn emit_polymarket_market_for_session(
                         .chars()
                         .take(16)
                         .collect::<String>(),
-                    market_opened: existing_market.state == TaskMarketState::Open,
+                    market_opened: existing_real_market_opened,
                     rejection_note: None,
                 });
             }
@@ -2458,6 +2480,15 @@ fn emit_polymarket_market_for_session(
         }
         let winner_work_tx_id = accepted_work_tx_ids.first().cloned();
         let work_tx_id_str = winner_work_tx_id.as_ref().map(|tx_id| tx_id.0.clone());
+        let buyer_opt = if winner_work_tx_id.is_some() {
+            candidate_proposals
+                .iter()
+                .find(|c| c.predicate_passes)
+                .map(|c| c.worker_agent.clone())
+                .or_else(|| workers.first().cloned())
+        } else {
+            None
+        };
 
         txs.extend(work_txs);
         let verify_tx_id = if let Some(winner_work_tx_id) = winner_work_tx_id.clone() {
@@ -2471,11 +2502,39 @@ fn emit_polymarket_market_for_session(
                 logical_t,
             )
             .map_err(|e| format!("build signed MarketSeedTx: {e:?}"))?;
-            let root_4 = market_seed_accept_state_root(&current_root, &market_seed_tx);
+            let root_after_seed = market_seed_accept_state_root(&current_root, &market_seed_tx);
+
+            let pool_tx = make_real_cpmm_pool_signed_by(
+                &mut keypairs,
+                root_after_seed,
+                &task_id_str,
+                &market_provider,
+                DEFAULT_MARKET_SEED_MICRO as u128,
+                &suffix,
+            )
+            .map_err(|e| format!("build signed CpmmPoolTx: {e:?}"))?;
+            let root_after_pool = cpmm_pool_accept_state_root(&root_after_seed, &pool_tx);
+
+            let buyer = buyer_opt.as_deref().unwrap_or(&workers[0]);
+
+            let router_tx = tb_real6a_invest_task_outcome_to_router_tx(
+                &mut keypairs,
+                root_after_pool,
+                None,
+                buyer,
+                &task_id_str,
+                BuyDirection::BuyYes,
+                DEFAULT_MARKET_BUY_MICRO,
+                1,
+                &suffix,
+            )
+            .map_err(|e| format!("build signed RouterTx: {e:?}"))?;
+            let root_after_router =
+                buy_with_coin_router_accept_state_root(&root_after_pool, &router_tx);
 
             let verify_tx = make_real_verifytx_signed_by(
                 &mut keypairs,
-                root_4,
+                root_after_router,
                 winner_work_tx_id,
                 &verifier_agent,
                 DEFAULT_VERIFY_BOND_MICRO,
@@ -2488,8 +2547,10 @@ fn emit_polymarket_market_for_session(
                 TypedTx::Verify(verify) => verify.tx_id.clone(),
                 _ => unreachable!("make_real_verifytx_signed_by returns Verify"),
             };
-            let _root_5 = verify_accept_state_root(&root_4, &verify_tx);
+
             txs.push(market_seed_tx);
+            txs.push(pool_tx);
+            txs.push(router_tx);
             txs.push(verify_tx);
             Some(verify_tx_id)
         } else {
@@ -2563,13 +2624,28 @@ fn emit_polymarket_market_for_session(
 
         // Determine if the MarketSeed admitted — the YES/NO cpmm pools or
         // `conditional_collateral_t` entry presence signals MarketSeed
-        // accept. Simpler: check `conditional_collateral_t` for the event.
+        // accept. Post-drain market_opened should be based on real pool +
+        // nonzero buyer conditional shares, not just conditional_collateral_t.
         let event_id = EventId(TaskId(task_id_str.clone()));
-        let market_opened = post_q
+        let has_pool = post_q
             .economic_state_t
-            .conditional_collateral_t
+            .cpmm_pools_t
             .0
             .contains_key(&event_id);
+        let buyer_has_shares = if let Some(buyer_name) = &buyer_opt {
+            let buyer_agent_id = AgentId(buyer_name.clone());
+            post_q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .get(&buyer_agent_id)
+                .and_then(|event_map| event_map.get(&event_id))
+                .map(|pair| pair.yes.units > 0 || pair.no.units > 0)
+                .unwrap_or(false)
+        } else {
+            false
+        };
+        let market_opened = work_tx_accepted && has_pool && buyer_has_shares;
 
         // Collect any rejection notes belonging to THIS call.
         let mut rejection_note: Option<String> = None;
