@@ -6,6 +6,8 @@
 pub(crate) mod artifact;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — artifact bundle file serving handler.
 pub(crate) mod artifact_bundle;
+/// TRACE_MATRIX FC2-N16: Phase 7 web — CAS-derived build session view handler.
+pub(crate) mod build_session;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — UI IR fixtures submodule.
 pub(crate) mod fixtures;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — POST /api/generate handler submodule (Phase 6.3 codegen wire).
@@ -31,6 +33,8 @@ pub(crate) mod spec_view;
 /// pure projection over transition_ledger + EconomicState. Class 1, read-only.
 /// Polymarket PR1 (2026-05-23) — no AppState cache, no shadow ledger.
 pub(crate) mod market_view;
+/// TRACE_MATRIX FC3: Phase 7 web — CAS-backed generated artifact preview handler.
+pub(crate) mod preview;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — in-memory task store (AppState).
 pub(crate) mod store;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — heuristic artifact verifier (auto-retry trigger).

@@ -119,7 +119,9 @@ const DEFAULT_BOUNTY_MICRO: i64 = 1_000;
 const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 const DEFAULT_MARKET_SEED_MICRO: i64 = 100; // = bounty / 10 per architect manual §7.4
 const DEFAULT_MARKET_BUY_MICRO: i64 = 100;
+const DEFAULT_MARKET_NO_BUY_MICRO: i64 = 25;
 const DEFAULT_VERIFY_BOND_MICRO: i64 = 50;
+const POLYMARKET_SETTLEMENT_POLL_BUDGET_MS: u64 = 30_000;
 
 /// TRACE_MATRIX FC2-N16: `generate` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -2337,7 +2339,7 @@ fn emit_polymarket_market_for_session(
                 .cpmm_pools_t
                 .0
                 .contains_key(&event_id);
-            let existing_has_trade = existing_q
+            let existing_has_yes_trade = existing_q
                 .economic_state_t
                 .conditional_share_balances_t
                 .0
@@ -2346,10 +2348,23 @@ fn emit_polymarket_market_for_session(
                 .any(|(_, event_map)| {
                     event_map
                         .get(&event_id)
-                        .map(|pair| pair.yes.units > 0 || pair.no.units > 0)
+                        .map(|pair| pair.yes.units > 0)
                         .unwrap_or(false)
                 });
-            let existing_real_market_opened = existing_has_pool && existing_has_trade;
+            let existing_has_no_trade = existing_q
+                .economic_state_t
+                .conditional_share_balances_t
+                .0
+                .iter()
+                .filter(|(agent, _)| agent.0 != market_provider)
+                .any(|(_, event_map)| {
+                    event_map
+                        .get(&event_id)
+                        .map(|pair| pair.no.units > 0)
+                        .unwrap_or(false)
+                });
+            let existing_real_market_opened =
+                existing_has_pool && existing_has_yes_trade && existing_has_no_trade;
             if existing_market.state == TaskMarketState::Finalized {
                 return Ok(PolymarketEmitSummary {
                     worker_agent: workers.join(","),
@@ -2489,6 +2504,13 @@ fn emit_polymarket_market_for_session(
         } else {
             None
         };
+        let no_counterparty_opt = buyer_opt.as_ref().and_then(|yes_buyer| {
+            POLYMARKET_WORKER_IDS
+                .iter()
+                .filter(|id| preseed_agent_ids.contains(**id))
+                .find(|id| **id != yes_buyer)
+                .map(|id| (*id).to_string())
+        });
 
         txs.extend(work_txs);
         let verify_tx_id = if let Some(winner_work_tx_id) = winner_work_tx_id.clone() {
@@ -2516,8 +2538,9 @@ fn emit_polymarket_market_for_session(
             let root_after_pool = cpmm_pool_accept_state_root(&root_after_seed, &pool_tx);
 
             let buyer = buyer_opt.as_deref().unwrap_or(&workers[0]);
+            let yes_router_suffix = format!("{suffix}-buy-yes");
 
-            let router_tx = tb_real6a_invest_task_outcome_to_router_tx(
+            let yes_router_tx = tb_real6a_invest_task_outcome_to_router_tx(
                 &mut keypairs,
                 root_after_pool,
                 None,
@@ -2526,15 +2549,39 @@ fn emit_polymarket_market_for_session(
                 BuyDirection::BuyYes,
                 DEFAULT_MARKET_BUY_MICRO,
                 1,
-                &suffix,
+                &yes_router_suffix,
             )
-            .map_err(|e| format!("build signed RouterTx: {e:?}"))?;
-            let root_after_router =
-                buy_with_coin_router_accept_state_root(&root_after_pool, &router_tx);
+            .map_err(|e| format!("build signed BuyYes RouterTx: {e:?}"))?;
+            let root_after_yes_router =
+                buy_with_coin_router_accept_state_root(&root_after_pool, &yes_router_tx);
+
+            let mut router_txs = vec![yes_router_tx];
+            let root_after_market_trades =
+                if let Some(no_counterparty) = no_counterparty_opt.as_deref() {
+                    let no_router_suffix = format!("{suffix}-buy-no");
+                    let no_router_tx = tb_real6a_invest_task_outcome_to_router_tx(
+                        &mut keypairs,
+                        root_after_yes_router,
+                        None,
+                        no_counterparty,
+                        &task_id_str,
+                        BuyDirection::BuyNo,
+                        DEFAULT_MARKET_NO_BUY_MICRO,
+                        1,
+                        &no_router_suffix,
+                    )
+                    .map_err(|e| format!("build signed BuyNo RouterTx: {e:?}"))?;
+                    let root_after_no_router =
+                        buy_with_coin_router_accept_state_root(&root_after_yes_router, &no_router_tx);
+                    router_txs.push(no_router_tx);
+                    root_after_no_router
+                } else {
+                    root_after_yes_router
+                };
 
             let verify_tx = make_real_verifytx_signed_by(
                 &mut keypairs,
-                root_after_router,
+                root_after_market_trades,
                 winner_work_tx_id,
                 &verifier_agent,
                 DEFAULT_VERIFY_BOND_MICRO,
@@ -2550,7 +2597,7 @@ fn emit_polymarket_market_for_session(
 
             txs.push(market_seed_tx);
             txs.push(pool_tx);
-            txs.push(router_tx);
+            txs.extend(router_txs);
             txs.push(verify_tx);
             Some(verify_tx_id)
         } else {
@@ -2574,9 +2621,13 @@ fn emit_polymarket_market_for_session(
         }
 
         if let Some(verify_tx_id) = verify_tx_id {
-            let finalized = tb8_emit_finalize_after_verify(&seq, &verify_tx_id, 5_000)
-                .await
-                .map_err(|e| format!("emit FinalizeReward after VerifyTx: {e:?}"))?;
+            let finalized = tb8_emit_finalize_after_verify(
+                &seq,
+                &verify_tx_id,
+                POLYMARKET_SETTLEMENT_POLL_BUDGET_MS,
+            )
+            .await
+            .map_err(|e| format!("emit FinalizeReward after VerifyTx: {e:?}"))?;
             if !finalized {
                 return Err("VerifyTx did not create a claim before finalize poll expired".into());
             }
@@ -2585,7 +2636,7 @@ fn emit_polymarket_market_for_session(
                 &seq,
                 TaskId(task_id_str.clone()),
                 &verify_tx_id,
-                5_000,
+                POLYMARKET_SETTLEMENT_POLL_BUDGET_MS,
             )
             .await
             .map_err(|e| format!("emit EventResolve after FinalizeReward: {e:?}"))?;
@@ -2632,7 +2683,7 @@ fn emit_polymarket_market_for_session(
             .cpmm_pools_t
             .0
             .contains_key(&event_id);
-        let buyer_has_shares = if let Some(buyer_name) = &buyer_opt {
+        let buyer_has_yes_shares = if let Some(buyer_name) = &buyer_opt {
             let buyer_agent_id = AgentId(buyer_name.clone());
             post_q
                 .economic_state_t
@@ -2645,7 +2696,22 @@ fn emit_polymarket_market_for_session(
         } else {
             false
         };
-        let market_opened = work_tx_accepted && has_pool && buyer_has_shares;
+        let no_counterparty_has_no_shares =
+            if let Some(no_counterparty_name) = &no_counterparty_opt {
+                let no_counterparty_agent_id = AgentId(no_counterparty_name.clone());
+                post_q
+                    .economic_state_t
+                    .conditional_share_balances_t
+                    .0
+                    .get(&no_counterparty_agent_id)
+                    .and_then(|event_map| event_map.get(&event_id))
+                    .map(|pair| pair.no.units > 0)
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+        let market_opened =
+            work_tx_accepted && has_pool && buyer_has_yes_shares && no_counterparty_has_no_shares;
 
         // Collect any rejection notes belonging to THIS call.
         let mut rejection_note: Option<String> = None;
@@ -2791,6 +2857,8 @@ mod tests {
         assert_eq!(DEFAULT_MARKET_SEED_MICRO, DEFAULT_BOUNTY_MICRO / 10);
         // Hard constraint: stake is positive
         assert!(DEFAULT_WORK_STAKE_MICRO > 0);
+        assert!(DEFAULT_MARKET_NO_BUY_MICRO > 0);
+        assert!(DEFAULT_MARKET_NO_BUY_MICRO < DEFAULT_MARKET_BUY_MICRO);
     }
 
     #[test]
