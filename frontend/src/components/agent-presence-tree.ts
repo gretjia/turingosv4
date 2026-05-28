@@ -270,6 +270,17 @@ export class TosAgentPresenceTree extends HTMLElement {
     pool.textContent = `流动性池  YES ${m.pool_yes}  /  NO ${m.pool_no}`;
     panel.appendChild(pool);
 
+    // Real router trades (PR #210): BUY YES / BUY NO counts + ratio.
+    const yc = this._committed?.buy_yes_count ?? 0;
+    const nc = this._committed?.buy_no_count ?? 0;
+    if (yc > 0 || nc > 0) {
+      const trades = document.createElement('div');
+      trades.className = 'apt-market-pool';
+      const ratio = nc > 0 ? `${(yc / nc).toFixed(1)}:1` : yc > 0 ? '∞' : '—';
+      trades.textContent = `路由成交  买 YES ${yc} · 买 NO ${nc}  · 比 ${ratio}`;
+      panel.appendChild(trades);
+    }
+
     // Positions: who invested (YES) / who shorted (NO)
     const invested = m.positions.filter((p) => p.yes_shares > 0);
     const shorted = m.positions.filter((p) => p.no_shares > 0);

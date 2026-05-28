@@ -629,7 +629,7 @@ export class TosSpecGrill extends HTMLElement {
     hint.className = 'spec-grill-loading-hint';
     hint.style.cssText =
       'font-size:0.8rem;color:var(--tos-muted,#6b6b6b);margin:0.4rem 0 0';
-    hint.textContent = '深度推理模式（thinking on）——单轮可能 20–60 秒，计时在跑就说明它还活着。';
+    hint.textContent = 'Meta AI 推理中——单轮可能 20–60 秒（取决于模型）；计时在跑就说明它还活着，没有死机。';
     wrap.appendChild(hint);
 
     this.appendChild(wrap);
