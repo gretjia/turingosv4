@@ -3,8 +3,8 @@
 //! the replayed `EconomicState`. NO `AppState` cache.
 //!
 //! Polymarket (2026-05-23 REVISED post-Codex audit). Read-only handler that
-//! surfaces the WorkTx + MarketSeedTx pair admitted by `turingos generate`
-//! post-judge (see
+//! surfaces WorkTx candidates plus the replayed MarketSeedTx / CpmmPoolTx /
+//! BuyWithCoinRouterTx economics admitted by `turingos generate` post-judge (see
 //! `src/bin/turingos/cmd_generate.rs::emit_polymarket_market_for_session`).
 //!
 //! **Constitutional posture** (FC1 + Art. III.3 + Art. 0.4):
@@ -78,7 +78,7 @@ const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 ///       "l4_state": "accepted" | "rejected" | "pending_dispatch",
 ///       "rejection_class": null | "...",
 ///       "predicate_results": {"tdma_judge_generate": true},
-///       "yes_signal_bp": 5000,
+///       "yes_signal_bp": 6666,
 ///       "is_winner": true | false
 ///     }
 ///   ],
@@ -566,6 +566,23 @@ mod tests {
         let econ = EconomicState::default();
         let eid = EventId(TaskId("pr1-x".into()));
         assert_eq!(derive_yes_signal_bp(&econ, &eid), 5000);
+    }
+
+    #[test]
+    fn derive_yes_signal_bp_uses_cpmm_pool_not_flat_seed() {
+        let mut econ = EconomicState::default();
+        let eid = EventId(TaskId("pr1-x".into()));
+        econ.cpmm_pools_t.0.insert(
+            eid.clone(),
+            turingosv4::state::q_state::CpmmPool {
+                event_id: eid.clone(),
+                pool_yes: turingosv4::state::typed_tx::ShareAmount::from_units(50),
+                pool_no: turingosv4::state::typed_tx::ShareAmount::from_units(150),
+                lp_total_shares: turingosv4::state::q_state::LpShareAmount::from_units(100),
+                status: turingosv4::state::q_state::PoolStatus::Active,
+            },
+        );
+        assert_eq!(derive_yes_signal_bp(&econ, &eid), 7500);
     }
 
     #[test]
