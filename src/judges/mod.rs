@@ -19,3 +19,5 @@ pub mod putnam_2024_a1_judge;
 pub mod putnam_2025_b3_judge;
 /// TRACE_MATRIX FC1a-judge_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
 pub mod generate_judge;
+/// TRACE_MATRIX FC1a-judge_pi: SWE-bench hidden-test repair judge (real swebench harness verifier).
+pub mod swebench_test_judge;

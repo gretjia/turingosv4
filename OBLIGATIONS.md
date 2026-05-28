@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, and OBL-006 are satisfied.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, and OBL-007 are satisfied.
 
 ---
 
@@ -92,4 +92,14 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Level: must
 - Status: satisfied
 - Evidence: Branch `codex/real-market-generate-kernel` rewires `src/bin/turingos/cmd_generate.rs::emit_polymarket_market_for_session` so the shared CLI/web `turingos generate` path emits canonical `MarketSeedTx -> CpmmPoolTx -> BuyWithCoinRouterTx -> VerifyTx` on the same workspace ChainTape/CAS path before settlement; no `src/state/sequencer.rs` or `src/state/typed_tx.rs` schema/admission surface was edited. The RED gate first failed with chain kinds `[PredicateBindingActivate, MapReduceTick, TaskOpen, EscrowLock, Work, Work, Work, MarketSeed, Verify, FinalizeReward, EventResolve]`, proving the prior no-pool/no-router bug. Post-fix verification: `cargo test --test generate_emits_work_tx_smoke -- --nocapture` passed 4/4, including web session-subdir and retry-after-rejection flows; `cargo test --bin turingos_web --features web derive_yes_signal -- --nocapture` passed 2/2, proving `yes_signal_bp` derives from `cpmm_pools_t` instead of a flat seed; `cargo test --test constitution_web_cli_kernel_invariant -- --nocapture` passed 2/2; `cargo test --test constitution_real6_task_outcome_market -- --nocapture` passed 14/14; `cargo test --test constitution_router_buy_with_coin -- --nocapture` passed 10/10; `cargo test --test constitution_matrix_drift -- --nocapture` passed 3/3; `bash scripts/run_constitution_gates.sh` passed with `[k-1-5] total=165 failed=0`; `cargo test --workspace --no-fail-fast` passed. Headless AGY reviewed the insertion point/root-chain risk and produced the implementation patch; Claude implementation mode was attempted twice but hung without edits. Final headless audit is saved at `handover/audits/OBL006_REAL_MARKET_GENERATE_HEADLESS_AUDIT_2026-05-28.md`; Claude and AGY both returned `NO-VIOLATION`.
+- Last-touched: 2026-05-28
+
+## OBL-007: SWE-bench multi-step verify-retry loop vs bare single-shot 测试(真验证器)
+- Source: "完成 TuringOS v4 的 SWE-bench benchmark 测试 … 证明/证伪『TuringOS 的多步 verify-retry 循环在硬编码题上胜过裸模型单发』—— 用真·答案无关验证器(SWE-bench 隐藏测试执行)+ 真·TuringOS 循环(`tdma_runner` 的 `run_proof`),不是 Claude 模拟。" + mid-flight ratification "Thinking-ON(你配置的本意)" (regime choice).
+- Level: must
+- Status: satisfied
+- Result (honest): at n=3 hermetic SWE-bench_Lite flask instances (flask-5063/4045/4992), **loop 0/3 and bare 0/3 resolved** — no resolve-rate difference. Dominant failure is the **patch-apply stage** (deepseek-v4-pro thinking-on emits structurally malformed unified diffs), not the test stage. The loop shows a real but weak **1-of-3** edge: on flask-5063 the real apply-error feedback got the model across the apply barrier by attempt 3 (apply→test) where bare never did, at ~3× cost. The hypothesis is neither cleanly proven nor refuted; the regime is apply-barrier-limited and under-tests the loop. The obligation (run the real experiment with a real answer-independent verifier + the real TuringOS loop, report honestly) is satisfied; the particular outcome (loop wins) was not required.
+- Evidence: report `handover/reports/PROBE_DEEPSEEK_V4_SWEBENCH_LOOP_2026-05-28.md`; loop ChainTape/probes/manifests `handover/evidence/swebench_loop_20260528/loop_evidence_flask{5063_v4,4045,4992}/` (all `leak_in_any_prompt=false`); bare results `.../logs/bare_flask{5063,4045,4992}.json`; gold gates (verifier validity) `.../logs/goldsmoke_flask{5063,4045,4992}.log` all `resolved=1`; offline-fix proof `.../logs/fixtest_offline.log`.
+- Real TuringOS path: loop ran via `turingos tdma run --judge swebench --role meta` (real `run_proof_with_ledger`, git tape), NOT a Claude simulation. Shielding: `gold_patch`/`test_patch` never enter any prompt (absent from `SwebenchSampleInput`); feedback carries only failing-test names or the model's own apply error.
+- Code (Class 2, no §6 restricted surface): `src/judges/swebench_test_judge.rs` (HF-offline hermetic verifier env + `harness_failure_reason` apply-error feedback), `src/bin/turingos/cmd_tdma.rs` (thinking threaded from toml + `max_tokens` 16000), `src/drivers/llm_proxy.py` (honor Rust `thinking:{type:enabled}`). Judge unit tests 7/7 pass; full workspace gates run at cleanup.
 - Last-touched: 2026-05-28

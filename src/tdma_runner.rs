@@ -34,8 +34,10 @@ use crate::charter_core::compile_charter_core;
 use crate::judges::generate_judge::{GenerateJudge, GenerateStage};
 use crate::judges::math_step_judge::JudgeVerdict;
 use crate::judges::nesbitt_step_judge::{NesbittStage, NesbittStepJudge};
+use crate::judges::math_step_judge::MathStepJudge;
 use crate::judges::putnam_2024_a1_judge::{PutnamA1Judge, PutnamA1Stage};
 use crate::judges::putnam_2025_b3_judge::{PutnamB3Judge, PutnamB3Stage};
+use crate::judges::swebench_test_judge::{SwebenchStage, SwebenchTestJudge};
 use crate::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger};
 use crate::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use crate::token_budget::B_PROMPT_MAX;
@@ -65,6 +67,11 @@ pub enum AnyJudge {
     Generate {
         judge: GenerateJudge,
         stages: Vec<GenerateStage>,
+        cursor: usize,
+    },
+    Swebench {
+        judge: SwebenchTestJudge,
+        stages: Vec<SwebenchStage>,
         cursor: usize,
     },
 }
@@ -130,6 +137,17 @@ impl AnyJudge {
         }
     }
 
+    /// TRACE_MATRIX FC1a-judge_pi: Construct a single-stage SWE-bench judge.
+    /// The single `Repair` stage is retried (multi-attempt) against the real
+    /// hidden-test harness; each failure feeds real failing-test names back in.
+    pub fn swebench(judge: SwebenchTestJudge) -> Self {
+        Self::Swebench {
+            judge,
+            stages: vec![SwebenchStage::Repair],
+            cursor: 0,
+        }
+    }
+
     /// TRACE_MATRIX FC1a-judge_pi: Total canonical stages in the proof.
     pub fn total_stages(&self) -> usize {
         match self {
@@ -137,6 +155,7 @@ impl AnyJudge {
             Self::PutnamA1 { stages, .. } => stages.len(),
             Self::PutnamB3 { stages, .. } => stages.len(),
             Self::Generate { stages, .. } => stages.len(),
+            Self::Swebench { stages, .. } => stages.len(),
         }
     }
 
@@ -147,6 +166,7 @@ impl AnyJudge {
             Self::PutnamA1 { stages, cursor, .. } => stages[*cursor].label().to_string(),
             Self::PutnamB3 { stages, cursor, .. } => stages[*cursor].label().to_string(),
             Self::Generate { stages, cursor, .. } => stages[*cursor].label().to_string(),
+            Self::Swebench { stages, cursor, .. } => stages[*cursor].label().to_string(),
         }
     }
 
@@ -214,6 +234,22 @@ impl AnyJudge {
                     ps.unwrap_or_else(|| "pass".to_string()),
                 )
             }
+            Self::Swebench { judge, .. } => {
+                // SWE-bench judge implements the MathStepJudge trait: it runs the
+                // real hidden-test harness on the candidate patch (body) and
+                // returns a ternary verdict. prior = accepted_steps, candidate = body.
+                let v = judge.verdict(accepted_steps, body);
+                let (class_str, pred_str) = match &v {
+                    JudgeVerdict::Pass => ("pass".to_string(), "pass".to_string()),
+                    JudgeVerdict::Fail { .. } => {
+                        ("hidden_test_failure".to_string(), "fail_to_pass".to_string())
+                    }
+                    JudgeVerdict::NeedsClarification { .. } => {
+                        ("needs_clarification".to_string(), "fail_to_pass".to_string())
+                    }
+                };
+                (v, class_str, pred_str)
+            }
         };
         let success = v.is_pass();
         let reason = match v {
@@ -263,6 +299,11 @@ impl AnyJudge {
                 cursor,
             } => {
                 judge.advance();
+                if *cursor + 1 < stages.len() {
+                    *cursor += 1;
+                }
+            }
+            Self::Swebench { stages, cursor, .. } => {
                 if *cursor + 1 < stages.len() {
                     *cursor += 1;
                 }

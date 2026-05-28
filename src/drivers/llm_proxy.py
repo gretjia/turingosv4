@@ -291,7 +291,13 @@ class Handler(BaseHTTPRequestHandler):
         messages = body.get("messages", [])
         temperature = body.get("temperature", 0.5)
         max_tokens = body.get("max_tokens", 3072)
-        enable_thinking = body.get("enable_thinking", False)
+        # Honor both the OpenAI/Qwen-style `enable_thinking: true` flag AND the
+        # TuringOS Rust client's `thinking: {"type": "enabled"}` field, so the
+        # tdma loop (which sends the latter) can run reasoning mode.
+        _thinking_field = body.get("thinking")
+        enable_thinking = bool(body.get("enable_thinking", False)) or (
+            isinstance(_thinking_field, dict) and _thinking_field.get("type") == "enabled"
+        )
 
         provider = FORCED_PROVIDER or detect_provider(raw_model)
         model = strip_provider_prefix(raw_model)
