@@ -152,6 +152,12 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         )
         // CAS-derived build session view (C7): read-only over session CAS.
         .route("/api/build/session/:session_id", get(build_session_handler))
+        // Live derived-evidence progress feed (Class 1, read-only). Reads the
+        // per-session generate_progress.jsonl; NEVER feeds economic/replay logic.
+        .route(
+            "/api/progress/by-session/:session_id",
+            get(super::progress::progress_view_handler),
+        )
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type

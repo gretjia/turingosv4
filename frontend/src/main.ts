@@ -15,6 +15,7 @@ import { register as registerSpecGrill } from './components/spec-grill.js';
 import { register as registerSpecResult } from './components/spec-result.js';
 import { register as registerArtifactViewer } from './components/artifact-viewer.js';
 import { register as registerAgentAttemptsPanel } from './components/agent-attempts-panel.js';
+import { register as registerAgentPresenceTree } from './components/agent-presence-tree.js';
 import { register as registerWelcome } from './components/welcome.js';
 import { register as registerTuringOSRoot } from './turingos-root.js';
 import { currentView } from './router.js';
@@ -35,6 +36,8 @@ registerSpecResult();
 registerArtifactViewer();
 // Polymarket PR1: agent attempts panel (read-only market view)
 registerAgentAttemptsPanel();
+// Live agent-presence causal tree (committed tape + derived progress cursor)
+registerAgentPresenceTree();
 // W7: first-time-user onboarding wizard
 registerWelcome();
 registerTuringOSRoot();

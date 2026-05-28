@@ -36,6 +36,13 @@ export class TosSpecGrill extends HTMLElement {
   /** Bound keydown handler — Cmd/Ctrl+Enter submits the answer. */
   private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
 
+  /** True while a /api/spec/turn request is in flight (Meta AI thinking).
+   *  Drives the live "思考中 Ns" animation + busy cursor so the user can tell
+   *  the Meta AI is reasoning (deep thinking can take 20–60s) vs. crashed. */
+  private _thinking = false;
+  private _thinkingStart = 0;
+  private _thinkingTimer: number | null = null;
+
   connectedCallback(): void {
     this.setAttribute('data-block-type', 'spec_grill');
     this._drivenState = { kind: 'idle' };
@@ -58,6 +65,8 @@ export class TosSpecGrill extends HTMLElement {
       this.removeEventListener('keydown', this._keyHandler);
       this._keyHandler = null;
     }
+    // Stop the thinking timer + restore the cursor if we're torn down mid-turn.
+    this._endThinking();
   }
 
   get currentState(): DrivenGrillState['kind'] {
@@ -142,13 +151,16 @@ export class TosSpecGrill extends HTMLElement {
       lang: 'zh',
     };
     let resp: Response;
+    this._beginThinking();
     try {
       resp = await fetch('/api/spec/turn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      this._endThinking();
     } catch {
+      this._endThinking();
       // Network-level error: surface as nudge; user can retry.
       this._recent5xxCount++;
       this._drivenNudge = '网络错误，请稍后重试。';
@@ -169,6 +181,13 @@ export class TosSpecGrill extends HTMLElement {
       }
       if (resp.status >= 500) {
         this._recent5xxCount++;
+        // If we were showing the start-spinner, drop back to idle so the
+        // nudge replaces the spinner — otherwise the user sees an infinite
+        // "正在启动 spec 访谈" while the request has already failed.
+        if (this._drivenState.kind === 'awaiting_first_turn') {
+          this._drivenState = { kind: 'idle' };
+          this._drivenSessionId = '';
+        }
         this._drivenNudge = `服务器错误 (${resp.status})，请稍后重试。`;
         this._renderDriven();
         return;
@@ -299,6 +318,13 @@ export class TosSpecGrill extends HTMLElement {
       this.removeChild(this.firstChild);
     }
     this.setAttribute('data-state', this._drivenState.kind);
+    // While a turn is in flight, the Meta AI is thinking — show the live
+    // "思考中 Ns" animation regardless of the underlying state so the user
+    // never mistakes deep reasoning for a hang.
+    if (this._thinking) {
+      this._renderThinking();
+      return;
+    }
     switch (this._drivenState.kind) {
       case 'idle':
         this._renderDrivenIdle();
@@ -486,18 +512,21 @@ export class TosSpecGrill extends HTMLElement {
     });
     wrap.appendChild(viewFrame);
 
-    // Polymarket PR1: mount agent attempts panel outside <tos-spec-grill>
-    // (sibling to the spec-result CTA) so it persists across internal re-renders.
+    // Mount the live agent-presence causal tree outside <tos-spec-grill>
+    // (sibling to the spec-result CTA) so it persists across internal
+    // re-renders. The tree subsumes the old flat attempts panel: it shows the
+    // full INTAKE→CANDIDATES→VERIFY→SETTLED flow with committed (tape) nodes
+    // plus a live derived-progress cursor during generate.
     // Idempotent: remove any prior mount for the same session before appending.
     const existingPanels = mountHost.querySelectorAll<HTMLElement>(
-      `tos-agent-attempts-panel[data-spec-grill-mount="${this._drivenSessionId}"]`
+      `tos-agent-presence-tree[data-spec-grill-mount="${this._drivenSessionId}"]`
     );
     existingPanels.forEach((el) => el.remove());
 
-    const attemptsPanel = document.createElement('tos-agent-attempts-panel');
-    attemptsPanel.setAttribute('session-id', this._drivenSessionId);
-    attemptsPanel.setAttribute('data-spec-grill-mount', this._drivenSessionId);
-    mountHost.appendChild(attemptsPanel);
+    const presenceTree = document.createElement('tos-agent-presence-tree');
+    presenceTree.setAttribute('session-id', this._drivenSessionId);
+    presenceTree.setAttribute('data-spec-grill-mount', this._drivenSessionId);
+    mountHost.appendChild(presenceTree);
 
     // CID footer (compact, below the visual view)
     const cidLine = document.createElement('p');
@@ -546,6 +575,63 @@ export class TosSpecGrill extends HTMLElement {
     }
     phrase.appendChild(dots);
     wrap.appendChild(phrase);
+    this.appendChild(wrap);
+  }
+
+  // ── Thinking indicator (Meta AI reasoning) ──────────────────────────────────
+
+  /** Begin the in-flight "thinking" UI: busy cursor + a 1s timer that re-renders
+   *  the elapsed seconds so a long reasoning chain reads as alive, not frozen. */
+  private _beginThinking(): void {
+    this._thinking = true;
+    this._thinkingStart = Date.now();
+    document.body.style.cursor = 'progress';
+    if (this._thinkingTimer === null) {
+      this._thinkingTimer = window.setInterval(() => {
+        if (this._thinking) this._renderDriven();
+      }, 1000);
+    }
+    this._renderDriven();
+  }
+
+  private _endThinking(): void {
+    this._thinking = false;
+    document.body.style.cursor = '';
+    if (this._thinkingTimer !== null) {
+      window.clearInterval(this._thinkingTimer);
+      this._thinkingTimer = null;
+    }
+  }
+
+  /** Live thinking view: reuses .spec-grill-loading styling + an elapsed
+   *  counter and a deep-reasoning hint. */
+  private _renderThinking(): void {
+    const elapsedS = Math.max(0, Math.floor((Date.now() - this._thinkingStart) / 1000));
+    const wrap = document.createElement('section');
+    wrap.className = 'spec-grill-loading';
+    wrap.setAttribute('aria-live', 'polite');
+
+    const phrase = document.createElement('p');
+    phrase.className = 'spec-grill-loading-phrase';
+    phrase.appendChild(document.createTextNode(`Meta AI 正在思考 ${elapsedS}s`));
+    const dots = document.createElement('span');
+    dots.className = 'spec-grill-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.textContent = '·';
+      dots.appendChild(dot);
+    }
+    phrase.appendChild(dots);
+    wrap.appendChild(phrase);
+
+    const hint = document.createElement('p');
+    hint.className = 'spec-grill-loading-hint';
+    hint.style.cssText =
+      'font-size:0.8rem;color:var(--tos-muted,#6b6b6b);margin:0.4rem 0 0';
+    hint.textContent = '深度推理模式（thinking on）——单轮可能 20–60 秒，计时在跑就说明它还活着。';
+    wrap.appendChild(hint);
+
     this.appendChild(wrap);
   }
 }

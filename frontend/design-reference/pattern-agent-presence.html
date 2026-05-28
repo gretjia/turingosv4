@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_base.css">
+<style>
+  /* ════════════════════════════════════════════════════════════════════
+     POLYMARKET TREE — node-centric, causal, left-to-right.
+
+     The TuringOS market topology is genealogical: a SpecCapsule spawns
+     generation markets, each spawns verification attempts, each may
+     settle into payout. Nodes have parents. The visual must show that.
+
+     This version arranges nodes in 4 causal columns —
+       INTAKE · spec  →  market · generate  →  verify  →  settled
+     — with bezier curves connecting parents to children. New data flows
+     in from the left edge ("NEW" pulse); settled work exits to the
+     right. Live prices update via WS in production; this static
+     specimen pins one moment in time.
+
+     Aesthetic register:
+       eyebrow  · mono caps  · 8 px · 0.22 em
+       hero     · Fraunces italic, sized by node role (28 / 24 / 20 px)
+       slug     · mono · 10 px · neutral
+       sub      · plex sans · 11 px · muted
+       meta     · mono · 8.5 px · subtle
+     Column headers are Fraunces italic small-caps in muted ink —
+     editorial section markers, not chrome buttons.
+     ════════════════════════════════════════════════════════════════════ */
+
+  :root {
+    --grid:           color-mix(in srgb, var(--fg) 5%, transparent);
+    --grid-strong:    color-mix(in srgb, var(--fg) 8%, transparent);
+    --canvas-h:       380px;
+    --node-radius:    3px;
+    /* Tonal depth — three teal stops instead of one accent + one soft.
+       Used for halos, hover, and focused states so we never need a shadow. */
+    --accent-deep:    #134B48;
+    --accent-mid:     var(--accent);
+    --accent-soft:    color-mix(in srgb, var(--accent) 38%, var(--bg));
+    --accent-wash:    color-mix(in srgb, var(--accent) 7%,  var(--bg));
+    /* Tactile highlight — a paper-edge line that lifts each card 1 px without
+       producing a dropshadow. */
+    --inner-edge:     color-mix(in srgb, white 55%, var(--bg));
+    /* Warm wash at the canvas left edge — signals "data arrives here." */
+    --arrival-glow:   color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+
+  @keyframes flow   { from { stroke-dashoffset: 16; } to { stroke-dashoffset: 0; } }
+  @keyframes halo   { 0%, 100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--accent) 22%, transparent); }
+                      50%      { box-shadow: 0 0 0 6px transparent; } }
+  @keyframes hotpulse { 0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+                        50%      { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); } }
+  @keyframes blink  { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @keyframes arrive { from     { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+                      to       { opacity: 1; transform: translate(-50%, -50%); } }
+  @keyframes shimmer{ 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* ── canvas ─────────────────────────────────────────── */
+  .canvas-wrap {
+    position: relative;
+    width: 100%;
+    height: var(--canvas-h);
+    background:
+      /* arrival glow at left edge — keeps the eye reading L → R */
+      radial-gradient(ellipse 320px 240px at 0% 48%, var(--arrival-glow) 0%, transparent 100%),
+      /* paper dot grid — slightly finer + lower contrast than before */
+      radial-gradient(var(--grid) 0.7px, transparent 0.8px),
+      var(--bg);
+    background-size: auto, 18px 18px, auto;
+    background-position: 0 0, -1px -1px, 0 0;
+    border: 1px solid var(--hairline);
+    overflow: hidden;
+    /* Inner top edge — paper lift, no shadow */
+    box-shadow: inset 0 1px 0 var(--inner-edge);
+  }
+
+  /* — column headers — */
+  .columns {
+    position: absolute;
+    inset: 18px 0 auto 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    pointer-events: none;
+  }
+  .col-head {
+    text-align: center;
+    padding-bottom: 8px;
+    margin: 0 24px;
+    border-bottom: 1px solid var(--hairline);
+    position: relative;
+  }
+  /* tiny tick above each column header — bento module marker */
+  .col-head::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .col-head .h {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 13px;
+    font-variation-settings: "opsz" 24, "SOFT" 80;
+    color: var(--fg);
+    line-height: 1;
+    letter-spacing: -0.005em;
+  }
+  .col-head .h::before {
+    content: counter(col, decimal-leading-zero) " · ";
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    vertical-align: 0.15em;
+    margin-right: 4px;
+    font-weight: 500;
+  }
+  .columns { counter-reset: col; }
+  .col-head { counter-increment: col; }
+  .col-head .sub {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    color: var(--fg-subtle);
+    margin-top: 5px;
+  }
+
+  /* — edges + leaders SVG layers — */
+  svg.edges, svg.leaders {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  svg.leaders { z-index: 4; }   /* above edges, below panels */
+
+  /* dashed leader from each open panel back to its owning node — makes
+     parent ↔ panel ownership unmistakable even when dragged far away. */
+  .leader-line {
+    fill: none;
+    stroke: var(--fg-muted);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+    opacity: 0.7;
+  }
+  .leader-anchor { fill: var(--fg-muted); opacity: 0.7; }
+  .edge {
+    fill: none;
+    stroke: var(--hairline-strong);
+    stroke-width: 1;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+  }
+  .edge.live { stroke: var(--accent);  stroke-width: 1.5;  stroke-dasharray: 4 5;
+               animation: flow 2.4s cubic-bezier(0.4,0,0.6,1) infinite; opacity: 0.85; }
+  .edge.win  { stroke: #3F6E3F; stroke-width: 1.75; opacity: 0.9; }
+  .edge.rej  { stroke: #9C3A2F; stroke-width: 1.25; stroke-dasharray: 2 3; opacity: 0.7; }
+  .edge.pending { stroke-dasharray: 1 4; opacity: 0.5; }
+
+  /* connector dots — outline-style for a refined diagrammatic feel */
+  .joint        { fill: var(--bg); stroke: var(--hairline-strong); stroke-width: 1.5; }
+  .joint.live   { stroke: var(--accent); }
+  .joint.win    { stroke: #3F6E3F; }
+  .joint.rej    { stroke: #9C3A2F; }
+  .joint.pending{ stroke: var(--hairline-strong); opacity: 0.6; }
+  /* trunk-elbow node where one parent's edge splits into many children */
+  .trunk-node   { fill: var(--accent); stroke: none; }
+
+  /* ── nodes ─────────────────────────────────────────── */
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+  }
+  .node[data-new="true"] { animation: arrive 600ms cubic-bezier(0.2,0.7,0.2,1) both; }
+  .node-body {
+    background: var(--bg);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--node-radius);
+    display: grid;
+    grid-template-rows: auto auto auto;
+    padding: 7px 11px 8px;
+    transition: border-color var(--motion-normal) var(--motion-ease);
+    min-width: 96px;
+    position: relative;
+  }
+  /* Inner top edge — paper-lift detail, no shadow */
+  .node-body::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--inner-edge);
+    pointer-events: none;
+    border-top-left-radius: var(--node-radius);
+    border-top-right-radius: var(--node-radius);
+  }
+  .node:hover .node-body          { border-color: var(--fg); }
+  /* Hot node — accent top stripe instead of pulsing box-shadow */
+  .node[data-hot="true"] .node-body {
+    border-color: var(--accent);
+    border-top-width: 2px;
+    padding-top: 6px;
+    animation: hotpulse 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .node[data-hot="true"] .node-body::after { background: transparent; }
+  .node[data-expanded="true"] .node-body { border-color: var(--accent); }
+  .node[data-state="finalized"] .node-body { border-color: #3F6E3F; background: color-mix(in srgb, #3F6E3F 4%, var(--bg)); }
+  .node[data-state="rejected"]  .node-body { border-color: var(--hairline); opacity: 0.62; }
+  .node[data-state="cold"]      .node-body { opacity: 0.58; }
+  .node[data-pending="true"]    .node-body { border-style: dashed; border-color: var(--hairline-strong); }
+
+  /* row 1 · eyebrow + age — common across node kinds */
+  .row-eyebrow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.20em;
+    color: var(--fg-subtle);
+    margin-bottom: 4px;
+  }
+  .row-eyebrow .lhs { display: inline-flex; align-items: center; gap: 4px; }
+  .row-eyebrow .lhs .pip {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .row-eyebrow .lhs.fin .pip { background: #3F6E3F; }
+  .row-eyebrow .lhs.rej .pip { background: #9C3A2F; }
+  .row-eyebrow .lhs.cold .pip { background: #A87431; }
+  .row-eyebrow .age { font-variant-numeric: tabular-nums; letter-spacing: 0.10em; }
+
+  /* row 2 · hero — varies by node kind */
+  .hero {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    line-height: 0.95;
+    margin: 1px 0 4px;
+  }
+  .hero .num {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-variation-settings: "opsz" 96, "SOFT" 30;
+    letter-spacing: -0.025em;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+  .hero .unit {
+    font-family: var(--font-mono);
+    font-style: normal;
+    color: var(--fg-subtle);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    align-self: center;
+    margin-left: -4px;
+  }
+  .hero .delta {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    align-self: center;
+  }
+  .hero .delta.up   { color: #3F6E3F; }
+  .hero .delta.down { color: #9C3A2F; }
+  .hero .delta.flat { color: var(--fg-subtle); }
+
+  /* size variants — hero sizes geometric across node kinds */
+  .node[data-kind="gen"][data-emph="hot"] .hero .num { font-size: 28px; }
+  .node[data-kind="gen"]                  .hero .num { font-size: 22px; }
+  .node[data-kind="settled"]              .hero .num { font-size: 22px; color: #3F6E3F; }
+  .node[data-kind="verify"]               .hero .num { font-size: 28px; }
+  .node[data-kind="verify"][data-pass]    .hero .num { color: #3F6E3F; }
+  .node[data-kind="verify"][data-fail]    .hero .num { color: #9C3A2F; }
+  .node[data-kind="spec"]                 .hero .num { font-size: 20px; font-style: italic; }
+
+  /* row 3 · slug + sub-meta */
+  .row-foot {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1px 8px;
+    align-items: baseline;
+  }
+  .slug {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg);
+    letter-spacing: -0.01em;
+  }
+  .meta {
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    text-align: right;
+  }
+  .sub {
+    font-family: var(--font-body);
+    font-size: 10.5px;
+    color: var(--fg-muted);
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+
+  /* fresh "JUST IN" tag for newly streamed-in spec nodes */
+  .node[data-new="true"] .row-eyebrow .lhs::after {
+    content: "JUST IN";
+    margin-left: 6px;
+    color: var(--accent);
+    animation: blink 1.2s ease-in-out infinite;
+    letter-spacing: 0.22em;
+  }
+  .node[data-pending="true"] .hero .num {
+    color: var(--fg-subtle);
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* ── detail panel ─────────────────────────────────── */
+  .detail {
+    position: absolute;
+    background: var(--bg-elev);
+    border: 1px solid var(--fg);
+    padding: 10px 12px 11px;
+    width: 220px;
+    z-index: 5;
+    box-shadow: inset 0 1px 0 var(--inner-edge);
+  }
+  .detail[data-anchor="center"] { transform: translate(0, -50%); }
+  .detail[data-anchor="top"]    { top: 14px; }
+  .detail[data-anchor="bottom"] { bottom: 14px; }
+  .detail[hidden] { display: none; }
+  .detail[data-side="right"]::before,
+  .detail[data-side="left"]::before {
+    /* Static leader tick — used only at default placement. Hidden once
+       the panel is dragged (data-dragged="true"), because the SVG leader
+       takes over for free-floating panels. */
+    content: "";
+    position: absolute;
+    top: 24px;
+    width: 6px; height: 1px;
+    background: var(--fg);
+  }
+  .detail[data-side="right"]::before { left:  -6px; }
+  .detail[data-side="left"]::before  { right: -6px; }
+  .detail[data-dragged="true"]::before { display: none; }
+
+  .detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 6px;
+    margin-bottom: 7px;
+    border-bottom: 1px solid var(--hairline);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .detail-head:active { cursor: grabbing; }
+  .detail[data-dragged="true"] { box-shadow: 1px 1px 0 var(--hairline-strong); }
+  .detail-head .title { flex: 1; }
+
+  /* close × — absolutely positioned in the top-right corner of every
+     detail panel. Sized large enough to be findable; outlined so it
+     reads as an affordance. Fires the same toggle as clicking the node. */
+  .detail-close {
+    appearance: none;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--bg);
+    border: 1px solid var(--hairline-strong);
+    border-radius: 2px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1;
+    z-index: 1;
+    transition: border-color var(--motion-fast) var(--motion-ease),
+                color var(--motion-fast) var(--motion-ease),
+                background var(--motion-fast) var(--motion-ease);
+  }
+  .detail-close:hover {
+    background: var(--fg);
+    border-color: var(--fg);
+    color: var(--bg);
+  }
+  .detail-close:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  /* reserve room on the right side of the head row so the close button
+     doesn't crowd the state badge */
+  .detail-head { padding-right: 28px; }
+  .detail-head .title {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 14px;
+    font-variation-settings: "opsz" 24;
+    color: var(--fg);
+    letter-spacing: -0.005em;
+  }
+  .detail-head .state {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.20em;
+    padding: 1px 6px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+  .detail-head .state[data-fin] { border-color: #3F6E3F; color: #3F6E3F; }
+  .detail-head .state[data-rej] { border-color: #9C3A2F; color: #9C3A2F; }
+  .detail-lineage {
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    color: var(--fg-subtle);
+    letter-spacing: 0.04em;
+    margin: -2px 0 7px;
+  }
+  .detail-lineage b { color: var(--fg); font-weight: 500; }
+
+  .candidate {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1px 8px;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--hairline);
+  }
+  .candidate:last-of-type { border-bottom: none; }
+  .candidate .who {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg);
+    letter-spacing: -0.01em;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .candidate .who .crown {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+  .candidate .px {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 13px;
+    font-variation-settings: "opsz" 24;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    letter-spacing: -0.01em;
+  }
+  .candidate .px.win { color: var(--accent); }
+  .candidate .px.rej {
+    color: #9C3A2F;
+    text-decoration: line-through;
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+  .candidate .cid {
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    color: var(--fg-subtle);
+    letter-spacing: -0.01em;
+    grid-column: 1 / -1;
+  }
+  .candidate .stake {
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    color: var(--fg-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+  .candidate .preds {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    letter-spacing: 0.04em;
+    color: var(--fg-subtle);
+  }
+  .candidate .preds .pass { color: #3F6E3F; font-weight: 500; }
+  .candidate .preds .fail { color: #9C3A2F; font-weight: 500; }
+
+  .detail-foot {
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid var(--hairline);
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--fg-subtle);
+  }
+  .detail-foot b { color: var(--fg); font-weight: 500; }
+
+  /* ── overlay chrome ────────────────────────────────── */
+  .chrome { position: absolute; pointer-events: none; z-index: 6; }
+  .chrome-br { bottom: 10px; right: 12px; }
+  .chrome-bl { bottom: 10px; left:  12px; }
+  .chrome-tr {
+    top: 10px; right: 12px;
+    pointer-events: auto;       /* draggable */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .chrome-tr:active { cursor: grabbing; }
+  .chrome-tr[data-dragged="true"] {
+    box-shadow: 1px 1px 0 var(--hairline-strong);
+  }
+
+  .mini {
+    width: 86px; height: 46px;
+    border: 1px solid var(--hairline);
+    background: var(--bg);
+    position: relative;
+  }
+  .mini-col {
+    position: absolute; top: 8px; bottom: 8px; width: 1px;
+    background: color-mix(in srgb, var(--fg) 14%, transparent);
+  }
+  .mini-node {
+    position: absolute; width: 5px; height: 3.5px;
+    background: var(--hairline-strong);
+    border-radius: 1px;
+    transform: translate(-50%, -50%);
+  }
+  .mini-node.hot { background: var(--accent); }
+  .mini-node.fin { background: #3F6E3F; }
+  .mini-viewport {
+    position: absolute; left: 8%; top: 18%; width: 80%; height: 64%;
+    border: 1px solid var(--fg);
+  }
+  .mini-label {
+    position: absolute; bottom: -14px; left: 0;
+    font-family: var(--font-mono); font-size: 8px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-subtle);
+  }
+
+  .zoom {
+    display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+    font-family: var(--font-mono); font-size: 9px;
+    color: var(--fg-muted); letter-spacing: 0.04em;
+  }
+  .zoom-bar { width: 70px; height: 1px; background: var(--fg-muted); position: relative; }
+  .zoom-bar::before, .zoom-bar::after {
+    content: ""; position: absolute; top: -3px; width: 1px; height: 7px; background: var(--fg-muted);
+  }
+  .zoom-bar::before { left: 0; } .zoom-bar::after { right: 0; }
+
+  .hint {
+    font-family: var(--font-mono); font-size: 8.5px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+</style></head>
+
+<body class="card" style="padding:0"><div class="card-body" style="padding:14px">
+
+  <div class="canvas-wrap" id="canvas">
+
+    <!-- Column headers — editorial section markers -->
+    <div class="columns" aria-hidden="true">
+      <div class="col-head"><span class="h">Intake</span><span class="sub">spec capsule</span></div>
+      <div class="col-head"><span class="h">Generate</span><span class="sub">price discovery</span></div>
+      <div class="col-head"><span class="h">Verify</span><span class="sub">predicate run</span></div>
+      <div class="col-head"><span class="h">Settled</span><span class="sub">payout</span></div>
+    </div>
+
+    <!-- Edges: causal tree edges, parent → child, left to right.
+         Angular trunk-and-branch geometry — the visual grammar of a
+         directory tree / org chart. Trunk at x=190 (between cols 01 and 02).
+         Coords match absolute node centers below (canvas viewBox 700×380). -->
+    <svg class="edges" viewBox="0 0 700 380" preserveAspectRatio="none">
+
+      <!-- ── spec_042 (right edge ~ x=170, y=130) → 3 children ── -->
+      <!-- trunk stub from parent -->
+      <path class="edge live" d="M 170,130 L 200,130" />
+      <!-- vertical trunk spanning child y-positions (y=100 to y=300) -->
+      <path class="edge live" d="M 200,100 L 200,300" />
+      <!-- horizontal stubs from trunk to each child's left edge (x=222) -->
+      <path class="edge live" d="M 200,100 L 222,100" />
+      <path class="edge live" d="M 200,200 L 222,200" />
+      <path class="edge"      d="M 200,300 L 222,300" />
+      <!-- trunk anchor + branch joints — read as tree nodes -->
+      <circle class="trunk-node"   cx="200" cy="130" r="2.5"/>
+      <circle class="joint live"   cx="222" cy="100" r="2"/>
+      <circle class="joint live"   cx="222" cy="200" r="2"/>
+      <circle class="joint"        cx="222" cy="300" r="2"/>
+
+      <!-- ── spec_043 → no children yet — pending stub ── -->
+      <path class="edge pending" d="M 170,320 L 220,320" />
+      <circle class="joint pending" cx="220" cy="320" r="2"/>
+
+      <!-- ── gen_091 (right ~x=318, y=100) → verify_a01 (left ~x=425, y=100) ── -->
+      <path class="edge live" d="M 318,100 L 425,100" />
+      <circle class="joint live" cx="425" cy="100" r="2"/>
+
+      <!-- ── gen_b3 (right ~x=318, y=200) → verify_b02 (left ~x=425, y=200) ── -->
+      <path class="edge rej" d="M 318,200 L 425,200" />
+      <circle class="joint rej" cx="425" cy="200" r="2"/>
+
+      <!-- ── verify_a01 (right ~x=475, y=100) → paid_a01 (left ~x=552, y=130) ── -->
+      <!-- angular elbow: right from verify, then down to settled row -->
+      <path class="edge win" d="M 475,100 L 515,100 L 515,130 L 552,130" />
+      <circle class="joint win" cx="552" cy="130" r="2.5"/>
+    </svg>
+
+    <!-- Leaders layer: dashed lines from each OPEN panel back to its node.
+         Populated by JS on open/close and during drag, so a panel pulled
+         across the canvas still shows ownership. -->
+    <svg class="leaders" id="leaders" viewBox="0 0 700 380" preserveAspectRatio="none"></svg>
+
+    <!-- ─── COLUMN 1 · INTAKE / spec ─── -->
+    <div class="node" data-id="spec_042" data-kind="spec" data-expanded="true" style="left:108px;top:130px"
+         role="button" tabindex="0" aria-expanded="true">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs"><span class="pip"></span>SPEC · ROOT</span>
+          <span class="age">2 m</span>
+        </div>
+        <div class="hero"><span class="num">spec_042</span></div>
+        <div class="row-foot">
+          <span class="slug">minif2f · 7/7</span>
+          <span class="meta">3 children</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node" data-id="spec_043" data-kind="spec" data-new="true" data-pending="true"
+         style="left:108px;top:320px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs"><span class="pip"></span>SPEC · ROOT</span>
+          <span class="age">4 s</span>
+        </div>
+        <div class="hero"><span class="num">spec_043</span></div>
+        <div class="row-foot">
+          <span class="slug">putnam · 7/7</span>
+          <span class="meta">0 children</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── COLUMN 2 · GENERATE / market ─── -->
+    <div class="node" data-id="gen_091" data-kind="gen" data-emph="hot" data-hot="true"
+         style="left:262px;top:100px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs"><span class="pip"></span>MARKET · OPEN</span>
+          <span class="age">30 s</span>
+        </div>
+        <div class="hero">
+          <span class="num">67</span><span class="unit">¢</span>
+          <span class="delta up">▲ +4.2</span>
+        </div>
+        <div class="row-foot">
+          <span class="slug">gen_091 · minif2f_n091</span>
+          <span class="meta">4 staked</span>
+          <span class="sub">treasury 4 000 µ · 3 pending · 1 rejected</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node" data-id="gen_b3" data-kind="gen"
+         style="left:262px;top:200px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs"><span class="pip"></span>MARKET · OPEN</span>
+          <span class="age">12 s</span>
+        </div>
+        <div class="hero">
+          <span class="num">41</span><span class="unit">¢</span>
+          <span class="delta down">▼ -1.8</span>
+        </div>
+        <div class="row-foot">
+          <span class="slug">gen_b3 · putnam_b3</span>
+          <span class="meta">3 staked</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node" data-id="gen_104" data-kind="gen" data-state="cold"
+         style="left:262px;top:300px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs cold"><span class="pip"></span>MARKET · COLD</span>
+          <span class="age">1 m</span>
+        </div>
+        <div class="hero">
+          <span class="num">12</span><span class="unit">¢</span>
+          <span class="delta down">▼ -3.4</span>
+        </div>
+        <div class="row-foot">
+          <span class="slug">gen_104 · minif2f_n104</span>
+          <span class="meta">2 staked</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── COLUMN 3 · VERIFY / predicate run ─── -->
+    <div class="node" data-id="verify_a01" data-kind="verify" data-pass
+         style="left:450px;top:100px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs fin"><span class="pip"></span>VERIFY · PASS</span>
+          <span class="age">8 s</span>
+        </div>
+        <div class="hero"><span class="num">✓</span></div>
+        <div class="row-foot">
+          <span class="slug">scenario_a01</span>
+          <span class="meta">3/3 preds</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node" data-id="verify_b02" data-kind="verify" data-fail data-state="rejected"
+         style="left:450px;top:200px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs rej"><span class="pip"></span>VERIFY · FAIL</span>
+          <span class="age">20 s</span>
+        </div>
+        <div class="hero"><span class="num">✗</span></div>
+        <div class="row-foot">
+          <span class="slug">scenario_b02</span>
+          <span class="meta">1/3 preds</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── COLUMN 4 · SETTLED / payout ─── -->
+    <div class="node" data-id="paid_a01" data-kind="settled" data-state="finalized"
+         style="left:582px;top:130px"
+         role="button" tabindex="0" aria-expanded="false">
+      <div class="node-body">
+        <div class="row-eyebrow">
+          <span class="lhs fin"><span class="pip"></span>PAID · CLOSED</span>
+          <span class="age">2 s</span>
+        </div>
+        <div class="hero">
+          <span class="num">2 800</span><span class="unit">µ</span>
+        </div>
+        <div class="row-foot">
+          <span class="slug">agent_002 · winner</span>
+          <span class="meta">+1 200 µ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── DETAIL PANELS ─── -->
+
+    <!-- gen_091 · panel right (hidden by default — click the hot node to expand) -->
+    <div class="detail" data-for="gen_091" data-side="right" data-anchor="top" hidden
+         style="left:332px">
+      <div class="detail-head">
+        <span class="title">gen_091</span>
+        <span class="state">open</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">← parent <b>spec_042</b> · 4 candidates · price disc. 30 s</p>
+      <div class="candidate">
+        <span class="who"><span class="crown">▲</span>agent_002</span>
+        <span class="px win">67.3 %</span>
+        <span class="cid">proposal · bafy2bz77c4…1109</span>
+        <span class="stake">stake 1 800 µ</span>
+        <span class="preds"><span class="pass">✓ type_ok</span> <span class="pass">✓ minif2f</span> <span class="fail">✗ shielded</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_005</span>
+        <span class="px">21.4 %</span>
+        <span class="cid">proposal · bafy2bzace4…s4qm</span>
+        <span class="stake">stake 1 200 µ</span>
+        <span class="preds"><span class="pass">✓ type_ok</span> <span class="pass">✓ minif2f</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_007</span>
+        <span class="px">8.9 %</span>
+        <span class="cid">proposal · bafy2bz1e8w…d44a</span>
+        <span class="stake">stake 600 µ</span>
+        <span class="preds"><span class="pass">✓ type_ok</span> <span class="fail">✗ minif2f</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_009</span>
+        <span class="px rej">rejected</span>
+        <span class="cid">proposal · bafy2bz4kq2…77c1</span>
+        <span class="stake">stake 400 µ</span>
+        <span class="preds"><span class="fail">heuristic_failed</span></span>
+      </div>
+      <div class="detail-foot"><span>treasury · <b>4 000 µ</b></span><span>n = <b>4</b></span></div>
+    </div>
+
+    <!-- spec_042 · panel to the right · pre-expanded · compact -->
+    <div class="detail" data-for="spec_042" data-side="right" data-anchor="center"
+         style="left:178px;top:130px">
+      <div class="detail-head">
+        <span class="title">spec_042</span>
+        <span class="state">root</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">spawned by <b>session_42</b> · 7/7 slots · 3 children open</p>
+      <div class="candidate">
+        <span class="who">trigger</span><span class="px">minif2f</span>
+        <span class="cid">CID · bafy2bz77c4…1109</span>
+      </div>
+      <div class="candidate">
+        <span class="who">slots filled</span><span class="px">7/7</span>
+        <span class="cid">trigger · pain · success · constraint · …</span>
+      </div>
+      <div class="detail-foot"><span>children · <b>3</b></span><span>2 m old</span></div>
+    </div>
+
+    <!-- spec_043 · panel right -->
+    <div class="detail" data-for="spec_043" data-side="right" data-anchor="bottom" hidden
+         style="left:178px">
+      <div class="detail-head">
+        <span class="title">spec_043</span>
+        <span class="state">root</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">just streamed in 4 s ago · awaiting first bid</p>
+      <div class="candidate">
+        <span class="who">trigger</span><span class="px">putnam_2025_b3</span>
+        <span class="cid">CID · bafy2bzf1c2…d44a</span>
+      </div>
+      <div class="candidate">
+        <span class="who">slots filled</span><span class="px">7/7</span>
+        <span class="cid">contraction · square · stewart_1968 · …</span>
+      </div>
+      <div class="detail-foot"><span>children · <b>0</b></span><span>price discovery imminent</span></div>
+    </div>
+
+    <!-- gen_b3 -->
+    <div class="detail" data-for="gen_b3" data-side="right" data-anchor="center" hidden
+         style="left:332px;top:200px">
+      <div class="detail-head">
+        <span class="title">gen_b3</span>
+        <span class="state">open</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">← parent <b>spec_042</b> · 3 candidates · price falling</p>
+      <div class="candidate">
+        <span class="who"><span class="crown">▲</span>agent_001</span>
+        <span class="px win">41.0 %</span>
+        <span class="cid">proposal · bafy2bz9p3q…f1c2</span>
+        <span class="stake">stake 2 400 µ</span>
+        <span class="preds"><span class="pass">✓ type_ok</span> <span class="fail">✗ contraction</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_003</span>
+        <span class="px">28.6 %</span>
+        <span class="cid">proposal · bafy2bz0za7…b830</span>
+        <span class="stake">stake 1 800 µ</span>
+        <span class="preds"><span class="pass">✓ type_ok</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_008</span>
+        <span class="px rej">rejected</span>
+        <span class="cid">proposal · bafy2bz22ce…3401</span>
+        <span class="stake">stake 800 µ</span>
+        <span class="preds"><span class="fail">timeout</span></span>
+      </div>
+      <div class="detail-foot"><span>treasury · <b>6 200 µ</b></span><span>n = <b>3</b></span></div>
+    </div>
+
+    <!-- gen_104 · cold -->
+    <div class="detail" data-for="gen_104" data-side="right" data-anchor="bottom" hidden
+         style="left:332px">
+      <div class="detail-head">
+        <span class="title">gen_104</span>
+        <span class="state" data-rej>cold</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">← parent <b>spec_042</b> · 2 candidates · awaiting new bid</p>
+      <div class="candidate">
+        <span class="who">agent_003</span>
+        <span class="px rej">rejected</span>
+        <span class="cid">proposal · bafy2bz77c4…1109</span>
+        <span class="stake">forfeit 600 µ</span>
+        <span class="preds"><span class="fail">diophantine_unsat</span></span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_007</span>
+        <span class="px rej">rejected</span>
+        <span class="cid">proposal · bafy2bz4kq2…77c1</span>
+        <span class="stake">forfeit 600 µ</span>
+        <span class="preds"><span class="fail">heuristic_failed</span></span>
+      </div>
+      <div class="detail-foot"><span>treasury · <b>3 000 µ</b></span><span>price ↓ · stalled</span></div>
+    </div>
+
+    <!-- verify_a01 -->
+    <div class="detail" data-for="verify_a01" data-side="right" data-anchor="top" hidden
+         style="left:514px">
+      <div class="detail-head">
+        <span class="title">scenario_a01</span>
+        <span class="state" data-fin>pass</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">← from winner <b>gen_091</b> · agent_002 · 3/3 preds</p>
+      <div class="candidate">
+        <span class="who">type_ok</span><span class="px win">✓</span>
+        <span class="cid">predicate · turingos.type.v1</span>
+      </div>
+      <div class="candidate">
+        <span class="who">minif2f_pass</span><span class="px win">✓</span>
+        <span class="cid">predicate · turingos.minif2f.v4</span>
+      </div>
+      <div class="candidate">
+        <span class="who">hidden_oracle</span><span class="px win">✓</span>
+        <span class="cid">predicate · turingos.shielded.v2</span>
+      </div>
+      <div class="detail-foot"><span>elapsed · <b>8 s</b></span><span>signed agent_004</span></div>
+    </div>
+
+    <!-- verify_b02 -->
+    <div class="detail" data-for="verify_b02" data-side="right" data-anchor="bottom" hidden
+         style="left:514px">
+      <div class="detail-head">
+        <span class="title">scenario_b02</span>
+        <span class="state" data-rej>fail</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">← from <b>gen_b3</b> · agent_001 · 1/3 preds</p>
+      <div class="candidate">
+        <span class="who">type_ok</span><span class="px win">✓</span>
+        <span class="cid">predicate · turingos.type.v1</span>
+      </div>
+      <div class="candidate">
+        <span class="who">contraction_proof</span><span class="px rej">✗</span>
+        <span class="cid">predicate · turingos.contraction.v1</span>
+      </div>
+      <div class="candidate">
+        <span class="who">hidden_oracle</span><span class="px rej">skipped</span>
+        <span class="cid">predicate · turingos.shielded.v2</span>
+      </div>
+      <div class="detail-foot"><span>elapsed · <b>20 s</b></span><span>L4-exception</span></div>
+    </div>
+
+    <!-- paid_a01 -->
+    <div class="detail" data-for="paid_a01" data-side="left" data-anchor="center" hidden
+         style="right:30px;top:130px">
+      <div class="detail-head">
+        <span class="title">paid · gen_091</span>
+        <span class="state" data-fin>finalized</span>
+        <button type="button" class="detail-close" aria-label="close detail">×</button>
+      </div>
+      <p class="detail-lineage">winner <b>agent_002</b> · stake → payout · L4 receipt issued</p>
+      <div class="candidate">
+        <span class="who"><span class="crown">👑</span>agent_002</span>
+        <span class="px win">2 800 µ</span>
+        <span class="cid">receipt · bafy2bzpaid…0901</span>
+        <span class="stake">+1 200 µ pnl</span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_005</span>
+        <span class="px rej">refund</span>
+        <span class="stake">−1 200 µ</span>
+      </div>
+      <div class="candidate">
+        <span class="who">agent_007</span>
+        <span class="px rej">refund</span>
+        <span class="stake">−600 µ</span>
+      </div>
+      <div class="detail-foot"><span>tx · <b>0901</b></span><span>2 s ago</span></div>
+    </div>
+
+    <!-- ── overlay chrome ── -->
+    <div class="chrome chrome-tr">
+      <div class="mini" aria-label="canvas overview · 18 markets · 4 columns">
+        <span class="mini-col" style="left:25%"></span>
+        <span class="mini-col" style="left:50%"></span>
+        <span class="mini-col" style="left:75%"></span>
+        <span class="mini-node hot" style="left:12%; top:34%"></span>
+        <span class="mini-node hot" style="left:12%; top:78%"></span>
+        <span class="mini-node hot" style="left:38%; top:26%"></span>
+        <span class="mini-node"     style="left:38%; top:52%"></span>
+        <span class="mini-node"     style="left:38%; top:78%"></span>
+        <span class="mini-node fin" style="left:62%; top:26%"></span>
+        <span class="mini-node"     style="left:62%; top:52%"></span>
+        <span class="mini-node fin" style="left:88%; top:34%"></span>
+        <span class="mini-viewport"></span>
+        <span class="mini-label">tree · 18 nodes</span>
+      </div>
+    </div>
+
+    <div class="chrome chrome-br">
+      <div class="zoom">
+        <span>100 %</span>
+        <div class="zoom-bar"></div>
+        <span>causal tree</span>
+      </div>
+    </div>
+
+    <div class="chrome chrome-bl">
+      <span class="hint">click node · expand &nbsp;·&nbsp; ⌥ drag · pan &nbsp;·&nbsp; ⌘ scroll · zoom</span>
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      const canvas  = document.getElementById('canvas');
+      const leaders = document.getElementById('leaders');
+      const nodes   = canvas.querySelectorAll('.node');
+      const details = canvas.querySelectorAll('.detail');
+      const panels  = new Map();
+      details.forEach((d) => panels.set(d.dataset.for, d));
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+
+      // Canvas viewBox is 700×380 — match to actual pixel width for leader math.
+      function svgCoords(rect) {
+        const cb = canvas.getBoundingClientRect();
+        const sx = 700 / cb.width;
+        const sy = 380 / cb.height;
+        return {
+          cx: (rect.left + rect.width  / 2 - cb.left) * sx,
+          cy: (rect.top  + rect.height / 2 - cb.top ) * sy,
+          left:   (rect.left   - cb.left) * sx,
+          right:  (rect.right  - cb.left) * sx,
+          top:    (rect.top    - cb.top ) * sy,
+          bottom: (rect.bottom - cb.top ) * sy,
+        };
+      }
+
+      function updateLeader(id) {
+        const panel = panels.get(id);
+        const node  = canvas.querySelector('.node[data-id="' + id + '"]');
+        const oldLine   = leaders.querySelector('line[data-for="' + id + '"]');
+        const oldAnchor = leaders.querySelector('circle[data-for="' + id + '"]');
+
+        if (!panel || !node || panel.hidden) {
+          if (oldLine) oldLine.remove();
+          if (oldAnchor) oldAnchor.remove();
+          return;
+        }
+
+        const np = svgCoords(node.getBoundingClientRect());
+        const pp = svgCoords(panel.getBoundingClientRect());
+
+        // Panel anchor: nearest vertical edge midpoint (left or right of panel)
+        let px, py;
+        if (np.cx < pp.left)        { px = pp.left;  }   // panel is right of node
+        else if (np.cx > pp.right)  { px = pp.right; }   // panel is left of node
+        else                        { px = pp.cx;    }
+        // Vertical: clamp to panel's height-extent, prefer panel center, but
+        // bias toward the node y so the line ends near the head row.
+        py = Math.max(pp.top + 8, Math.min(pp.bottom - 8, np.cy));
+
+        let line = oldLine;
+        if (!line) {
+          line = document.createElementNS(SVG_NS, 'line');
+          line.setAttribute('data-for', id);
+          line.setAttribute('class', 'leader-line');
+          leaders.appendChild(line);
+        }
+        line.setAttribute('x1', np.cx);
+        line.setAttribute('y1', np.cy);
+        line.setAttribute('x2', px);
+        line.setAttribute('y2', py);
+
+        // Small anchor dot on the node side so the relationship reads clearly.
+        let anchor = oldAnchor;
+        if (!anchor) {
+          anchor = document.createElementNS(SVG_NS, 'circle');
+          anchor.setAttribute('data-for', id);
+          anchor.setAttribute('class', 'leader-anchor');
+          anchor.setAttribute('r', '2');
+          leaders.appendChild(anchor);
+        }
+        anchor.setAttribute('cx', np.cx);
+        anchor.setAttribute('cy', np.cy);
+      }
+
+      function setExpanded(node, on) {
+        const id = node.dataset.id;
+        node.dataset.expanded = String(on);
+        node.setAttribute('aria-expanded', String(on));
+        const panel = panels.get(id);
+        if (panel) {
+          panel.hidden = !on;
+          // Defer leader draw to next frame so layout is settled.
+          requestAnimationFrame(() => updateLeader(id));
+        }
+      }
+
+      // ── Wire click toggle on every node ──
+      nodes.forEach((node) => {
+        const id = node.dataset.id;
+        if (!panels.has(id)) return;
+        setExpanded(node, node.dataset.expanded === 'true');
+        node.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setExpanded(node, node.dataset.expanded !== 'true');
+        });
+        node.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); node.click(); }
+        });
+      });
+
+      // ── Close × inside each panel: closes that panel ──
+      canvas.querySelectorAll('.detail-close').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const panel = btn.closest('.detail');
+          if (!panel) return;
+          const node = canvas.querySelector('.node[data-id="' + panel.dataset.for + '"]');
+          if (node) setExpanded(node, false);
+        });
+      });
+
+      // ── Drag panels by their head row. Pointer events for touch+mouse. ──
+      panels.forEach((panel) => {
+        const head = panel.querySelector('.detail-head');
+        if (!head) return;
+
+        let dragging = false;
+        let originX = 0, originY = 0;
+        let startLeft = 0, startTop = 0;
+
+        head.addEventListener('pointerdown', (e) => {
+          // Ignore drag attempts that start on the close button.
+          if (e.target.closest('.detail-close')) return;
+          dragging = true;
+          head.setPointerCapture(e.pointerId);
+
+          // Snapshot the panel's current pixel position relative to canvas,
+          // then switch to free-positioning (clear any anchor offsets).
+          const pr = panel.getBoundingClientRect();
+          const cr = canvas.getBoundingClientRect();
+          startLeft = pr.left - cr.left;
+          startTop  = pr.top  - cr.top;
+
+          panel.style.left = startLeft + 'px';
+          panel.style.top  = startTop  + 'px';
+          panel.style.right  = 'auto';
+          panel.style.bottom = 'auto';
+          panel.style.transform = 'none';
+          panel.removeAttribute('data-anchor');
+          panel.setAttribute('data-dragged', 'true');
+
+          originX = e.clientX;
+          originY = e.clientY;
+          e.preventDefault();
+        });
+
+        head.addEventListener('pointermove', (e) => {
+          if (!dragging) return;
+          const dx = e.clientX - originX;
+          const dy = e.clientY - originY;
+          // Constrain within canvas bounds (leave 4 px margin).
+          const cr = canvas.getBoundingClientRect();
+          const w = panel.offsetWidth;
+          const h = panel.offsetHeight;
+          let nl = startLeft + dx;
+          let nt = startTop  + dy;
+          nl = Math.max(4, Math.min(cr.width  - w - 4, nl));
+          nt = Math.max(4, Math.min(cr.height - h - 4, nt));
+          panel.style.left = nl + 'px';
+          panel.style.top  = nt + 'px';
+          updateLeader(panel.dataset.for);
+        });
+
+        function endDrag(e) {
+          if (!dragging) return;
+          dragging = false;
+          try { head.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+        head.addEventListener('pointerup', endDrag);
+        head.addEventListener('pointercancel', endDrag);
+      });
+
+      // ── ESC closes all panels ──
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') nodes.forEach((n) => setExpanded(n, false));
+      });
+
+      // ── Minimap is draggable (same pattern as panels). User can pull it
+      //    out of the top-right corner when it's occluding tree content. ──
+      const minimap = canvas.querySelector('.chrome-tr');
+      if (minimap) {
+        let mDragging = false, mOx = 0, mOy = 0, mSl = 0, mSt = 0;
+
+        minimap.addEventListener('pointerdown', (e) => {
+          mDragging = true;
+          minimap.setPointerCapture(e.pointerId);
+          const mr = minimap.getBoundingClientRect();
+          const cr = canvas.getBoundingClientRect();
+          mSl = mr.left - cr.left;
+          mSt = mr.top  - cr.top;
+          // Switch from CSS-anchored (right/top) to JS-controlled (left/top).
+          minimap.style.left  = mSl + 'px';
+          minimap.style.top   = mSt + 'px';
+          minimap.style.right = 'auto';
+          minimap.setAttribute('data-dragged', 'true');
+          mOx = e.clientX;
+          mOy = e.clientY;
+          e.preventDefault();
+        });
+
+        minimap.addEventListener('pointermove', (e) => {
+          if (!mDragging) return;
+          const dx = e.clientX - mOx;
+          const dy = e.clientY - mOy;
+          const cr = canvas.getBoundingClientRect();
+          const w  = minimap.offsetWidth;
+          const h  = minimap.offsetHeight;
+          let nl = mSl + dx;
+          let nt = mSt + dy;
+          nl = Math.max(4, Math.min(cr.width  - w - 4, nl));
+          nt = Math.max(4, Math.min(cr.height - h - 4, nt));
+          minimap.style.left = nl + 'px';
+          minimap.style.top  = nt + 'px';
+        });
+
+        const endM = (e) => {
+          if (!mDragging) return;
+          mDragging = false;
+          try { minimap.releasePointerCapture(e.pointerId); } catch (_) {}
+        };
+        minimap.addEventListener('pointerup', endM);
+        minimap.addEventListener('pointercancel', endM);
+      }
+
+      // ── Initial leader paint on load (pre-expanded panels) + on resize ──
+      function repaintAll() {
+        panels.forEach((_p, id) => updateLeader(id));
+      }
+      window.addEventListener('load',   repaintAll);
+      window.addEventListener('resize', repaintAll);
+      requestAnimationFrame(repaintAll);
+    })();
+  </script>
+
+</div></body></html>

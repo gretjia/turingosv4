@@ -178,21 +178,29 @@ fn resolve_turingos_bin() -> String {
     "turingos".to_string()
 }
 
-/// Resolve the TuringOS workspace directory.
+/// Resolve the TuringOS workspace directory as an **absolute path**.
 ///
 /// Resolution order:
 ///   1. `TURINGOS_WEB_WORKSPACE` env var (explicit operator config)
-///   2. `tmp/phase7_active` (W8.1: harmonized with welcome.rs default;
-///      previously fell back to `current_dir()` which caused session dirs
-///      to land in the repo root — see W8 Validation Round 1 finding P2.)
+///   2. `tmp/phase7_active` under the server's current_dir at startup
+///
+/// Absolute is required because the spawned `turingos` subprocess has its
+/// own cwd (often the session_dir under the workspace), so a relative
+/// `--workspace` arg would re-resolve from there and miss the real path.
 #[cfg(feature = "web")]
 fn resolve_workspace() -> String {
-    if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
-        if !v.is_empty() {
-            return v;
-        }
+    let raw = std::env::var("TURINGOS_WEB_WORKSPACE")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "tmp/phase7_active".to_string());
+    let p = PathBuf::from(&raw);
+    if p.is_absolute() {
+        return raw;
     }
-    "tmp/phase7_active".to_string()
+    match std::env::current_dir() {
+        Ok(cwd) => cwd.join(p).to_string_lossy().into_owned(),
+        Err(_) => raw,
+    }
 }
 
 #[cfg(feature = "web")]

@@ -14,6 +14,8 @@ pub(crate) mod fixtures;
 pub(crate) mod generate;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — UI IR types + serde shapes.
 pub(crate) mod ir;
+/// TRACE_MATRIX FC1-N5: Phase 7 web — derived-evidence live progress feed.
+pub(crate) mod progress;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — server-side IR-to-HTML renderer.
 pub(crate) mod render;
 /// TRACE_MATRIX FC2-N16: Phase 7 web — axum route table builder.

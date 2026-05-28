@@ -116,10 +116,16 @@ pub(crate) async fn artifact_bundle_get_handler(
 
 #[cfg(feature = "web")]
 fn resolve_workspace() -> String {
-    if let Ok(val) = std::env::var("TURINGOS_WEB_WORKSPACE") {
-        if !val.is_empty() {
-            return val;
-        }
+    let raw = std::env::var("TURINGOS_WEB_WORKSPACE")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "tmp/phase7_active".to_string());
+    let p = std::path::PathBuf::from(&raw);
+    if p.is_absolute() {
+        return raw;
     }
-    "tmp/phase7_active".to_string()
+    match std::env::current_dir() {
+        Ok(cwd) => cwd.join(p).to_string_lossy().into_owned(),
+        Err(_) => raw,
+    }
 }

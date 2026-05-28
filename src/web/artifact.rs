@@ -224,12 +224,18 @@ fn mime_by_extension(path: &std::path::Path) -> &'static str {
 ///      serves to miss session dirs created by spec/generate.)
 #[cfg(feature = "web")]
 fn resolve_workspace() -> String {
-    if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
-        if !v.is_empty() {
-            return v;
-        }
+    let raw = std::env::var("TURINGOS_WEB_WORKSPACE")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "tmp/phase7_active".to_string());
+    let p = std::path::PathBuf::from(&raw);
+    if p.is_absolute() {
+        return raw;
     }
-    "tmp/phase7_active".to_string()
+    match std::env::current_dir() {
+        Ok(cwd) => cwd.join(p).to_string_lossy().into_owned(),
+        Err(_) => raw,
+    }
 }
 
 // ---------------------------------------------------------------------------

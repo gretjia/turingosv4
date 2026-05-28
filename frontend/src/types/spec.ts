@@ -94,6 +94,24 @@ export interface MarketViewResponse {
 }
 
 /**
+ * One DERIVED-EVIDENCE progress marker from GET /api/progress/by-session/<id>.
+ * NOT canonical — the live cursor that the committed market tree replaces.
+ */
+export interface ProgressEvent {
+  session_id: string;
+  stage: 'worker_start' | 'worker_done' | 'market_settled';
+  agent: string;
+  artifact_cid: string | null;
+  t_unix_ms: number;
+}
+
+/** Top-level response from GET /api/progress/by-session/<session_id>. */
+export interface ProgressViewResponse {
+  session_id: string;
+  events: ProgressEvent[];
+}
+
+/**
  * Frontend driven-mode state machine.
  */
 export type GrillState =
