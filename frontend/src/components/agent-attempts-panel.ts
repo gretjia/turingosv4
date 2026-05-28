@@ -20,6 +20,8 @@ export class TosAgentAttemptsPanel extends HTMLElement {
   private _marketState: 'open' | 'finalized' | 'all_rejected' = 'open';
   private _winnerAgentId: string | null = null;
   private _treasuryBountyMicro = 0;
+  private _buyYesCount = 0;
+  private _buyNoCount = 0;
   private _pending = true;   // true while the initial fetch is in flight or returned 404
   private _wsListener: ((e: Event) => void) | null = null;
 
@@ -68,6 +70,8 @@ export class TosAgentAttemptsPanel extends HTMLElement {
       this._marketState = data.market_state;
       this._winnerAgentId = data.winner_agent_id;
       this._treasuryBountyMicro = data.treasury_bounty_micro;
+      this._buyYesCount = data.buy_yes_count ?? 0;
+      this._buyNoCount = data.buy_no_count ?? 0;
       this._pending = false;
       this._render();
     } catch {
@@ -272,6 +276,12 @@ export class TosAgentAttemptsPanel extends HTMLElement {
       '  padding-top: 0.5rem;',
       '  margin-top: 0.25rem;',
       '}',
+      '.aap-trades {',
+      '  font-family: "JetBrains Mono", ui-monospace, monospace;',
+      '  font-size: 0.78rem;',
+      '  color: var(--aap-muted);',
+      '  margin: -0.15rem 0 0.55rem;',
+      '}',
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -308,6 +318,13 @@ export class TosAgentAttemptsPanel extends HTMLElement {
     }
 
     this.appendChild(header);
+
+    if (!this._pending) {
+      const trades = document.createElement('p');
+      trades.className = 'aap-trades';
+      trades.textContent = `YES buys ${this._buyYesCount} · NO buys ${this._buyNoCount}`;
+      this.appendChild(trades);
+    }
 
     // --- Pending state ---
     if (this._pending) {

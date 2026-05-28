@@ -3,8 +3,8 @@ authority = "constitution.md + script inventory + ChainTape/CAS evidence"
 policy = "all_retained_scripts_classified"
 final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
 notes = [
-  "This is a derived inventory over scripts/ files.",
-  "It closes script accounting, not OBL-005 final closure.",
+  "This is a derived inventory over retained automation files in scripts/, tools/, rules/, .claude/hooks/, and .github/workflows/.",
+  "It closes automation accounting, not OBL-005 final closure.",
   "Historical smoke runners may stay retained only when explicitly marked non-closing.",
 ]
 
@@ -44,6 +44,59 @@ paths = [
 ]
 covered_by = [
   "AGENTS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "github_ci_workflows"
+classification = "constitution_gate"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  ".github/workflows",
+]
+covered_by = [
+  "AGENTS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "claude_hook_harness"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  ".claude/hooks",
+]
+covered_by = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "rules_engine_harness"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "rules",
+]
+covered_by = [
+  ".claude/hooks/judge.sh",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "research_preregistration_tools"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "tools",
+]
+covered_by = [
+  "handover/preregistration",
   "tests/constitution_script_liveness_inventory.rs",
 ]
 

@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, and OBL-006 are satisfied.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, and OBL-008 are satisfied.
 
 ---
 
@@ -92,4 +92,20 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Level: must
 - Status: satisfied
 - Evidence: Branch `codex/real-market-generate-kernel` rewires `src/bin/turingos/cmd_generate.rs::emit_polymarket_market_for_session` so the shared CLI/web `turingos generate` path emits canonical `MarketSeedTx -> CpmmPoolTx -> BuyWithCoinRouterTx -> VerifyTx` on the same workspace ChainTape/CAS path before settlement; no `src/state/sequencer.rs` or `src/state/typed_tx.rs` schema/admission surface was edited. The RED gate first failed with chain kinds `[PredicateBindingActivate, MapReduceTick, TaskOpen, EscrowLock, Work, Work, Work, MarketSeed, Verify, FinalizeReward, EventResolve]`, proving the prior no-pool/no-router bug. Post-fix verification: `cargo test --test generate_emits_work_tx_smoke -- --nocapture` passed 4/4, including web session-subdir and retry-after-rejection flows; `cargo test --bin turingos_web --features web derive_yes_signal -- --nocapture` passed 2/2, proving `yes_signal_bp` derives from `cpmm_pools_t` instead of a flat seed; `cargo test --test constitution_web_cli_kernel_invariant -- --nocapture` passed 2/2; `cargo test --test constitution_real6_task_outcome_market -- --nocapture` passed 14/14; `cargo test --test constitution_router_buy_with_coin -- --nocapture` passed 10/10; `cargo test --test constitution_matrix_drift -- --nocapture` passed 3/3; `bash scripts/run_constitution_gates.sh` passed with `[k-1-5] total=165 failed=0`; `cargo test --workspace --no-fail-fast` passed. Headless AGY reviewed the insertion point/root-chain risk and produced the implementation patch; Claude implementation mode was attempted twice but hung without edits. Final headless audit is saved at `handover/audits/OBL006_REAL_MARKET_GENERATE_HEADLESS_AUDIT_2026-05-28.md`; Claude and AGY both returned `NO-VIOLATION`.
+- Last-touched: 2026-05-28
+
+## OBL-007: 全仓同类失误审计与 no-zombie gate 补强
+- Source: "仔细检查一下，确认整个代码库没有类似的失误，如何确认全部宪法Flowcharts都点亮，代码中所有substrate没有僵尸模块？是否要检索一下软件工程行业best practice是如何做这个检查的？"
+- Level: must
+- Status: satisfied
+- Scope: Audit current mainline for PR#209-like split-path/fake-market mistakes and no-zombie blind spots; compare with software-engineering best practice; fix mechanically closeable liveness-gate gaps found during the audit.
+- Evidence: Branch `codex/liveness-audit-hardening` closes the found liveness blind spots and web/CLI split-path risk. `src/web/build_session.rs` and `src/web/preview.rs` are now declared and routed; `tests/constitution_production_module_liveness.rs` recursively proves every `src/**/*.rs` file is reachable from `src/lib.rs`, `src/main.rs`, or a `src/bin/*.rs` root and verifies named smoke-gate functions exist; `tests/constitution_script_liveness_inventory.rs` now accounts for retained automation under `scripts/`, `tools/`, `rules/`, `.claude/hooks/`, and `.github/workflows/`; `tests/constitution_web_cli_kernel_invariant.rs` now blocks artifact/generate bundle logic from forking into web by forbidding direct CAS/manifest/CID parsing in `src/web/artifact_bundle.rs`, `src/web/preview.rs`, and `src/web/generate.rs`. Runtime artifact reads were centralized in `src/runtime/artifact_bundle.rs` and web handlers now call that shared kernel. Verification before this ledger close: targeted endpoint/invariant tests passed, production/script liveness passed, flowchart livenow/source-alignment passed, realworld liveness passed, `cargo check --features web --bin turingos --bin turingos_web` passed, and the first full `bash scripts/run_constitution_gates.sh` run reached `[k-1-5] total=165 failed=2` with only the expected OBL headline/reconciliation failures caused by this row still being `in_progress`.
+- Last-touched: 2026-05-28
+
+## OBL-008: 真实市场必须包含 NO/做空侧链上交易
+- Source: "派agent检查现在的做空机制有真实发生吗？如果没发生做空，也是宪法不完善：「做空 NO」目前恒为\"无\"——PR #209 的市场序列只有一个 BuyYes 投资者，没有对手盘做空。要看到做空，后端得加 NO 单。"
+- Level: must
+- Status: satisfied
+- Scope: Independently inspect whether the current generate/Polymarket backend emits a real `BuyDirection::BuyNo` / NO-side `BuyWithCoinRouterTx`; if absent, add the backend NO order and executable tests so CLI and web session generate paths cannot regress to a one-sided fake market.
+- Evidence: Independent explorer `019e6dfc-8c09-7b12-932d-816df5454575` reported `NO` on 2026-05-28: current `turingos generate` had exactly one `BuyWithCoinRouterTx(BuyYes)`, tests asserted only `BuyYes`, and `src/web/market_view.rs` did not decode router trade direction. This branch fixes the gap by changing `src/bin/turingos/cmd_generate.rs` to emit `MarketSeed -> CpmmPool -> BuyWithCoinRouter(BuyYes) -> BuyWithCoinRouter(BuyNo) -> Verify -> FinalizeReward -> EventResolve` on the canonical ChainTape when a preseeded counterparty exists. `tests/generate_emits_work_tx_smoke.rs` now requires two router txs, directions `{BuyYes, BuyNo}`, distinct YES/NO buyers, positive pay coin, nonzero signatures, and replayed YES and NO share balances. `src/web/market_view.rs` now decodes `TxKind::BuyWithCoinRouter` and returns `router_trades`, `buy_yes_count`, and `buy_no_count`; the frontend panel displays those counts. Verification: `cargo test --features web --test generate_emits_work_tx_smoke -- --nocapture` passed 4/4; `cargo test --features web --bin turingos_web -- --nocapture` passed 87/87; `cargo test --test constitution_web_cli_kernel_invariant -- --nocapture` passed 3/3; `npm run build` in `frontend/` passed; `git diff --check` passed.
 - Last-touched: 2026-05-28

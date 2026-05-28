@@ -11,6 +11,13 @@ use std::path::{Path, PathBuf};
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/script_liveness_inventory.toml";
 const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
+const AUTOMATION_ROOTS: &[&str] = &[
+    "scripts",
+    "tools",
+    "rules",
+    ".claude/hooks",
+    ".github/workflows",
+];
 
 #[derive(Debug)]
 struct ScriptGroup {
@@ -150,8 +157,8 @@ fn claimed_script_paths(groups: &[ScriptGroup]) -> BTreeMap<String, String> {
         for path in &group.paths {
             let path = Path::new(path);
             assert!(
-                path.starts_with("scripts"),
-                "script group `{}` claims non-script path: {}",
+                AUTOMATION_ROOTS.iter().any(|root| path.starts_with(root)),
+                "script group `{}` claims path outside retained automation roots: {}",
                 group.id,
                 path.display()
             );
@@ -199,14 +206,18 @@ fn script_inventory_policy_is_final_closure_witness() {
 fn every_retained_script_file_has_exactly_one_liveness_group() {
     let groups = groups();
     let claimed = claimed_script_paths(&groups);
-    let discovered: BTreeSet<_> = collect_files(Path::new("scripts"))
-        .into_iter()
-        .map(|path| normalize(&path))
-        .collect();
+    let mut discovered = BTreeSet::new();
+    for root in AUTOMATION_ROOTS {
+        discovered.extend(
+            collect_files(Path::new(root))
+                .into_iter()
+                .map(|path| normalize(&path)),
+        );
+    }
     let claimed_set: BTreeSet<_> = claimed.keys().cloned().collect();
     assert_eq!(
         claimed_set, discovered,
-        "every retained scripts/ file must be explicitly classified"
+        "every retained automation file must be explicitly classified"
     );
 }
 

@@ -52,6 +52,14 @@ fn walk_rust_files_in(dir: &Path) -> Vec<std::path::PathBuf> {
     out
 }
 
+fn code_without_line_comments(content: &str) -> String {
+    content
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[test]
 fn web_layer_never_calls_llm_client_directly() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -80,11 +88,7 @@ fn web_layer_never_calls_llm_client_directly() {
         for token in &forbidden_tokens {
             // Strip line comments to avoid false positives from rationale
             // discussions; keep block comments and code text. Cheap line filter.
-            let code_only: String = content
-                .lines()
-                .filter(|line| !line.trim_start().starts_with("//"))
-                .collect::<Vec<_>>()
-                .join("\n");
+            let code_only = code_without_line_comments(&content);
             if code_only.contains(token) {
                 violations.push((file.clone(), token));
             }
@@ -102,6 +106,65 @@ fn web_layer_never_calls_llm_client_directly() {
              `turingos` CLI binary (e.g. via `tokio::process::Command::new(\
              \"turingos\")`). Violations:\n{}",
             detail.join("\n")
+        );
+    }
+}
+
+#[test]
+fn web_artifact_delivery_uses_runtime_artifact_bundle_kernel() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let checked_files = [
+        (
+            "src/web/artifact_bundle.rs",
+            "read_artifact_bundle_file",
+            "bundle serve must call runtime::artifact_bundle::read_artifact_bundle_file",
+        ),
+        (
+            "src/web/preview.rs",
+            "read_artifact_bundle_file",
+            "preview serve must call runtime::artifact_bundle::read_artifact_bundle_file",
+        ),
+        (
+            "src/web/generate.rs",
+            "read_artifact_bundle_manifest_by_cid",
+            "generate response enrichment must call runtime::artifact_bundle::read_artifact_bundle_manifest_by_cid",
+        ),
+    ];
+    let forbidden_tokens = [
+        "bottom_white::cas::store::CasStore::open",
+        "runtime::spec_capsule::cas_path",
+        "serde_json::from_slice::<",
+        "fn cid_from_hex",
+    ];
+
+    let mut violations = Vec::new();
+    for (relative, required_token, required_reason) in checked_files {
+        let path = root.join(relative);
+        let content =
+            std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {relative}: {e}"));
+        let code_only = code_without_line_comments(&content);
+
+        if !code_only.contains(required_token) {
+            violations.push(format!(
+                "  {relative} missing `{required_token}`: {required_reason}"
+            ));
+        }
+
+        for token in forbidden_tokens {
+            if code_only.contains(token) {
+                violations.push(format!(
+                    "  {relative} contains forbidden artifact-kernel fork token `{token}`"
+                ));
+            }
+        }
+    }
+
+    if !violations.is_empty() {
+        panic!(
+            "WEB-CLI KERNEL INVARIANT VIOLATED: artifact bundle read/serve logic \
+             must live in src/runtime/artifact_bundle.rs, with web as transport \
+             only. Violations:\n{}",
+            violations.join("\n")
         );
     }
 }

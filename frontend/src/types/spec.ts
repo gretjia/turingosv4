@@ -72,6 +72,12 @@ export interface AgentCandidateView {
   is_winner: boolean;
 }
 
+export interface RouterTradeView {
+  buyer: string;
+  direction: 'buy_yes' | 'buy_no';
+  pay_coin_micro: number;
+}
+
 /**
  * Top-level response from GET /api/market/by-session/<session_id>.
  */
@@ -81,6 +87,9 @@ export interface MarketViewResponse {
   market_state: 'open' | 'finalized' | 'all_rejected';
   treasury_bounty_micro: number;
   candidates: AgentCandidateView[];
+  router_trades: RouterTradeView[];
+  buy_yes_count: number;
+  buy_no_count: number;
   winner_agent_id: string | null;
 }
 

@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
 const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
@@ -141,6 +141,125 @@ fn standalone_binary_inventory() -> Vec<String> {
     ids
 }
 
+fn normalize_path(path: &Path) -> String {
+    let cwd = fs::canonicalize(".").unwrap_or_else(|err| panic!("canonicalize cwd: {err}"));
+    let absolute =
+        fs::canonicalize(path).unwrap_or_else(|err| panic!("canonicalize {path:?}: {err}"));
+    absolute
+        .strip_prefix(&cwd)
+        .unwrap_or(&absolute)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn collect_rs_files(root: &Path) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(path) = stack.pop() {
+        if path.is_dir() {
+            for entry in
+                fs::read_dir(&path).unwrap_or_else(|err| panic!("read dir {path:?}: {err}"))
+            {
+                stack.push(
+                    entry
+                        .unwrap_or_else(|err| panic!("read dir entry {path:?}: {err}"))
+                        .path(),
+                );
+            }
+        } else if path.is_file() && path.extension().and_then(|v| v.to_str()) == Some("rs") {
+            out.insert(normalize_path(&path));
+        }
+    }
+    out
+}
+
+fn path_attr(line: &str) -> Option<String> {
+    let line = line.trim();
+    let rest = line.strip_prefix("#[path")?;
+    let start = rest.find('"')?;
+    let rest = &rest[start + 1..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
+fn module_name(line: &str) -> Option<String> {
+    let line = line.trim();
+    let rest = if let Some(rest) = line.strip_prefix("pub mod ") {
+        rest
+    } else if let Some(rest) = line.strip_prefix("pub(crate) mod ") {
+        rest
+    } else if let Some(rest) = line.strip_prefix("mod ") {
+        rest
+    } else {
+        return None;
+    };
+    rest.strip_suffix(';').map(str::to_string)
+}
+
+fn declared_module_file(
+    parent_file: &Path,
+    module: &str,
+    explicit_path: Option<String>,
+) -> PathBuf {
+    let parent_dir = parent_file
+        .parent()
+        .unwrap_or_else(|| panic!("module file has no parent: {parent_file:?}"));
+    if let Some(path) = explicit_path {
+        return parent_dir.join(path);
+    }
+
+    let flat = parent_dir.join(format!("{module}.rs"));
+    if flat.exists() {
+        return flat;
+    }
+    parent_dir.join(module).join("mod.rs")
+}
+
+fn walk_declared_source_files(path: &Path, seen: &mut BTreeSet<String>) {
+    assert!(
+        path.exists(),
+        "declared Rust module file is missing: {path:?}"
+    );
+    let normalized = normalize_path(path);
+    if !seen.insert(normalized) {
+        return;
+    }
+
+    let raw = fs::read_to_string(path).unwrap_or_else(|err| panic!("read {path:?}: {err}"));
+    let mut pending_path_attr = None;
+    for line in raw.lines() {
+        if let Some(path) = path_attr(line) {
+            pending_path_attr = Some(path);
+            continue;
+        }
+        if let Some(name) = module_name(line) {
+            let child = declared_module_file(path, &name, pending_path_attr.take());
+            walk_declared_source_files(&child, seen);
+        } else if !line.trim_start().starts_with('#') {
+            pending_path_attr = None;
+        }
+    }
+}
+
+fn declared_source_files() -> BTreeSet<String> {
+    let mut seen = BTreeSet::new();
+    for root in ["src/lib.rs", "src/main.rs"] {
+        let path = Path::new(root);
+        if path.exists() {
+            walk_declared_source_files(path, &mut seen);
+        }
+    }
+    for entry in fs::read_dir("src/bin").unwrap_or_else(|err| panic!("read src/bin: {err}")) {
+        let path = entry
+            .unwrap_or_else(|err| panic!("read src/bin entry: {err}"))
+            .path();
+        if path.is_file() && path.extension().and_then(|v| v.to_str()) == Some("rs") {
+            walk_declared_source_files(&path, &mut seen);
+        }
+    }
+    seen
+}
+
 fn declared_inventory() -> BTreeSet<String> {
     let roots = [
         ("src/lib.rs", "", false),
@@ -251,6 +370,23 @@ fn assert_smoke_gate_file_exists(gate: &str) {
     assert_existing_path(path);
 }
 
+fn assert_smoke_gate_function_exists(gate: &str) {
+    let Some((path, function)) = gate.split_once("::") else {
+        return;
+    };
+    let function = function.rsplit("::").next().unwrap_or(function).trim();
+    let raw = fs::read_to_string(path).unwrap_or_else(|err| panic!("read gate {path}: {err}"));
+    let sync_signature = format!("fn {function}(");
+    let async_signature = format!("async fn {function}(");
+    assert!(
+        raw.lines().any(|line| {
+            let line = line.trim_start();
+            line.starts_with(&sync_signature) || line.starts_with(&async_signature)
+        }),
+        "manifest smoke gate `{gate}` names a test function that does not exist"
+    );
+}
+
 #[test]
 fn liveness_manifest_policy_is_real_world_first() {
     let manifest = manifest();
@@ -318,6 +454,17 @@ fn liveness_group_ids_are_unique() {
 }
 
 #[test]
+fn every_src_rust_file_is_reachable_from_a_crate_or_binary_root() {
+    let discovered = collect_rs_files(Path::new("src"));
+    let declared = declared_source_files();
+    let missing: Vec<_> = discovered.difference(&declared).cloned().collect();
+    assert!(
+        missing.is_empty(),
+        "src Rust files not declared from src/lib.rs, src/main.rs, or a src/bin root: {missing:?}"
+    );
+}
+
+#[test]
 fn every_exported_module_has_exactly_one_liveness_group() {
     let groups = groups();
     assert_unique_group_ids(&groups);
@@ -365,6 +512,7 @@ fn candidate_groups_have_real_world_chaintape_or_cas_evidence() {
         );
         for gate in &group.smoke_gates {
             assert_smoke_gate_file_exists(gate);
+            assert_smoke_gate_function_exists(gate);
         }
         assert!(
             !group.evidence_requires.is_empty(),
