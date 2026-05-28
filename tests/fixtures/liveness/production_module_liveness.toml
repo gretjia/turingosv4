@@ -664,10 +664,12 @@ module_ids = [
   "bin::turingos_web",
   "web::artifact",
   "web::artifact_bundle",
+  "web::build_session",
   "web::fixtures",
   "web::generate",
   "web::ir",
   "web::market_view",
+  "web::preview",
   "web::render",
   "web::router",
   "web::session_snapshot",
@@ -686,6 +688,8 @@ smoke_gates = [
   "tests/cli_web_generate_smoke.rs",
   "tests/web_spec_turn_endpoint.rs",
   "tests/constitution_web_cli_kernel_invariant.rs",
+  "tests/build_session_derived_from_cas.rs::build_session_derived_from_cas",
+  "tests/preview_run_capsule_written.rs::test_preview_run_capsule_written",
 ]
 real_world_evidence = [
   "handover/evidence/stage_phase7_real_e2e_20260518T031804Z/user_simulator/transcript.md",

@@ -541,19 +541,13 @@ pub(crate) async fn generate_handler(
                 &req.session_id,
             )
         {
-            if let Some(cid) = cid_from_hex(&cid_str) {
-                let cas_dir = turingosv4::runtime::spec_capsule::cas_path(ws_path);
-                if let Ok(store) = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir) {
-                    if let Ok(bytes) = store.get(&cid) {
-                        if let Ok(m) = serde_json::from_slice::<
-                            turingosv4::runtime::artifact_bundle::ArtifactBundleManifest,
-                        >(&bytes)
-                        {
-                            manifest = Some(m);
-                            bundle_cid = Some(cid_str);
-                        }
-                    }
-                }
+            if let Ok(m) =
+                turingosv4::runtime::artifact_bundle::read_artifact_bundle_manifest_by_cid(
+                    ws_path, &cid_str,
+                )
+            {
+                manifest = Some(m);
+                bundle_cid = Some(cid_str);
             }
         }
 
@@ -775,19 +769,6 @@ fn resolve_workspace() -> String {
         }
     }
     "tmp/phase7_active".to_string()
-}
-
-#[cfg(feature = "web")]
-fn cid_from_hex(s: &str) -> Option<turingosv4::bottom_white::cas::schema::Cid> {
-    if s.len() != 64 {
-        return None;
-    }
-    let mut bytes = [0u8; 32];
-    for i in 0..32 {
-        let hex_byte = &s[i * 2..i * 2 + 2];
-        bytes[i] = u8::from_str_radix(hex_byte, 16).ok()?;
-    }
-    Some(turingosv4::bottom_white::cas::schema::Cid(bytes))
 }
 
 // ---------------------------------------------------------------------------

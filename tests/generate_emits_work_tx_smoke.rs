@@ -333,8 +333,8 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     );
     let chain = walk_chain(&runtime_repo, &store);
     assert!(
-        chain.len() >= 11,
-        "chain must have >= 11 L4 entries (TaskOpen + EscrowLock + Work*3 + MarketSeed + CpmmPool + BuyWithCoinRouter + Verify + FinalizeReward + EventResolve); got {}",
+        chain.len() >= 12,
+        "chain must have >= 12 L4 entries (TaskOpen + EscrowLock + Work*3 + MarketSeed + CpmmPool + BuyWithCoinRouter*2 + Verify + FinalizeReward + EventResolve); got {}",
         chain.len()
     );
 
@@ -357,7 +357,7 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     // we sanity-check the session sequence is present).
     let kinds: Vec<TxKind> = chain.iter().map(|(e, _)| e.tx_kind).collect();
     assert!(
-        kinds.windows(11).any(|w| {
+        kinds.windows(12).any(|w| {
             matches!(
                 w,
                 [
@@ -369,13 +369,14 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
                     TxKind::MarketSeed,
                     TxKind::CpmmPool,
                     TxKind::BuyWithCoinRouter,
+                    TxKind::BuyWithCoinRouter,
                     TxKind::Verify,
                     TxKind::FinalizeReward,
                     TxKind::EventResolve
                 ]
             )
         }),
-        "chain must contain the TaskOpen→EscrowLock→Work*3→MarketSeed→CpmmPool→BuyWithCoinRouter→Verify→FinalizeReward→EventResolve sequence; \
+        "chain must contain the TaskOpen→EscrowLock→Work*3→MarketSeed→CpmmPool→BuyWithCoinRouter(YES)→BuyWithCoinRouter(NO)→Verify→FinalizeReward→EventResolve sequence; \
          got kinds: {:?}",
         kinds
     );
@@ -517,8 +518,9 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     }
 
     // Decode the real market leg + assert it targets our event. MarketSeed
-    // funds inventory; CpmmPool creates the price surface; BuyWithCoinRouter
-    // records an actual agent trade before verification/finalization.
+    // funds inventory; CpmmPool creates the price surface; the two
+    // BuyWithCoinRouter entries record real YES and NO agent trades before
+    // verification/finalization.
     let seed_pair = chain
         .iter()
         .find(|(e, _)| e.tx_kind == TxKind::MarketSeed)
@@ -559,33 +561,47 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         panic!("CpmmPool entry did not decode as TypedTx::CpmmPool");
     }
 
-    let router_pair = chain
+    let router_pairs: Vec<_> = chain
         .iter()
-        .find(|(e, _)| e.tx_kind == TxKind::BuyWithCoinRouter)
-        .expect("at least one BuyWithCoinRouter entry");
-    if let TypedTx::BuyWithCoinRouter(router) = &router_pair.1 {
+        .filter(|(e, _)| e.tx_kind == TxKind::BuyWithCoinRouter)
+        .collect();
+    assert_eq!(
+        router_pairs.len(),
+        2,
+        "generate market activation must place exactly one YES buy and one NO buy"
+    );
+    let mut seen_yes_buy = false;
+    let mut seen_no_buy = false;
+    for (_, tx) in router_pairs {
+        let TypedTx::BuyWithCoinRouter(router) = tx else {
+            panic!("BuyWithCoinRouter entry did not decode as TypedTx::BuyWithCoinRouter");
+        };
         assert_eq!(
             router.event_id, expected_event,
             "BuyWithCoinRouterTx.event_id"
-        );
-        assert_eq!(
-            router.buyer,
-            AgentId("worker-alpha".into()),
-            "BuyWithCoinRouterTx.buyer"
-        );
-        assert_eq!(
-            router.direction,
-            BuyDirection::BuyYes,
-            "generate market activation must place a real YES buy"
         );
         assert!(
             router.pay_coin.micro_units() > 0,
             "BuyWithCoinRouterTx.pay_coin must be positive"
         );
         assert_nonzero_agent_signature(router.signature, "BuyWithCoinRouterTx.signature");
-    } else {
-        panic!("BuyWithCoinRouter entry did not decode as TypedTx::BuyWithCoinRouter");
+        match router.direction {
+            BuyDirection::BuyYes => {
+                seen_yes_buy = true;
+                assert_eq!(router.buyer, AgentId("worker-alpha".into()), "BuyYes buyer");
+            }
+            BuyDirection::BuyNo => {
+                seen_no_buy = true;
+                assert_ne!(
+                    router.buyer,
+                    AgentId("worker-alpha".into()),
+                    "BuyNo counterparty must be distinct from the YES buyer"
+                );
+            }
+        }
     }
+    assert!(seen_yes_buy, "router sequence must include a real BuyYes");
+    assert!(seen_no_buy, "router sequence must include a real BuyNo");
 
     let verify_pair = chain
         .iter()
@@ -651,6 +667,17 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
     assert!(
         alpha_shares.yes.units > 0,
         "worker-alpha must receive YES shares from BuyWithCoinRouter"
+    );
+    let beta_shares = replayed
+        .economic_state_t
+        .conditional_share_balances_t
+        .0
+        .get(&AgentId("worker-beta".into()))
+        .and_then(|events| events.get(&expected_event))
+        .expect("worker-beta must hold conditional shares from the NO router trade");
+    assert!(
+        beta_shares.no.units > 0,
+        "worker-beta must receive NO shares from BuyWithCoinRouter"
     );
     let task_market = replayed
         .economic_state_t
@@ -1041,7 +1068,7 @@ fn generate_retry_after_rejected_worktx_finalizes_same_session_market() {
         "retry must reuse the existing escrow instead of double-locking bounty; kinds={kinds:?}"
     );
     assert!(
-        kinds.windows(9).any(|w| {
+        kinds.windows(10).any(|w| {
             matches!(
                 w,
                 [
@@ -1051,13 +1078,14 @@ fn generate_retry_after_rejected_worktx_finalizes_same_session_market() {
                     TxKind::MarketSeed,
                     TxKind::CpmmPool,
                     TxKind::BuyWithCoinRouter,
+                    TxKind::BuyWithCoinRouter,
                     TxKind::Verify,
                     TxKind::FinalizeReward,
                     TxKind::EventResolve
                 ]
             )
         }),
-        "retry path must advance Open market to finalized via Work→MarketSeed→CpmmPool→BuyWithCoinRouter→Verify→FinalizeReward→EventResolve; got {kinds:?}"
+        "retry path must advance Open market to finalized via Work→MarketSeed→CpmmPool→BuyWithCoinRouter(YES)→BuyWithCoinRouter(NO)→Verify→FinalizeReward→EventResolve; got {kinds:?}"
     );
 
     let replayed = replay_from_disk(&runtime_repo, &cas_dir);

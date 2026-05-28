@@ -43,7 +43,7 @@ use turingosv4::runtime::cid_hex::cid_from_hex_str;
 use turingosv4::runtime::predicate_registry_loader;
 use turingosv4::runtime::PinnedPubkeyManifest;
 use turingosv4::state::q_state::{AgentId, EconomicState, QState, TaskId, TaskMarketState, TxId};
-use turingosv4::state::typed_tx::{EventId, TypedTx};
+use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 use super::ws::AppState;
 
@@ -70,6 +70,12 @@ const DEFAULT_WORK_STAKE_MICRO: i64 = 100;
 ///   "task_id": "pr1-<session_id>",
 ///   "market_state": "open" | "finalized" | "all_rejected",
 ///   "treasury_bounty_micro": 1000,
+///   "buy_yes_count": 1,
+///   "buy_no_count": 1,
+///   "router_trades": [
+///     {"buyer":"worker-alpha","direction":"buy_yes","pay_coin_micro":100},
+///     {"buyer":"worker-beta","direction":"buy_no","pay_coin_micro":25}
+///   ],
 ///   "candidates": [
 ///     {
 ///       "agent_id": "worker-alpha",
@@ -154,6 +160,13 @@ struct CandidateRecord {
     rejection_class: Option<String>,
 }
 
+#[derive(Clone)]
+struct RouterTradeRecord {
+    buyer: AgentId,
+    direction: BuyDirection,
+    pay_coin_micro: i64,
+}
+
 /// Build the market view JSON string by reading the workspace's canonical
 /// `runtime_repo` chain. Returns `Ok(None)` when the chain has no L4 entry
 /// for this session's task_id (the 404 case).
@@ -197,6 +210,7 @@ fn build_market_view(
     // candidates. Walk entries in chain order; the first finalized claim
     // against a WorkTx is the winner source, not local ranking.
     let mut candidates: Vec<CandidateRecord> = Vec::new();
+    let mut router_trades: Vec<RouterTradeRecord> = Vec::new();
     let mut market_seed_found = false;
     for entry in &entries {
         match entry.tx_kind {
@@ -214,6 +228,22 @@ fn build_market_view(
                             proposal_cid_hex: hex_of_cid(&work.proposal_cid),
                             l4_state: "accepted",
                             rejection_class: None,
+                        });
+                    }
+                }
+            }
+            TxKind::BuyWithCoinRouter => {
+                let bytes = cas
+                    .get(&entry.tx_payload_cid)
+                    .map_err(|e| format!("cas.get(router): {e:?}"))?;
+                let tx: TypedTx = canonical_decode(&bytes)
+                    .map_err(|e| format!("decode BuyWithCoinRouter tx: {e}"))?;
+                if let TypedTx::BuyWithCoinRouter(router) = tx {
+                    if router.event_id == event_id {
+                        router_trades.push(RouterTradeRecord {
+                            buyer: router.buyer.clone(),
+                            direction: router.direction,
+                            pay_coin_micro: router.pay_coin.micro_units(),
                         });
                     }
                 }
@@ -308,6 +338,24 @@ fn build_market_view(
             })
         })
         .collect();
+    let buy_yes_count = router_trades
+        .iter()
+        .filter(|trade| trade.direction == BuyDirection::BuyYes)
+        .count();
+    let buy_no_count = router_trades
+        .iter()
+        .filter(|trade| trade.direction == BuyDirection::BuyNo)
+        .count();
+    let router_trades_json: Vec<serde_json::Value> = router_trades
+        .iter()
+        .map(|trade| {
+            serde_json::json!({
+                "buyer": trade.buyer.0.as_str(),
+                "direction": router_trade_direction_label(trade.direction),
+                "pay_coin_micro": trade.pay_coin_micro,
+            })
+        })
+        .collect();
 
     let payload = serde_json::json!({
         "session_id": session_id,
@@ -315,9 +363,19 @@ fn build_market_view(
         "market_state": market_state_str,
         "treasury_bounty_micro": DEFAULT_BOUNTY_MICRO,
         "candidates": candidates_json,
+        "router_trades": router_trades_json,
+        "buy_yes_count": buy_yes_count,
+        "buy_no_count": buy_no_count,
         "winner_agent_id": winner_agent_id,
     });
     Ok(Some(payload.to_string()))
+}
+
+fn router_trade_direction_label(direction: BuyDirection) -> &'static str {
+    match direction {
+        BuyDirection::BuyYes => "buy_yes",
+        BuyDirection::BuyNo => "buy_no",
+    }
 }
 
 fn derive_market_state(
@@ -583,6 +641,15 @@ mod tests {
             },
         );
         assert_eq!(derive_yes_signal_bp(&econ, &eid), 7500);
+    }
+
+    #[test]
+    fn router_trade_direction_labels_are_stable() {
+        assert_eq!(
+            router_trade_direction_label(BuyDirection::BuyYes),
+            "buy_yes"
+        );
+        assert_eq!(router_trade_direction_label(BuyDirection::BuyNo), "buy_no");
     }
 
     #[test]

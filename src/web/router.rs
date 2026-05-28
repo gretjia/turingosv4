@@ -1,6 +1,6 @@
 /// TRACE_MATRIX FC1-N5 / FC2-N16: read view materialization + write-path (W4/W5/W7)
 ///
-/// axum 0.7 router for TuringOS Phase 7 Web MVP. 20 routes total.
+/// axum 0.7 router for TuringOS Phase 7 Web MVP.
 ///
 /// W1 adds seven read-only HTTP routes backed by compile-time fixture data.
 /// W2 adds one WebSocket route (HTTP 101 Upgrade) for real-time IR push.
@@ -47,6 +47,10 @@
 /// Artifact serve route (W5):
 ///   GET /api/artifact/:session_id/:name → serves one artifact file with Content-Type
 ///
+/// Build/preview derived routes:
+///   GET /api/build/session/:session_id → derives BuildSessionView from CAS
+///   GET /api/preview/:artifact_bundle_cid/file → serves bundle file from CAS
+///
 /// All HTTP routes return HTTP 200 on the happy path.
 /// All items are `pub(crate)`.
 use axum::{
@@ -60,9 +64,11 @@ use tokio::sync::broadcast;
 
 use super::artifact::artifact_get_handler;
 use super::artifact_bundle::artifact_bundle_get_handler;
+use super::build_session::build_session_handler;
 use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
+use super::preview::preview_get_handler;
 use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
 use super::spec::spec_turn_handler;
 use super::store::TaskMemoryStore;
@@ -86,7 +92,7 @@ const FRONTEND_MAIN_JS: &[u8] = include_bytes!("../../frontend/dist/main.js");
 /// TRACE_MATRIX FC1-N5 / FC1-N10 / FC2-N16: read view materialization + write path
 ///
 /// Build the axum router with all Phase 7 routes wired and `AppState` attached.
-/// Total: 13 routes (Phase 5: -2 static spec routes)
+/// Route groups:
 ///   4 HTML  (W0/W1): /, /agents, /tasks, /audit
 ///   1 HTML  (W6): /build (driven-grill interview centerpiece)
 ///   3 JSON  (W1): /api/dashboard, /api/agents, /api/tasks
@@ -133,7 +139,10 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         // Phase 6.3.x driven-mode grill turn route (W7)
         .route("/api/spec/turn", post(spec_turn_handler))
         // Phase 5.7: server-rendered R2-aesthetic spec view (text/html)
-        .route("/api/spec/view/:session_id", get(super::spec_view::spec_view_handler))
+        .route(
+            "/api/spec/view/:session_id",
+            get(super::spec_view::spec_view_handler),
+        )
         // Polymarket PR1 (2026-05-23): pure-projection market view over
         // per-session generate evidence (transition_ledger + EconomicState).
         // Class 1, read-only. No AppState cache, no LLM call.
@@ -141,12 +150,22 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
             "/api/market/by-session/:session_id",
             get(super::market_view::market_view_handler),
         )
+        // CAS-derived build session view (C7): read-only over session CAS.
+        .route("/api/build/session/:session_id", get(build_session_handler))
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
         .route("/api/artifact/:session_id/:name", get(artifact_get_handler))
         // CAS-backed bundle file serve route (C5): GET one artifact file from CAS
-        .route("/api/bundle/:artifact_bundle_cid/file", get(artifact_bundle_get_handler))
+        .route(
+            "/api/bundle/:artifact_bundle_cid/file",
+            get(artifact_bundle_get_handler),
+        )
+        // CAS-backed preview route (W5): GET one bundle file and writes PreviewRunCapsule.
+        .route(
+            "/api/preview/:artifact_bundle_cid/file",
+            get(preview_get_handler),
+        )
         // W7: welcome onboarding API surface (5 endpoints; in-memory API key)
         .route("/api/welcome/status", get(welcome_status_handler))
         .route("/api/welcome/api-key", post(welcome_set_api_key_handler))
