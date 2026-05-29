@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, and OBL-009 are satisfied.
+Current overall status: **IN PROGRESS** — OBL-001..OBL-009 satisfied; **OBL-010 (Constitutional Market Activation benchmark) OPEN** — §8 for M0/M2/M3 ratified 2026-05-29; building toward G0 (single-instance market activation).
 
 ---
 
@@ -117,4 +117,16 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Real TuringOS path: loop ran via `turingos tdma run --judge swebench --role meta` (real `run_proof_with_ledger`, git tape), NOT a Claude simulation. Shielding: `gold_patch`/`test_patch` never enter any prompt (absent from `SwebenchSampleInput`); retry feedback carries only failing-test names / the model's own apply error.
 - Result (honest, validated post-fix re-run): **loop 0/3, bare 0/3** — neither arm resolved any instance, and across all 9 loop attempts no patch ever crossed the apply barrier (deepseek-v4-pro thinking-on emits malformed unified diffs), so the loop's test-feedback lever was never exercised and there was no pipeline-depth edge. The FIRST runs were structurally broken (Codex P1: the swebench prompt emitted no `tdma-state-update/v1` header, so the kernel could never `Proceed` even on a passing patch; P2: failing-test names never reached the retry prompt; P2: developer-local python default). All fixed and the loop arm re-run (`_fix2`); an earlier stochastic single apply on flask-5063 was **not** reproduced and is reported as noise. Honest n=3 outcome + corrected claims in `handover/reports/PROBE_DEEPSEEK_V4_SWEBENCH_LOOP_2026-05-28.md`. The obligation (real verifier + real TuringOS loop + honest report) is satisfied; a particular "loop wins" outcome was never required.
 - Code (Class 2, no §6 restricted surface): `src/judges/swebench_test_judge.rs` (HF-offline hermetic verifier env + `harness_failure_reason` apply-error feedback), `src/bin/turingos/cmd_tdma.rs` (swebench judge wire-up; TDMA-state-header prompt; thinking from toml; `max_tokens` 16000; portable `python3` default), `src/tdma_runner.rs` (`AnyJudge::Swebench`; failing detail routed via `failed_predicate`), `src/drivers/llm_proxy.py` (honor Rust `thinking:{type:enabled}`).
+- Last-touched: 2026-05-29
+
+## OBL-010: Constitutional Market Activation benchmark (priced-DAG 多 agent 市场 + 真验证器结算)
+- Source: 架构师 2026-05-29 — "Turing OS 对于循环的构建是通过价格的发现 … 每一个节点都有它的 market 价格 … agent 有权利看到所有节点的价格 … 根据价格的发现来决定选择哪一个节点继续去工作" + ζ Run-6 案例("它的市场机制其实是我希望在现有版本中能够做出来，甚至超越") + A′ 路线拍板("方向对，而且这才是 TuringOS 的正确 SWE-bench 方案主轴 … TuringOS loop = priced DAG search under constitutional market dynamics … 市场负责找路；真验证器负责结算") + "请按workflow 完成本次任务"。扩展并取代 OBL-009 的单 agent 框架(OBL-009 单 agent verify-retry 已被诊断为把 TuringOS 降维成普通 scaffold)。
+- Level: must
+- Status: in_progress
+- Scope: 激活宪法的 priced-DAG 多 agent 市场(N-agent 并发 + 价格发现 + 角色博弈 + DAG 路由 + **真验证器 sealed 结算 OMEGA**),以 SWE-bench 为任务域;主结果 = resolve/cost 随 (agents × tx_budget) 的规模曲线(C0-C5),resolve% 仅为一个输出坐标。先证机制(G0)再证能力(G1/G2),行业定位迁 SWE-bench Pro(G3)。
+- §8 授权(2026-05-29,架构师 gretjia,逐原子非一词): **M0**(N-agent 编排,Class 3+trip-wire)、**M2**(真验证器 settlement predicate,Class 4)、**M3**(payout/redeem arm,Class 4) — packet `handover/directives/2026-05-29_MARKET_ACTIVATION_M0_M2_M3_SECTION8_PACKET.md`(SIGNED)。下游门(clean-context 审计 PRE-ship / predicate-GREEN / FC1 不变量 / ship-confirm / PR-only)仍适用。
+- Design: `handover/SWEBENCH_MARKET_ACTIVATION_BENCHMARK_v4_2026-05-29.md`(v4,canonical;v3 单 agent 方案已废弃 `SWEBENCH_V4_COMPARATIVE_BENCHMARK_DESIGN_2026-05-29.md`)。已核实市场原语已建(EconomicState q_state.rs:171 / CPMM sequencer.rs:4010 / price_index.rs:164 / boltzmann_select_parent_v2 actor.rs:46 / Bull-Bear real5_roles.rs:619),缺激活层(M0-M5)。
+- Gates: G0 单实例市场激活(11 条,resolve=0 也算成功) → G1 价格提升候选 → G2 n=50 hermetic → G3 Pro/heldout。
+- Risk register: Art. 0.4 文本陈旧(代码已 Path B git2,git_tape_ledger.rs)— 独立 Class 4 修宪,不阻塞本 campaign,报告显式标 drift + 给机器证据。
+- Next action: 产出 G0 build charter + 逐 atom 可施工实施计划(本轮 workflow);随后从最低风险 additive(M7/M5)起增量施工,真 cargo gate,PR-only。
 - Last-touched: 2026-05-29
