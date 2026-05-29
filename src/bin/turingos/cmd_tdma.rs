@@ -26,7 +26,24 @@ use std::process::ExitCode;
 
 use crate::chat_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use crate::cmd_llm;
+use turingosv4::judges::swebench_test_judge::SwebenchTestJudge;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
+
+/// TRACE_MATRIX FC1a-rtool_input: Minimal SWE-bench sample shape needed to
+/// drive the loop. Deliberately omits `gold_patch` / `test_patch` so the
+/// shielded prompt builder can never read them (CLAUDE.md §4 / AGENTS.md §12).
+/// `serde` ignores extra fields, so a full SWE-bench sample JSON parses fine.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct SwebenchSampleInput {
+    instance_id: String,
+    repo: String,
+    base_commit: String,
+    problem_statement: String,
+    #[serde(default)]
+    hints_text: Option<String>,
+    #[serde(default)]
+    fail_to_pass: Vec<String>,
+}
 
 /// TRACE_MATRIX FC2-N16: `tdma` short-help (registry display).
 pub(crate) const SHORT_HELP: &str =
@@ -37,12 +54,16 @@ pub(crate) const FULL_HELP: &str = r#"turingos tdma — TDMA-Bounded production 
 
 USAGE:
     turingos tdma run --workspace <PATH>
-                       [--judge <nesbitt|putnam_a1|putnam_2025_b3>]
+                       [--judge <nesbitt|putnam_a1|putnam_2025_b3|swebench>]
                        [--role <meta|blackbox>]
                        [--evidence-dir <PATH>]
                        [--max-attempts-per-stage <N>]
                        [--temperature <FLOAT>]
                        [--tape-backend <memory|git>]
+                       [--swebench-sample <PATH>]
+                       [--swebench-python <PATH>]
+                       [--swebench-dataset <NAME>]
+                       [--swebench-workdir <PATH>]
 
 ACTIONS:
     run    Boot a TDMA-Bounded memory kernel, drive it stage-by-stage
@@ -55,6 +76,11 @@ JUDGES:
     nesbitt          Nesbitt's inequality (8 stages; default)
     putnam_a1        Putnam 2024 A1 — 2-adic infinite descent (8 stages)
     putnam_2025_b3   Putnam 2025 B3 — divisor closure (5 stages; post-cutoff)
+    swebench         SWE-bench coding repair (1 stage `Repair`, retried). Each
+                     candidate patch is verified by the REAL official swebench
+                     python harness (hidden-test execution); on failure the
+                     real failing-test names are fed back so the loop retries.
+                     Requires --swebench-sample.
 
 OPTIONS:
     --workspace <PATH>          Workspace directory containing turingos.toml
@@ -63,6 +89,17 @@ OPTIONS:
     --evidence-dir <PATH>       Override evidence output directory
     --max-attempts-per-stage <N>  Hard cap per stage (default: 6)
     --temperature <FLOAT>       Sampling temperature (default: 0.7)
+    --swebench-sample <PATH>    [swebench] JSON of one SWE-bench sample
+                                (instance_id, repo, base_commit,
+                                problem_statement, hints_text, fail_to_pass).
+                                gold_patch/test_patch are NEVER read into the
+                                prompt even if present.
+    --swebench-python <PATH>    [swebench] python with the `swebench` package
+                                installed (default: `python3` on PATH)
+    --swebench-dataset <NAME>   [swebench] HF dataset name
+                                (default: princeton-nlp/SWE-bench_Lite)
+    --swebench-workdir <PATH>   [swebench] harness work dir (default: a
+                                `swebench_work` subdir of the evidence dir)
     --tape-backend <NAME>       Tape substrate. **`git` is the DEFAULT**
                                 as of Atom 25 (Phase E full cutover):
                                 GitTapeLedger at
@@ -204,6 +241,44 @@ fn make_user_prompt(judge_name: &str, stage_label: &str, accepted_steps: &[Strin
     s
 }
 
+// ── SWE-bench coding-repair prompts (shielded) ──────────────────────
+
+/// TRACE_MATRIX FC1a-rtool_input: System prompt for the SWE-bench repair loop.
+/// Like the math judges, the model MUST emit a `tdma-state-update/v1` header on
+/// the first line, then `---BODY---`, then the patch JSON. Without the header the
+/// kernel's `step_forward` can never reach `Proceed` (it routes every output
+/// through the invalid-header retry path), so a resolving patch could never
+/// complete the stage. The body after `---BODY---` is what the judge verifies.
+const SWEBENCH_SYSTEM_PROMPT: &str = "You are a software engineer fixing a bug in a real repository.\n\nYour output MUST start with this JSON object on the FIRST line (the TDMA state header):\n{\"schema_version\":\"tdma-state-update/v1\",\"status\":\"Proceed\",\"task_id\":\"Repair\",\"action\":\"PROPOSE\",\"failed_predicate\":null,\"reject_class\":null,\"next_action_hint\":null,\"evidence_hash\":null}\n\nThen, on a new line, write exactly:\n---BODY---\nThen output ONLY the strict JSON object {\"patch\":\"<unified git diff>\",\"rationale\":\"...\"} — the diff is the `patch` value. Do not include or quote any hidden test code, reference solution, or benchmark patch.";
+
+/// TRACE_MATRIX FC1a-rtool_input: SHIELDED user prompt. Exposes only the public
+/// issue fields + target failing-test NAMES. NEVER reads gold_patch/test_patch
+/// (those fields are absent from `SwebenchSampleInput` by construction). On a
+/// retry, the kernel/runner already appends the verifier's real failing-test
+/// feedback — this builder produces only the base prompt.
+fn make_swebench_user_prompt(sample: &SwebenchSampleInput) -> String {
+    let hints = sample
+        .hints_text
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|h| format!("\n\nMaintainer hints:\n{}", h))
+        .unwrap_or_default();
+    let failing = if sample.fail_to_pass.is_empty() {
+        "(none listed)".to_string()
+    } else {
+        sample.fail_to_pass.join("\n")
+    };
+    format!(
+        "Repository: {repo}\nBase commit: {base_commit}\n\nProblem statement:\n{problem}{hints}\n\nTarget failing tests that your patch must make pass:\n{failing}\n\nProvide a unified git diff patch (standard `git diff` format, file paths relative to the repository root, beginning with `diff --git`, with correct @@ hunk headers) that resolves the issue so the failing tests pass, as the `patch` field of a JSON object {{\"patch\":\"...\",\"rationale\":\"...\"}}. Do not include or quote any hidden test code, reference solution, or benchmark patch.",
+        repo = sample.repo,
+        base_commit = sample.base_commit,
+        problem = sample.problem_statement,
+        hints = hints,
+        failing = failing,
+    )
+}
+
 /// TRACE_MATRIX FC2-N16: `turingos tdma` subcommand entry-point.
 pub(crate) fn run(args: &[String]) -> ExitCode {
     if args.is_empty() {
@@ -232,6 +307,13 @@ fn run_run(args: &[String]) -> ExitCode {
     let mut evidence_dir: Option<PathBuf> = None;
     let mut max_attempts_per_stage: usize = 6;
     let mut temperature: f32 = 0.7;
+    // SWE-bench judge inputs (only used when --judge swebench).
+    let mut swebench_sample: Option<PathBuf> = None;
+    // Portable default: resolve `python3` on PATH (override with --swebench-python
+    // to point at a venv that has the `swebench` package installed).
+    let mut swebench_python: PathBuf = PathBuf::from("python3");
+    let mut swebench_dataset = "princeton-nlp/SWE-bench_Lite".to_string();
+    let mut swebench_workdir: Option<PathBuf> = None;
     // Atom 25: Phase E full cutover. Default tape backend is now `git`
     // (GitTapeLedger at <workspace>/tdma_tape.git). `memory` remains
     // accepted via explicit --tape-backend=memory for tests + emergency
@@ -272,6 +354,18 @@ fn run_run(args: &[String]) -> ExitCode {
                     tape_backend = v.clone();
                 }
             }
+            "--swebench-sample" => swebench_sample = it.next().map(PathBuf::from),
+            "--swebench-python" => {
+                if let Some(v) = it.next() {
+                    swebench_python = PathBuf::from(v);
+                }
+            }
+            "--swebench-dataset" => {
+                if let Some(v) = it.next() {
+                    swebench_dataset = v.clone();
+                }
+            }
+            "--swebench-workdir" => swebench_workdir = it.next().map(PathBuf::from),
             "-h" | "--help" => {
                 println!("{FULL_HELP}");
                 return ExitCode::SUCCESS;
@@ -299,27 +393,65 @@ fn run_run(args: &[String]) -> ExitCode {
         }
     };
 
-    let mut judge = match judge_name.as_str() {
-        "nesbitt" => AnyJudge::nesbitt(),
-        "putnam_a1" => AnyJudge::putnam_a1(),
-        "putnam_2025_b3" => AnyJudge::putnam_b3(),
-        other => {
-            eprintln!(
-                "turingos tdma run: unknown --judge '{}'. Supported: nesbitt | putnam_a1 | putnam_2025_b3",
-                other
-            );
-            return ExitCode::from(2);
+    // Parse the SWE-bench sample early (validation) so config errors surface
+    // before any model/api-key resolution. gold_patch/test_patch are NOT in
+    // SwebenchSampleInput, so they can never reach the prompt.
+    let swebench_sample_parsed: Option<SwebenchSampleInput> = if judge_name == "swebench" {
+        let path = match &swebench_sample {
+            Some(p) => p.clone(),
+            None => {
+                eprintln!(
+                    "turingos tdma run: --judge swebench requires --swebench-sample <PATH>"
+                );
+                return ExitCode::from(2);
+            }
+        };
+        let raw = match fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "turingos tdma run: cannot read --swebench-sample {}: {}",
+                    path.display(),
+                    e
+                );
+                return ExitCode::from(2);
+            }
+        };
+        match serde_json::from_str::<SwebenchSampleInput>(&raw) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                eprintln!(
+                    "turingos tdma run: --swebench-sample {} is not a valid SWE-bench sample JSON: {}",
+                    path.display(),
+                    e
+                );
+                return ExitCode::from(2);
+            }
         }
+    } else {
+        match judge_name.as_str() {
+            "nesbitt" | "putnam_a1" | "putnam_2025_b3" => {}
+            other => {
+                eprintln!(
+                    "turingos tdma run: unknown --judge '{}'. Supported: nesbitt | putnam_a1 | putnam_2025_b3 | swebench",
+                    other
+                );
+                return ExitCode::from(2);
+            }
+        }
+        None
     };
 
-    let (model, env_var_result) = match role.as_str() {
+    let (model, env_var_result, thinking) = match role.as_str() {
         "meta" => (
             cmd_llm::read_meta_model(&workspace),
             cmd_llm::read_meta_api_key_env(&workspace),
+            cmd_llm::read_meta_thinking(&workspace),
         ),
         "blackbox" => (
             cmd_llm::read_blackbox_model(&workspace),
             cmd_llm::read_blackbox_api_key_env(&workspace),
+            cmd_llm::read_blackbox_thinking(&workspace),
         ),
         _ => {
             eprintln!("turingos tdma run: --role must be 'meta' or 'blackbox'");
@@ -348,46 +480,116 @@ fn run_run(args: &[String]) -> ExitCode {
     }
 
     eprintln!(
-        "[turingos tdma run] workspace={} model={} role={} judge={} evidence-dir={} max_attempts={} temp={}",
+        "[turingos tdma run] workspace={} model={} role={} thinking={} judge={} evidence-dir={} max_attempts={} temp={}",
         workspace.display(),
         model,
         role,
+        if thinking.is_some() { "on" } else { "off" },
         judge_name,
         evidence_dir.display(),
         max_attempts_per_stage,
         temperature
     );
 
+    // Build the judge. For swebench, resolve the harness work dir (default: a
+    // subdir of the evidence dir) and construct the real-harness verifier.
+    let (mut judge, swebench_prompt_inputs) = match judge_name.as_str() {
+        "nesbitt" => (AnyJudge::nesbitt(), None),
+        "putnam_a1" => (AnyJudge::putnam_a1(), None),
+        "putnam_2025_b3" => (AnyJudge::putnam_b3(), None),
+        "swebench" => {
+            let sample = swebench_sample_parsed
+                .expect("swebench sample parsed above when judge_name == swebench");
+            let workdir = swebench_workdir
+                .clone()
+                .unwrap_or_else(|| evidence_dir.join("swebench_work"));
+            if let Err(e) = fs::create_dir_all(&workdir) {
+                eprintln!(
+                    "turingos tdma run: cannot create --swebench-workdir {}: {}",
+                    workdir.display(),
+                    e
+                );
+                return ExitCode::from(2);
+            }
+            eprintln!(
+                "[turingos tdma run] swebench instance={} dataset={} python={} workdir={}",
+                sample.instance_id,
+                swebench_dataset,
+                swebench_python.display(),
+                workdir.display()
+            );
+            let judge = SwebenchTestJudge::new(
+                sample.instance_id.clone(),
+                swebench_dataset.clone(),
+                swebench_python.clone(),
+                workdir,
+                "turingos-loop".to_string(),
+            );
+            (AnyJudge::swebench(judge), Some(sample))
+        }
+        // Unreachable: validated in swebench_sample_parsed match above.
+        _ => unreachable!("judge_name validated above"),
+    };
+
     let judge_name_for_sys = judge_name.clone();
     let judge_name_for_usr = judge_name.clone();
-    let cfg = RunConfig {
-        run_id: format!("turingos-tdma-{}", judge_name),
-        model_label: model.clone(),
-        problem_label: format!("turingos tdma --judge {}", judge_name),
-        leak_sentinel: LEAK_SENTINEL.into(),
-        system_prompt_for_stage: Box::new(move |stage_label: &str| {
-            make_system_prompt(&judge_name_for_sys, stage_label)
-        }),
-        user_prompt_for_stage: Box::new(move |stage_label: &str, accepted: &[String]| {
-            make_user_prompt(&judge_name_for_usr, stage_label, accepted)
-        }),
-        problem_text: String::new(),
-        evidence_dir: evidence_dir.clone(),
-        temperature,
-        max_tokens: 600,
-        max_attempts_per_stage,
+    let cfg = if let Some(sample) = swebench_prompt_inputs {
+        // SHIELDED coding-repair prompts. The sample's problem_statement, repo,
+        // base_commit, and fail_to_pass test NAMES are the ONLY fields exposed.
+        // gold_patch/test_patch are not even present in SwebenchSampleInput.
+        let sys = SWEBENCH_SYSTEM_PROMPT.to_string();
+        let user = make_swebench_user_prompt(&sample);
+        RunConfig {
+            run_id: format!("turingos-tdma-{}", judge_name),
+            model_label: model.clone(),
+            problem_label: format!("turingos tdma --judge swebench {}", sample.instance_id),
+            leak_sentinel: LEAK_SENTINEL.into(),
+            system_prompt_for_stage: Box::new(move |_stage_label: &str| sys.clone()),
+            user_prompt_for_stage: Box::new(move |_stage_label: &str, _accepted: &[String]| {
+                user.clone()
+            }),
+            problem_text: String::new(),
+            evidence_dir: evidence_dir.clone(),
+            temperature,
+            // Generous cap: with thinking="on" the reasoning_content counts toward
+            // completion tokens, so a 4000 cap is fully consumed by reasoning and
+            // leaves the patch (the `content`) empty/truncated. 16000 leaves ample
+            // room for reasoning + the unified diff.
+            max_tokens: 16000,
+            max_attempts_per_stage,
+        }
+    } else {
+        RunConfig {
+            run_id: format!("turingos-tdma-{}", judge_name),
+            model_label: model.clone(),
+            problem_label: format!("turingos tdma --judge {}", judge_name),
+            leak_sentinel: LEAK_SENTINEL.into(),
+            system_prompt_for_stage: Box::new(move |stage_label: &str| {
+                make_system_prompt(&judge_name_for_sys, stage_label)
+            }),
+            user_prompt_for_stage: Box::new(move |stage_label: &str, accepted: &[String]| {
+                make_user_prompt(&judge_name_for_usr, stage_label, accepted)
+            }),
+            problem_text: String::new(),
+            evidence_dir: evidence_dir.clone(),
+            temperature,
+            max_tokens: 600,
+            max_attempts_per_stage,
+        }
     };
 
     let model_for_llm = model.clone();
+    let max_tokens_for_llm = cfg.max_tokens;
+    let thinking_for_llm = thinking.clone();
     let llm_call = |sys: &str, user: &str| -> Result<LlmResponse, String> {
         let messages = vec![ChatMessage::system(sys), ChatMessage::user(user)];
         let resp = chat_complete_blocking(
             &api_key,
             &model_for_llm,
             &messages,
-            Some(600),
+            Some(max_tokens_for_llm),
             Some(temperature),
-            None,
+            thinking_for_llm.clone(),
         )
         .map_err(|e: LlmError| format!("{:?}", e))?;
         Ok(LlmResponse {

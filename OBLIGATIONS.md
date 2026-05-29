@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, and OBL-008 are satisfied.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, and OBL-009 are satisfied.
 
 ---
 
@@ -109,3 +109,12 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Scope: Independently inspect whether the current generate/Polymarket backend emits a real `BuyDirection::BuyNo` / NO-side `BuyWithCoinRouterTx`; if absent, add the backend NO order and executable tests so CLI and web session generate paths cannot regress to a one-sided fake market.
 - Evidence: Independent explorer `019e6dfc-8c09-7b12-932d-816df5454575` reported `NO` on 2026-05-28: current `turingos generate` had exactly one `BuyWithCoinRouterTx(BuyYes)`, tests asserted only `BuyYes`, and `src/web/market_view.rs` did not decode router trade direction. This branch fixes the gap by changing `src/bin/turingos/cmd_generate.rs` to emit `MarketSeed -> CpmmPool -> BuyWithCoinRouter(BuyYes) -> BuyWithCoinRouter(BuyNo) -> Verify -> FinalizeReward -> EventResolve` on the canonical ChainTape when a preseeded counterparty exists. `tests/generate_emits_work_tx_smoke.rs` now requires two router txs, directions `{BuyYes, BuyNo}`, distinct YES/NO buyers, positive pay coin, nonzero signatures, and replayed YES and NO share balances. `src/web/market_view.rs` now decodes `TxKind::BuyWithCoinRouter` and returns `router_trades`, `buy_yes_count`, and `buy_no_count`; the frontend panel displays those counts. Verification: `cargo test --features web --test generate_emits_work_tx_smoke -- --nocapture` passed 4/4; `cargo test --features web --bin turingos_web -- --nocapture` passed 87/87; `cargo test --test constitution_web_cli_kernel_invariant -- --nocapture` passed 3/3; `npm run build` in `frontend/` passed; `git diff --check` passed.
 - Last-touched: 2026-05-28
+
+## OBL-009: SWE-bench multi-step verify-retry loop vs bare single-shot 测试(真验证器)
+- Source: "完成 TuringOS v4 的 SWE-bench benchmark 测试 … 证明/证伪『TuringOS 的多步 verify-retry 循环在硬编码题上胜过裸模型单发』—— 用真·答案无关验证器(SWE-bench 隐藏测试执行)+ 真·TuringOS 循环(`tdma_runner` 的 `run_proof`),不是 Claude 模拟。" + mid-flight ratification "Thinking-ON(你配置的本意)"; + Codex PR #212 review (P1 header / P2 retry-feedback / P2 python-path).
+- Level: must
+- Status: satisfied
+- Real TuringOS path: loop ran via `turingos tdma run --judge swebench --role meta` (real `run_proof_with_ledger`, git tape), NOT a Claude simulation. Shielding: `gold_patch`/`test_patch` never enter any prompt (absent from `SwebenchSampleInput`); retry feedback carries only failing-test names / the model's own apply error.
+- Result (honest, validated post-fix re-run): **loop 0/3, bare 0/3** — neither arm resolved any instance, and across all 9 loop attempts no patch ever crossed the apply barrier (deepseek-v4-pro thinking-on emits malformed unified diffs), so the loop's test-feedback lever was never exercised and there was no pipeline-depth edge. The FIRST runs were structurally broken (Codex P1: the swebench prompt emitted no `tdma-state-update/v1` header, so the kernel could never `Proceed` even on a passing patch; P2: failing-test names never reached the retry prompt; P2: developer-local python default). All fixed and the loop arm re-run (`_fix2`); an earlier stochastic single apply on flask-5063 was **not** reproduced and is reported as noise. Honest n=3 outcome + corrected claims in `handover/reports/PROBE_DEEPSEEK_V4_SWEBENCH_LOOP_2026-05-28.md`. The obligation (real verifier + real TuringOS loop + honest report) is satisfied; a particular "loop wins" outcome was never required.
+- Code (Class 2, no §6 restricted surface): `src/judges/swebench_test_judge.rs` (HF-offline hermetic verifier env + `harness_failure_reason` apply-error feedback), `src/bin/turingos/cmd_tdma.rs` (swebench judge wire-up; TDMA-state-header prompt; thinking from toml; `max_tokens` 16000; portable `python3` default), `src/tdma_runner.rs` (`AnyJudge::Swebench`; failing detail routed via `failed_predicate`), `src/drivers/llm_proxy.py` (honor Rust `thinking:{type:enabled}`).
+- Last-touched: 2026-05-29

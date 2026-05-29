@@ -101,6 +101,23 @@ covered_by = [
 ]
 
 [[script_group]]
+id = "swebench_probe_scripts"
+classification = "local_probe"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/probe_bare_v4_swebench.py",
+  "scripts/probe_swebench_expand.sh",
+  "scripts/probe_swebench_goldsmoke.sh",
+  "scripts/probe_swebench_loop.sh",
+  "scripts/start_proxy.sh",
+]
+covered_by = [
+  "handover/reports/PROBE_DEEPSEEK_V4_SWEBENCH_LOOP_2026-05-28.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
 id = "true_suite_production_entrypoints"
 classification = "production_entrypoint"
 status = "active_replay_bound"
