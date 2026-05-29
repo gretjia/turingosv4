@@ -9,11 +9,14 @@
 
 ---
 
-## Current Snapshot (2026-05-27)
+## Current Snapshot (2026-05-29)
 
-**Session**: OBL-001 DeepSeek Chrome E2E closure merged via PR #206.
+**Session**: Post-merge reconciliation after PR #212 and platform-agnostic
+harness unification.
 
-**Main tip**: `bb364f35` (PR #206 — Class 2 OBL-001 DeepSeek Chrome E2E closure).
+**Main tip**: `1f00012d` (PR #212 — SWE-bench TDMA hidden-test judge + PR
+review fixes, merged 2026-05-29). Local branch snapshots older than this should
+be treated as stale until rebased onto `origin/main`.
 
 **Doctrine ratification 2026-05-29**: audit doctrine generalized to
 platform-agnostic clean-context audit — one clean-context audit by a fresh
@@ -35,60 +38,62 @@ the same `harness/platform-agnostic-unification` PR.)
 
 Current state:
 
-- PR #206 merged `codex/obl001-deepseek-chrome-e2e` into `main`, closing
-  OBL-001 with a real Chrome E2E runner, final evidence, and audit. The runner lives at
-  `scripts/obl001_deepseek_chrome_e2e.mjs` and is classified as dev-only
-  evidence tooling in `tests/fixtures/liveness/script_liveness_inventory.toml`.
-- Final evidence root:
-  `handover/evidence/obl001_deepseek_chrome_20260527T171150Z/`. `metrics.json`
-  records `ok=true`, `status=complete`, `Completed 15/15 personas`, 18 attempted
-  personas, and 15 completed personas. Per-persona transcripts/screenshots,
-  redacted configs, workspaces, ChainTape/L4 refs, and CAS artifacts are under
-  the same root.
-- Secret hygiene is clean for the final run: `redaction_audit.json` has
-  `secrets_found=false` and `findings=[]`; an independent `rg` scan for
-  `hf_...`/`sk-...` patterns over the final evidence and runner script returned
-  no matches.
-- Clean-context audit artifact:
-  `handover/audits/OBL001_DEEPSEEK_CHROME_E2E_CLEAN_CONTEXT_AUDIT_2026-05-27.md`
-  returned `NO-VIOLATION`. Auxiliary AGY evidence retry also found no blocker.
-- `OBLIGATIONS.md` now marks OBL-001 as `satisfied`; OBL-002 through OBL-005
-  are already satisfied.
-- The stale OBL-004 reconciliation gate was updated to accept the new global
-  `COMPLETE` ledger headline while retaining the OBL-004 section, audit, stale
-  placeholder, and merged-PR receipt checks.
-- PR #206 GitHub check `validate PR has no sidecar contamination` passed before
-  merge. No OBL-001 closure action remains open.
+- `OBLIGATIONS.md` is globally complete: OBL-001 through OBL-009 are
+  `satisfied`. The latest additions are OBL-006 web/generate single market
+  kernel, OBL-007 no-zombie/liveness hardening, OBL-008 real NO-side router
+  trade, and OBL-009 real SWE-bench verify-retry probe.
+- PR #206 closed OBL-001 with the real 15-persona DeepSeek Chrome E2E run.
+  Final evidence remains
+  `handover/evidence/obl001_deepseek_chrome_20260527T171150Z/`; secret hygiene
+  and clean-context audit were GREEN.
+- PR #207 updated post-merge handover/ledger state after OBL-001.
+- PR #208 fixed the generate prompt hash canonical gate.
+- PR #210 (`codex/liveness-audit-hardening`) closed the web/CLI split-path risk:
+  artifact/generate bundle reads are centralized in the runtime kernel, web
+  handlers call shared runtime code, and liveness gates account for retained
+  source/scripts/workflows.
+- OBL-006/OBL-008 moved the generated Polymarket path from inventory-only to a
+  real internal market sequence: `MarketSeed -> CpmmPool ->
+  BuyWithCoinRouter(BuyYes) -> BuyWithCoinRouter(BuyNo) -> Verify ->
+  FinalizeReward -> EventResolve` on the canonical ChainTape/CAS path. Price
+  remains a signal and must not enter predicate truth.
+- PR #211 added the agent-presence/citation-DAG web surface and enriched market
+  panel state. Note: a post-merge clean worktree check found a web feature
+  compile regression in `src/web/dag_view.rs`: it imports private
+  `TaskId` through `state::typed_tx`; the import should come from
+  `state::q_state`.
+- PR #213 generalized the audit doctrine to platform-agnostic clean-context
+  audit and retired the `turingos_dev` sidecar. The current constitution gate
+  count is now 164, not 165; the one-gate drop is exactly the retired
+  `constitution_dev_harness` gate.
+- PR #212 merged the SWE-bench hidden-test judge into `turingos tdma run`.
+  Honest post-fix evidence reports loop 0/3 and bare 0/3: the real verifier and
+  real TDMA loop landed, but no benchmark advantage has been demonstrated yet.
+- Current roadmap correction: TuringOS should still be framed as a
+  Git/ChainTape/CAS/replay-native verified runtime for objective work. However,
+  the old claim that the economy layer is only `money` is stale: CompleteSet,
+  CPMM, router, YES/NO positions, and replayed internal market actions are now
+  live typed-transaction surfaces. The external public-money market remains a
+  non-claim.
+- Detailed correction report:
+  `handover/reports/TURINGOS_REAL_ROADMAP_STATUS_2026-05-29.md`.
 
 Recent verification:
 
 ```text
-rustfmt --edition 2021 --check src/bin/turingos/cmd_generate.rs src/web/generate.rs src/web/spec.rs src/web/welcome.rs src/web/market_view.rs tests/constitution_obl005_final_closure_witness.rs tests/constitution_obligation_repair_reconciliation.rs
-# exit 0
-
-node --check scripts/obl001_deepseek_chrome_e2e.mjs
-# exit 0
-
-git diff --check
-# exit 0
-
-cargo check --features web --bin turingos --bin turingos_web
-# exit 0
-
-cargo test --features web --bin turingos blackbox_system_prompt_contains_tdma_state_update_contract
-cargo test --features web --bin turingos blackbox_system_prompt_tdma_example_matches_parser_schema
-cargo test --features web --bin turingos_web web_subprocess_timeout_is_at_least_1800_secs
-cargo test --features web --bin turingos_web accepted_turns_force_synthesis_above_threshold
-cargo test --features web --test cli_web_generate_smoke web_generate_args_include_entrypoint_index_html
-cargo test --features web --test cli_web_welcome_smoke welcome_init
-cargo test --test constitution_obligation_repair_reconciliation -- --nocapture
-cargo test --test constitution_obl005_final_closure_witness -- --nocapture
-cargo test --test constitution_matrix_drift
-cargo test --test constitution_script_liveness_inventory -- --nocapture
-# all exit 0
-
 bash scripts/run_constitution_gates.sh
-# [k-1-5] total=165 failed=0
+# [k-1-5] total=164 failed=0
+
+npm ci
+# exit 0
+
+npm run build
+# exit 0
+
+cargo test --features web --test generate_emits_work_tx_smoke -- --nocapture
+# fails at compile time in src/web/dag_view.rs: private TaskId import from
+# state::typed_tx; does not invalidate the constitution-gate result, but blocks
+# web-feature generate smoke until repaired.
 ```
 
 ## Previous Snapshot
