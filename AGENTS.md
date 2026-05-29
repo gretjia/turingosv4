@@ -111,8 +111,8 @@ Required loop:
 2. Run the minimal real evidence path when the change is evidence-bearing.
 3. Implement only enough to make the harness and evidence correct.
 4. Re-run the relevant checks.
-5. For high-risk or ship-path work, request clean-context Codex audit after
-   implementation evidence exists.
+5. For high-risk or ship-path work, request a clean-context audit (any capable
+   platform) after implementation evidence exists.
 6. Ship only after gates, evidence, and review agree.
 
 Forbidden loop:
@@ -247,12 +247,25 @@ document rather than mutating historical evidence.
 
 ## 9. Audit Default
 
-Default and only audit path for this repository is one clean-context Codex audit.
-**Gemini audit deprecated 2026-05-24** per architect ratification («经过这么多审计流程，gemini 审计可以放弃，codex作为一次独立审计可以保留»). All older references to "dual Codex+Gemini" in docs / memory / skills are superseded by this single-Codex doctrine. Class 3 + Class 4 cadence (see §14) now use single Codex witness; pre-§8 timing for Class 4 unchanged.
+Default and only audit path for this repository is **one clean-context audit by
+a fresh agent on any capable platform** (Claude, Codex, Antigravity, or any
+future capable runtime). The auditor must run in a clean context and must not
+have the implementation transcript. One independent witness is sufficient; this
+repository does not require a second.
+
+This doctrine is **platform-agnostic**: it names a *role* (a fresh,
+clean-context auditor), not a vendor. All older vendor-specific phrasings —
+"single Codex", "Codex + Gemini dual audit", "Gemini dropped" — are superseded
+by the ratification line below.
+
+> Ratification 2026-05-29: audit doctrine generalized to **platform-agnostic
+> clean-context audit**; supersedes single-Codex (2026-05-24) and the earlier
+> dual Codex+Gemini doctrine. The requirement is clean context + no
+> implementation transcript, not a particular vendor.
 
 Implementation agents must not self-certify high-risk work. For Class 3/4 or
 ship-path changes, after implementation evidence exists, invoke a fresh
-clean-context Codex reviewer/session. Provide only:
+clean-context auditor (any capable platform). Provide only:
 
 - task brief and risk class
 - touched FC nodes/invariants
@@ -303,7 +316,8 @@ A task is done only when:
   real run is required.
 - The diff is reviewed for regressions, hidden Class 4 surfaces, evidence
   rewrite, ID namespace drift, and money/tape/shielding violations.
-- Clean-context Codex audit is completed for high-risk or ship-path work.
+- Clean-context audit (any capable platform) is completed for high-risk or
+  ship-path work.
 - Dynamic handover files are updated only if current project state actually
   changed.
 - `OBLIGATIONS.md` reconciled: every `Level=must` entry is `satisfied`
@@ -356,9 +370,9 @@ ship.
 |-------|---------|-----------|---------------|-----|-----------------------------------|--------|
 | 0 docs | no | no | no | no | no | only recurring rule |
 | 1 additive | no | no | no | no | predicate self-test only | only recurring rule |
-| 2 wire-up | brief | optional | yes | no | clean-context Codex audit (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
-| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context Codex audit (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
-| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context Codex audit PRE-§8 (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
+| 2 wire-up | brief | optional | yes | no | clean-context audit, any platform (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
+| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context audit (witness, one independent — any capable platform, see §9) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context audit PRE-§8 (witness, one independent — any capable platform, see §9) | yes |
 
 **Audit witness is not judge.** Ship gate = predicates GREEN (hard judge —
 `cargo test --workspace`, `bash scripts/run_constitution_gates.sh`,
@@ -385,7 +399,7 @@ Auditor copy-pastes this batch; no human judgment in any line:
 
 ### Independent audit witness verdict domain
 
-Clean-context Codex audit 可合法输出（仅这四个；Gemini auditor deprecated 2026-05-24, see §9）:
+Clean-context audit (any capable platform) 可合法输出（仅这四个，见 §9）:
 - `NO-VIOLATION`（扫了 N 条款，无违宪发现）
 - `VIOLATION-FOUND <constitutional-clause> <file>:<line>`
 - `RECONSTRUCTION-FAILURE <which-tape-or-cas-path-cannot-be-reconstructed>`

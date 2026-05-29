@@ -15,7 +15,7 @@ Human intent
 -> Codex / Claude / fast executor
 -> turingos_dev evidence entry
 -> DevEvidence hash chain + Tape/CAS witnesses
--> clean-context Codex review
+-> clean-context audit (any capable platform)
 -> harness evolution notes
 ```
 
@@ -45,9 +45,11 @@ operating detail. Large architecture and history stay in `constitution.md`,
 execute a new task should read it after `AGENTS.md` and before opening a
 self-hosting dev run.
 
-Default audit path is one clean-context Codex review after implementation
-evidence exists. Gemini is not part of the default harness unless a future user
-message or directive explicitly asks for it.
+Default audit path is one clean-context audit by a fresh agent on any capable
+platform (Claude / Codex / Antigravity / …) after implementation evidence
+exists. The auditor must run in a clean context and must not hold the
+implementation transcript. One independent witness is sufficient. See
+`AGENTS.md §9`.
 
 Veto-AI is not a code reviewer. Per `constitution.md` Art. V.1.3, Veto-AI only
 checks constitutionality and outputs `{PASS, VETO}`. Ordinary engineering
@@ -172,7 +174,7 @@ The intelligent harness still rests on hard gates:
   dashboard regeneration, economic state reconstruction, `HEAD_t`
   reconstruction
 - H5 audit gates:
-  clean-context Codex review after H1-H4 evidence exists
+  clean-context audit (any capable platform) after H1-H4 evidence exists
 
 Persistent constitution test families:
 
@@ -251,5 +253,5 @@ Stop immediately on:
 
 A task is done only when the risk-appropriate gates pass, the diff is reviewed
 against touched FC nodes, evidence is linked, and high-risk/ship-path work has
-clean-context Codex review. Dynamic handover is updated only when dynamic state
-actually changes.
+clean-context audit (any capable platform). Dynamic handover is updated only
+when dynamic state actually changes.

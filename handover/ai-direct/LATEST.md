@@ -15,6 +15,13 @@
 
 **Main tip**: `bb364f35` (PR #206 — Class 2 OBL-001 DeepSeek Chrome E2E closure).
 
+**Doctrine ratification 2026-05-29**: audit doctrine generalized to
+platform-agnostic clean-context audit — one clean-context audit by a fresh
+agent on any capable platform (Claude / Codex / Antigravity / …), auditor must
+not hold the implementation transcript. Supersedes single-Codex (2026-05-24)
+and dual Codex+Gemini. See `AGENTS.md §9` + `memory/feedback_dual_audit.md`.
+(Landing via the `harness/platform-agnostic-unification` PR.)
+
 Current state:
 
 - PR #206 merged `codex/obl001-deepseek-chrome-e2e` into `main`, closing

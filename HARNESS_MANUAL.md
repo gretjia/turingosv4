@@ -54,7 +54,7 @@ Human Intent
 - 这是 module、molecule 还是 atom？
 - 允许修改哪些路径？
 - 需要跑哪些 acceptance commands？
-- 是否需要 clean-context Codex audit？
+- 是否需要 clean-context audit（任意有能力平台）？
 
 如果这些问题答不出来，不要开始写代码。
 
@@ -287,8 +287,9 @@ handover/evidence/dev_self_hosting/<run_id>/
 
 ## 10. Clean-Context Audit
 
-默认审计是 clean-context Codex。不要默认启用 Gemini，除非未来用户或 directive
-明确要求。
+默认审计是 **platform-agnostic clean-context audit** —— 任意有能力平台上的一名
+全新 clean-context 审计者（Claude / Codex / Antigravity / …），不得持有实现
+transcript；一名独立见证者即足够。见 `AGENTS.md §9`。
 
 需要 audit 的典型场景：
 

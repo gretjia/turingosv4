@@ -91,9 +91,11 @@ explicit trigger phrase. See `AGENTS.md §16` + `skills/OBLIGATIONS_LEDGER.md`.
 
 ## 6. Audit boundary
 
-See `AGENTS.md §15` for audit class-by-class cadence and verdict domain.
+See `AGENTS.md §9` (audit default — platform-agnostic clean-context audit) and
+`AGENTS.md §14` (class-by-class cadence and verdict domain).
 
-Clean-context Codex audit is NOT a judge. Its legal output space:
+The clean-context audit (any capable platform — Claude / Codex / Antigravity /
+…) is NOT a judge. Its legal output space:
 `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`.
 Subjective opinions are out-of-scope.
 

@@ -107,7 +107,7 @@ The harness has a **double-tiered judgment structure** (K-HARDEN §1a):
 - Per-atom predicate verification recipes in PR body
 
 **Soft witness (independent audit, can flag but not judge alone)**:
-- Clean-context Codex / Gemini / external-LLM audit
+- Clean-context audit by a fresh agent on any capable platform (Claude / Codex / Antigravity / …)
 - **Legal output space**: `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`
 - **Illegal output space** (out-of-scope, can reject report): subjective code
   style / performance / coverage / architecture preference
@@ -525,8 +525,8 @@ When adding a new atom (per Class-by-Class Cadence in AGENTS.md §14):
 | 0 docs | no | no | no | no | none | only recurring rule |
 | 1 additive | no | no | no | no | predicate self-test | only recurring rule |
 | 2 wire-up | brief | optional | yes | no | clean-context audit | surprise only |
-| 3 auth/money/CAS | TB charter | yes | yes | required | full dual witness | yes |
-| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | dual PRE-§8 witness | yes |
+| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context audit (any platform) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context audit PRE-§8 (any platform) | yes |
 
 For every Class-2+ atom:
 1. Write the gate test FIRST (predicate)
