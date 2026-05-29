@@ -23,142 +23,79 @@ TuringOS v4 is a tape-first constitutional operating substrate for LLM/AGI
 agents. The authoritative state of a run is ChainTape plus CAS evidence; reports,
 dashboards, and handover notes are materialized views.
 
-## Handover state
+## Handover State
 
-Active: `handover/ai-direct/LATEST.md` (2026-05-23 close —
-**TB-SOFTWARE-3-0-CONSOLIDATION** + **TB-STRESS-PHASE-2** shipped on top
-of Phase E libgit2 cutover).
+Active: `handover/ai-direct/LATEST.md` (2026-05-29 post-merge
+reconciliation after PR #212 and PR #214). This file is a derived view; if it
+conflicts with ChainTape/CAS, executable gates, or merged PR receipts, trust the
+authoritative evidence.
 
-Latest two packages (this session):
-- `handover/reports/SOFTWARE_3_0_CONSOLIDATION_2026-05-23.md` — 8-atom
-  single-maintainer substrate hardening ship report
-- `handover/reports/STRESS_PHASE_2_SHIP_REPORT_2026-05-23.md` — 10-test
-  adversarial battery ship report (8 PASS / 1 PARTIAL / 1 not-executed)
-- Audits: `handover/audits/{SOFTWARE_3_0,STRESS_PHASE_2}_VAL_{CONSTITUTION,KARPATHY}_2026-05-23.md`
+Current orientation package:
 
-Session #56 audit + remediation evidence:
-- `handover/audits/CLAUDE_SESSION_56_GEMINI_P7Z_AUDIT_2026-05-21.md` (clean-context audit of overnight Gemini delivery)
-- `handover/audits/CLAUDE_SESSION_56_REMEDIATION_REPORT_2026-05-21.md` (Claude orchestrator session report)
-- `handover/audits/CLAUDE_SESSION_56_REMEDIATION_SECTION8_RECORDS_2026-05-21.md` (§8 sign-off records for C2-split, C10, C11, Cz Class 4)
+- `handover/ai-direct/LATEST.md` — current merged baseline and open caveats.
+- `handover/reports/TURINGOS_REAL_ROADMAP_STATUS_2026-05-29.md` — correction
+  of the stale "真实落地路线图" article against current main.
+- `OBLIGATIONS.md` — OBL-001 through OBL-009 are currently `satisfied`.
 
-Sessions #1–#54 archived at:
-`handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`
+Sessions #1-#54 are archived at:
+`handover/ai-direct/LATEST_ARCHIVE_PRE_2026-05-20_sessions_1_to_54.md`.
 
 ## Current Main Status
 
-`main` currently includes PR #3, #4, #5, #6, #7, #8, #10, #11, #78, the
-complete **V4 Product-CAK Hardening P7.z charter** (atoms C0 through C11 +
-Cz Trust Root rehash), session #56 audit docs, the
-**Boundary-Ratification-Hygiene** process-runner increment,
-**TB-TDMA-BOUNDED-RC1** kernel ship, **TB-TDMA-GENERATE-PHASE-E**
-libgit2 cutover (Phase E Path B), **TB-SOFTWARE-3-0-CONSOLIDATION**
-single-maintainer substrate hardening, and **TB-STRESS-PHASE-2** 10-test
-adversarial battery. Latest main tip: `6c12e092` (PR #132, stress ship
-report + cumulative audits).
+As of `origin/main@13f2760f`, `main` includes the Phase E libgit2 cutover,
+flowchart closure work, no-zombie/liveness gates, OBL-001 through OBL-009
+closure, platform-agnostic audit doctrine, and the post-merge handover
+correction. Current constitution gate result from a clean `origin/main`
+worktree:
 
-### TB-SOFTWARE-3-0-CONSOLIDATION — 2026-05-23 (PRs #120, #122–#128)
-
-Single-maintainer substrate hardening on top of the Phase E libgit2 cutover.
-8 atoms shipped:
-
-- **S1** (#122): removed stdout-as-truth (`t_hash_*` + `simple_hash` fallback
-  in `src/web/write.rs`); `task/open` now returns `502 BAD_GATEWAY` with
-  `kind="task_id_parse_failed"` on stdout parse failure (no TaskEntry written,
-  no WS broadcast).
-- **S2** (#123): private `GrillSessionSnapshot` in per-session CAS for
-  cross-restart resume. The web layer's in-memory `AppState.sessions` cache
-  is now rebuildable from CAS via `load_latest_snapshot`. NOT a new CAS
-  `ObjectType` — uses existing `EvidenceCapsule` with private `schema_id`.
-- **S3** (#124): `BuildSessionViewError { Open, Read, Decode }` taxonomy.
-  Empty workspace still returns `Ok(BuildStatus::SpecPending)`; only
-  genuine corruption surfaces as `Err`. `From<BuildSessionViewError> for
-  CapsuleError` propagator preserves caller ergonomics.
-- **S4.1** (#125): rename `src/bin/turingos/siliconflow_client.rs` →
-  `chat_client.rs` + 7 cmd_*.rs import sites. Generic naming so a 2nd
-  provider (VolcEngine, OpenAI direct, etc.) lands without another rename.
-  NO `ChatProvider` enum / `ModelCallReceipt` capsule — deferred per
-  Karpathy K10 (defer abstraction until 2nd concrete impl).
-- **S4.2** (#126): `handover/architect-insights/LLM_BOUNDARY_INVENTORY_2026-05-23.md`
-  documenting 17 `chat_complete*` call sites across 5 cmd_*.rs files,
-  prompt-guard coverage, and the deferred Class 3/4 abstraction packet.
-- **S5** (#127): `scripts/audit_legacy_bypass.sh` (standalone reporting
-  script, NOT wired into `scripts/run_constitution_gates.sh`) + checklist
-  doc. Reporting baseline, not a constitution gate.
-- **S6** (#128): aggregate ship report + cumulative audits.
-  Constitution: **NO-VIOLATION**. Karpathy: **PASS**.
-
-Scope freeze held across all 8 commits: no edit to `src/state/typed_tx.rs`,
-`src/state/sequencer.rs`, `src/bus.rs`, `src/bottom_white/cas/schema.rs`,
-`constitution.md`, `genesis_payload.toml`, `src/runtime/mod.rs` export;
-no new CAS `ObjectType`; no provider abstraction layer.
-
-### TB-STRESS-PHASE-2 — 2026-05-23 (PRs #129, #131, #132)
-
-Adversarial 10-test battery exercising Phase E + TB-SOFTWARE-3-0 surfaces
-under crash, concurrency, corruption, and provider-failure conditions.
-
-**Final tally**: 8 PASS / 1 PARTIAL / 1 NOT-EXECUTED / 0 FAIL.
-
-| Test | Surface | Result |
-|---|---|---|
-| ST-01 | GitTapeLedger SIGKILL mid-commit (20 iters) | PASS |
-| ST-02 | Kernel 3-writer concurrent (mock, 300 attempts) | PASS |
-| ST-03 | CAS sidecar half-truncation | PASS |
-| ST-04 | S2 snapshot restart storm | PARTIAL (write VERIFIED; load blocked on workspace bootstrap dep, not S2 defect) |
-| ST-05 | S3 BuildSessionView corruption | PASS |
-| ST-06 | LLM 5xx storm (50% mock failures) | PASS |
-| ST-07 | 100 concurrent malformed `task/open` | PASS |
-| ST-08 | 1000-turn grill drift | NOT-EXECUTED (same blocker as ST-04) |
-| ST-09 | Oversize prompt + truncated response | PASS |
-| ST-10 | Double-backend cross-process | PASS |
-
-Both cumulative audits (constitution + Karpathy) verdict GREEN. ST-04's
-partial finding documented S2's `write_snapshot` actually writing 418-byte
-capsules with the right `schema_id` to per-session CAS — the test exposed
-a workspace bootstrap requirement (`PromptPromotionReceipt` for triage),
-not a production defect.
-
-Runners at `scripts/stress/st0*.py`; evidence at
-`handover/evidence/stress_st0*_<UTC_TS>/` (each with `summary.md`
-ending in `KILL: PASS` or `KILL: FAIL`).
-
-### Boundary-Ratification-Hygiene — PR #78, 2026-05-21
-
-PR #78 is the post-P7.z transition from "predicate-layer ambition" back to
-physical boundary discipline. It shipped:
-
-- Class 0 FC boundary fact record and §8 ratification directive for Art. 0.4,
-  hermetic mechanism naming, predicate locality, and LLM topology.
-- `src/sdk/sanitized_runner.rs`: production shell-out process hygiene with
-  `env_clear`, env allowlist, explicit cwd, stdout/stderr capture, timeout
-  kill, argv/cwd/allowed-env/exit/timed-out evidence, and
-  `NetworkPolicyClaim::NotEnforced`.
-- Product shell-out wiring for web/CLI paths through the sanitized runner.
-- P7.z truthfulness hygiene: prompt hash binds canonical provider request
-  bytes; raw-output CID uses provider response bytes; `world_head_unchanged`
-  is observed rather than a production literal; offline/sandbox/browser claims
-  are downgraded to what the code can prove.
-- Real-world meaning fixtures for compile failure, regression, preview DOM
-  contract, secret-env privacy, and ambiguous requirement hold/non-accept.
-- CI constitution-gate runner optimization: all 133 constitution gates still
-  discover/cross-check against the manifest and run, but in one Cargo
-  invocation with report artifacts.
-
-Important non-claim: this is **not** OS-level hermetic/no-network sandboxing.
-There is no deny-all network claim in phase 0. The shipped claim is process
-hygiene for production shell-outs, not bwrap/unshare/seccomp/VM isolation.
-
-Verification for PR #78:
-
-```bash
-git diff --check
-cargo test --test constitution_matrix_drift
-RUST_TEST_THREADS=1 bash scripts/run_constitution_gates.sh
+```text
+bash scripts/run_constitution_gates.sh
+# [k-1-5] total=164 failed=0
 ```
 
-GitHub checks passed for PR #78: `Constitution gate suite`, `Feature freeze
-check`, `r022_check`, and sidecar contamination validation. Independent
-clean-context audits returned `NO-VIOLATION`.
+Current high-signal facts:
+
+- **Git / tape substrate**: TDMA paths use `GitTapeLedger` via `git2`; runtime
+  truth is ChainTape + CAS + replay, not dashboards or README text.
+- **Obligation ledger**: `OBLIGATIONS.md` marks OBL-001 through OBL-009
+  `satisfied`.
+- **Audit doctrine**: one platform-agnostic clean-context audit by any capable
+  fresh agent; the old vendor-specific single/dual-audit language is retired.
+- **`turingos_dev`**: retired in PR #213; gate count dropped from 165 to 164
+  because `constitution_dev_harness` was removed.
+- **Internal market substrate**: CompleteSet, CPMM, atomic router, YES/NO
+  positions, and replayed market actions are active typed-transaction surfaces.
+  The generated market path now requires `MarketSeed -> CpmmPool ->
+  BuyWithCoinRouter(YES) -> BuyWithCoinRouter(NO) -> Verify -> FinalizeReward
+  -> EventResolve`. Price remains a signal, never predicate truth.
+- **SWE-bench judge**: PR #212 wires `turingos tdma run --judge swebench` to a
+  real SWE-bench hidden-test verifier path. Current honest result is loop 0/3,
+  bare 0/3; the verifier/runtime path exists, but no loop advantage is claimed.
+- **Known current blocker**: `cargo test --features web --test
+  generate_emits_work_tx_smoke -- --nocapture` fails to compile because
+  `src/web/dag_view.rs` imports private `TaskId` through `state::typed_tx`
+  instead of `state::q_state`. This does not invalidate the constitution gate
+  result, but it blocks that web-feature smoke until fixed.
+
+### Recent Milestones
+
+- **PR #214**: post-merge handover and roadmap-status correction.
+- **PR #212**: SWE-bench TDMA hidden-test judge + review fixes.
+- **PR #213**: platform-agnostic audit doctrine + `turingos_dev` retirement.
+- **PR #211**: agent-presence / citation-DAG web surface and market panel
+  enrichment.
+- **PR #210**: liveness/no-zombie hardening and web/CLI kernel-invariant
+  reinforcement.
+- **PR #206**: 15-persona DeepSeek Chrome E2E obligation closure.
+
+### Earlier Milestones
+
+- **TB-SOFTWARE-3-0-CONSOLIDATION** (PRs #120, #122-#128): substrate
+  hardening after Phase E.
+- **TB-STRESS-PHASE-2** (PRs #129, #131, #132): 10-test adversarial stress
+  battery, final tally 8 PASS / 1 PARTIAL / 1 NOT-EXECUTED / 0 FAIL.
+- **Boundary-Ratification-Hygiene** (PR #78): process-hygiene boundary
+  increment; explicit non-claim of OS-level hermetic/no-network sandboxing.
 
 ### V4 Product-CAK Hardening (P7.z) — 2026-05-20/21
 
@@ -303,6 +240,13 @@ evidence instead.
 
 | PR | State | Main commit | Key information |
 |---|---|---|---|
+| [#214](https://github.com/gretjia/turingosv4/pull/214) | MERGED to `main` on 2026-05-29 | `13f2760f` | Docs-only post-merge handover correction. Updates `handover/ai-direct/LATEST.md` to PR #212 / 2026-05-29, records `164 failed=0`, notes `turingos_dev` retirement, and adds `TURINGOS_REAL_ROADMAP_STATUS_2026-05-29.md` correcting the stale roadmap article. |
+| [#213](https://github.com/gretjia/turingosv4/pull/213) | MERGED to `main` on 2026-05-29 | `3a68d7c7` | Harness platform-agnostic unification. Generalizes clean-context audit doctrine, retires `turingos_dev` sidecar, preserves `AGENTS.md §10` as a retired anchor, and reduces the constitution gate count to 164 by removing `constitution_dev_harness`. |
+| [#212](https://github.com/gretjia/turingosv4/pull/212) | MERGED to `main` on 2026-05-29 | `1f00012d` | SWE-bench TDMA hidden-test judge. Wires `turingos tdma run --judge swebench` to the real SWE-bench verifier path, fixes PR-review issues (TDMA state header, retry feedback, portable python default), and records honest loop 0/3 vs bare 0/3 evidence. |
+| [#211](https://github.com/gretjia/turingosv4/pull/211) | MERGED to `main` on 2026-05-29 | `15d1ae7c` | Agent-presence / citation-DAG web surface and market panel enrichment. Adds session-scoped DAG/agent-presence UI work and records the follow-up liveness/backlink fixes. |
+| [#210](https://github.com/gretjia/turingosv4/pull/210) | MERGED to `main` on 2026-05-28 | `b3d1a146` | Liveness/no-zombie hardening and real-market closure. Centralizes web artifact reads in the runtime kernel, adds recursive source/script liveness accounting, reinforces web/CLI kernel invariants, and fixes generate market flow to use real CPMM/router sequence. |
+| [#207](https://github.com/gretjia/turingosv4/pull/207) | MERGED to `main` on 2026-05-28 | `594a632a` | Post-merge handover update after OBL-001 closure. Reconciles obligation status and handover docs after the real Chrome E2E evidence landed. |
+| [#206](https://github.com/gretjia/turingosv4/pull/206) | MERGED to `main` on 2026-05-27 | `bb364f35` | OBL-001 DeepSeek Chrome E2E closure. Completes 15/15 real Chrome personas after 18 attempts, records redacted evidence under `handover/evidence/obl001_deepseek_chrome_20260527T171150Z/`, and closes with clean-context audit `NO-VIOLATION`. |
 | [#132](https://github.com/gretjia/turingosv4/pull/132) | SQUASH-MERGED to `main` on 2026-05-23 | `6c12e092` | **TB-STRESS-PHASE-2 SHIP** — aggregate ship report + cumulative audits. 8 PASS / 1 PARTIAL / 1 NOT-EXECUTED / 0 FAIL across 10 adversarial tests. Constitution: NO-VIOLATION. Karpathy: PASS. ST-04 PARTIAL surfaced S2 `write_snapshot` VERIFIED in CAS; multi-turn blocked by upstream triage promotion-guard (workspace bootstrap dep, NOT S2 defect). |
 | [#131](https://github.com/gretjia/turingosv4/pull/131) | SQUASH-MERGED to `main` on 2026-05-23 | `1ea99a2d` | TB-STRESS-PHASE-2 STRESS-1..10 — execution evidence for all 10 runners + runner robustness fixes (schema/workspace bootstrap/port). 10 evidence dirs under `handover/evidence/stress_st0*_<UTC_TS>/`, each with `summary.md` ending in `KILL: PASS` or `KILL: FAIL`. LLM cost ≈ $0 (mocks throughout). |
 | [#129](https://github.com/gretjia/turingosv4/pull/129) | SQUASH-MERGED to `main` on 2026-05-23 | `22812db8` | TB-STRESS-PHASE-2 STRESS-0 — charter + §8 directive + 10 stress-test runner scripts in `scripts/stress/` + mock LLM provider (`_mock_llm_server.py`) + workspace bootstrap helper (`_ws_bootstrap.sh`). |
