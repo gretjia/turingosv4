@@ -309,6 +309,7 @@ module_ids = [
   "bin::gaia_general_assistant_current_kernel",
   "bin::gpqa_science_reasoning_current_kernel",
   "bin::gen_run_summary",
+  "bin::g0_market_activation_current_kernel",
   "bin::market_external_agent_current_kernel",
   "bin::math_competition_reasoning_current_kernel",
   "bin::mind2web_browser_action_current_kernel",
