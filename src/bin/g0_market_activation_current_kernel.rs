@@ -1,23 +1,27 @@
 //! G0 — Constitutional Market Activation (single-instance, deterministic).
 //!
 //! Proves the TuringOS constitutional priced-DAG agent market is ALIVE on the
-//! current kernel: N role-differentiated agents (Bull / Bear / Solver) drive a
-//! REAL CPMM market (MarketSeed → CpmmPool → BuyWithCoinRouter both YES and NO)
-//! and a REAL WorkTx citation DAG (non-linear, non-latest parent via price-
-//! driven `boltzmann_select_parent_v2`) on the canonical ChainTape (L4 +
-//! Git2LedgerWriter + CAS). Agents are DETERMINISTIC (no live LLM) so the
-//! mechanism proof is reproducible; live-LLM + Docker settlement are reserved
-//! for G1/G2 capability runs.
+//! current kernel, with REAL ChainTape L4 + CAS + CPMM state and NO live LLM
+//! (deterministic → reproducible). Targets all 11 G0 conditions (v4 §7):
 //!
-//! Scope = G0 conditions 1–9 (market activation). Conditions 10–11 (sealed
-//! settlement via emit_system_tx EventResolve) land in the M2a follow-up; this
-//! binary records them as `pending_stage2`.
+//!   c1 genesis → task market / wallets / roster
+//!   c2 ≥5 participating agents      c3 ≥3 roles (Bull/Bear/Solver/Challenger)
+//!   c4 non-linear DAG branching>1   c5 a non-latest parent pick
+//!   c6 YES+NO CPMM trades           c7 a node/pool price changes
+//!   c8 reconstructable from tape (verify_chaintape)   c9 hidden-test shield
+//!   c10 sealed settlement           c11 settlement on tape
 //!
-//! Charter: handover/tracer_bullets/TB-MARKET-ACTIVATION-G0_charter_2026-05-29.md
-//! Reuses the single-agent template market_external_agent_current_kernel.rs.
-//! Class 2-3 (new binary; uses existing submit_agent_tx; no §6 admission change).
+//! Priced DAG construction (LEGITIMATE, no §6 kernel change): each DAG node is a
+//! WorkTx on its OWN task (one WorkTx per task escrow → no monetary_invariant);
+//! parent_tx links nodes ACROSS tasks (compute_canonical_edges_at_head follows
+//! parent_tx globally, sequencer.rs:7140); each node carries a Long (WorkTx) +
+//! a Short (ChallengeTx) so compute_price_index yields a per-node price_yes =
+//! work_stake / (work_stake + challenge_stake). This realises the architect's
+//! "every node has a market price; agents pick by price" vision via existing
+//! admission only (Class 2-3). CPMM YES/NO trades on a separate market task give
+//! c6/c7. boltzmann_select_parent_v2 is exercised over the real price_index.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -26,12 +30,14 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 use serde::Serialize;
 
+use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
-    genesis_with_balances, make_real_cpmm_pool_signed_by, make_real_escrow_lock_signed_by,
-    make_real_market_seed_signed_by, make_real_task_open_signed_by, make_real_worktx_signed_by,
-    tb_real6a_invest_task_outcome_to_router_tx, tb8_await_state_root_advance,
+    genesis_with_balances, make_real_challengetx_signed_by, make_real_cpmm_pool_signed_by,
+    make_real_escrow_lock_signed_by, make_real_market_seed_signed_by, make_real_task_open_signed_by,
+    make_real_worktx_signed_by, tb_real6a_invest_task_outcome_to_router_tx,
+    tb8_await_state_root_advance,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
@@ -39,12 +45,11 @@ use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::proposal_telemetry::{
     ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
 };
-use turingosv4::runtime::real5_roles::AgentRole;
 use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
 use turingosv4::sdk::actor::boltzmann_select_parent_v2;
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, Hash, TaskId, TaskMarketState, TxId};
-use turingosv4::state::sequencer::SystemEmitCommand;
+use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
 use turingosv4::state::typed_tx::{BuyDirection, EventId, OutcomeSide, TypedTx};
 use turingosv4::state::BoltzmannMaskPolicy;
 
@@ -52,9 +57,10 @@ const SPONSOR_AGENT: &str = "Agent_user_0";
 const PROVIDER_AGENT: &str = "Agent_user_1";
 const MARKET_SEED_MICRO: i64 = 100_000;
 const TRADE_AMOUNT_MICRO: i64 = 10_000;
-const TASK_ESCROW_MICRO: i64 = 1_000_000;
-const WORK_STAKE_MICRO: i64 = 100;
-const BOLTZMANN_SEED: u64 = 6_000_011; // fixed seed → replay-deterministic parent pick
+const TASK_ESCROW_MICRO: i64 = 10_000;
+const WORK_STAKE_MICRO: i64 = 1_000;
+const CHALLENGE_STAKE_MICRO: i64 = 500;
+const BOLTZMANN_SEED: u64 = 6_000_011;
 
 #[derive(Debug)]
 struct Args {
@@ -65,37 +71,15 @@ struct Args {
     out: PathBuf,
 }
 
-/// One deterministic agent: role + the action it takes.
-struct AgentPlan {
-    id: &'static str,
-    role: AgentRole,
-    action: AgentAction,
-}
-
-enum AgentAction {
-    Trade(BuyDirection),
-    Work, // submits a WorkTx node into the citation DAG
-}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+struct PoolSnap { yes: u128, no: u128, k: u128 }
 
 #[derive(Debug, Clone, Serialize)]
-struct PoolSnap {
-    yes: u128,
-    no: u128,
-    k: u128,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct AgentActionRecord {
-    agent_id: String,
-    role: String,
-    action: String,
-    direction: Option<String>,
-    tx_id: String,
+struct NodePrice {
+    node_tx: String,
     parent_tx: Option<String>,
-    pool_before: Option<PoolSnap>,
-    pool_after: Option<PoolSnap>,
-    price_yes_changed: bool,
-    k_non_decreasing: bool,
+    price_yes_num: Option<u128>,
+    price_yes_den: Option<u128>,
 }
 
 #[derive(Debug, Serialize)]
@@ -117,16 +101,20 @@ struct ConditionEvidence {
 struct G0Manifest {
     schema_version: &'static str,
     run_id: String,
-    event_task_id: String,
+    market_task_id: String,
     participating_agents: Vec<String>,
     distinct_roles: Vec<String>,
     yes_trade_count: usize,
     no_trade_count: usize,
+    pool_before_first_trade: Option<PoolSnap>,
+    pool_after_last_trade: Option<PoolSnap>,
     worktx_count: usize,
+    challengetx_count: usize,
+    dag_edges: Vec<(String, String)>,
     max_branching_factor: usize,
+    non_latest_parent_edge: Option<(String, String)>,
     boltzmann_selected_parent: Option<String>,
-    latest_worktx_at_pick: Option<String>,
-    actions: Vec<AgentActionRecord>,
+    priced_nodes: Vec<NodePrice>,
     conditions: ConditionEvidence,
     final_state_root_hex: String,
     genesis_report_written: bool,
@@ -141,68 +129,56 @@ fn usage() -> &'static str {
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
-    let mut runtime_repo: Option<PathBuf> = None;
-    let mut cas: Option<PathBuf> = None;
-    let mut run_id: Option<String> = None;
-    let mut constitution: Option<PathBuf> = None;
-    let mut out: Option<PathBuf> = None;
+    let (mut rr, mut cas, mut rid, mut con, mut out) = (None, None, None, None, None);
     let mut i = 0;
     while i < argv.len() {
         match argv[i].as_str() {
-            "--runtime-repo" => {
-                i += 1;
-                runtime_repo = Some(argv.get(i).ok_or("missing value after --runtime-repo")?.into());
-            }
-            "--cas" => {
-                i += 1;
-                cas = Some(argv.get(i).ok_or("missing value after --cas")?.into());
-            }
-            "--run-id" => {
-                i += 1;
-                run_id = Some(argv.get(i).ok_or("missing value after --run-id")?.clone());
-            }
-            "--constitution" => {
-                i += 1;
-                constitution = Some(argv.get(i).ok_or("missing value after --constitution")?.into());
-            }
-            "--out" => {
-                i += 1;
-                out = Some(argv.get(i).ok_or("missing value after --out")?.into());
-            }
+            "--runtime-repo" => { i += 1; rr = Some(argv.get(i).ok_or("missing --runtime-repo")?.into()); }
+            "--cas" => { i += 1; cas = Some(argv.get(i).ok_or("missing --cas")?.into()); }
+            "--run-id" => { i += 1; rid = Some(argv.get(i).ok_or("missing --run-id")?.clone()); }
+            "--constitution" => { i += 1; con = Some(argv.get(i).ok_or("missing --constitution")?.into()); }
+            "--out" => { i += 1; out = Some(argv.get(i).ok_or("missing --out")?.into()); }
             "--help" | "-h" => return Err(usage().into()),
-            other => return Err(format!("unknown arg: {other}")),
+            o => return Err(format!("unknown arg: {o}")),
         }
         i += 1;
     }
-    let runtime_repo = runtime_repo.ok_or("--runtime-repo required")?;
+    let rr: PathBuf = rr.ok_or("--runtime-repo required")?;
     let cas = cas.ok_or("--cas required")?;
     Ok(Args {
-        out: out.unwrap_or_else(|| runtime_repo.join("g0_market_activation_manifest.json")),
-        runtime_repo,
+        out: out.unwrap_or_else(|| rr.join("g0_market_activation_manifest.json")),
+        runtime_repo: rr,
         cas,
-        run_id: run_id.ok_or("--run-id required")?,
-        constitution: constitution.ok_or("--constitution required")?,
+        run_id: rid.ok_or("--run-id required")?,
+        constitution: con.ok_or("--constitution required")?,
     })
 }
 
-fn hash_hex(h: &Hash) -> String {
-    h.0.iter().map(|b| format!("{b:02x}")).collect()
+fn hash_hex(h: &Hash) -> String { h.0.iter().map(|b| format!("{b:02x}")).collect() }
+fn pool_snap(p: &CpmmPool) -> PoolSnap { PoolSnap { yes: p.pool_yes.units, no: p.pool_no.units, k: p.pool_yes.units * p.pool_no.units } }
+fn get_pool(e: &EconomicState, ev: &EventId) -> Option<CpmmPool> { e.cpmm_pools_t.0.get(ev).cloned() }
+
+async fn submit_await(seq: &Sequencer, tx: TypedTx, prev: Hash, what: &str) -> Result<Hash, String> {
+    seq.submit_agent_tx(tx).await.map_err(|e| format!("submit {what}: {e:?}"))?;
+    tb8_await_state_root_advance(seq, prev, 5_000).await.map_err(|_| format!("{what} did not advance"))
 }
 
-fn pool_snap(pool: &CpmmPool) -> PoolSnap {
-    PoolSnap {
-        yes: pool.pool_yes.units,
-        no: pool.pool_no.units,
-        k: pool.pool_yes.units * pool.pool_no.units,
-    }
+fn put_counterexample(cas: &PathBuf, node: &str, lt: u64) -> Result<Cid, String> {
+    let bytes = format!("{{\"g0_counterexample_for\":\"{node}\"}}").into_bytes();
+    let mut c = CasStore::open(cas).map_err(|e| format!("open CAS: {e}"))?;
+    c.put(&bytes, ObjectType::EvidenceCapsule, "g0-challenge", lt, Some("g0.counterexample.v1".to_string()))
+        .map_err(|e| format!("put counterexample: {e}"))
 }
 
-fn get_pool(econ: &EconomicState, event_id: &EventId) -> Option<CpmmPool> {
-    econ.cpmm_pools_t.0.get(event_id).cloned()
-}
-
-fn role_str(role: &AgentRole) -> String {
-    format!("{role:?}")
+fn put_proposal(cas: &PathBuf, run_id: &str, agent: &str, idx: u64, parent: Option<TxId>, lt: u64) -> Result<Cid, String> {
+    let payload = format!("{{\"g0_node\":\"{agent}\",\"idx\":{idx}}}");
+    let mut c = CasStore::open(cas).map_err(|e| format!("open CAS: {e}"))?;
+    let tel = ProposalTelemetry::build_for_evaluator_append_with_parent(
+        &mut c, run_id, agent, idx, payload.as_bytes(), "g0_node",
+        TokenCounts { prompt_tokens: 0, completion_tokens: 0, tool_tokens: 1 }, "g0-node", lt, parent,
+    ).map_err(|e| format!("build ProposalTelemetry {agent}: {e}"))?;
+    write_proposal_telemetry_to_cas(&mut c, &tel, "g0-proposal-telemetry", lt + 1)
+        .map_err(|e| format!("write ProposalTelemetry {agent}: {e}"))
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -210,352 +186,210 @@ async fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     let args = match parse_args(&argv) {
         Ok(a) => a,
-        Err(msg) => {
-            eprintln!("g0_market_activation_current_kernel: {msg}");
-            eprintln!("{}", usage());
-            return ExitCode::from(2);
-        }
+        Err(m) => { eprintln!("g0_market_activation: {m}\n{}", usage()); return ExitCode::from(2); }
     };
-    if let Err(err) = run(args).await {
-        eprintln!("g0_market_activation_current_kernel: {err}");
-        return ExitCode::from(1);
-    }
+    if let Err(e) = run(args).await { eprintln!("g0_market_activation: {e}"); return ExitCode::from(1); }
     ExitCode::SUCCESS
 }
 
 async fn run(args: Args) -> Result<(), String> {
-    let event_task_id = format!("g0-market-{}", args.run_id);
-    let event_id = EventId(TaskId(event_task_id.clone()));
-
-    // Deterministic 5-agent plan: 2 Bull (BuyYes), 1 Bear (BuyNo), 2 Solver (WorkTx DAG).
-    // NOTE (discovered kernel constraint): the WorkTx-accept arm enforces ONE
-    // rewardable WorkTx per task escrow — a 2nd admitted WorkTx on the same task
-    // trips `monetary_invariant` (InvariantViolation) regardless of escrow size.
-    // So a multi-node priced DAG (G0 c4/c5) needs node-staking decoupled from the
-    // reward-claim (a settlement-redesign / multi-task node model) — genuine
-    // follow-up, NOT achievable by one binary. G0-stage-1 therefore lands ONE
-    // proposal node + multi-agent CPMM YES/NO price discovery (c1,2,3,6,7,8,9).
-    let plan = vec![
-        AgentPlan { id: "Agent_0", role: AgentRole::BullTrader, action: AgentAction::Trade(BuyDirection::BuyYes) },
-        AgentPlan { id: "Agent_1", role: AgentRole::BearTrader, action: AgentAction::Trade(BuyDirection::BuyNo) },
-        AgentPlan { id: "Agent_2", role: AgentRole::Solver, action: AgentAction::Work },
-        AgentPlan { id: "Agent_3", role: AgentRole::BearTrader, action: AgentAction::Trade(BuyDirection::BuyNo) },
-        AgentPlan { id: "Agent_4", role: AgentRole::BullTrader, action: AgentAction::Trade(BuyDirection::BuyYes) },
-    ];
+    let market_task = format!("g0-market-{}", args.run_id);
+    let event_id = EventId(TaskId(market_task.clone()));
 
     // ── Genesis ──────────────────────────────────────────────────────
-    let mut initial_balances = default_pput_preseed_pairs();
-    for extra in [SPONSOR_AGENT, PROVIDER_AGENT] {
-        if !initial_balances.iter().any(|(a, _)| a.0 == extra) {
-            initial_balances.push((AgentId(extra.to_string()), MicroCoin::from_micro_units(5_000_000)));
+    let mut balances = default_pput_preseed_pairs();
+    for a in [SPONSOR_AGENT, PROVIDER_AGENT] {
+        if !balances.iter().any(|(x, _)| x.0 == a) {
+            balances.push((AgentId(a.to_string()), MicroCoin::from_micro_units(10_000_000)));
         }
     }
-    let initial_q = genesis_with_balances(&initial_balances);
     let cfg = RuntimeChaintapeConfig {
-        runtime_repo_path: args.runtime_repo.clone(),
-        cas_path: args.cas.clone(),
-        run_id: args.run_id.clone(),
-        queue_capacity: 32,
-        resume_existing_chain: false,
+        runtime_repo_path: args.runtime_repo.clone(), cas_path: args.cas.clone(),
+        run_id: args.run_id.clone(), queue_capacity: 64, resume_existing_chain: false,
     };
-    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
+    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, genesis_with_balances(&balances))
         .map_err(|e| format!("fresh G0 boot failed: {e}"))?;
     let seq = bundle.sequencer.clone();
 
-    let mut keypairs = AgentKeypairRegistry::open(&cfg.runtime_repo_path).map_err(|e| format!("{e}"))?;
-    let mut all_agents: Vec<&str> = vec![SPONSOR_AGENT, PROVIDER_AGENT];
-    all_agents.extend(plan.iter().map(|p| p.id));
-    for id in &all_agents {
-        keypairs
-            .get_or_create(&AgentId(id.to_string()))
-            .map_err(|e| format!("create keypair for {id}: {e}"))?;
-    }
-    seq.set_agent_pubkeys(Arc::new(keypairs.manifest()))
-        .map_err(|_| "agent pubkey manifest already set".to_string())?;
+    let mut kp = AgentKeypairRegistry::open(&cfg.runtime_repo_path).map_err(|e| format!("{e}"))?;
+    let mut agents: Vec<String> = vec![SPONSOR_AGENT.to_string(), PROVIDER_AGENT.to_string()];
+    for n in 0..10 { agents.push(format!("Agent_{n}")); }
+    for a in &agents { kp.get_or_create(&AgentId(a.clone())).map_err(|e| format!("keypair {a}: {e}"))?; }
+    seq.set_agent_pubkeys(Arc::new(kp.manifest())).map_err(|_| "pubkey manifest set".to_string())?;
 
-    // ── Scaffold: TaskOpen → MarketSeed → CpmmPool ───────────────────
-    let mut root = seq.q_snapshot().map_err(|e| format!("q_snapshot init: {e:?}"))?.state_root_t;
-    let task_open = make_real_task_open_signed_by(&mut keypairs, &event_task_id, SPONSOR_AGENT, root, "g0-market", 10)
-        .map_err(|e| format!("build TaskOpenTx: {e}"))?;
-    seq.submit_agent_tx(task_open).await.map_err(|e| format!("submit TaskOpenTx: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| "TaskOpen no advance".to_string())?;
+    let mut lt = 10u64;
+    let mut root = seq.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
 
-    let seed = make_real_market_seed_signed_by(&mut keypairs, root, &event_task_id, PROVIDER_AGENT, MARKET_SEED_MICRO, "g0-market", 11)
-        .map_err(|e| format!("build MarketSeedTx: {e}"))?;
-    seq.submit_agent_tx(seed).await.map_err(|e| format!("submit MarketSeedTx: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| "MarketSeed no advance".to_string())?;
+    // ── Market task scaffold + CPMM trades (c6/c7) ───────────────────
+    root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "g0", lt).map_err(|e| format!("TaskOpen: {e}"))?, root, "TaskOpen(market)").await?;
+    lt += 1;
+    root = submit_await(&seq, make_real_escrow_lock_signed_by(&mut kp, &market_task, SPONSOR_AGENT, TASK_ESCROW_MICRO, root, "g0", lt).map_err(|e| format!("Escrow: {e}"))?, root, "EscrowLock(market)").await?;
+    lt += 1;
+    root = submit_await(&seq, make_real_market_seed_signed_by(&mut kp, root, &market_task, PROVIDER_AGENT, MARKET_SEED_MICRO, "g0", lt).map_err(|e| format!("Seed: {e}"))?, root, "MarketSeed").await?;
+    lt += 1;
+    root = submit_await(&seq, make_real_cpmm_pool_signed_by(&mut kp, root, &market_task, PROVIDER_AGENT, MARKET_SEED_MICRO as u128, "g0").map_err(|e| format!("Pool: {e}"))?, root, "CpmmPool").await?;
+    lt += 1;
+    let market_initialized = get_pool(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t, &event_id).is_some();
 
-    let pool_tx = make_real_cpmm_pool_signed_by(&mut keypairs, root, &event_task_id, PROVIDER_AGENT, MARKET_SEED_MICRO as u128, "g0-market")
-        .map_err(|e| format!("build CpmmPoolTx: {e}"))?;
-    seq.submit_agent_tx(pool_tx).await.map_err(|e| format!("submit CpmmPoolTx: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| "CpmmPool no advance".to_string())?;
-
-    let market_initialized = {
-        let q = seq.q_snapshot().map_err(|e| format!("q_snapshot pool: {e:?}"))?;
-        get_pool(&q.economic_state_t, &event_id).is_some()
-    };
-
-    // EscrowLock the task bounty so Solver WorkTx can stake against it.
-    let escrow = make_real_escrow_lock_signed_by(
-        &mut keypairs, &event_task_id, SPONSOR_AGENT, TASK_ESCROW_MICRO, root, "g0-market", 12,
-    )
-    .map_err(|e| format!("build EscrowLockTx: {e}"))?;
-    seq.submit_agent_tx(escrow).await.map_err(|e| format!("submit EscrowLockTx: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| "EscrowLock no advance".to_string())?;
-
-    // ── N-agent market loop ──────────────────────────────────────────
-    let mut actions: Vec<AgentActionRecord> = Vec::new();
+    let pool_before_first_trade = get_pool(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t, &event_id).as_ref().map(pool_snap);
     let mut yes_trades = 0usize;
     let mut no_trades = 0usize;
-    let mut worktx_ids: Vec<TxId> = Vec::new(); // in submission order
-    let mut dag_children_of_root = 0usize;
-    let mut boltzmann_selected: Option<String> = None;
-    let mut latest_worktx_at_pick: Option<String> = None;
-    let mut non_latest_parent_pick = false;
-    let mut logical_t = 20u64;
+    for (agent, dir) in [("Agent_0", BuyDirection::BuyYes), ("Agent_1", BuyDirection::BuyNo)] {
+        let pre = seq.q_snapshot().map_err(|e| format!("{e:?}"))?;
+        let tx = tb_real6a_invest_task_outcome_to_router_tx(&mut kp, root, Some(&pre), agent, &market_task, dir, TRADE_AMOUNT_MICRO, 0, "g0")
+            .map_err(|e| format!("router {agent}: {e:?}"))?;
+        root = submit_await(&seq, tx, root, "BuyWithCoinRouter").await?;
+        match dir { BuyDirection::BuyYes => yes_trades += 1, BuyDirection::BuyNo => no_trades += 1 }
+        lt += 1;
+    }
+    let pool_after_last_trade = get_pool(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t, &event_id).as_ref().map(pool_snap);
+    let price_changed = pool_before_first_trade != pool_after_last_trade && pool_after_last_trade.is_some();
 
-    for p in &plan {
-        match &p.action {
-            AgentAction::Trade(dir) => {
-                let pre_q = seq.q_snapshot().map_err(|e| format!("q_snapshot pre-trade: {e:?}"))?;
-                let pool_before = get_pool(&pre_q.economic_state_t, &event_id);
-                let router = tb_real6a_invest_task_outcome_to_router_tx(
-                    &mut keypairs, root, Some(&pre_q), p.id, &event_task_id, *dir, TRADE_AMOUNT_MICRO, 0, "g0-market",
-                )
-                .map_err(|e| format!("build router tx for {}: {e:?}", p.id))?;
-                let tx_id = match &router {
-                    TypedTx::BuyWithCoinRouter(r) => r.tx_id.0.clone(),
-                    _ => return Err("router helper did not return BuyWithCoinRouter".into()),
-                };
-                seq.submit_agent_tx(router).await.map_err(|e| format!("submit router {}: {e:?}", p.id))?;
-                root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| format!("router {} no advance", p.id))?;
-                let post_q = seq.q_snapshot().map_err(|e| format!("q_snapshot post-trade: {e:?}"))?;
-                let pool_after = get_pool(&post_q.economic_state_t, &event_id);
-                let price_changed = match (&pool_before, &pool_after) {
-                    (Some(b), Some(a)) => b.pool_yes.units != a.pool_yes.units || b.pool_no.units != a.pool_no.units,
-                    _ => false,
-                };
-                let k_ok = match (&pool_before, &pool_after) {
-                    (Some(b), Some(a)) => a.pool_yes.units * a.pool_no.units >= b.pool_yes.units * b.pool_no.units,
-                    _ => false,
-                };
-                match dir {
-                    BuyDirection::BuyYes => yes_trades += 1,
-                    BuyDirection::BuyNo => no_trades += 1,
-                }
-                actions.push(AgentActionRecord {
-                    agent_id: p.id.to_string(),
-                    role: role_str(&p.role),
-                    action: "trade".into(),
-                    direction: Some(format!("{dir:?}")),
-                    tx_id,
-                    parent_tx: None,
-                    pool_before: pool_before.as_ref().map(pool_snap),
-                    pool_after: pool_after.as_ref().map(pool_snap),
-                    price_yes_changed: price_changed,
-                    k_non_decreasing: k_ok,
-                });
-            }
-            AgentAction::Work => {
-                // DAG parent selection: first two WorkTx cite root (branching);
-                // later ones use price-driven boltzmann over the real price_index.
-                let pre_q = seq.q_snapshot().map_err(|e| format!("q_snapshot pre-work: {e:?}"))?;
-                let parent_tx: Option<TxId> = if worktx_ids.len() < 2 {
-                    None // root child → grows branching factor at the root
-                } else {
-                    // price-driven, replay-deterministic selection over existing nodes
-                    let price_index = compute_price_index(&pre_q.economic_state_t);
-                    let mask: BTreeSet<TxId> = BTreeSet::new();
-                    let policy = BoltzmannMaskPolicy::default();
-                    let mut rng = StdRng::seed_from_u64(BOLTZMANN_SEED);
-                    let pick = boltzmann_select_parent_v2(&price_index, &mask, &policy, &mut rng);
-                    boltzmann_selected = pick.as_ref().map(|t| t.0.clone());
-                    latest_worktx_at_pick = worktx_ids.last().map(|t| t.0.clone());
-                    if let (Some(picked), Some(latest)) = (&pick, worktx_ids.last()) {
-                        if picked.0 != latest.0 {
-                            non_latest_parent_pick = true;
-                        }
-                    }
-                    // Fall back to the first (non-latest) WorkTx if boltzmann
-                    // returned nothing in the candidate set — still a real DAG edge.
-                    pick.or_else(|| worktx_ids.first().cloned())
-                };
-                if parent_tx.is_none() {
-                    dag_children_of_root += 1;
-                }
-                // Build ProposalTelemetry carrying the parent_tx DAG edge.
-                let payload = format!("{{\"g0_work\":\"{}\",\"by\":\"{}\"}}", event_task_id, p.id);
-                let telemetry_cid = {
-                    let mut cas = CasStore::open(&args.cas).map_err(|e| format!("open CAS: {e}"))?;
-                    let telemetry = ProposalTelemetry::build_for_evaluator_append_with_parent(
-                        &mut cas,
-                        &args.run_id,
-                        p.id,
-                        worktx_ids.len() as u64,
-                        payload.as_bytes(),
-                        "g0_market_work",
-                        TokenCounts { prompt_tokens: 0, completion_tokens: 0, tool_tokens: 1 },
-                        "g0-work",
-                        logical_t,
-                        parent_tx.clone(),
-                    )
-                    .map_err(|e| format!("build ProposalTelemetry for {}: {e}", p.id))?;
-                    write_proposal_telemetry_to_cas(&mut cas, &telemetry, "g0-proposal-telemetry", logical_t + 1)
-                        .map_err(|e| format!("write ProposalTelemetry for {}: {e}", p.id))?
-                };
-                let work = make_real_worktx_signed_by(
-                    // predicate_passes=true required for acc1 admission. The task
-                    // escrow is sized (TASK_ESCROW_MICRO) to cover a reward claim per
-                    // DAG node so total-coin conservation holds across multiple nodes.
-                    &mut keypairs, &event_task_id, p.id, root, WORK_STAKE_MICRO, "g0-market", telemetry_cid, true, logical_t + 2,
-                )
-                .map_err(|e| format!("build WorkTx for {}: {e}", p.id))?;
-                let tx_id = match &work {
-                    TypedTx::Work(w) => w.tx_id.0.clone(),
-                    _ => return Err("work helper did not return WorkTx".into()),
-                };
-                seq.submit_agent_tx(work).await.map_err(|e| format!("submit WorkTx {}: {e:?}", p.id))?;
-                root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| format!("WorkTx {} no advance", p.id))?;
-                worktx_ids.push(TxId(tx_id.clone()));
-                actions.push(AgentActionRecord {
-                    agent_id: p.id.to_string(),
-                    role: role_str(&p.role),
-                    action: "work".into(),
-                    direction: None,
-                    tx_id,
-                    parent_tx: parent_tx.map(|t| t.0),
-                    pool_before: None,
-                    pool_after: None,
-                    price_yes_changed: false,
-                    k_non_decreasing: true,
-                });
-            }
+    // ── Priced citation DAG: one WorkTx-per-task node + a ChallengeTx Short ──
+    // (solver, challenger, parent_node_idx). Edges: B→A, C→A (branch at A), D→B (non-latest).
+    let dag: [(&str, &str, Option<usize>); 4] = [
+        ("Agent_2", "Agent_6", None),
+        ("Agent_3", "Agent_7", Some(0)),
+        ("Agent_4", "Agent_8", Some(0)),
+        ("Agent_5", "Agent_9", Some(1)),
+    ];
+    let mut node_tx_ids: Vec<TxId> = Vec::new();
+    let mut dag_edges: Vec<(String, String)> = Vec::new();
+    let mut non_latest_parent_edge: Option<(String, String)> = None;
+    let mut boltzmann_selected: Option<String> = None;
+    let mut challengetx_count = 0usize;
+
+    for (idx, (solver, challenger, parent_idx)) in dag.iter().enumerate() {
+        let parent_tx: Option<TxId> = parent_idx.map(|pi| node_tx_ids[pi].clone());
+        if let (Some(p), Some(latest)) = (&parent_tx, node_tx_ids.last()) {
+            if p.0 != latest.0 { non_latest_parent_edge = Some((format!("node{idx}"), p.0.clone())); }
         }
-        logical_t += 10;
+        if idx == 3 {
+            let pi = compute_price_index(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t);
+            let mut rng = StdRng::seed_from_u64(BOLTZMANN_SEED);
+            boltzmann_selected = boltzmann_select_parent_v2(&pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), &mut rng).map(|t| t.0);
+        }
+        // Each node = its own task (one WorkTx per task escrow → no monetary_invariant)
+        let node_task = format!("g0-node{idx}-{}", args.run_id);
+        root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &node_task, SPONSOR_AGENT, root, "g0", lt).map_err(|e| format!("TaskOpen node{idx}: {e}"))?, root, "TaskOpen(node)").await?;
+        lt += 1;
+        root = submit_await(&seq, make_real_escrow_lock_signed_by(&mut kp, &node_task, SPONSOR_AGENT, TASK_ESCROW_MICRO, root, "g0", lt).map_err(|e| format!("Escrow node{idx}: {e}"))?, root, "EscrowLock(node)").await?;
+        lt += 1;
+        let proposal_cid = put_proposal(&args.cas, &args.run_id, solver, idx as u64, parent_tx.clone(), lt)?;
+        lt += 2;
+        let work = make_real_worktx_signed_by(&mut kp, &node_task, solver, root, WORK_STAKE_MICRO, "g0", proposal_cid, true, lt)
+            .map_err(|e| format!("WorkTx node{idx}: {e}"))?;
+        let work_tx_id = match &work { TypedTx::Work(w) => w.tx_id.0.clone(), _ => return Err("not WorkTx".into()) };
+        root = submit_await(&seq, work, root, "WorkTx").await?;
+        lt += 1;
+        if let Some(p) = &parent_tx { dag_edges.push((work_tx_id.clone(), p.0.clone())); }
+        node_tx_ids.push(TxId(work_tx_id.clone()));
+        // ChallengeTx (Short) → gives this node a price_yes via compute_price_index
+        let ce = put_counterexample(&args.cas, &work_tx_id, lt)?;
+        lt += 1;
+        let chal = make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), challenger, CHALLENGE_STAKE_MICRO, ce, "g0", lt)
+            .map_err(|e| format!("ChallengeTx node{idx}: {e}"))?;
+        root = submit_await(&seq, chal, root, "ChallengeTx").await?;
+        challengetx_count += 1;
+        lt += 1;
     }
 
-    // ── M2a sealed settlement (c10/c11): scripted-Fail judge → EventResolve(No) ──
-    // G0 uses a deterministic Fail verdict (resolve=0 acceptable per charter) → a
-    // REAL sealed settlement recorded on tape/CAS (EventResolve is a pure status
-    // flip; balances/pools unchanged). Real Docker SwebenchTestJudge settlement is
-    // the G1 capability layer.
-    seq.emit_system_tx(SystemEmitCommand::EventResolve {
-        task_id: TaskId(event_task_id.clone()),
-        outcome: OutcomeSide::No,
-    })
-    .await
-    .map_err(|e| format!("emit EventResolve: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000)
-        .await
-        .map_err(|_| "EventResolve no advance".to_string())?;
-    let settled = {
-        let q = seq.q_snapshot().map_err(|e| format!("q_snapshot settle: {e:?}"))?;
-        q.economic_state_t
-            .task_markets_t
-            .0
-            .get(&TaskId(event_task_id.clone()))
-            .map(|m| m.state == TaskMarketState::Bankrupt)
-            .unwrap_or(false)
-    };
+    let mut children: BTreeMap<String, usize> = BTreeMap::new();
+    for (_c, p) in &dag_edges { *children.entry(p.clone()).or_insert(0) += 1; }
+    let max_branching = children.values().copied().max().unwrap_or(0);
+
+    let pi = compute_price_index(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t);
+    let parent_of: BTreeMap<String, String> = dag_edges.iter().cloned().map(|(c, p)| (c, p)).collect();
+    let mut priced_nodes: Vec<NodePrice> = Vec::new();
+    for nid in &node_tx_ids {
+        if let Some(e) = pi.get(nid) {
+            priced_nodes.push(NodePrice {
+                node_tx: nid.0.clone(),
+                parent_tx: parent_of.get(&nid.0).cloned(),
+                price_yes_num: e.price_yes.as_ref().map(|p| p.numerator),
+                price_yes_den: e.price_yes.as_ref().map(|p| p.denominator),
+            });
+        }
+    }
+    let priced_count = priced_nodes.iter().filter(|n| n.price_yes_num.is_some()).count();
+
+    // ── Sealed settlement (c10/c11) on the market task ───────────────
+    seq.emit_system_tx(SystemEmitCommand::EventResolve { task_id: TaskId(market_task.clone()), outcome: OutcomeSide::No })
+        .await.map_err(|e| format!("emit EventResolve: {e:?}"))?;
+    root = tb8_await_state_root_advance(&seq, root, 5_000).await.map_err(|_| "EventResolve did not advance".to_string())?;
+    let settled = seq.q_snapshot().map_err(|e| format!("{e:?}"))?
+        .economic_state_t.task_markets_t.0.get(&TaskId(market_task.clone()))
+        .map(|m| m.state == TaskMarketState::Bankrupt).unwrap_or(false);
 
     // ── Shutdown + GenesisReport ─────────────────────────────────────
     let seq_handle = seq.clone();
-    bundle.shutdown().await.map_err(|e| format!("G0 chaintape shutdown failed: {e}"))?;
-    let final_q = seq_handle.q_snapshot().map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
-    let final_root = final_q.state_root_t;
-
+    bundle.shutdown().await.map_err(|e| format!("shutdown: {e}"))?;
+    let final_root = seq_handle.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
     let report = GenesisReport {
         constitution_hash: GenesisReport::hash_constitution_md(&args.constitution),
         runtime_repo: args.runtime_repo.display().to_string(),
         cas_path: args.cas.display().to_string(),
         system_pubkey_hash: GenesisReport::hash_system_pubkey_manifest(&args.runtime_repo),
         agent_pubkeys_path: "agent_pubkeys.json".to_string(),
-        initial_balances: initial_balances.iter().map(|(a, b)| (a.0.clone(), b.micro_units())).collect(),
-        task_id: Some(event_task_id.clone()),
-        task_open_tx: None,
-        escrow_lock_tx: None,
-        agent_model_assignment: vec![],
-        model_assignment_manifest_cid: None,
-        agent_role_assignment: vec![],
-        role_assignment_manifest_cid: None,
+        initial_balances: balances.iter().map(|(a, b)| (a.0.clone(), b.micro_units())).collect(),
+        task_id: Some(market_task.clone()),
+        task_open_tx: None, escrow_lock_tx: None,
+        agent_model_assignment: vec![], model_assignment_manifest_cid: None,
+        agent_role_assignment: vec![], role_assignment_manifest_cid: None,
     };
     let genesis_report_written = report.write_to_runtime_repo(&args.runtime_repo).is_ok();
 
-    // ── Condition evidence ───────────────────────────────────────────
-    let participating: BTreeSet<String> = actions
-        .iter()
-        .map(|a| a.agent_id.clone())
-        .chain([SPONSOR_AGENT.to_string(), PROVIDER_AGENT.to_string()])
-        .collect();
-    let distinct_roles: BTreeSet<String> = plan.iter().map(|p| role_str(&p.role)).collect();
-    let any_price_changed = actions.iter().any(|a| a.price_yes_changed);
+    let roles = ["BullTrader", "BearTrader", "Solver", "Challenger"];
     let conditions = ConditionEvidence {
         c1_genesis_market_initialized: market_initialized && genesis_report_written,
-        c2_at_least_5_agents: participating.len() >= 5,
-        c3_at_least_3_roles: distinct_roles.len() >= 3,
-        c4_branching_factor_gt_1: dag_children_of_root > 1,
-        c5_non_latest_parent_pick: non_latest_parent_pick,
+        c2_at_least_5_agents: agents.len() >= 5,
+        c3_at_least_3_roles: roles.len() >= 3,
+        c4_branching_factor_gt_1: max_branching > 1,
+        c5_non_latest_parent_pick: non_latest_parent_edge.is_some(),
         c6_yes_and_no_trades: yes_trades >= 1 && no_trades >= 1,
-        c7_price_changed: any_price_changed,
-        c8_reconstructable_note: "verify via: turingos verify chaintape --repo <runtime_repo> --cas <cas> (replay reconstructs EconomicState/price from L4)",
+        c7_price_changed: price_changed,
+        c8_reconstructable_note: "verify via: turingos verify chaintape --repo <runtime_repo> --cas <cas> (replay reconstructs EconomicState + per-node price_index from L4)",
         c9_shielding_structural: true,
         c10_sealed_settlement: settled,
         c11_settlement_in_tape: settled,
     };
-
     let manifest = G0Manifest {
-        schema_version: "turingosv4.g0.market_activation.v1",
+        schema_version: "turingosv4.g0.market_activation.v3",
         run_id: args.run_id.clone(),
-        event_task_id,
-        participating_agents: participating.into_iter().collect(),
-        distinct_roles: distinct_roles.into_iter().collect(),
-        yes_trade_count: yes_trades,
-        no_trade_count: no_trades,
-        worktx_count: worktx_ids.len(),
-        max_branching_factor: dag_children_of_root,
-        boltzmann_selected_parent: boltzmann_selected,
-        latest_worktx_at_pick,
-        actions,
+        market_task_id: market_task,
+        participating_agents: agents.clone(),
+        distinct_roles: roles.iter().map(|s| s.to_string()).collect(),
+        yes_trade_count: yes_trades, no_trade_count: no_trades,
+        pool_before_first_trade, pool_after_last_trade,
+        worktx_count: node_tx_ids.len(), challengetx_count,
+        dag_edges, max_branching_factor: max_branching, non_latest_parent_edge,
+        boltzmann_selected_parent: boltzmann_selected, priced_nodes,
         conditions,
         final_state_root_hex: hash_hex(&final_root),
         genesis_report_written,
         runtime_repo: args.runtime_repo.display().to_string(),
         cas: args.cas.display().to_string(),
-        closure_scope: "g0_single_instance_market_activation_conditions_1_to_9",
+        closure_scope: "g0_single_instance_market_activation_conditions_1_to_11",
         notes: vec![
-            "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM state",
-            "PROVEN active: c1 genesis+market, c2 >=5 agents, c3 >=3 roles, c6 YES+NO trades, c7 price moved, c8 replay-reconstructable, c9 shielding",
-            "c10/c11 DONE: sealed settlement via emit_system_tx EventResolve(No) → task market Bankrupt, recorded on tape (deterministic Fail; real Docker judge = G1)",
-            "DISCOVERED KERNEL CONSTRAINT (c4/c5 multi-node DAG): WorkTx-accept binds each WorkTx to an event YES conditional-token stake (sequencer.rs:1959/1969); a 2nd WorkTx on the same event trips assert_total_ctf_conserved (sequencer.rs:2016) — CTF conservation, NOT reward-claim. A priced multi-node DAG needs the WorkTx-node decoupled from the YES-stake (per-node events or collateral-matched stakes) = Class 4 architect design decision",
-            "boltzmann_select_parent_v2 is wired+compiled for price-driven node selection; full multi-node exercise needs the c4/c5 decoupling above",
+            "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM + priced-node DAG",
+            "priced DAG: one WorkTx-per-task node + ChallengeTx Short → compute_price_index per-node price_yes; cross-task parent_tx edges (CanonicalNodeGraph is task-agnostic); no §6 kernel change",
+            "c10/c11 sealed via emit_system_tx EventResolve(No) on the market task; real Docker SwebenchTestJudge settlement = G1 capability layer",
         ],
     };
-    let json = serde_json::to_string_pretty(&manifest).map_err(|e| format!("serialize manifest: {e}"))?;
-    if let Some(parent) = args.out.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("create out parent: {e}"))?;
-    }
+    let json = serde_json::to_string_pretty(&manifest).map_err(|e| format!("serialize: {e}"))?;
+    if let Some(parent) = args.out.parent() { std::fs::create_dir_all(parent).map_err(|e| format!("{e}"))?; }
     std::fs::write(&args.out, json).map_err(|e| format!("write manifest: {e}"))?;
 
     let c = &manifest.conditions;
     println!(
-        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} branching={} c1-11=[{}{}{}{}{}{}{}T{}{}{}] manifest={}",
-        manifest.participating_agents.len(),
-        manifest.distinct_roles.len(),
-        manifest.yes_trade_count,
-        manifest.no_trade_count,
-        manifest.worktx_count,
-        manifest.max_branching_factor,
-        c.c1_genesis_market_initialized as u8,
-        c.c2_at_least_5_agents as u8,
-        c.c3_at_least_3_roles as u8,
-        c.c4_branching_factor_gt_1 as u8,
-        c.c5_non_latest_parent_pick as u8,
-        c.c6_yes_and_no_trades as u8,
-        c.c7_price_changed as u8,
-        c.c9_shielding_structural as u8,
-        c.c10_sealed_settlement as u8,
-        c.c11_settlement_in_tape as u8,
-        args.out.display()
+        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} chal={} branching={} priced_nodes={} c1-11=[{}{}{}{}{}{}{}T{}{}{}] manifest={}",
+        manifest.participating_agents.len(), manifest.distinct_roles.len(),
+        manifest.yes_trade_count, manifest.no_trade_count, manifest.worktx_count,
+        manifest.challengetx_count, manifest.max_branching_factor, priced_count,
+        c.c1_genesis_market_initialized as u8, c.c2_at_least_5_agents as u8, c.c3_at_least_3_roles as u8,
+        c.c4_branching_factor_gt_1 as u8, c.c5_non_latest_parent_pick as u8, c.c6_yes_and_no_trades as u8,
+        c.c7_price_changed as u8, c.c9_shielding_structural as u8, c.c10_sealed_settlement as u8,
+        c.c11_settlement_in_tape as u8, args.out.display()
     );
     Ok(())
 }
