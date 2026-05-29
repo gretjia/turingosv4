@@ -101,14 +101,10 @@ Subjective opinions are out-of-scope.
 
 ## 7. Read order for new session
 
-1. `CLAUDE.md` (this file)
-2. `AGENTS.md`
-3. `constitution.md`
-4. `handover/ai-direct/LATEST.md`
-5. Key Coding Principles: [KARPATHY_ARCHITECT.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](file:///home/zephryj/projects/turingosv4/skills/KARPATHY_SIMPLE_CODE.md)
-6. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`
-7. current TB charter / directive
-8. Only then supporting docs
+Follow the canonical cold-start order in `AGENTS.md §2`. Claude-specific delta:
+read this file (`CLAUDE.md`) first, then continue with that order. Optional
+Claude memory lives at `~/.claude/projects/.../memory/MEMORY.md` (do not depend
+on that path existing on other machines).
 
 ## 8. Handover discipline (Claude-specific)
 

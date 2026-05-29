@@ -312,6 +312,12 @@ Conservative interpretation:
 - `CHALLENGE` requires fix or explicit forward deferral with rationale.
 - `PROCEED` is necessary but not a substitute for passing gates/evidence.
 
+## 10. (retired 2026-05-29)
+
+The self-hosting `turingos_dev` sidecar was removed (Phase 2). §11–§16 retain
+their numbers so existing `AGENTS.md §NN` citations across the thin CLI files,
+skills, and `CLAUDE.md` stay valid.
+
 ## 11. Done Definition
 
 A task is done only when:
@@ -352,9 +358,9 @@ untriaged historical logs in ordinary agent prompts.
 Canonical IDs and shadow IDs must not be mixed. Dashboard and report code must
 derive from ChainTape/CAS, not become a source of truth.
 
-No workaround closures: do not turn a failing gate into a skip, null pointer,
-empty evidence path, or dashboard-only proof. Align with the constitution and
-FC1/FC2/FC3, or stop.
+No workaround closures: admission and gates are fail-closed by default — do not
+turn a failing gate into a skip, null pointer, empty evidence path, or
+dashboard-only proof. Align with the constitution and FC1/FC2/FC3, or stop.
 
 ## 13. Key Coding Principles (Karpathy Skills)
 
@@ -465,17 +471,18 @@ See `skills/SUBAGENT_HARNESS.md` for prompt-template patterns and
 `handover/architect-insights/K_HARDEN_PROPOSAL_2026-05-20.md` for design
 rationale.
 
-## 15. Codex Guidance Maintenance
+## 15. Harness Guidance Maintenance
 
-This file should stay concise and load-bearing. If Codex repeats the same
+This file should stay concise and load-bearing. If any agent repeats the same
 mistake twice, update `AGENTS.md` or create a small referenced playbook/skill.
 If this file grows too large, split task-specific material into separate docs
 and reference them here.
 
 Useful research baseline:
 
-- Codex docs: keep `AGENTS.md` practical, include commands/constraints/done
-  criteria, and test/review work before accepting it.
+- Agent-instruction docs (Codex `AGENTS.md`, Claude `CLAUDE.md`, …): keep them
+  practical, include commands/constraints/done criteria, and test/review work
+  before accepting it.
 - Evals best practice: use task-specific evals, trace/tool-level checks,
   continuous evaluation, and clear graders rather than final-output vibes.
 - Recent AGENTS/harness research is mixed on instruction volume; therefore
@@ -515,7 +522,5 @@ other audit witness is invalid if obligation witness ≠ `OBL-ALL-CLOSED`.
 
 ### Cross-platform discovery
 
-All thin discovery files (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`,
-`.cursorrules`, `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
-`.github/copilot-instructions.md`, `WARP.md`) already redirect here. No
-per-agent shim. One file, one schema, every agent.
+All thin discovery files (see §2) already redirect here. No per-agent shim.
+One file, one schema, every agent.
