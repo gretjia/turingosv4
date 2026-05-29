@@ -345,14 +345,6 @@ pub mod real6_task_outcome;
 /// paid conviction; no new economic source of truth.
 pub mod real6_conviction_budget;
 
-/// TRACE_MATRIX FC3-N33 + FC3-N43 (Unified Agent Harness 2026-05-13):
-/// self-hosting development evidence sidecar. `turingos_dev` records
-/// module/molecule/atom contracts, command evidence, review verdicts, and an
-/// append-only hash chain for development work. It is NOT a canonical tape or
-/// a second CAS; future work may anchor summaries into ChainTape/CAS after
-/// G3.2/G4.2/PromptCapsule runtime closure.
-pub mod dev_harness;
-
 /// TRACE_MATRIX FC1: Phase C2 GenerationAttemptCapsule CAS wire.
 pub mod generation_attempt;
 

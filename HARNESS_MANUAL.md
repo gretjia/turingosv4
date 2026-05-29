@@ -18,7 +18,6 @@ Human Intent
 -> Cortex plan
 -> Module / Molecule / Atom contract
 -> Executor implementation
--> DevEvidence sidecar
 -> Verification
 -> Clean-context review when required
 -> Close / summarize
@@ -118,7 +117,7 @@ Cortex 或 planning agent 可以建议压缩为 molecule，也可以建议拆成
 | --- | --- | --- |
 | 0 | docs、计划、handover、非权威说明 | diff check，必要时 manual review |
 | 1 | additive helper、parser、formatter、非权威 view | targeted test 或 command evidence |
-| 2 | production wire-up、evaluator adapter、dashboard、replay verifier、benchmark harness | targeted tests，相关 gates，通常需要 dev evidence |
+| 2 | production wire-up、evaluator adapter、dashboard、replay verifier、benchmark harness | targeted tests，相关 gates，command evidence |
 | 3 | auth、money、CAS integrity、capability、market/economic state、production evidence、`audit_tape` | real evidence，broad tests，clean-context audit |
 | 4 | constitution、flowcharts、sequencer admission、typed tx schema、canonical signing payload、RootBox/kernel authority | per-atom section-8 ratification，real evidence，clean-context audit |
 
@@ -145,101 +144,24 @@ Class 4 必须有明确的 per-atom §8 architect/user ratification。`ok`、`go
 restricted surface，但如果文档改变了规则权威、宪法解释、flowchart/hash，
 仍可能成为 Class 4。
 
-## 7. Opening A Dev Run
-
-`turingos_dev` 是 self-hosting shadow mode 的开发证据入口。它不是第二条
-canonical tape，也不是 autonomous developer。它记录开发证据，以便未来锚定到
-TuringOS 的 ChainTape/CAS。
-
-如果本地没有二进制，先构建：
-
-```bash
-cargo build --bin turingos_dev
-```
-
-打开一个 run：
-
-```bash
-target/debug/turingos_dev open \
-  --title "<task title>" \
-  --module "<module>" \
-  --risk <0-4> \
-  --fc "<FC nodes>" \
-  --allowed "<comma-separated paths>" \
-  --unit molecule \
-  --accept "<comma-separated commands>" \
-  --intent "<human intent>"
-```
-
-示例，docs/manual 任务：
-
-```bash
-target/debug/turingos_dev open \
-  --title "Harness manual for future agents" \
-  --module Harness \
-  --risk 1 \
-  --fc FC3-N33,FC3-N43 \
-  --allowed AGENTS.md,HARNESS.md,HARNESS_MANUAL.md \
-  --unit molecule \
-  --accept "git diff --check,wc -c HARNESS_MANUAL.md" \
-  --intent "Create an operational manual for future agents."
-```
-
-示例，高风险候选只允许在明确 ratification 后执行：
-
-```bash
-target/debug/turingos_dev open \
-  --title "<specific Class 4 atom>" \
-  --module "<module>" \
-  --risk 4 \
-  --fc "<exact FC nodes>" \
-  --allowed "<one atom path set>" \
-  --unit atom \
-  --accept "cargo test --workspace --no-fail-fast,bash scripts/run_constitution_gates.sh" \
-  --ratification "<explicit per-atom section-8 authorization>"
-```
-
-`open` 会输出 `run_id` 和 `run_dir`。之后不要依赖 global latest pointer。
-每条命令显式传 `--run <run_id>`，或者显式设置 `TURINGOS_DEV_RUN`。
-
-## 8. Execution Loop
+## 7. Execution Loop
 
 标准执行循环：
 
 1. 先识别或写下会失败的 gate/test/check。
 2. 做最小 scoped edit。
-3. 记录 diff。
-4. 记录 acceptance commands。
-5. 根据失败证据修复。
-6. 需要审计时，准备 clean-context payload。
-7. `validate`。
-8. `close`。
-9. `summarize`。
+3. 根据失败证据修复。
+4. 跑 acceptance commands，保留输出作为证据。
+5. 需要审计时，准备 clean-context payload。
+6. 验证 gates/evidence/audit 一致后再 ship。
 
-记录当前 diff：
-
-```bash
-target/debug/turingos_dev record-diff --run <run_id>
-```
-
-记录命令证据：
-
-```bash
-target/debug/turingos_dev record-command --run <run_id> -- git diff --check
-target/debug/turingos_dev record-command --run <run_id> -- cargo check
-target/debug/turingos_dev record-command --run <run_id> -- bash scripts/run_constitution_gates.sh
-```
-
-`record-command` 会捕获 command、cwd、exit code、stdout/stderr artifact、
-artifact hash 和时间。命令失败时，失败本身也是证据。不要删除失败证据。
-修复后再记录一条新的命令。
+命令失败时，失败本身也是证据。不要删除失败证据；修复后再重跑一遍并保留新输出。
 
 常用 verification：
 
 ```bash
 git diff --check
 cargo check
-cargo test --test constitution_dev_harness
 cargo test --workspace --no-fail-fast
 bash scripts/run_constitution_gates.sh
 make constitution
@@ -249,43 +171,7 @@ cargo clippy --workspace --tests --no-deps
 
 开发中可以先跑 targeted tests。ship-level 或 Class 3/4 需要按风险扩大。
 
-## 9. Evidence Layout
-
-每个 run 写入：
-
-```text
-handover/evidence/dev_self_hosting/<run_id>/
-  DevTaskManifest.json
-  FCWitnessManifest.json
-  events.jsonl
-  events_hash_chain.json
-  artifacts/
-    diff.patch
-    command_stdout.*
-    command_stderr.*
-  DevAuditVerdict.json
-  DevRunSummary.json
-```
-
-含义：
-
-- `DevTaskManifest.json`: task contract、risk、FC nodes、allowed paths、
-  acceptance commands、git head、restricted hits。
-- `FCWitnessManifest.json`: 触碰的 flowchart/invariant 和期望证据。
-- `events.jsonl`: append-only event stream。
-- `events_hash_chain.json`: hash-chain sidecar。
-- `artifacts/`: diff、stdout、stderr、audit payload 等文件。
-- `DevAuditVerdict.json`: clean-context review 的结构化 verdict。
-- `DevRunSummary.json`: close 后的总结。
-
-规则：
-
-- 不要重写历史 evidence。
-- 不要把 DevEvidence 当成新的 canonical tape。
-- 不要默认把 raw prompt、CoT、private diagnostics、raw stderr 导出为训练数据。
-- 如果需要训练语料，必须 redacted、opt-in、audit-approved。
-
-## 10. Clean-Context Audit
+## 8. Clean-Context Audit
 
 默认审计是 **platform-agnostic clean-context audit** —— 任意有能力平台上的一名
 全新 clean-context 审计者（Claude / Codex / Antigravity / …），不得持有实现
@@ -304,7 +190,6 @@ Reviewer payload 必须包含：
 - human intent
 - risk class
 - touched FC nodes/invariants
-- `FCWitnessManifest`
 - harness audit standard
 - current diff
 - evidence paths
@@ -318,54 +203,24 @@ Reviewer payload 不能包含：
 - 试错心理过程
 - 无关的长期上下文噪音
 
-记录审计结果：
-
-```bash
-target/debug/turingos_dev record-audit \
-  --run <run_id> \
-  --reviewer clean-context-codex \
-  --verdict PROCEED \
-  --file <audit.md> \
-  --summary "<short findings summary>"
-```
-
 裁决解释：
 
 - `PROCEED`: 可以继续，但仍不能替代 gates/evidence。
 - `CHALLENGE`: 必须修复，或明确 forward deferral 并说明理由。
 - `VETO`: 阻断 ship。
 
-## 11. Validate And Close
+## 9. Validate Before Ship
 
-验证 run：
+收束任务前，按 fail-closed 原则核对，任何一条不满足都不能 ship：
 
-```bash
-target/debug/turingos_dev validate --run <run_id>
-```
+- acceptance command 缺失或失败，不能 ship。
+- audit required 但缺失，不能 ship。
+- restricted path 与风险声明不一致，不能 ship。
+- Class 4 缺 per-atom §8 ratification，不能 ship。
 
-关闭 run：
+不要把失败凑成通过。证据不能重建的主张按未完成处理。
 
-```bash
-target/debug/turingos_dev close --run <run_id>
-```
-
-生成摘要：
-
-```bash
-target/debug/turingos_dev summarize --run <run_id>
-```
-
-`close` 必须 fail closed：
-
-- event hash chain 断裂，不能成功关闭。
-- acceptance command 缺失或失败，不能成功关闭。
-- audit required 但缺失，不能成功关闭。
-- restricted path 与风险声明不一致，不能成功关闭。
-- Class 4 缺 per-atom ratification，不能成功关闭。
-
-如果 hash chain 断裂，不要修历史链。把 run 标记为无效，打开新 run。
-
-## 12. Runner And Batch Policy
+## 10. Runner And Batch Policy
 
 任何 runner 会写 `handover/evidence/` 或执行真实问题集时，先调用
 `/runner-preflight`，如果当前工具没有这个命令，就手工确认：
@@ -384,14 +239,14 @@ batch 或接受该批次废弃，再改代码。
 大型 benchmark 前，相关 surface 至少需要 P38/P49 equality、M0、constitution
 gates、`HEAD_t`、PromptCapsule、PCP synthetic corpus 处于可接受状态。
 
-## 13. Common Recovery Paths
+## 11. Common Recovery Paths
 
 测试失败：
 
-- 保留失败 command evidence。
+- 保留失败 command 的 stdout/stderr 作为证据。
 - 根据 stdout/stderr 修复。
-- 再记录一条新的 command。
-- 不要把失败输出从 evidence 中删除。
+- 修复后重跑同一条 command，保留新输出。
+- 不要把失败输出从证据中删除。
 
 风险升级：
 
@@ -403,7 +258,7 @@ gates、`HEAD_t`、PromptCapsule、PCP synthetic corpus 处于可接受状态。
 
 - 不要删除 evidence。
 - 可以清理构建缓存，例如 `target/`，但要知道这会让之后需要重新构建。
-- 重新跑失败的 command 并记录新证据。
+- 重新跑失败的 command 并保留新证据。
 
 旧文档过期：
 
@@ -414,74 +269,14 @@ diff 超出 allowed paths：
 
 - 停止。
 - 判断是 accidental drift 还是 task scope 必要扩展。
-- 必要时重新 open 或更新 task contract，而不是悄悄继续。
+- 必要时重新声明或更新 task contract，而不是悄悄继续。
 
-## 14. Task Recipes
-
-Docs-only Class 0/1：
-
-```bash
-target/debug/turingos_dev open \
-  --title "<docs task>" \
-  --module Harness \
-  --risk 1 \
-  --fc FC3-N33 \
-  --allowed "<docs paths>" \
-  --unit molecule \
-  --accept "git diff --check"
-
-target/debug/turingos_dev record-diff --run <run_id>
-target/debug/turingos_dev record-command --run <run_id> -- git diff --check
-target/debug/turingos_dev close --run <run_id>
-```
-
-Code helper Class 1/2：
-
-```bash
-target/debug/turingos_dev open \
-  --title "<helper task>" \
-  --module "<module>" \
-  --risk 2 \
-  --fc "<nodes>" \
-  --allowed "src/<path>,tests/<path>" \
-  --unit molecule \
-  --accept "cargo test <target>,cargo check"
-
-target/debug/turingos_dev record-diff --run <run_id>
-target/debug/turingos_dev record-command --run <run_id> -- cargo test <target>
-target/debug/turingos_dev record-command --run <run_id> -- cargo check
-target/debug/turingos_dev close --run <run_id>
-```
-
-Evidence/runner Class 2/3：
-
-```bash
-target/debug/turingos_dev open \
-  --title "<runner task>" \
-  --module "<module>" \
-  --risk 3 \
-  --fc "<nodes>" \
-  --allowed "<runner paths>,<tests>" \
-  --unit atom \
-  --accept "cargo test --workspace --no-fail-fast,bash scripts/run_constitution_gates.sh"
-```
-
-随后必须记录真实命令，并准备 clean-context audit。
-
-Class 4 candidate：
-
-- 不要直接实现。
-- 写明 atom、FC nodes、restricted surface、expected evidence。
-- 等 explicit per-atom §8 ratification。
-- 一次只做一个 Class 4 atom。
-
-## 15. Final Response Checklist
+## 12. Final Response Checklist
 
 结束任务前，agent 的最终回复应说明：
 
 - 改了哪些文件。
-- 对应 run id 和 evidence path，若本任务使用了 `turingos_dev`。
-- 跑了哪些 verification commands。
+- 跑了哪些 verification commands，以及对应输出/证据路径。
 - 哪些命令没有跑，以及为什么。
 - 如果有 audit，给出 verdict。
 - 如果有风险或后续事项，明确指出。

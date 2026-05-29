@@ -13,14 +13,6 @@ const ALLOWED_EXCEPTIONS: &[(&str, &str)] = &[
         "single process-hygiene boundary that owns child process creation",
     ),
     (
-        "src/bin/turingos_dev.rs",
-        "dev-only harness shell-out path, not product runtime",
-    ),
-    (
-        "src/runtime/dev_harness.rs",
-        "dev-only harness shell-out path, not product runtime",
-    ),
-    (
         "src/bin/turingos/cmd_wizard.rs",
         "OS-interactive local UX helpers: opener/stty are explicit exceptions",
     ),

@@ -868,19 +868,3 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["tool registry root", "system-only meta tx"]
-
-[[group]]
-id = "dev_harness"
-classification = "dev_only"
-status = "smoke_only"
-risk_class = 2
-allowed_as_fc_authority = false
-restricted_surface = false
-module_ids = ["bin::turingos_dev", "runtime::dev_harness"]
-paths = ["src/runtime/dev_harness.rs", "src/bin/turingos_dev.rs"]
-constitutional_anchors = ["development evidence sidecar"]
-necessity = "Development sidecar only; useful for PR evidence but not a TuringOS production run source of truth."
-smoke_gates = ["tests/constitution_dev_harness.rs"]
-real_world_evidence = []
-evidence_requires = ["dev-only"]
-closure_action = "Excluded from AGI production sufficiency; never count as FC/market liveness."

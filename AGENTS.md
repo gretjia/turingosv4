@@ -285,27 +285,6 @@ Conservative interpretation:
 - `CHALLENGE` requires fix or explicit forward deferral with rationale.
 - `PROCEED` is necessary but not a substitute for passing gates/evidence.
 
-## 10. Self-Hosting Dev Entry
-
-Use `turingos_dev` for non-trivial harness/code work once available. It is a
-development-evidence sidecar, not a second canonical tape:
-
-Detailed operating playbook: `HARNESS_MANUAL.md`.
-
-```bash
-turingos_dev open --title <title> --module <module> --risk <0-4> --fc <nodes> --allowed <paths>
-turingos_dev record-diff --run <run_id>
-turingos_dev record-command --run <run_id> -- <command...>
-turingos_dev record-audit --run <run_id> --reviewer clean-context-codex --verdict PROCEED|CHALLENGE|VETO --file <audit.md>
-turingos_dev validate --run <run_id>
-turingos_dev close --run <run_id>
-```
-
-No global latest pointer: use `--run`, `--run-dir`, or explicit
-`TURINGOS_DEV_RUN`. `record-diff` and `close` must fail closed on restricted
-surface hits, broken event hash chains, failing commands, or missing required
-audit.
-
 ## 11. Done Definition
 
 A task is done only when:
