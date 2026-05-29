@@ -1,30 +1,15 @@
 # K-HARDEN-8: Cursor cold-start entry (legacy .cursorrules format).
 #
-# Modern Cursor reads `.cursor/rules/*.mdc` (see 000-agents-alignment.mdc).
-# This .cursorrules file is kept as fallback for older Cursor versions.
-# Per Cursor 2026 docs, .cursorrules is deprecated; migrate to `.cursor/rules/`.
-
-# Read order (cold start)
-- AGENTS.md (canonical shared agent contract — read first)
-- HARNESS_PLAYBOOK.md (full operating manual)
-- skills/SUBAGENT_HARNESS.md (subagent dispatch template)
-- constitution.md (axioms)
-
-# Hard rules (enforced by hooks)
-- PR-only: never `git push origin main`. Create feature branch + PR.
-  Direct push blocked at GitHub server-side + local `.git/hooks/pre-push`.
-- No wildcard staging: never `git add .` or `git add -A`. Explicit paths only.
-- No sidecar contamination: handover/evidence/dev_self_hosting/dev_*/
-  must never be staged.
-- Restricted surfaces (AGENTS.md §6) require per-atom architect §8.
-
-# Coding style
-- First-principles architecture (skills/KARPATHY_ARCHITECT.md)
-- Transparent data flow, no Manager/Factory/Engine (skills/KARPATHY_SIMPLE_CODE.md)
-- Surgical changes only
-
-# Setup (one time per clone)
-- bash scripts/install_hooks.sh
-- bash scripts/setup_branch_protection.sh
-
-# AGENTS.md is canonical. Conflicts → AGENTS.md wins.
+# Modern Cursor reads `.cursor/rules/*.mdc` (see 000-agents-alignment.mdc);
+# this file is the fallback for older Cursor versions.
+#
+# Start here: read AGENTS.md — the canonical cross-agent contract. It defines
+# the full read order (§2), risk classes (§5), restricted surfaces (§6), the
+# PR-only workflow (§14a), the audit doctrine (§9), the obligation ledger (§16),
+# and the Karpathy coding principles (§13). This file does not restate them.
+#
+# Cursor obeys that one contract identically to every other platform, free to
+# use its own native strengths to realize it — the Layer 1 / Layer 2 model in
+# AGENTS.md §2.
+#
+# AGENTS.md is canonical. If anything here conflicts, AGENTS.md wins.

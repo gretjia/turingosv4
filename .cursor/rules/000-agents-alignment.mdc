@@ -1,58 +1,21 @@
 ---
-description: Cross-CLI harness alignment — Cursor must follow same contract as Claude/Codex/Gemini/Aider
+description: Cross-CLI harness alignment — Cursor follows the same AGENTS.md contract as every other platform
 globs: ["**/*"]
 alwaysApply: true
 ---
 
 # Cursor cold-start alignment (K-HARDEN-8)
 
-This project uses a **cross-agent harness**. Cursor must follow the canonical
-agent contract documented in `AGENTS.md`, identical to what Claude Code,
-Codex CLI, Gemini CLI, and Aider follow.
+**Start here:** read `AGENTS.md` — the canonical cross-agent contract. It
+defines the full read order (§2), risk classes (§5), restricted surfaces (§6),
+the PR-only workflow (§14a), the audit doctrine (§9), the obligation ledger
+(§16), and the Karpathy coding principles (§13). This file does not restate
+those rules.
 
-## Read order (in priority)
+Cursor obeys that one contract identically to every other platform, and is free
+to use its own native strengths — this `.mdc` rule format, `globs`,
+`alwaysApply` — to realize it. That is the Layer 1 / Layer 2 model in
+`AGENTS.md` §2.
 
-1. `AGENTS.md` — canonical shared agent contract (HIGHEST priority)
-2. `HARNESS_PLAYBOOK.md` — full operating manual
-3. `skills/SUBAGENT_HARNESS.md` — subagent dispatch template (if applicable)
-4. `constitution.md` — axiom layer
-
-## Hard rules (enforced mechanically)
-
-- **PR-only workflow**: never `git push origin main`. Always create a feature
-  branch (`git checkout -b feat/whatever origin/main`) and push to it. Open
-  a PR with `gh pr create`. Direct push blocked by:
-  - GitHub server-side branch protection (universal)
-  - Local git pre-push hook (`scripts/hooks/pre-push.harden`)
-- **No wildcard staging**: never use `git add .`, `git add -A`, or
-  `git add --all`. Use explicit file paths. Enforced at pre-commit layer.
-- **No sidecar contamination**: never stage files under
-  `handover/evidence/dev_self_hosting/dev_*/` or `.claude/worktrees/`.
-- **Restricted surfaces** (see `AGENTS.md` §6): touching `src/kernel.rs`,
-  `src/state/sequencer.rs`, `src/state/typed_tx.rs`, `constitution.md`,
-  `rules/engine.py`, etc. requires per-atom architect §8 sign-off.
-
-## Coding style
-
-Two skill files document the discipline:
-- `skills/KARPATHY_ARCHITECT.md` — first-principles architecture, monolithic-flat
-- `skills/KARPATHY_SIMPLE_CODE.md` — transparent data flow, no Manager/Factory/Engine
-
-## Setup (one time per clone)
-
-```bash
-bash scripts/install_hooks.sh
-bash scripts/setup_branch_protection.sh   # admin only
-```
-
-## Verification (cold-start sanity)
-
-```bash
-bash scripts/run_constitution_gates.sh
-cargo test --test constitution_subagent_pr_hygiene
-```
-
-## Conflict resolution
-
-If any rule here contradicts `AGENTS.md`, `AGENTS.md` wins. This file exists
-only because Cursor's auto-discovery prefers `.cursor/rules/*.mdc`.
+If any rule here contradicts `AGENTS.md`, **`AGENTS.md` wins**. This file exists
+because Cursor's auto-discovery prefers `.cursor/rules/*.mdc`.

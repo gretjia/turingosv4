@@ -43,8 +43,8 @@ If ChainTape/CAS contradicts constitution gates, stop.
 
 **THIS file (`AGENTS.md`) is the canonical universal entry for ALL coding
 agent CLIs** — Claude Code, Codex CLI, Gemini CLI, Aider, Cursor, Windsurf,
-GitHub Copilot, Warp, and any future runtime. Each CLI has its own thin
-discovery file (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`, `.cursorrules`,
+GitHub Copilot, Warp, Antigravity, and any future runtime. Each CLI has its own
+thin discovery file (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`, `.cursorrules`,
 `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
 `.github/copilot-instructions.md`, `WARP.md`) but those files all redirect
 here. If any thin entry file contradicts `AGENTS.md`, **`AGENTS.md` wins**.
@@ -74,6 +74,33 @@ CLI-specific notes:
 - **Windsurf** reads `.windsurfrules`
 - **GitHub Copilot** reads `.github/copilot-instructions.md`
 - **Warp** reads `WARP.md`
+- **Antigravity** reads `AGENTS.md` directly (and `GEMINI.md` natively if
+  present); no dedicated thin discovery file is required — the universal
+  contract is enough.
+
+### Two-layer model (unify the contract, not the mechanism)
+
+The harness unifies the *contract*, never the *mechanism*:
+
+- **Layer 1 — universal contract (this file).** The governance rules every
+  platform obeys identically: truth order (§1), risk classes (§5), restricted
+  surfaces (§6), PR-only workflow (§14a), audit doctrine (§9), obligation ledger
+  (§16), tape-first evidence (§4), and the Karpathy coding principles (§13).
+  `AGENTS.md` is the *only* home of a rule. Thin discovery files point here;
+  they never restate it.
+- **Layer 2 — platform-native enhancement.** Each platform realizes that one
+  contract with its own best native features and keeps its own productivity
+  tooling — Claude Code's hooks / skills / subagents / plan-mode / memory,
+  Cursor's `.mdc` rules, Aider's config, Antigravity's and Codex's native
+  workflows, and so on. Layer 2 may only **ADD**; it may never
+  restate-and-narrow a Layer-1 rule. (Listing a *subset* of §6's restricted
+  surfaces, for example, reads as "only these are restricted" — a narrowing,
+  not an addition; point to §6 instead.)
+
+Same contract, platform-optimal mechanism. The harness must never flatten a
+platform to a lowest common denominator.
+`tests/cli_entry_files_redirect_to_agents.rs` enforces both halves: each thin
+file must redirect here and must not name a restricted surface absent from §6.
 
 Dynamic state belongs in `handover/ai-direct/LATEST.md` and
 `handover/tracer_bullets/TB_LOG.tsv`, not in this file. Do not encode current
