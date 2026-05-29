@@ -755,6 +755,7 @@ module_ids = [
   "judges::putnam_2024_a1_judge",
   "judges::putnam_2025_b3_judge",
   "judges::swebench_test_judge",
+  "judges::shared_output_adapter",
   "ledger",
   "memory_kernel",
   "rtool",
