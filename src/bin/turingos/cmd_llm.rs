@@ -510,6 +510,12 @@ pub(crate) fn read_meta_thinking(workspace: &Path) -> Option<ThinkingConfig> {
         Some("on") => Some(ThinkingConfig {
             kind: "enabled".to_string(),
         }),
+        // "off" must be sent EXPLICITLY as {"thinking":{"type":"disabled"}} —
+        // omitting the field lets a thinking-capable model default to enabled
+        // (per provider docs), which silently re-enables slow reasoning.
+        Some("off") => Some(ThinkingConfig {
+            kind: "disabled".to_string(),
+        }),
         _ => None,
     }
 }
@@ -522,6 +528,10 @@ pub(crate) fn read_blackbox_thinking(workspace: &Path) -> Option<ThinkingConfig>
     match read_config_value(workspace, "llm.blackbox.thinking").as_deref() {
         Some("on") => Some(ThinkingConfig {
             kind: "enabled".to_string(),
+        }),
+        // "off" sent explicitly as disabled — see read_meta_thinking.
+        Some("off") => Some(ThinkingConfig {
+            kind: "disabled".to_string(),
         }),
         _ => None,
     }

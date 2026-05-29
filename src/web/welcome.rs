@@ -261,19 +261,28 @@ pub(crate) fn next_step_for(workspace: &Path, api_key_set: bool) -> NextStep {
 /// Default workspace for the W7 welcome flow. Matches the §6a Page 1
 /// frontend smoke pattern: `tmp/phase7_active` under the project root.
 ///
+/// Always returns an **absolute path** — see spec.rs::resolve_workspace for
+/// rationale (spawned subprocess cwd != server cwd).
+///
 /// Resolution order (matches spec.rs / generate.rs):
 ///   1. `TURINGOS_WEB_WORKSPACE` env var (operator override)
-///   2. `tmp/phase7_active` relative to the current working directory.
+///   2. `tmp/phase7_active` under the server's current_dir at startup.
 ///
 /// TRACE_MATRIX FC2-N16: Phase 7 web — workspace path resolution for welcome/spec/generate.
 #[cfg(feature = "web")]
 pub(crate) fn resolve_workspace_path() -> PathBuf {
-    if let Ok(v) = std::env::var("TURINGOS_WEB_WORKSPACE") {
-        if !v.is_empty() {
-            return PathBuf::from(v);
-        }
+    let raw = std::env::var("TURINGOS_WEB_WORKSPACE")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "tmp/phase7_active".to_string());
+    let p = PathBuf::from(&raw);
+    if p.is_absolute() {
+        return p;
     }
-    PathBuf::from("tmp/phase7_active")
+    match std::env::current_dir() {
+        Ok(cwd) => cwd.join(p),
+        Err(_) => p,
+    }
 }
 
 #[cfg(feature = "web")]

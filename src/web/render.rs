@@ -407,6 +407,60 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html
 }
 
+/// TRACE_MATRIX FC1-N5: Phase 7 web — /dag page chrome (read-only DAG viewer).
+/// Phase 7: `/dag` page chrome — mounts `<tos-citation-dag>` which reads the
+/// `?session=<id>` query param itself and fetches `/api/dag/by-session/<id>`.
+/// Read-only citation-DAG viewer; same head/fonts/styles as the build page.
+pub(crate) fn render_dag_page() -> String {
+    let mut html = String::new();
+    html.push_str("<!doctype html>\n<html lang=\"zh\">\n<head>\n");
+    html.push_str("<meta charset=\"utf-8\">\n");
+    html.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    html.push_str("<meta name=\"color-scheme\" content=\"light dark\">\n");
+    html.push_str("<title>TuringOS \u{2014} Citation DAG</title>\n");
+    html.push_str(
+        "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n\
+         <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n\
+         <link rel=\"stylesheet\" \
+         href=\"https://fonts.googleapis.com/css2?\
+family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,30..100\
+&family=IBM+Plex+Sans:wght@300;400;500;700\
+&family=JetBrains+Mono:wght@400;500;700\
+&display=swap\">\n",
+    );
+    html.push_str("<style>\n");
+    html.push_str(DESIGN_TOKENS_CSS);
+    html.push_str("\n");
+    html.push_str(BASE_STYLES_CSS);
+    html.push_str("</style>\n");
+    html.push_str("<script>\n");
+    html.push_str(INLINE_WS_SCRIPT);
+    html.push_str("</script>\n");
+    html.push_str("</head>\n<body data-view=\"dag\">\n");
+    html.push_str("<header class=\"tos-header\" role=\"banner\">\n");
+    html.push_str(
+        "  <a class=\"tos-wordmark\" href=\"/\" aria-label=\"TuringOS \u{2014} Phase 7 home\">\
+         TuringOS<span class=\"tos-wordmark-sub\">Phase 7</span></a>\n",
+    );
+    html.push_str("  <span class=\"tos-meta\">FC1-N5 \u{00b7} citation DAG</span>\n");
+    html.push_str("</header>\n");
+    // NOTE: no <turingos-root> here — the DAG viewer is a standalone read-only
+    // view and must NOT inherit turingos-root's W7 onboarding soft-redirect to
+    // /welcome (you can inspect any tape's DAG without being "onboarded").
+    html.push_str("<main class=\"tos-main\" id=\"tos-main\" role=\"main\">\n");
+    html.push_str("  <tos-citation-dag></tos-citation-dag>\n");
+    html.push_str("</main>\n");
+    html.push_str("<footer class=\"tos-footer\" role=\"contentinfo\">\n");
+    html.push_str(
+        "  <span class=\"tos-footer-notice\">FC1-N5: read-only projection \u{2014} \
+         not authoritative over ChainTape/CAS.</span>\n",
+    );
+    html.push_str("</footer>\n");
+    html.push_str("<script type=\"module\" src=\"/static/main.js\"></script>\n");
+    html.push_str("</body>\n</html>\n");
+    html
+}
+
 // ---------------------------------------------------------------------------
 // W7: /welcome page renderer — minimal chrome, <tos-welcome> mount only
 // ---------------------------------------------------------------------------

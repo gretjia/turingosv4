@@ -69,7 +69,9 @@ use super::fixtures;
 use super::generate::generate_handler;
 use super::ir::{Block, IRRoot, TaskCardBlock};
 use super::preview::preview_get_handler;
-use super::render::{render_build_page, render_page_with_view, render_welcome_page, ViewKind};
+use super::render::{
+    render_build_page, render_dag_page, render_page_with_view, render_welcome_page, ViewKind,
+};
 use super::spec::spec_turn_handler;
 use super::store::TaskMemoryStore;
 use super::welcome::{
@@ -125,6 +127,7 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         .route("/build", get(handle_build))
         // W7: welcome wizard page chrome + <tos-welcome> mount.
         .route("/welcome", get(handle_welcome_page))
+        .route("/dag", get(handle_dag))
         // JSON routes (W1)
         .route("/api/dashboard", get(handle_api_dashboard))
         .route("/api/agents", get(handle_api_agents))
@@ -152,6 +155,18 @@ pub(crate) fn build_with_state(broadcast_capacity: usize) -> Router {
         )
         // CAS-derived build session view (C7): read-only over session CAS.
         .route("/api/build/session/:session_id", get(build_session_handler))
+        // Live derived-evidence progress feed (Class 1, read-only). Reads the
+        // per-session generate_progress.jsonl; NEVER feeds economic/replay logic.
+        .route(
+            "/api/progress/by-session/:session_id",
+            get(super::progress::progress_view_handler),
+        )
+        // Read-only citation DAG projection (Class 1). Reconstructs the
+        // parent_tx node tree + per-node trading + golden path from tape.
+        .route(
+            "/api/dag/by-session/:session_id",
+            get(super::dag_view::dag_view_handler),
+        )
         // Generate route (W5): POST → CLI shellout → artifacts list + WS broadcast
         .route("/api/generate", post(generate_handler))
         // Artifact serve route (W5): GET one artifact file with Content-Type
@@ -283,6 +298,13 @@ async fn handle_audit() -> Html<String> {
 /// on the server for this page; the interview is fully client-orchestrated.
 async fn handle_build() -> Html<String> {
     Html(render_build_page())
+}
+
+/// GET /dag — read-only citation DAG viewer. The page mounts
+/// `<tos-citation-dag>`, which reads `?session=<id>` from the URL and fetches
+/// `/api/dag/by-session/<id>`.
+async fn handle_dag() -> Html<String> {
+    Html(render_dag_page())
 }
 
 // ---------------------------------------------------------------------------

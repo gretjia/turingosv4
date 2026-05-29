@@ -497,6 +497,14 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
         "[generate] TDMA-Bounded mode ON (default). entrypoint={} max_retries={} tape_backend={}",
         tdma_entrypoint, effective_max_retries, tape_backend
     );
+    // Live-dashboard derived-evidence marker: worker-alpha begins computing.
+    append_generate_progress(
+        &workspace,
+        &session_id,
+        "worker_start",
+        WORKER_ALPHA_AGENT_ID,
+        None,
+    );
     let (llm_res, final_prompt_hash) = chat_with_tdma_bounded(
         &workspace,
         &session_id,
@@ -930,8 +938,22 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         artifact_cid_hex: bundle_cid.clone(),
                         predicate_passes: true,
                     }];
+                    append_generate_progress(
+                        &workspace,
+                        &session_id,
+                        "worker_done",
+                        &workers[0],
+                        Some(&bundle_cid),
+                    );
                     for worker in workers.iter().skip(1) {
                         eprintln!("[polymarket] generating candidate for {worker}...");
+                        append_generate_progress(
+                            &workspace,
+                            &session_id,
+                            "worker_start",
+                            worker,
+                            None,
+                        );
                         let candidate = generate_additional_worker_candidate(
                             &workspace,
                             &root_workspace,
@@ -959,6 +981,13 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                 .take(16)
                                 .collect::<String>()
                         );
+                        append_generate_progress(
+                            &workspace,
+                            &session_id,
+                            "worker_done",
+                            &candidate.worker_agent,
+                            Some(&candidate.artifact_cid_hex),
+                        );
                         candidate_proposals.push(candidate);
                     }
                     match emit_polymarket_market_for_session(
@@ -968,6 +997,16 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                         &candidate_proposals,
                     ) {
                         Ok(summary) => {
+                            // Live-dashboard marker: market settled; winner is
+                            // authoritative only via ChainTape replay — this is
+                            // a transient hint the committed tree replaces.
+                            append_generate_progress(
+                                &workspace,
+                                &session_id,
+                                "market_settled",
+                                &summary.worker_agent,
+                                None,
+                            );
                             eprintln!(
                                 "[polymarket] WorkTx admitted (agent={}, stake={}µ, proposal_cid={})",
                                 summary.worker_agent,
@@ -1579,6 +1618,53 @@ fn root_workspace_for_polymarket(workspace: &Path) -> Result<PathBuf, String> {
             workspace.display()
         )
     })
+}
+
+/// Filename of the per-session live-progress evidence stream.
+const GENERATE_PROGRESS_JSONL: &str = "generate_progress.jsonl";
+
+/// Append one DERIVED-EVIDENCE progress marker for the live agent-presence
+/// dashboard.
+///
+/// This is intentionally NOT a canonical chain fact:
+///   - it carries wall-clock `t_unix_ms` (deliberately excluded from canonical
+///     ChainDerivedRunFacts per charter §4.4 — replay is byte-deterministic,
+///     wall time is not);
+///   - it is one-directional UI evidence — economic / replay / market-state
+///     logic NEVER reads it; the authoritative ChainTape projection replaces
+///     these markers once a stage settles.
+///
+/// `session_workspace` is the per-session `--workspace` dir (the file lands at
+/// `<session_workspace>/generate_progress.jsonl`, which the web read endpoint
+/// resolves by session_id). Best-effort: a write failure must NEVER fail the
+/// generate run, so all errors are swallowed.
+fn append_generate_progress(
+    session_workspace: &Path,
+    session_id: &str,
+    stage: &str,
+    agent: &str,
+    artifact_cid: Option<&str>,
+) {
+    use std::io::Write;
+    let t_unix_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let line = serde_json::json!({
+        "session_id": session_id,
+        "stage": stage,
+        "agent": agent,
+        "artifact_cid": artifact_cid,
+        "t_unix_ms": t_unix_ms,
+    });
+    let path = session_workspace.join(GENERATE_PROGRESS_JSONL);
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let _ = writeln!(f, "{line}");
+    }
 }
 
 fn polymarket_worker_roster_for_workspace(
