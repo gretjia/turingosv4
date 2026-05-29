@@ -66,7 +66,12 @@ bash_targets_constitution() {
     if echo "$cmd" | grep -qE '^[[:space:]]*git[[:space:]]'; then return 1; fi
     # Common mutation patterns: sed -i, tee, awk -i, > redirect, >> append,
     # python/perl/ruby file write, etc.
-    if echo "$cmd" | grep -qE '(sed|awk|perl|tee)[[:space:]].*constitution\.md'; then return 0; fi
+    # 2026-05-29 false-positive fix: left-anchor the command name with
+    # (^|[^[:alnum:]_]) so the tool token is a real command, not a substring
+    # of an ordinary word ("u-sed", "par-sed", "ba-sed"). A benign read like
+    # `rg -n "used" constitution.md` no longer trips this mutation guard.
+    # Narrows precision only; a real `sed `/`awk `/`perl `/`tee ` still blocks.
+    if echo "$cmd" | grep -qE '(^|[^[:alnum:]_])(sed|awk|perl|tee)[[:space:]].*constitution\.md'; then return 0; fi
     if echo "$cmd" | grep -qE '(>|>>)[[:space:]]*[^|&;]*constitution\.md'; then return 0; fi
     if echo "$cmd" | grep -qE 'cat[[:space:]].*>[[:space:]]*[^|&;]*constitution\.md'; then return 0; fi
     if echo "$cmd" | grep -qE 'rm[[:space:]].*constitution\.md'; then return 0; fi
@@ -97,7 +102,10 @@ fi
 # ──────────────────────────────────────────────────────────────────────
 if [ "$TOOL_NAME" = "Bash" ] && [ -n "$COMMAND" ]; then
     # Block rm -rf on dangerous paths
-    if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\s'; then
+    # 2026-05-29 false-positive fix (see bash_targets_constitution): left-anchor
+    # `rm`/`sed`/`awk` with (^|[^[:alnum:]_]) so "perfo-rm", "transfo-rm",
+    # "confi-rm", "par-sed" no longer match. Real `rm `/`sed `/`awk ` still blocks.
+    if echo "$COMMAND" | grep -qE '(^|[^[:alnum:]_])rm\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive\s+--force|-[a-zA-Z]*f[a-zA-Z]*r)\s'; then
         if echo "$COMMAND" | grep -qE '(^|\s)(\/|~\/|\.\.\/|\.claude)'; then
             echo "BLOCKED: rm -rf on dangerous path: $COMMAND"
             exit 2
@@ -113,13 +121,14 @@ if [ "$TOOL_NAME" = "Bash" ] && [ -n "$COMMAND" ]; then
         echo "BLOCKED: git reset --hard is prohibited."
         exit 2
     fi
-    # Block WAL deletion
-    if echo "$COMMAND" | grep -qE 'rm\s.*\.(wal|jsonl)'; then
+    # Block WAL deletion (left-anchored rm — see 2026-05-29 fix above)
+    if echo "$COMMAND" | grep -qE '(^|[^[:alnum:]_])rm\s.*\.(wal|jsonl)'; then
         echo "BLOCKED: WAL/ledger file deletion is prohibited."
         exit 2
     fi
-    # Block sed/awk on kernel constants
-    if echo "$COMMAND" | grep -qE '(sed|awk).*kernel\.rs'; then
+    # Block sed/awk on kernel constants (left-anchored — see 2026-05-29 fix above;
+    # `grep -n "parsed" src/kernel.rs` is a benign read and must not block)
+    if echo "$COMMAND" | grep -qE '(^|[^[:alnum:]_])(sed|awk).*kernel\.rs'; then
         echo "BLOCKED: sed/awk on kernel.rs is prohibited. Use Edit tool."
         exit 2
     fi
