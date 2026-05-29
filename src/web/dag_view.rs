@@ -13,7 +13,7 @@
 //! cache). The parent_tx walk + golden-path reconstruction mirror the proven
 //! `src/bin/audit_dashboard.rs` oracle (NOT a kernel import).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::{Path, State};
 use axum::http::{header, StatusCode};
@@ -30,7 +30,7 @@ use turingosv4::runtime::predicate_registry_loader;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 use turingosv4::runtime::verification_result::read_from_cas as read_verification_result;
 use turingosv4::state::q_state::{EconomicState, QState};
-use turingosv4::state::typed_tx::{EventId, TypedTx};
+use turingosv4::state::typed_tx::{EventId, TaskId, TypedTx};
 
 use super::market_view::{derive_yes_signal_bp, read_initial_q_state, read_pinned_pubkeys};
 use super::ws::AppState;
@@ -45,6 +45,7 @@ fn is_safe_session_id(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// TRACE_MATRIX FC1-N5: Phase 7 web — GET /api/dag/by-session/:session_id read view.
 /// GET /api/dag/by-session/:session_id — citation DAG projection.
 pub async fn dag_view_handler(
     Path(session_id): Path<String>,
@@ -177,6 +178,8 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
 
     // ── Walk L4 entries: build nodes + parent edges + role activity +
     // oracle-verified set (mirror audit_dashboard.rs:505-553).
+    // This session's frozen on-chain task id (mirror market_view::build_market_view).
+    let task_id = TaskId(format!("pr1-{session_id}"));
     let mut per_agent: BTreeMap<String, RoleActivity> = BTreeMap::new();
     let mut nodes: Vec<DagNode> = Vec::new();
     let mut work_parent_by_tx_id: BTreeMap<String, Option<String>> = BTreeMap::new();
@@ -184,6 +187,8 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
     let mut node_event: BTreeMap<String, EventId> = BTreeMap::new();
     // first oracle-verified WorkTx (deterministic = chain order) → golden path root.
     let mut first_verified: Option<String> = None;
+    // tx_ids of this session's accepted WorkTx → scopes Verify/Challenge counters.
+    let mut session_work_tx_ids: BTreeSet<String> = BTreeSet::new();
 
     for entry in &entries {
         let bytes = match cas.get(&entry.tx_payload_cid) {
@@ -198,18 +203,25 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
         match entry.tx_kind {
             TxKind::Verify => {
                 if let TypedTx::Verify(v) = &tx {
-                    per_agent
-                        .entry(v.verifier_agent.0.clone())
-                        .or_default()
-                        .verify_tx_accepted += 1;
+                    // Scoped: count only when the target WorkTx is in THIS session.
+                    // The chain is append-only, so an in-session target Work is
+                    // already recorded in `session_work_tx_ids` before its Verify.
+                    if session_work_tx_ids.contains(&v.target_work_tx.0) {
+                        per_agent
+                            .entry(v.verifier_agent.0.clone())
+                            .or_default()
+                            .verify_tx_accepted += 1;
+                    }
                 }
             }
             TxKind::Challenge => {
                 if let TypedTx::Challenge(c) = &tx {
-                    per_agent
-                        .entry(c.challenger_agent.0.clone())
-                        .or_default()
-                        .challenge_tx_accepted += 1;
+                    if session_work_tx_ids.contains(&c.target_work_tx.0) {
+                        per_agent
+                            .entry(c.challenger_agent.0.clone())
+                            .or_default()
+                            .challenge_tx_accepted += 1;
+                    }
                 }
             }
             TxKind::CpmmSwap | TxKind::BuyWithCoinRouter => {
@@ -218,6 +230,11 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
             }
             TxKind::Work => {
                 if let TypedTx::Work(work) = &tx {
+                    // Session scope: only this session's task_id becomes a node.
+                    if work.task_id != task_id {
+                        continue;
+                    }
+                    session_work_tx_ids.insert(work.tx_id.0.clone());
                     per_agent
                         .entry(work.agent_id.0.clone())
                         .or_default()

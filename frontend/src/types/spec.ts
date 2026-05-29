@@ -93,7 +93,7 @@ export interface MarketProjection {
   pool_yes: number;
   pool_no: number;
   pool_active: boolean;
-  yes_price_bp: number;
+  yes_signal_bp: number;
   positions: MarketPosition[];
 }
 

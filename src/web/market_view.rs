@@ -479,11 +479,12 @@ fn derive_market_projection(econ: &EconomicState, event_id: &EventId) -> serde_j
         "pool_yes": pool_yes,
         "pool_no": pool_no,
         "pool_active": pool_active,
-        "yes_price_bp": derive_yes_signal_bp(econ, event_id),
+        "yes_signal_bp": derive_yes_signal_bp(econ, event_id),
         "positions": positions,
     })
 }
 
+/// TRACE_MATRIX FC2-N16: Polymarket — YES signal (bp) from replayed CPMM pool.
 pub(crate) fn derive_yes_signal_bp(econ: &EconomicState, event_id: &EventId) -> u32 {
     let pool = match econ.cpmm_pools_t.0.get(event_id) {
         Some(p) => p,
@@ -539,10 +540,12 @@ fn find_rejected_worktxs_for_task(
     Ok(out)
 }
 
+/// TRACE_MATRIX FC2-N16: market read view — hex-encode a CAS Cid for JSON.
 pub(crate) fn hex_of_cid(cid: &turingosv4::bottom_white::cas::schema::Cid) -> String {
     cid.0.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
+/// TRACE_MATRIX FC2-N16: market read view — load genesis QState for replay.
 pub(crate) fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Result<QState, String> {
     let path = runtime_repo_path.join("initial_q_state.json");
     let json =
@@ -550,6 +553,7 @@ pub(crate) fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Resul
     serde_json::from_str(&json).map_err(|e| format!("parse initial_q_state.json: {e}"))
 }
 
+/// TRACE_MATRIX FC2-N16: market read view — load pinned system pubkeys for replay.
 pub(crate) fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSystemPubkeys, String> {
     let path = runtime_repo_path.join("pinned_pubkeys.json");
     let json =

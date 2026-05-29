@@ -407,6 +407,7 @@ family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,30..100;1,9..144,300..900,
     html
 }
 
+/// TRACE_MATRIX FC1-N5: Phase 7 web — /dag page chrome (read-only DAG viewer).
 /// Phase 7: `/dag` page chrome — mounts `<tos-citation-dag>` which reads the
 /// `?session=<id>` query param itself and fetches `/api/dag/by-session/<id>`.
 /// Read-only citation-DAG viewer; same head/fonts/styles as the build page.

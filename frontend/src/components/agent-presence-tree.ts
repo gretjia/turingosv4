@@ -260,7 +260,7 @@ export class TosAgentPresenceTree extends HTMLElement {
     head.appendChild(eyebrow);
     const price = document.createElement('span');
     price.className = 'apt-market-price';
-    price.textContent = `YES 价格 ${(m.yes_price_bp / 100).toFixed(1)}%`;
+    price.textContent = `YES 价格 ${(m.yes_signal_bp / 100).toFixed(1)}%`;
     head.appendChild(price);
     panel.appendChild(head);
 

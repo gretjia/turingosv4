@@ -22,6 +22,7 @@ use super::ws::AppState;
 
 const GENERATE_PROGRESS_JSONL: &str = "generate_progress.jsonl";
 
+/// TRACE_MATRIX FC1-N5: Phase 7 web — progress stream event row (derived evidence).
 /// One progress marker, mirroring the JSON shape written by
 /// `cmd_generate::append_generate_progress`. Derived evidence only.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +45,7 @@ fn is_safe_session_id(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
+/// TRACE_MATRIX FC1-N5: Phase 7 web — GET /api/progress/by-session/:session_id read view.
 /// GET /api/progress/by-session/:session_id — derived-evidence progress feed.
 pub async fn progress_view_handler(
     Path(session_id): Path<String>,
