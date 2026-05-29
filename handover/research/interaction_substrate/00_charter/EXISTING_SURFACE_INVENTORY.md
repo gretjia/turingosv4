@@ -2,6 +2,13 @@
 
 **本文件为 forward-bound research 提案；任何派生 TB 须独立 §8 ratification；本文档不构成已批准方案。**
 
+> **SUPERSEDED 2026-05-29 (forward-only note; body below unchanged):** the
+> "保留独立 (keep `turingos_dev`)" decision recorded below is superseded by user
+> §8 directive 2026-05-29 — the `turingos_dev` dev-evidence sidecar is retired
+> (commit `4264b14f`;
+> `handover/alignment/OBS_R022_TURINGOS_DEV_REMOVAL_2026-05-29.md`). All
+> `turingos_dev` / `dev_harness.rs` references below are now historical.
+
 **目的**: 修复 Auditor CHALLENGE 维度 4 (Phase 1/2 与已存在 surface 重叠风险)。
 量化盘点 TuringOS v4 现有 surface，与 TISR Phase 1-3 各 track 命题做关系矩阵。
 
