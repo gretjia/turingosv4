@@ -53,7 +53,7 @@ For a new non-trivial task, read in this order regardless of CLI:
 
 1. `AGENTS.md` (this file — canonical agent contract)
 2. `HARNESS_PLAYBOOK.md` (full operating manual — K-HARDEN, lessons L1-L9, K-2.3 drift, etc.)
-3. `HARNESS_MANUAL.md` (legacy bilingual ops howto — supplemental)
+3. `HARNESS.md` (architecture vocabulary, H1-H5 gate ladder, kill gates — supplemental reference)
 4. `constitution.md` (axiom layer)
 5. `handover/ai-direct/LATEST.md` (current session state — derived view)
 6. Key Coding Principles: [KARPATHY_ARCHITECT.md](skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](skills/KARPATHY_SIMPLE_CODE.md)

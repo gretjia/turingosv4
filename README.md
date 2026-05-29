@@ -373,7 +373,7 @@ Read these first for a cold start:
 
 1. `AGENTS.md`
 2. `CLAUDE.md`
-3. `HARNESS_MANUAL.md`
+3. `HARNESS_PLAYBOOK.md`
 4. `constitution.md`
 5. `handover/ai-direct/LATEST.md`
 6. `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`

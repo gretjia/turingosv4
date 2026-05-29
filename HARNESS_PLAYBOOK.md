@@ -40,6 +40,8 @@ itself is project-agnostic.
   - [V.19 New-atom checklist](#v19-new-atom-checklist)
   - [V.20 Adversarial validation cadence](#v20-adversarial-validation-cadence)
   - [V.21 Recovery from contamination](#v21-recovery-from-contamination)
+  - [V.22 Recovery from operational faults](#v22-recovery-from-operational-faults)
+  - [V.23 Final-response checklist](#v23-final-response-checklist)
 - [Appendix](#appendix)
   - [A. L1-L9 reference card](#a-l1-l9-reference-card)
   - [B. Hook contracts](#b-hook-contracts)
@@ -582,6 +584,42 @@ GIT_HARDEN_ALLOW_MAIN=1 git push origin main
   - `git reset --soft HEAD~1` (undo last commit, keep changes staged)
   - `git restore --staged <sidecar-files>`
   - `git commit -m "..."` (re-commit with clean staging)
+
+### V.22 Recovery from operational faults
+
+Distinct from the git-contamination recoveries above — when the fault is
+operational, not a branch mistake:
+
+**Test failure** — keep the failing command's stdout/stderr as evidence; fix
+against it; rerun the same command and keep the new output. Never delete
+failure output from the evidence trail.
+
+**Risk escalation mid-task** — stop implementing; re-declare risk class, FC
+nodes, and allowed paths; if the work is now Class 4, wait for per-atom §8
+ratification before continuing.
+
+**Disk exhaustion** — do not delete evidence. You may clear build caches
+(e.g. `target/`), accepting the rebuild cost; then rerun the failed command
+and keep the new evidence.
+
+**Stale doc** — never rewrite historical evidence to fit a new rule;
+forward-supersede in the living doc or an OBS/annotation note.
+
+**Diff exceeds allowed paths** — stop. Decide whether it is accidental drift
+or a necessary scope expansion; re-declare or update the task contract rather
+than silently continuing.
+
+### V.23 Final-response checklist
+
+Before claiming a task done, the agent's final reply states:
+
+- which files changed
+- which verification commands ran, with their output/evidence paths
+- which commands were NOT run, and why
+- the audit verdict, if any
+- any residual risk or follow-up
+
+Never claim "done" without verification evidence. A plan is not a result.
 
 ---
 

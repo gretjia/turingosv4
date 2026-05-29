@@ -5,8 +5,8 @@
 The harness exists to make the constitution executable while giving LLM agents
 room to reason.
 
-It is not a checklist stack and not a prompt wall. It is a self-hosting
-development cognition system:
+It is not a checklist stack and not a prompt wall. It is a development
+cognition system:
 
 ```text
 Human intent
@@ -39,9 +39,8 @@ fast executors. `CLAUDE.md` imports `@AGENTS.md` and then adds Claude-specific
 operating detail. Large architecture and history stay in `constitution.md`,
 `handover/alignment/*`, and `handover/ai-direct/LATEST.md`.
 
-`HARNESS_MANUAL.md` is the operational runbook. Any future agent that needs to
-execute a new task should read it after `AGENTS.md` and before opening a
-self-hosting dev run.
+`HARNESS_PLAYBOOK.md` is the operational runbook. Any future agent that needs
+to execute a new task should read it after `AGENTS.md`.
 
 Default audit path is one clean-context audit by a fresh agent on any capable
 platform (Claude / Codex / Antigravity / …) after implementation evidence
