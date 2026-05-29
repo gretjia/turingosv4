@@ -43,8 +43,9 @@ use turingosv4::runtime::real5_roles::AgentRole;
 use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
 use turingosv4::sdk::actor::boltzmann_select_parent_v2;
 use turingosv4::state::price_index::compute_price_index;
-use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, Hash, TaskId, TxId};
-use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
+use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, Hash, TaskId, TaskMarketState, TxId};
+use turingosv4::state::sequencer::SystemEmitCommand;
+use turingosv4::state::typed_tx::{BuyDirection, EventId, OutcomeSide, TypedTx};
 use turingosv4::state::BoltzmannMaskPolicy;
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
@@ -108,8 +109,8 @@ struct ConditionEvidence {
     c7_price_changed: bool,
     c8_reconstructable_note: &'static str,
     c9_shielding_structural: bool,
-    c10_sealed_settlement: &'static str,
-    c11_settlement_in_tape: &'static str,
+    c10_sealed_settlement: bool,
+    c11_settlement_in_tape: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -433,6 +434,30 @@ async fn run(args: Args) -> Result<(), String> {
         logical_t += 10;
     }
 
+    // ── M2a sealed settlement (c10/c11): scripted-Fail judge → EventResolve(No) ──
+    // G0 uses a deterministic Fail verdict (resolve=0 acceptable per charter) → a
+    // REAL sealed settlement recorded on tape/CAS (EventResolve is a pure status
+    // flip; balances/pools unchanged). Real Docker SwebenchTestJudge settlement is
+    // the G1 capability layer.
+    seq.emit_system_tx(SystemEmitCommand::EventResolve {
+        task_id: TaskId(event_task_id.clone()),
+        outcome: OutcomeSide::No,
+    })
+    .await
+    .map_err(|e| format!("emit EventResolve: {e:?}"))?;
+    root = tb8_await_state_root_advance(&seq, root, 5_000)
+        .await
+        .map_err(|_| "EventResolve no advance".to_string())?;
+    let settled = {
+        let q = seq.q_snapshot().map_err(|e| format!("q_snapshot settle: {e:?}"))?;
+        q.economic_state_t
+            .task_markets_t
+            .0
+            .get(&TaskId(event_task_id.clone()))
+            .map(|m| m.state == TaskMarketState::Bankrupt)
+            .unwrap_or(false)
+    };
+
     // ── Shutdown + GenesisReport ─────────────────────────────────────
     let seq_handle = seq.clone();
     bundle.shutdown().await.map_err(|e| format!("G0 chaintape shutdown failed: {e}"))?;
@@ -474,8 +499,8 @@ async fn run(args: Args) -> Result<(), String> {
         c7_price_changed: any_price_changed,
         c8_reconstructable_note: "verify via: turingos verify chaintape --repo <runtime_repo> --cas <cas> (replay reconstructs EconomicState/price from L4)",
         c9_shielding_structural: true,
-        c10_sealed_settlement: "pending_stage2 (M2a: emit_system_tx EventResolve, §8 signed)",
-        c11_settlement_in_tape: "pending_stage2",
+        c10_sealed_settlement: settled,
+        c11_settlement_in_tape: settled,
     };
 
     let manifest = G0Manifest {
@@ -500,9 +525,9 @@ async fn run(args: Args) -> Result<(), String> {
         notes: vec![
             "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM state",
             "PROVEN active: c1 genesis+market, c2 >=5 agents, c3 >=3 roles, c6 YES+NO trades, c7 price moved, c8 replay-reconstructable, c9 shielding",
-            "DISCOVERED KERNEL CONSTRAINT (c4/c5 multi-node DAG): WorkTx-accept enforces one rewardable WorkTx per task escrow (monetary_invariant); a priced multi-node DAG needs node-stake decoupled from reward-claim (settlement redesign / multi-task node model) — genuine follow-up",
-            "c10/c11 sealed settlement land in M2a stage-2 (emit_system_tx EventResolve, §8 signed)",
-            "boltzmann_select_parent_v2 is wired+compiled for price-driven node selection; full exercise needs the multi-node DAG unblock above",
+            "c10/c11 DONE: sealed settlement via emit_system_tx EventResolve(No) → task market Bankrupt, recorded on tape (deterministic Fail; real Docker judge = G1)",
+            "DISCOVERED KERNEL CONSTRAINT (c4/c5 multi-node DAG): WorkTx-accept binds each WorkTx to an event YES conditional-token stake (sequencer.rs:1959/1969); a 2nd WorkTx on the same event trips assert_total_ctf_conserved (sequencer.rs:2016) — CTF conservation, NOT reward-claim. A priced multi-node DAG needs the WorkTx-node decoupled from the YES-stake (per-node events or collateral-matched stakes) = Class 4 architect design decision",
+            "boltzmann_select_parent_v2 is wired+compiled for price-driven node selection; full multi-node exercise needs the c4/c5 decoupling above",
         ],
     };
     let json = serde_json::to_string_pretty(&manifest).map_err(|e| format!("serialize manifest: {e}"))?;
@@ -513,7 +538,7 @@ async fn run(args: Args) -> Result<(), String> {
 
     let c = &manifest.conditions;
     println!(
-        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} branching={} c1-9=[{}{}{}{}{}{}{}T{}] manifest={}",
+        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} branching={} c1-11=[{}{}{}{}{}{}{}T{}{}{}] manifest={}",
         manifest.participating_agents.len(),
         manifest.distinct_roles.len(),
         manifest.yes_trade_count,
@@ -528,6 +553,8 @@ async fn run(args: Args) -> Result<(), String> {
         c.c6_yes_and_no_trades as u8,
         c.c7_price_changed as u8,
         c.c9_shielding_structural as u8,
+        c.c10_sealed_settlement as u8,
+        c.c11_settlement_in_tape as u8,
         args.out.display()
     );
     Ok(())
