@@ -1,4 +1,8 @@
-# TuringOS × SWE-bench Verified 对比基准设计文档（修订版 v3）
+> ⚠️ **DEPRECATED（2026-05-29，架构师拍板废弃）** — 本 v3 把 TuringOS 降维成"单 flash worker + verify-retry loop"的普通 agent scaffold,**未触及宪法的核心(节点价格发现 + 多 agent 市场 + DAG 路由 + 真验证器结算)**。已由 **[SWEBENCH_MARKET_ACTIVATION_BENCHMARK_v4_2026-05-29.md](SWEBENCH_MARKET_ACTIVATION_BENCHMARK_v4_2026-05-29.md)** 取代。本文保留**仅作审计轨迹 + 仍有效的子部件来源**(gold-gating / hermetic 白名单 / DeepSeek V4 Flash 集成防御 / 已核实 seam / 市场坐标混淆表),v4 引用它们但不重复。**不要按本文实现。**
+
+---
+
+# TuringOS × SWE-bench Verified 对比基准设计文档（修订版 v3 · 已废弃）
 ### 全系统消融实验（genesis → kernel → externalized-CoT loop）vs 裸 flash 模型 + 市场坐标 (n=50, DeepSeek V4 Flash worker)
 
 > 文档状态：DESIGN ONLY（设计稿，无实现代码，仅给出 seam 引用）
