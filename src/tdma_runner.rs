@@ -239,14 +239,22 @@ impl AnyJudge {
                 // real hidden-test harness on the candidate patch (body) and
                 // returns a ternary verdict. prior = accepted_steps, candidate = body.
                 let v = judge.verdict(accepted_steps, body);
+                // The `failed_predicate` is the field that survives the kernel's
+                // deterministic_trace_slicer into the next retry's belief state
+                // (it reads the `failed_predicate:` line, NOT the padded stderr
+                // tail). So encode the concise failing-test names / apply error
+                // here — otherwise the retry prompt only ever sees the generic
+                // "fail_to_pass" and the model never learns what to fix.
                 let (class_str, pred_str) = match &v {
                     JudgeVerdict::Pass => ("pass".to_string(), "pass".to_string()),
-                    JudgeVerdict::Fail { .. } => {
-                        ("hidden_test_failure".to_string(), "fail_to_pass".to_string())
-                    }
-                    JudgeVerdict::NeedsClarification { .. } => {
-                        ("needs_clarification".to_string(), "fail_to_pass".to_string())
-                    }
+                    JudgeVerdict::Fail { reason } => (
+                        "hidden_test_failure".to_string(),
+                        swebench_failed_predicate(reason),
+                    ),
+                    JudgeVerdict::NeedsClarification { question } => (
+                        "needs_clarification".to_string(),
+                        swebench_failed_predicate(question),
+                    ),
                 };
                 (v, class_str, pred_str)
             }
@@ -421,6 +429,16 @@ pub fn extract_body(raw: &str) -> String {
     } else {
         raw.trim().to_string()
     }
+}
+
+/// TRACE_MATRIX FC1a-judge_pi: Distill a SWE-bench judge reason into a concise,
+/// single-line `failed_predicate`. This is the field the kernel's
+/// `deterministic_trace_slicer` carries into the next retry's belief state (it
+/// reads the `failed_predicate:` line near the top of stderr, not the padded
+/// tail), so the real failing-test names / patch-apply error reach the model.
+fn swebench_failed_predicate(reason: &str) -> String {
+    let one_line = reason.split_whitespace().collect::<Vec<_>>().join(" ");
+    one_line.chars().take(200).collect()
 }
 
 /// TRACE_MATRIX FC1a-rtool_input: Build a synthetic ~10 KB raw_stderr blob

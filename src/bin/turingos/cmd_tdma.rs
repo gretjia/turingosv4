@@ -95,8 +95,7 @@ OPTIONS:
                                 gold_patch/test_patch are NEVER read into the
                                 prompt even if present.
     --swebench-python <PATH>    [swebench] python with the `swebench` package
-                                installed (default:
-                                /Users/zephryj/.venv-swebench/bin/python)
+                                installed (default: `python3` on PATH)
     --swebench-dataset <NAME>   [swebench] HF dataset name
                                 (default: princeton-nlp/SWE-bench_Lite)
     --swebench-workdir <PATH>   [swebench] harness work dir (default: a
@@ -245,8 +244,12 @@ fn make_user_prompt(judge_name: &str, stage_label: &str, accepted_steps: &[Strin
 // ── SWE-bench coding-repair prompts (shielded) ──────────────────────
 
 /// TRACE_MATRIX FC1a-rtool_input: System prompt for the SWE-bench repair loop.
-/// Demands strict JSON so the judge's patch extractor can parse it reliably.
-const SWEBENCH_SYSTEM_PROMPT: &str = "You are a software engineer. Output ONLY strict JSON {\"patch\":\"<unified git diff>\",\"rationale\":\"...\"}.";
+/// Like the math judges, the model MUST emit a `tdma-state-update/v1` header on
+/// the first line, then `---BODY---`, then the patch JSON. Without the header the
+/// kernel's `step_forward` can never reach `Proceed` (it routes every output
+/// through the invalid-header retry path), so a resolving patch could never
+/// complete the stage. The body after `---BODY---` is what the judge verifies.
+const SWEBENCH_SYSTEM_PROMPT: &str = "You are a software engineer fixing a bug in a real repository.\n\nYour output MUST start with this JSON object on the FIRST line (the TDMA state header):\n{\"schema_version\":\"tdma-state-update/v1\",\"status\":\"Proceed\",\"task_id\":\"Repair\",\"action\":\"PROPOSE\",\"failed_predicate\":null,\"reject_class\":null,\"next_action_hint\":null,\"evidence_hash\":null}\n\nThen, on a new line, write exactly:\n---BODY---\nThen output ONLY the strict JSON object {\"patch\":\"<unified git diff>\",\"rationale\":\"...\"} — the diff is the `patch` value. Do not include or quote any hidden test code, reference solution, or benchmark patch.";
 
 /// TRACE_MATRIX FC1a-rtool_input: SHIELDED user prompt. Exposes only the public
 /// issue fields + target failing-test NAMES. NEVER reads gold_patch/test_patch
@@ -267,7 +270,7 @@ fn make_swebench_user_prompt(sample: &SwebenchSampleInput) -> String {
         sample.fail_to_pass.join("\n")
     };
     format!(
-        "Repository: {repo}\nBase commit: {base_commit}\n\nProblem statement:\n{problem}{hints}\n\nTarget failing tests that your patch must make pass:\n{failing}\n\nReturn a unified git diff patch (standard `git diff` format, file paths relative to the repository root, beginning with `diff --git`) that resolves the issue so the failing tests pass. Output ONLY the strict JSON object {{\"patch\":\"...\",\"rationale\":\"...\"}} with the diff as the `patch` value. Do not include or quote any hidden test code, reference solution, or benchmark patch.",
+        "Repository: {repo}\nBase commit: {base_commit}\n\nProblem statement:\n{problem}{hints}\n\nTarget failing tests that your patch must make pass:\n{failing}\n\nProvide a unified git diff patch (standard `git diff` format, file paths relative to the repository root, beginning with `diff --git`, with correct @@ hunk headers) that resolves the issue so the failing tests pass, as the `patch` field of a JSON object {{\"patch\":\"...\",\"rationale\":\"...\"}}. Do not include or quote any hidden test code, reference solution, or benchmark patch.",
         repo = sample.repo,
         base_commit = sample.base_commit,
         problem = sample.problem_statement,
@@ -306,7 +309,9 @@ fn run_run(args: &[String]) -> ExitCode {
     let mut temperature: f32 = 0.7;
     // SWE-bench judge inputs (only used when --judge swebench).
     let mut swebench_sample: Option<PathBuf> = None;
-    let mut swebench_python: PathBuf = PathBuf::from("/Users/zephryj/.venv-swebench/bin/python");
+    // Portable default: resolve `python3` on PATH (override with --swebench-python
+    // to point at a venv that has the `swebench` package installed).
+    let mut swebench_python: PathBuf = PathBuf::from("python3");
     let mut swebench_dataset = "princeton-nlp/SWE-bench_Lite".to_string();
     let mut swebench_workdir: Option<PathBuf> = None;
     // Atom 25: Phase E full cutover. Default tape backend is now `git`

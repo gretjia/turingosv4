@@ -306,7 +306,11 @@ pub(crate) async fn chat_complete(
         canonical_chat_request_bytes(model, messages, max_tokens, temperature, thinking.clone())?;
 
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(180))
+        // 600s: thinking-on generations (reasoning_content + answer, up to the
+        // configured max_tokens) routinely exceed the old 180s cap and the
+        // client would drop the connection mid-response ("error sending
+        // request"). Matches the SWE-bench probe's Python arm timeout.
+        .timeout(Duration::from_secs(600))
         .build()
         .map_err(|e| LlmError::Transport(e.to_string()))?;
 
