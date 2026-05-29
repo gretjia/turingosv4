@@ -371,11 +371,6 @@ authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
 
 [[gate]]
-name = "constitution_dev_harness"
-authority = "handover/directives/2026-05-20_K_1_5_MANIFEST_AUTHORITY_BACKFILL.md"
-added = "2026-05-20"
-
-[[gate]]
 name = "constitution_g4_multi_llm"
 authority = "handover/directives/2026-05-11_G_PHASE_GENERATIVE_ARENA_DIRECTIVE.md (G4-G6)"
 added = "2026-05-20"

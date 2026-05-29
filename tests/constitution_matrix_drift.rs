@@ -41,7 +41,6 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_class4_atomic_rollback_witness",
     "constitution_completeset_merge",
     "constitution_cpmm_pool",
-    "constitution_dev_harness",
     "constitution_economy_strict_equality",
     "constitution_g1_2_persistence_evidence_binding",
     "constitution_librarian_digest",

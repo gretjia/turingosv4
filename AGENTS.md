@@ -43,8 +43,8 @@ If ChainTape/CAS contradicts constitution gates, stop.
 
 **THIS file (`AGENTS.md`) is the canonical universal entry for ALL coding
 agent CLIs** — Claude Code, Codex CLI, Gemini CLI, Aider, Cursor, Windsurf,
-GitHub Copilot, Warp, and any future runtime. Each CLI has its own thin
-discovery file (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`, `.cursorrules`,
+GitHub Copilot, Warp, Antigravity, and any future runtime. Each CLI has its own
+thin discovery file (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`, `.cursorrules`,
 `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
 `.github/copilot-instructions.md`, `WARP.md`) but those files all redirect
 here. If any thin entry file contradicts `AGENTS.md`, **`AGENTS.md` wins**.
@@ -53,7 +53,7 @@ For a new non-trivial task, read in this order regardless of CLI:
 
 1. `AGENTS.md` (this file — canonical agent contract)
 2. `HARNESS_PLAYBOOK.md` (full operating manual — K-HARDEN, lessons L1-L9, K-2.3 drift, etc.)
-3. `HARNESS_MANUAL.md` (legacy bilingual ops howto — supplemental)
+3. `HARNESS.md` (architecture vocabulary, H1-H5 gate ladder, kill gates — supplemental reference)
 4. `constitution.md` (axiom layer)
 5. `handover/ai-direct/LATEST.md` (current session state — derived view)
 6. Key Coding Principles: [KARPATHY_ARCHITECT.md](skills/KARPATHY_ARCHITECT.md) & [KARPATHY_SIMPLE_CODE.md](skills/KARPATHY_SIMPLE_CODE.md)
@@ -74,6 +74,33 @@ CLI-specific notes:
 - **Windsurf** reads `.windsurfrules`
 - **GitHub Copilot** reads `.github/copilot-instructions.md`
 - **Warp** reads `WARP.md`
+- **Antigravity** reads `AGENTS.md` directly (and `GEMINI.md` natively if
+  present); no dedicated thin discovery file is required — the universal
+  contract is enough.
+
+### Two-layer model (unify the contract, not the mechanism)
+
+The harness unifies the *contract*, never the *mechanism*:
+
+- **Layer 1 — universal contract (this file).** The governance rules every
+  platform obeys identically: truth order (§1), risk classes (§5), restricted
+  surfaces (§6), PR-only workflow (§14a), audit doctrine (§9), obligation ledger
+  (§16), tape-first evidence (§4), and the Karpathy coding principles (§13).
+  `AGENTS.md` is the *only* home of a rule. Thin discovery files point here;
+  they never restate it.
+- **Layer 2 — platform-native enhancement.** Each platform realizes that one
+  contract with its own best native features and keeps its own productivity
+  tooling — Claude Code's hooks / skills / subagents / plan-mode / memory,
+  Cursor's `.mdc` rules, Aider's config, Antigravity's and Codex's native
+  workflows, and so on. Layer 2 may only **ADD**; it may never
+  restate-and-narrow a Layer-1 rule. (Listing a *subset* of §6's restricted
+  surfaces, for example, reads as "only these are restricted" — a narrowing,
+  not an addition; point to §6 instead.)
+
+Same contract, platform-optimal mechanism. The harness must never flatten a
+platform to a lowest common denominator.
+`tests/cli_entry_files_redirect_to_agents.rs` enforces both halves: each thin
+file must redirect here and must not name a restricted surface absent from §6.
 
 Dynamic state belongs in `handover/ai-direct/LATEST.md` and
 `handover/tracer_bullets/TB_LOG.tsv`, not in this file. Do not encode current
@@ -111,8 +138,8 @@ Required loop:
 2. Run the minimal real evidence path when the change is evidence-bearing.
 3. Implement only enough to make the harness and evidence correct.
 4. Re-run the relevant checks.
-5. For high-risk or ship-path work, request clean-context Codex audit after
-   implementation evidence exists.
+5. For high-risk or ship-path work, request a clean-context audit (any capable
+   platform) after implementation evidence exists.
 6. Ship only after gates, evidence, and review agree.
 
 Forbidden loop:
@@ -247,12 +274,25 @@ document rather than mutating historical evidence.
 
 ## 9. Audit Default
 
-Default and only audit path for this repository is one clean-context Codex audit.
-**Gemini audit deprecated 2026-05-24** per architect ratification («经过这么多审计流程，gemini 审计可以放弃，codex作为一次独立审计可以保留»). All older references to "dual Codex+Gemini" in docs / memory / skills are superseded by this single-Codex doctrine. Class 3 + Class 4 cadence (see §14) now use single Codex witness; pre-§8 timing for Class 4 unchanged.
+Default and only audit path for this repository is **one clean-context audit by
+a fresh agent on any capable platform** (Claude, Codex, Antigravity, or any
+future capable runtime). The auditor must run in a clean context and must not
+have the implementation transcript. One independent witness is sufficient; this
+repository does not require a second.
+
+This doctrine is **platform-agnostic**: it names a *role* (a fresh,
+clean-context auditor), not a vendor. All older vendor-specific phrasings —
+"single Codex", "Codex + Gemini dual audit", "Gemini dropped" — are superseded
+by the ratification line below.
+
+> Ratification 2026-05-29: audit doctrine generalized to **platform-agnostic
+> clean-context audit**; supersedes single-Codex (2026-05-24) and the earlier
+> dual Codex+Gemini doctrine. The requirement is clean context + no
+> implementation transcript, not a particular vendor.
 
 Implementation agents must not self-certify high-risk work. For Class 3/4 or
 ship-path changes, after implementation evidence exists, invoke a fresh
-clean-context Codex reviewer/session. Provide only:
+clean-context auditor (any capable platform). Provide only:
 
 - task brief and risk class
 - touched FC nodes/invariants
@@ -272,26 +312,11 @@ Conservative interpretation:
 - `CHALLENGE` requires fix or explicit forward deferral with rationale.
 - `PROCEED` is necessary but not a substitute for passing gates/evidence.
 
-## 10. Self-Hosting Dev Entry
+## 10. (retired 2026-05-29)
 
-Use `turingos_dev` for non-trivial harness/code work once available. It is a
-development-evidence sidecar, not a second canonical tape:
-
-Detailed operating playbook: `HARNESS_MANUAL.md`.
-
-```bash
-turingos_dev open --title <title> --module <module> --risk <0-4> --fc <nodes> --allowed <paths>
-turingos_dev record-diff --run <run_id>
-turingos_dev record-command --run <run_id> -- <command...>
-turingos_dev record-audit --run <run_id> --reviewer clean-context-codex --verdict PROCEED|CHALLENGE|VETO --file <audit.md>
-turingos_dev validate --run <run_id>
-turingos_dev close --run <run_id>
-```
-
-No global latest pointer: use `--run`, `--run-dir`, or explicit
-`TURINGOS_DEV_RUN`. `record-diff` and `close` must fail closed on restricted
-surface hits, broken event hash chains, failing commands, or missing required
-audit.
+The self-hosting `turingos_dev` sidecar was removed (Phase 2). §11–§16 retain
+their numbers so existing `AGENTS.md §NN` citations across the thin CLI files,
+skills, and `CLAUDE.md` stay valid.
 
 ## 11. Done Definition
 
@@ -303,7 +328,8 @@ A task is done only when:
   real run is required.
 - The diff is reviewed for regressions, hidden Class 4 surfaces, evidence
   rewrite, ID namespace drift, and money/tape/shielding violations.
-- Clean-context Codex audit is completed for high-risk or ship-path work.
+- Clean-context audit (any capable platform) is completed for high-risk or
+  ship-path work.
 - Dynamic handover files are updated only if current project state actually
   changed.
 - `OBLIGATIONS.md` reconciled: every `Level=must` entry is `satisfied`
@@ -332,9 +358,9 @@ untriaged historical logs in ordinary agent prompts.
 Canonical IDs and shadow IDs must not be mixed. Dashboard and report code must
 derive from ChainTape/CAS, not become a source of truth.
 
-No workaround closures: do not turn a failing gate into a skip, null pointer,
-empty evidence path, or dashboard-only proof. Align with the constitution and
-FC1/FC2/FC3, or stop.
+No workaround closures: admission and gates are fail-closed by default — do not
+turn a failing gate into a skip, null pointer, empty evidence path, or
+dashboard-only proof. Align with the constitution and FC1/FC2/FC3, or stop.
 
 ## 13. Key Coding Principles (Karpathy Skills)
 
@@ -356,9 +382,9 @@ ship.
 |-------|---------|-----------|---------------|-----|-----------------------------------|--------|
 | 0 docs | no | no | no | no | no | only recurring rule |
 | 1 additive | no | no | no | no | predicate self-test only | only recurring rule |
-| 2 wire-up | brief | optional | yes | no | clean-context Codex audit (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
-| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context Codex audit (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
-| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context Codex audit PRE-§8 (witness, single — Gemini dropped 2026-05-24, see §9) | yes |
+| 2 wire-up | brief | optional | yes | no | clean-context audit, any platform (witness, output `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`) | surprise only |
+| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context audit (witness, one independent — any capable platform, see §9) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context audit PRE-§8 (witness, one independent — any capable platform, see §9) | yes |
 
 **Audit witness is not judge.** Ship gate = predicates GREEN (hard judge —
 `cargo test --workspace`, `bash scripts/run_constitution_gates.sh`,
@@ -385,7 +411,7 @@ Auditor copy-pastes this batch; no human judgment in any line:
 
 ### Independent audit witness verdict domain
 
-Clean-context Codex audit 可合法输出（仅这四个；Gemini auditor deprecated 2026-05-24, see §9）:
+Clean-context audit (any capable platform) 可合法输出（仅这四个，见 §9）:
 - `NO-VIOLATION`（扫了 N 条款，无违宪发现）
 - `VIOLATION-FOUND <constitutional-clause> <file>:<line>`
 - `RECONSTRUCTION-FAILURE <which-tape-or-cas-path-cannot-be-reconstructed>`
@@ -445,17 +471,18 @@ See `skills/SUBAGENT_HARNESS.md` for prompt-template patterns and
 `handover/architect-insights/K_HARDEN_PROPOSAL_2026-05-20.md` for design
 rationale.
 
-## 15. Codex Guidance Maintenance
+## 15. Harness Guidance Maintenance
 
-This file should stay concise and load-bearing. If Codex repeats the same
+This file should stay concise and load-bearing. If any agent repeats the same
 mistake twice, update `AGENTS.md` or create a small referenced playbook/skill.
 If this file grows too large, split task-specific material into separate docs
 and reference them here.
 
 Useful research baseline:
 
-- Codex docs: keep `AGENTS.md` practical, include commands/constraints/done
-  criteria, and test/review work before accepting it.
+- Agent-instruction docs (Codex `AGENTS.md`, Claude `CLAUDE.md`, …): keep them
+  practical, include commands/constraints/done criteria, and test/review work
+  before accepting it.
 - Evals best practice: use task-specific evals, trace/tool-level checks,
   continuous evaluation, and clear graders rather than final-output vibes.
 - Recent AGENTS/harness research is mixed on instruction volume; therefore
@@ -495,7 +522,5 @@ other audit witness is invalid if obligation witness ≠ `OBL-ALL-CLOSED`.
 
 ### Cross-platform discovery
 
-All thin discovery files (`CLAUDE.md`, `GEMINI.md`, `CONVENTIONS.md`,
-`.cursorrules`, `.cursor/rules/000-agents-alignment.mdc`, `.windsurfrules`,
-`.github/copilot-instructions.md`, `WARP.md`) already redirect here. No
-per-agent shim. One file, one schema, every agent.
+All thin discovery files (see §2) already redirect here. No per-agent shim.
+One file, one schema, every agent.

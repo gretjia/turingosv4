@@ -40,6 +40,8 @@ itself is project-agnostic.
   - [V.19 New-atom checklist](#v19-new-atom-checklist)
   - [V.20 Adversarial validation cadence](#v20-adversarial-validation-cadence)
   - [V.21 Recovery from contamination](#v21-recovery-from-contamination)
+  - [V.22 Recovery from operational faults](#v22-recovery-from-operational-faults)
+  - [V.23 Final-response checklist](#v23-final-response-checklist)
 - [Appendix](#appendix)
   - [A. L1-L9 reference card](#a-l1-l9-reference-card)
   - [B. Hook contracts](#b-hook-contracts)
@@ -107,7 +109,7 @@ The harness has a **double-tiered judgment structure** (K-HARDEN §1a):
 - Per-atom predicate verification recipes in PR body
 
 **Soft witness (independent audit, can flag but not judge alone)**:
-- Clean-context Codex / Gemini / external-LLM audit
+- Clean-context audit by a fresh agent on any capable platform (Claude / Codex / Antigravity / …)
 - **Legal output space**: `{NO-VIOLATION, VIOLATION-FOUND, RECONSTRUCTION-FAILURE, SECOND-SOURCE-DRIFT}`
 - **Illegal output space** (out-of-scope, can reject report): subjective code
   style / performance / coverage / architecture preference
@@ -525,8 +527,8 @@ When adding a new atom (per Class-by-Class Cadence in AGENTS.md §14):
 | 0 docs | no | no | no | no | none | only recurring rule |
 | 1 additive | no | no | no | no | predicate self-test | only recurring rule |
 | 2 wire-up | brief | optional | yes | no | clean-context audit | surprise only |
-| 3 auth/money/CAS | TB charter | yes | yes | required | full dual witness | yes |
-| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | dual PRE-§8 witness | yes |
+| 3 auth/money/CAS | TB charter | yes | yes | required | clean-context audit (any platform) | yes |
+| 4 constitution/sequencer | TB charter | yes | yes | per-atom §8 | clean-context audit PRE-§8 (any platform) | yes |
 
 For every Class-2+ atom:
 1. Write the gate test FIRST (predicate)
@@ -582,6 +584,42 @@ GIT_HARDEN_ALLOW_MAIN=1 git push origin main
   - `git reset --soft HEAD~1` (undo last commit, keep changes staged)
   - `git restore --staged <sidecar-files>`
   - `git commit -m "..."` (re-commit with clean staging)
+
+### V.22 Recovery from operational faults
+
+Distinct from the git-contamination recoveries above — when the fault is
+operational, not a branch mistake:
+
+**Test failure** — keep the failing command's stdout/stderr as evidence; fix
+against it; rerun the same command and keep the new output. Never delete
+failure output from the evidence trail.
+
+**Risk escalation mid-task** — stop implementing; re-declare risk class, FC
+nodes, and allowed paths; if the work is now Class 4, wait for per-atom §8
+ratification before continuing.
+
+**Disk exhaustion** — do not delete evidence. You may clear build caches
+(e.g. `target/`), accepting the rebuild cost; then rerun the failed command
+and keep the new evidence.
+
+**Stale doc** — never rewrite historical evidence to fit a new rule;
+forward-supersede in the living doc or an OBS/annotation note.
+
+**Diff exceeds allowed paths** — stop. Decide whether it is accidental drift
+or a necessary scope expansion; re-declare or update the task contract rather
+than silently continuing.
+
+### V.23 Final-response checklist
+
+Before claiming a task done, the agent's final reply states:
+
+- which files changed
+- which verification commands ran, with their output/evidence paths
+- which commands were NOT run, and why
+- the audit verdict, if any
+- any residual risk or follow-up
+
+Never claim "done" without verification evidence. A plan is not a result.
 
 ---
 

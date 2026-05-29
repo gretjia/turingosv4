@@ -5,17 +5,15 @@
 The harness exists to make the constitution executable while giving LLM agents
 room to reason.
 
-It is not a checklist stack and not a prompt wall. It is a self-hosting
-development cognition system:
+It is not a checklist stack and not a prompt wall. It is a development
+cognition system:
 
 ```text
 Human intent
 -> Meta AI / Cortex
 -> Module / Molecule / Atom contract
 -> Codex / Claude / fast executor
--> turingos_dev evidence entry
--> DevEvidence hash chain + Tape/CAS witnesses
--> clean-context Codex review
+-> clean-context audit (any capable platform)
 -> harness evolution notes
 ```
 
@@ -41,13 +39,14 @@ fast executors. `CLAUDE.md` imports `@AGENTS.md` and then adds Claude-specific
 operating detail. Large architecture and history stay in `constitution.md`,
 `handover/alignment/*`, and `handover/ai-direct/LATEST.md`.
 
-`HARNESS_MANUAL.md` is the operational runbook. Any future agent that needs to
-execute a new task should read it after `AGENTS.md` and before opening a
-self-hosting dev run.
+`HARNESS_PLAYBOOK.md` is the operational runbook. Any future agent that needs
+to execute a new task should read it after `AGENTS.md`.
 
-Default audit path is one clean-context Codex review after implementation
-evidence exists. Gemini is not part of the default harness unless a future user
-message or directive explicitly asks for it.
+Default audit path is one clean-context audit by a fresh agent on any capable
+platform (Claude / Codex / Antigravity / …) after implementation evidence
+exists. The auditor must run in a clean context and must not hold the
+implementation transcript. One independent witness is sufficient. See
+`AGENTS.md §9`.
 
 Veto-AI is not a code reviewer. Per `constitution.md` Art. V.1.3, Veto-AI only
 checks constitutionality and outputs `{PASS, VETO}`. Ordinary engineering
@@ -99,43 +98,7 @@ proved otherwise:
 Class 4 requires explicit per-atom section-8 architect/user ratification before
 implementation or ship. One-word approvals are not ratification.
 
-## 4. Self-Hosting Shadow Mode
-
-The first development entry is thin:
-
-```bash
-turingos_dev open --title <title> --module <module> --risk <0-4> --fc <nodes> --allowed <paths>
-turingos_dev record-diff --run <run_id>
-turingos_dev record-command --run <run_id> -- <command...>
-turingos_dev record-audit --run <run_id> --reviewer clean-context-codex --verdict PROCEED|CHALLENGE|VETO --file <audit.md>
-turingos_dev validate --run <run_id>
-turingos_dev close --run <run_id>
-turingos_dev summarize --run <run_id>
-```
-
-`turingos_dev` records development evidence; it does not make TuringOS an
-autonomous developer yet and it does not create a second canonical tape. v1 is
-a DevEvidence hash-chain sidecar under:
-
-```text
-handover/evidence/dev_self_hosting/<run_id>/
-  DevTaskManifest.json
-  FCWitnessManifest.json
-  events.jsonl
-  events_hash_chain.json
-  artifacts/
-  DevAuditVerdict.json
-  DevRunSummary.json
-```
-
-No global latest pointer is allowed. Use `--run`, `--run-dir`, or explicit
-`TURINGOS_DEV_RUN`.
-
-`close` must fail closed if the event hash chain breaks, acceptance evidence is
-missing/failing, restricted paths force a higher audit requirement, or required
-audit is absent/non-PROCEED.
-
-## 5. Evidence Intelligence
+## 4. Evidence Intelligence
 
 Every evidence-bearing task should answer:
 
@@ -147,16 +110,12 @@ Every evidence-bearing task should answer:
 - Which clean-context review judged it?
 - Can the evidence package be replayed or at least integrity-checked?
 
-Development evidence uses an append-only JSONL hash chain. This is not
-"Shadow CAS"; it is a sidecar that may later be anchored into real ChainTape/CAS
-after G3.2, G4.2, and PromptCapsule runtime wire-up are closed.
-
 Training use is opt-in only. Raw prompts, chain-of-thought, private diagnostics,
 raw stderr, and hidden fields must not become default SFT/RLAIF corpus material.
 Any corpus export must be redacted, audit-approved, and compatible with
 selective shielding.
 
-## 6. Executable Substrate Gates
+## 5. Executable Substrate Gates
 
 The intelligent harness still rests on hard gates:
 
@@ -172,7 +131,7 @@ The intelligent harness still rests on hard gates:
   dashboard regeneration, economic state reconstruction, `HEAD_t`
   reconstruction
 - H5 audit gates:
-  clean-context Codex review after H1-H4 evidence exists
+  clean-context audit (any capable platform) after H1-H4 evidence exists
 
 Persistent constitution test families:
 
@@ -213,7 +172,7 @@ Persistent constitution test families:
   `all_externalized_attempts_have_cas_payload`,
   `all_lean_results_have_cas_payload`
 
-## 7. Runner Policy
+## 6. Runner Policy
 
 Before any runner that writes evidence or evaluates real problems, invoke
 `/runner-preflight` when available or perform its checklist:
@@ -230,7 +189,7 @@ Never run a large benchmark before P38/P49 equality, M0, constitution gates,
 HEAD_t, PromptCapsule, and PCP synthetic corpus are green for the relevant
 surface.
 
-## 8. Kill Gates
+## 7. Kill Gates
 
 Stop immediately on:
 
@@ -245,11 +204,10 @@ Stop immediately on:
 - `f64` money path
 - system tx accepted from agent ingress
 - shadow/canonical ID confusion
-- broken DevEvidence hash chain on a self-hosting run
 
-## 9. Done Definition
+## 8. Done Definition
 
 A task is done only when the risk-appropriate gates pass, the diff is reviewed
 against touched FC nodes, evidence is linked, and high-risk/ship-path work has
-clean-context Codex review. Dynamic handover is updated only when dynamic state
-actually changes.
+clean-context audit (any capable platform). Dynamic handover is updated only
+when dynamic state actually changes.

@@ -13,13 +13,15 @@ cargo check
 
 ## Layer B: Tests
 ```bash
-cargo test
+cargo test --workspace --no-fail-fast
 ```
 
 ## Layer C: Kernel Audit
 Invoke `auditor` agent for full integrity check.
 
 ## Layer D: External Audit (if code changes)
-Delegate to Codex or Gemini per Rule 23.
+Request one clean-context audit by a fresh agent on any capable platform
+(Claude / Codex / Antigravity / …) per AGENTS.md §9. The auditor must run in a
+clean context and must not hold the implementation transcript.
 
 Report: PASS/FAIL per layer. Fail-closed — any layer failure = overall FAIL.

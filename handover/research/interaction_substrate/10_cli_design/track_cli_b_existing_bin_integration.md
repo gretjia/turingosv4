@@ -2,6 +2,13 @@
 
 **本文档为 forward-bound research 提案；任何派生 TB 须独立 §8 ratification；本文档不构成已批准方案。**
 
+> **SUPERSEDED 2026-05-29 (forward-only note; body below unchanged):** the
+> "保留独立 (keep `turingos_dev`)" decision in the bin table and §2.10 below is
+> superseded by user §8 directive 2026-05-29 — the `turingos_dev` dev-evidence
+> sidecar is retired (commit `4264b14f`;
+> `handover/alignment/OBS_R022_TURINGOS_DEV_REMOVAL_2026-05-29.md`). All
+> `turingos_dev` / `dev_harness::*` references below are now historical.
+
 **目的**: 盘点全部 12 个现有 bin (11 个 `src/bin/` + 1 个 `experiments/`)，给出每个 bin 的 entry/exit point + library function 调用关系 + 统一 `turingos` CLI 的集成路径。
 
 ---
