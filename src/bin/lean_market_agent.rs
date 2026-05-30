@@ -45,7 +45,10 @@ use turingosv4::judges::lean_theorem_bank::{
 use turingosv4::runtime::adapter::{
     genesis_with_balances, make_real_challengetx_signed_by, make_real_cpmm_pool_signed_by,
     make_real_escrow_lock_signed_by, make_real_market_seed_signed_by, make_real_task_open_signed_by,
-    make_real_worktx_signed_by, tb8_await_state_root_advance,
+    make_real_verifytx_signed_by, make_real_worktx_signed_by, tb8_await_state_root_advance,
+};
+use turingosv4::runtime::verification_result::{
+    write_to_cas as write_verification_result_to_cas, VerificationResult,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
@@ -68,6 +71,8 @@ const CHALLENGE_STAKE_MICRO: i64 = 500;
 const MIN_STAKE_MICRO: i64 = 250;
 const MAX_STAKE_MICRO: i64 = 20_000;
 const BASE_WORK_STAKE: i64 = 1_000;
+const VERIFIER_AGENT: &str = "Agent_lm_verifier";
+const VERIFY_BOND_MICRO: i64 = 500;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Policy {
@@ -280,6 +285,12 @@ fn put_counterexample(cas_path: &PathBuf, work_tx: &str, lt: u64) -> Result<Cid,
         .map_err(|e| format!("put counterexample: {e}"))
 }
 
+fn put_proof_artifact(cas_path: &PathBuf, source: &str, lt: u64) -> Result<Cid, String> {
+    let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
+    cas.put(source.as_bytes(), ObjectType::Generic, "lm-verifier", lt, Some("lm.proof_artifact.v1".into()))
+        .map_err(|e| format!("put proof artifact: {e}"))
+}
+
 fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (Mathlib is available). Output ONLY a JSON object.\n\n");
@@ -344,7 +355,7 @@ async fn run(args: Args) -> Result<(), String> {
 
     // ── Genesis + keypairs ───────────────────────────────────────────
     let mut balances = default_pput_preseed_pairs();
-    for extra in [SPONSOR_AGENT, PROVIDER_AGENT] {
+    for extra in [SPONSOR_AGENT, PROVIDER_AGENT, VERIFIER_AGENT] {
         if !balances.iter().any(|(a, _)| a.0 == extra) {
             balances.push((AgentId(extra.into()), MicroCoin::from_micro_units(5_000_000)));
         }
@@ -365,7 +376,7 @@ async fn run(args: Args) -> Result<(), String> {
     let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q).map_err(|e| format!("boot: {e}"))?;
     let seq = bundle.sequencer.clone();
     let mut kp = AgentKeypairRegistry::open(&cfg.runtime_repo_path).map_err(|e| format!("{e}"))?;
-    let mut all: Vec<&str> = vec![SPONSOR_AGENT, PROVIDER_AGENT];
+    let mut all: Vec<&str> = vec![SPONSOR_AGENT, PROVIDER_AGENT, VERIFIER_AGENT];
     all.extend(agents.iter().map(|s| s.as_str()));
     all.extend(challengers.iter().map(|s| s.as_str()));
     for id in &all {
@@ -484,7 +495,7 @@ async fn run(args: Args) -> Result<(), String> {
             let challenger = challengers[ai % challengers.len()].clone();
             if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
                 lt += 1;
-                match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, CHALLENGE_STAKE_MICRO, ce, "lm", lt) {
+                match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, CHALLENGE_STAKE_MICRO, ce, &format!("lm{step_idx}"), lt) {
                     Ok(chal) => match submit_await(&seq, chal, root, "ChallengeTx").await {
                         Ok(r) => {
                             root = r;
@@ -493,6 +504,37 @@ async fn run(args: Args) -> Result<(), String> {
                         Err(e) => eprintln!("lm challenge skip node{step_idx}: {e}"),
                     },
                     Err(e) => eprintln!("lm challenge build skip: {e}"),
+                }
+            }
+
+            // Chain-record the Lean verdict so the OMEGA is reconstructable from tape
+            // (not just in-memory): a VerificationResult CAS object + a Confirm/Doubt
+            // VerifyTx targeting the WorkTx. Confirm <=> kernel-Verified. Unique suffix
+            // per node (avoids verifytx-id collision when the verifier is reused).
+            let assembled = judge.assemble(&body);
+            if let Ok(artifact_cid) = put_proof_artifact(&args.cas, &assembled, lt) {
+                lt += 1;
+                let vr = VerificationResult::from_lean_run(
+                    TxId(work_tx_id.clone()),
+                    AgentId(VERIFIER_AGENT.into()),
+                    outcome.exit_code,
+                    artifact_cid,
+                    &format!("lm-node{step_idx}.lean"),
+                    assembled.as_bytes(),
+                );
+                if let Ok(mut cas) = CasStore::open(&args.cas) {
+                    let _ = write_verification_result_to_cas(&mut cas, &vr, "lm-verifier", lt);
+                }
+                lt += 1;
+                match make_real_verifytx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), VERIFIER_AGENT, VERIFY_BOND_MICRO, &format!("lmv{step_idx}"), is_verified, lt) {
+                    Ok(vtx) => match submit_await(&seq, vtx, root, "VerifyTx").await {
+                        Ok(r) => {
+                            root = r;
+                            lt += 1;
+                        }
+                        Err(e) => eprintln!("lm verify skip node{step_idx}: {e}"),
+                    },
+                    Err(e) => eprintln!("lm verify build skip: {e}"),
                 }
             }
 
