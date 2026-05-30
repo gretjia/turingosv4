@@ -310,6 +310,17 @@ fn put_proof_artifact(cas_path: &PathBuf, source: &str, lt: u64) -> Result<Cid, 
         .map_err(|e| format!("put proof artifact: {e}"))
 }
 
+/// GCD for reducing price fractions so equal ratios (e.g. 4000/4000 == 250/250 == 1/1)
+/// collapse — `distinct_price_ratios` must count distinct PRICES, not distinct stakes.
+fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
+    while b != 0 {
+        let t = b;
+        b = a % b;
+        a = t;
+    }
+    a
+}
+
 fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (Mathlib is available). Output ONLY a JSON object.\n\n");
@@ -632,7 +643,8 @@ async fn run(args: Args) -> Result<(), String> {
     let mut ratios: BTreeSet<(u128, u128)> = BTreeSet::new();
     for n in &nodes {
         if let (Some(a), Some(b)) = (n.price_yes_num, n.price_yes_den) {
-            ratios.insert((a, b));
+            let g = gcd_u128(a, b).max(1);
+            ratios.insert((a / g, b / g));
         }
     }
     let distinct_price_ratios = ratios.len();
