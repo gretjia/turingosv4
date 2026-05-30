@@ -47,6 +47,24 @@ fn theorem(id: &str) -> Option<(&'static str, &'static str)> {
             "import Mathlib\nopen Finset in\ntheorem tm (n : ℕ) : ∑ i ∈ Finset.range n, (2 * i + 1) = n ^ 2 := by",
             "(n : ℕ) ⊢ ∑ i ∈ Finset.range n, (2 * i + 1) = n ^ 2",
         )),
+        // Branchy candidates (multiple plausible first moves, most dead-ending) for the
+        // Goldilocks search band. All verified provable in /tmp before adding.
+        "tm_sumsq" => Some((
+            "import Mathlib\nopen Finset in\ntheorem tm (n : ℕ) : (∑ i ∈ Finset.range (n+1), i) * 2 = n * (n+1) := by",
+            "(n : ℕ) ⊢ (∑ i ∈ Finset.range (n+1), i) * 2 = n * (n+1)",
+        )),
+        "tm_dvd" => Some((
+            "import Mathlib\ntheorem tm (n : ℕ) : 6 ∣ n * (n+1) * (n+2) := by",
+            "(n : ℕ) ⊢ 6 ∣ n * (n+1) * (n+2)",
+        )),
+        "tm_amgm3" => Some((
+            "import Mathlib\ntheorem tm (a b c : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : 0 ≤ c) : a^2+b^2+c^2 ≥ a*b+b*c+c*a := by",
+            "(a b c : ℝ) (ha : 0 ≤ a) (hb : 0 ≤ b) (hc : 0 ≤ c) ⊢ a^2+b^2+c^2 ≥ a*b+b*c+c*a",
+        )),
+        "tm_powineq" => Some((
+            "import Mathlib\ntheorem tm (n : ℕ) (hn : 1 ≤ n) : n + 1 ≤ 2^n := by",
+            "(n : ℕ) (hn : 1 ≤ n) ⊢ n + 1 ≤ 2^n",
+        )),
         _ => None,
     }
 }
@@ -64,7 +82,8 @@ struct Node {
 }
 
 enum Eval {
-    Omega,
+    /// carries the EXACT source string Lean verified, so the emitted proof re-verifies byte-identically
+    Omega { source: String },
     Partial { goals: String, n: usize },
     Invalid,
 }
@@ -136,7 +155,7 @@ fn eval_proof(
     );
     let low = text.to_lowercase();
     if out.status.success() && !low.contains("sorry") && !low.contains("error") {
-        return Eval::Omega;
+        return Eval::Omega { source: src };
     }
     // Partial iff the ONLY error is "unsolved goals" (no tactic/elab error).
     let other_error = low.contains("error")
@@ -237,6 +256,7 @@ async fn main() -> Result<(), String> {
     let mut llm_calls = 0usize;
     let mut lean_calls = 0usize;
     let mut omega: Option<usize> = None;
+    let mut omega_source: Option<String> = None;
     let mut best_progress = 0usize; // max goals-closed depth reached
 
     'outer: for round in 0..args.n_rounds {
@@ -268,13 +288,34 @@ async fn main() -> Result<(), String> {
             };
 
             // ---- LLM proposes the NEXT tactic given the remaining goals ----
+            // Per-agent LENS: distinct agents prefer distinct tactic families, so different
+            // branches get explored from the SAME state — the heterogeneity the market pools
+            // over (constitution Art. II.2.1: 不能抹杀群体异质性). Homogeneous prompts → every
+            // agent proposes the same next tactic → no real branching.
+            let lenses = [
+                "Prefer INDUCTION (`induction n with | zero => ?_ | succ k ih => ?_`) when the goal is over ℕ.",
+                "Prefer REWRITING with a specific Mathlib lemma (`rw [lemma]` / `simp only [lemma]`).",
+                "Prefer ALGEBRA/ARITH closers (`ring`, `ring_nf`, `nlinarith [sq_nonneg ..]`, `omega`).",
+                "Prefer STRUCTURAL intro/refine (`intro`, `refine`, `constructor`, `obtain`).",
+            ];
+            // FAIR diversity: market agents SPECIALIZE (lens by agent → heterogeneous pool the
+            // market pools over); single ROTATES lenses by round (one agent, SAME tactic
+            // diversity, sequential on its own chain). Without this, single with n_agents=1
+            // would be locked to lens[0] (induction only) — a crippled, rigged baseline that
+            // makes the market look artificially good.
+            let lens = if args.policy == "single" {
+                lenses[round % lenses.len()]
+            } else {
+                lenses[ai % lenses.len()]
+            };
             let parent = &nodes[pick];
             let prompt = format!(
-                "You are proving a Lean 4 (Mathlib) theorem ONE TACTIC AT A TIME. Tactics applied so \
-                 far:\n{}\n\nCurrent remaining goal state:\n{}\n\nGive the SINGLE next Lean 4 tactic to \
-                 make progress (e.g. `intro n`, `induction n with | zero => simp | succ k ih => ...`, \
-                 `rw [Finset.sum_range_succ]`, `ring`, `nlinarith [sq_nonneg (a-b)]`). It must be valid \
-                 from THIS state. Output ONLY JSON: {{\"tactic\": \"<one tactic>\"}}. No `sorry`.",
+                "You are proving a Lean 4 (Mathlib) theorem ONE ATOMIC TACTIC AT A TIME. Apply exactly \
+                 ONE tactic — do NOT submit a whole multi-step proof, and do NOT use `<;>` chains or a \
+                 full `induction … with` that closes every case at once; take a SINGLE step so the proof \
+                 can branch. Your preferred style: {lens}\n\nTactics applied so far:\n{}\n\nCurrent \
+                 remaining goal state:\n{}\n\nGive the single next tactic valid from THIS state. Output \
+                 ONLY JSON: {{\"tactic\": \"<one tactic>\"}}. No `sorry`.",
                 if parent.tactics.is_empty() { "(none)".into() } else { parent.tactics.join("\n") },
                 parent.goals,
             );
@@ -308,7 +349,8 @@ async fn main() -> Result<(), String> {
             lean_calls += 1;
             let tag = format!("{}_{}_{}_{}", args.theorem, round, ai, nodes.len());
             match eval_proof(preamble, &tactics, &lean_bin, &args.mathlib_dir, &lp, &tag) {
-                Eval::Omega => {
+                Eval::Omega { source } => {
+                    omega_source = Some(source);
                     let new = Node { parent: Some(pick), tactics, goals: String::new(), n_goals: 0, stuck: 0, depth: nodes[pick].depth + 1 };
                     nodes.push(new);
                     omega = Some(nodes.len() - 1);
@@ -333,11 +375,23 @@ async fn main() -> Result<(), String> {
 
     let wall = t0.elapsed().as_secs_f64();
     let solved = omega.is_some();
+    // tree shape: branching = parents with >1 child; max_depth; distinct parents extended.
+    let mut child_count: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
+    for n in &nodes {
+        if let Some(p) = n.parent {
+            *child_count.entry(p).or_insert(0) += 1;
+        }
+    }
+    let branching_parents = child_count.values().filter(|&&c| c > 1).count();
+    let max_children = child_count.values().copied().max().unwrap_or(0);
+    let max_depth = nodes.iter().map(|n| n.depth).max().unwrap_or(0);
     let manifest = serde_json::json!({
-        "schema": "lean_tree_market.v1", "theorem": args.theorem, "policy": args.policy,
+        "omega_proof": omega_source,
+        "schema": "lean_tree_market.v2", "theorem": args.theorem, "policy": args.policy,
         "n_agents": args.n_agents, "n_rounds": args.n_rounds, "seed": args.seed, "temp": args.temp,
         "solved": solved, "best_goals_closed": best_progress, "root_goals": root_goals_n,
-        "nodes": nodes.len(), "llm_calls": llm_calls, "lean_calls": lean_calls,
+        "nodes": nodes.len(), "branching_parents": branching_parents, "max_children": max_children,
+        "max_depth": max_depth, "llm_calls": llm_calls, "lean_calls": lean_calls,
         "tokens": tokens, "wall_s": wall,
     });
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
