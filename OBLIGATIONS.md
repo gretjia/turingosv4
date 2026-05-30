@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001..OBL-011 satisfied (OBL-010 G0 market activation 11/11 real+replay, PR #216; OBL-011 G1 live market reaches OMEGA + G2 scale/cost, 2026-05-30, all replay-verified). **OBL-011 (G1 live-LLM agent market + G2 scale/cost, metric PPUT) satisfied** — live market reaches OMEGA (permissive + strict verifier), real price discovery, scale curve N=4/8/16/30 (PPUT~120, scale-flat), cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, OBL-009, OBL-010, and OBL-011 are satisfied. OBL-010: G0 market activation 11/11 by real run + replay (PR #216). OBL-011: G1 live-LLM agent market reaches OMEGA (permissive + strict verifier) with real price discovery, plus G2 scale curve N=4/8/16/30 (PPUT~120, scale-flat) and cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
 
 ---
 
