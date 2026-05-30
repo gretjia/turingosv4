@@ -65,8 +65,8 @@ bear_prompt_hash      = <sha256 of the frozen skeptic prompt, recorded at run st
 bear_context_policy   = {candidate_proof, public_prior_nodes, public_lean_error}  # rule 5 allow-list
 p_fail_parser         = strict-json:"p_fail" in [0,1]; malformed -> abstain (no short)
 p_fail_to_short_amount= integer: short_micro = round(MIN_SHORT + p_fail*(MAX_SHORT-MIN_SHORT))
-min_short             = 250 (micro)
-max_short             = 4000 (micro)
+min_short             = 250 (micro)    # MIN_SHORT_MICRO
+max_short             = 8000 (micro)   # MAX_SHORT_MICRO (matches the validated P0-E code constant)
 wallet_cap            = per-Bear escrow cap; exhausted Bear abstains (logged, on tape)
 timeout_policy        = bear LLM timeout -> abstain (no short), counted as a Bear call in budget
 malformed_json_policy = abstain (no short), counted in budget + parse_fail telemetry

@@ -79,6 +79,8 @@ const VERIFY_BOND_MICRO: i64 = 500;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Policy {
     Market,
+    RandomBear,
+    FixedBear,
     ShuffledPrice,
     NoPrice,
     Single,
@@ -91,6 +93,8 @@ impl Policy {
     fn parse(s: &str) -> Result<Self, String> {
         match s {
             "market" => Ok(Policy::Market),
+            "random_bear" => Ok(Policy::RandomBear),
+            "fixed_bear" => Ok(Policy::FixedBear),
             "shuffled_price" => Ok(Policy::ShuffledPrice),
             "no_price" => Ok(Policy::NoPrice),
             "single" => Ok(Policy::Single),
@@ -103,6 +107,8 @@ impl Policy {
     fn label(self) -> &'static str {
         match self {
             Policy::Market => "market",
+            Policy::RandomBear => "random_bear",
+            Policy::FixedBear => "fixed_bear",
             Policy::ShuffledPrice => "shuffled_price",
             Policy::NoPrice => "no_price",
             Policy::Single => "single",
@@ -114,7 +120,7 @@ impl Policy {
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
     /// non-market baselines are Bulls-only (no short, no price game).
     fn emits_challenges(self) -> bool {
-        matches!(self, Policy::Market | Policy::ShuffledPrice | Policy::NoPrice)
+        matches!(self, Policy::Market | Policy::RandomBear | Policy::FixedBear | Policy::ShuffledPrice | Policy::NoPrice)
     }
 }
 
@@ -263,7 +269,7 @@ fn select_parent(
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
-        Policy::Market => boltzmann_select_parent_v2(pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
+        Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_select_parent_v2(pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
             .or_else(|| all_nodes.last().cloned()),
         Policy::ShuffledPrice => {
             let shuffled = shuffle_prices(pi, rng);
@@ -577,8 +583,17 @@ async fn run(args: Args) -> Result<(), String> {
             // Short challenge → price_yes (price-family policies only; non-market
             // baselines are Bulls-only). Non-fatal.
             if args.policy.emits_challenges() {
-                // Informed Bear: short stake scales with an independent skeptic's doubt.
-                let (short_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                // Bear short by policy: informed (skeptic-LLM doubt) for market/shuffled/no_price;
+                // random U(0,1) with NO skeptic call (M1); or fixed constant (M2). M1/M2 isolate
+                // whether the *informed* price signal (vs noise / vs a constant) does the work.
+                let (short_micro, bear_tok) = match args.policy {
+                    Policy::RandomBear => {
+                        let doubt_pct = rng.gen_range(0..=100) as i64;
+                        (MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100, 0u64)
+                    }
+                    Policy::FixedBear => (CHALLENGE_STAKE_MICRO, 0u64),
+                    _ => bear_doubt_short(&llm, &args.model, &theorem, &body).await,
+                };
                 bear_calls += 1;
                 bear_tokens_total += bear_tok;
                 let challenger = challengers[ai % challengers.len()].clone();
@@ -790,7 +805,7 @@ mod tests {
 
     #[test]
     fn only_price_family_emits_bear_shorts() {
-        for p in [Policy::Market, Policy::ShuffledPrice, Policy::NoPrice] {
+        for p in [Policy::Market, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
         for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst] {
@@ -800,7 +815,7 @@ mod tests {
 
     #[test]
     fn policy_parse_roundtrips_all_arms() {
-        for s in ["market", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first"] {
+        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first"] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());
