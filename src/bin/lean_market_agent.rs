@@ -87,6 +87,7 @@ enum Policy {
     Parallel,
     Majority,
     BestFirst,
+    SkepticRerank,
 }
 
 impl Policy {
@@ -101,6 +102,7 @@ impl Policy {
             "parallel" => Ok(Policy::Parallel),
             "majority" => Ok(Policy::Majority),
             "best_first" => Ok(Policy::BestFirst),
+            "skeptic_rerank" => Ok(Policy::SkepticRerank),
             _ => Err(format!("unknown policy `{s}`")),
         }
     }
@@ -115,6 +117,7 @@ impl Policy {
             Policy::Parallel => "parallel",
             Policy::Majority => "majority",
             Policy::BestFirst => "best_first",
+            Policy::SkepticRerank => "skeptic_rerank",
         }
     }
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
@@ -266,6 +269,7 @@ fn select_parent(
     all_nodes: &[TxId],
     own_last: Option<&TxId>,
     node_conf: &BTreeMap<String, u64>,
+    node_doubt: &BTreeMap<String, i64>,
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
@@ -290,6 +294,12 @@ fn select_parent(
         Policy::BestFirst => all_nodes
             .iter()
             .max_by_key(|t| node_conf.get(&t.0).copied().unwrap_or(0))
+            .cloned(),
+        // B6 skeptic-rerank: extend the LOWEST-doubt node per the SAME skeptic (critic-matched
+        // budget); shared tape, NO price, NO short — isolates the critic heuristic from the market.
+        Policy::SkepticRerank => all_nodes
+            .iter()
+            .min_by_key(|t| node_doubt.get(&t.0).copied().unwrap_or(i64::MAX))
             .cloned(),
     }
 }
@@ -490,6 +500,7 @@ async fn run(args: Args) -> Result<(), String> {
     let mut node_feedback: BTreeMap<String, String> = BTreeMap::new();
     let mut own_last: BTreeMap<String, TxId> = BTreeMap::new();
     let mut node_conf: BTreeMap<String, u64> = BTreeMap::new();
+    let mut node_doubt: BTreeMap<String, i64> = BTreeMap::new();
     let mut verified_agents: BTreeSet<String> = BTreeSet::new();
     let majority_threshold = agents.len() / 2 + 1;
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
@@ -507,7 +518,7 @@ async fn run(args: Args) -> Result<(), String> {
 
             // Parent selection (policy-governed).
             let mut rng = StdRng::seed_from_u64(args.seed + round as u64 * 131 + ai as u64);
-            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &mut rng);
+            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &node_doubt, &mut rng);
             let (parent_body, parent_feedback) = match &parent_tx {
                 Some(t) => (node_body.get(&t.0).cloned(), node_feedback.get(&t.0).cloned()),
                 None => (None, None),
@@ -610,6 +621,16 @@ async fn run(args: Args) -> Result<(), String> {
                         Err(e) => eprintln!("lm challenge build skip: {e}"),
                     }
                 }
+            }
+
+            // B6 skeptic-rerank: the SAME skeptic scores each node (critic-matched budget) to
+            // drive argmin-doubt selection — NOT a market short. Isolates "a critic helped" from
+            // "the market helped" (prereg v2 rule 7). Bear tokens count toward budget.
+            if args.policy == Policy::SkepticRerank {
+                let (doubt_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                bear_calls += 1;
+                bear_tokens_total += bear_tok;
+                node_doubt.insert(work_tx_id.clone(), doubt_micro);
             }
 
             // Chain-record the Lean verdict so the OMEGA is reconstructable from tape
@@ -773,7 +794,7 @@ mod tests {
         let own = TxId("n_mine".into());
         let mut rng = StdRng::seed_from_u64(7);
         for p in [Policy::Single, Policy::Parallel, Policy::Majority] {
-            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &mut rng);
+            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &BTreeMap::new(), &mut rng);
             assert_eq!(got, Some(TxId("n_mine".into())), "{p:?} must refine own_last");
         }
     }
@@ -785,7 +806,7 @@ mod tests {
         let nodes = vec![TxId("someone_elses".into())];
         let mut rng = StdRng::seed_from_u64(7);
         // No shared tape: a parallel agent never adopts another agent's node.
-        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &mut rng), None);
+        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &BTreeMap::new(), &mut rng), None);
     }
 
     #[test]
@@ -798,7 +819,7 @@ mod tests {
         let nodes = vec![TxId("lo".into()), TxId("hi".into()), TxId("mid".into())];
         let mut rng = StdRng::seed_from_u64(7);
         assert_eq!(
-            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &mut rng),
+            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &BTreeMap::new(), &mut rng),
             Some(TxId("hi".into()))
         );
     }
@@ -808,14 +829,14 @@ mod tests {
         for p in [Policy::Market, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
-        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst] {
+        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst, Policy::SkepticRerank] {
             assert!(!p.emits_challenges(), "{p:?} is Bulls-only");
         }
     }
 
     #[test]
     fn policy_parse_roundtrips_all_arms() {
-        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first"] {
+        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first", "skeptic_rerank"] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());
