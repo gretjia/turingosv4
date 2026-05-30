@@ -68,6 +68,7 @@ struct Args {
     n_agents: usize,
     n_rounds: usize,
     continue_past_omega: bool,
+    strict: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -139,6 +140,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         n_agents: get("n-agents").and_then(|s| s.parse().ok()).unwrap_or(5),
         n_rounds: get("n-rounds").and_then(|s| s.parse().ok()).unwrap_or(6),
         continue_past_omega: get("continue-past-omega").map(|s| s == "true").unwrap_or(true),
+        strict: get("strict").map(|s| s == "true").unwrap_or(false),
     })
 }
 
@@ -146,17 +148,29 @@ fn hash_hex(h: &Hash) -> String {
     h.0.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Permissive ζ step-judge — mirrors the v3 OfflineHeuristicJudge. Returns
-/// (pass, is_omega). Judge sees ONLY the step text (shielded; no market data).
+/// Deterministic ζ step-judge (NO LLM, NO market data — shielded). Returns
+/// (pass, claims_complete). claims_complete = the step asserts the result; the
+/// loop additionally requires (in --strict mode) that the accepted chain has
+/// passed the real derivation milestones before OMEGA fires.
 fn zeta_judge(step: &str) -> (bool, bool) {
     let s = step.to_ascii_lowercase();
-    let is_omega = step.contains("[COMPLETE]") && s.contains("-1/12");
+    let claims_complete = step.contains("[COMPLETE]") && s.contains("-1/12");
     let signals = [
         "s(n)", "m(m,n)", "abel", "cesaro", "cesàro", "euler", "maclaurin", "asymptot",
         "regulariz", "analytic", "continuation", "zeta", "-1/12", "limit", "sum", "series",
     ];
-    let pass = is_omega || (step.trim().len() > 12 && signals.iter().any(|w| s.contains(w)));
-    (pass, is_omega)
+    let pass = claims_complete || (step.trim().len() > 12 && signals.iter().any(|w| s.contains(w)));
+    (pass, claims_complete)
+}
+
+/// Which derivation milestone(s) a step covers (for the --strict verifier).
+fn step_milestones(step: &str) -> Vec<&'static str> {
+    let s = step.to_ascii_lowercase();
+    let mut ms = Vec::new();
+    if s.contains("s(n)") || s.contains("regulariz") || s.contains("define") { ms.push("def_S"); }
+    if s.contains("(1-x)") || s.contains("x^m") || s.contains("geometric") || s.contains("x/(1") || s.contains("sum_{m") { ms.push("series"); }
+    if s.contains("real part") || s.contains("re[") || s.contains("euler") || s.contains("asymptot") || s.contains("abel") || s.contains("maclaurin") || s.contains("cesaro") { ms.push("asymptotic"); }
+    ms
 }
 
 fn stake_from_confidence(confidence_pct: u64) -> i64 {
@@ -221,9 +235,9 @@ async fn run(args: Args) -> Result<(), String> {
             balances.push((AgentId(extra.into()), MicroCoin::from_micro_units(5_000_000)));
         }
     }
-    for c in &challengers {
-        if !balances.iter().any(|(a, _)| &a.0 == c) {
-            balances.push((AgentId(c.clone()), MicroCoin::from_micro_units(5_000_000)));
+    for a in agents.iter().chain(challengers.iter()) {
+        if !balances.iter().any(|(x, _)| &x.0 == a) {
+            balances.push((AgentId(a.clone()), MicroCoin::from_micro_units(5_000_000)));
         }
     }
     let initial_q = genesis_with_balances(&balances);
@@ -256,6 +270,7 @@ async fn run(args: Args) -> Result<(), String> {
     let (mut llm_calls, mut parse_fails, mut judge_pass, mut judge_reject) = (0usize, 0usize, 0usize, 0usize);
     let mut omega_node: Option<String> = None;
     let mut step_idx = 0u64;
+    let mut milestones: BTreeSet<&str> = BTreeSet::new();
 
     'outer: for round in 0..args.n_rounds {
         for ai in 0..agents.len() {
@@ -304,9 +319,12 @@ suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\"
                 .and_then(|s| node_tx_ids.iter().find(|t| t.0.starts_with(s) || s.starts_with(&t.0[..t.0.len().min(16)])).cloned())
                 .or_else(|| node_tx_ids.last().cloned());
 
-            let (pass, is_omega) = zeta_judge(&step_text);
+            let (pass, claims_complete) = zeta_judge(&step_text);
             if !pass { judge_reject += 1; continue; }
             judge_pass += 1;
+            for m in step_milestones(&step_text) { milestones.insert(m); }
+            // --strict: OMEGA only after the real derivation milestones (def_S → series → asymptotic) are present.
+            let is_omega = claims_complete && (!args.strict || milestones.len() >= 3);
 
             // Accepted step → its own task node (per-task model → no monetary_invariant).
             let work_stake = stake_from_confidence(confidence_pct);
@@ -389,8 +407,10 @@ suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\"
     let total_tokens: u64 = nodes.iter().map(|n| n.tokens).sum();
     let wall_clock_s = t0.elapsed().as_secs_f64();
     let progress_pct = if omega_node.is_some() { 100.0 } else if !nodes.is_empty() { 1.0 } else { 0.0 };
-    let pput = if progress_pct == 0.0 || total_tokens == 0 || wall_clock_s <= 0.0 { 0.0 }
-        else { (progress_pct / (total_tokens as f64 * wall_clock_s)) * 1_000_000.0 };
+    // PPUT (architect's definition): golden-path progress (token count) per unit
+    // time; ZERO if no completion (no golden path → PPUT=0). Not cost-normalized.
+    let pput = if omega_node.is_none() || wall_clock_s <= 0.0 { 0.0 }
+        else { golden_path_tokens as f64 / wall_clock_s };
 
     // price discovery: count distinct price_yes ratios across nodes.
     let mut ratios: BTreeSet<(u128, u128)> = BTreeSet::new();
