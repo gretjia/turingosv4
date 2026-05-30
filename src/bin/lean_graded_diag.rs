@@ -50,6 +50,25 @@ fn graded_theorem(id: &str) -> Option<Vec<&'static str>> {
             "List.length [1, 2, 3, 4] = 4",
             "∀ a b : ℝ, a ≤ b ∨ b ≤ a",
         ]),
+        // grad_hard: the 3 already-calibrated 33%-at-budget headroom theorems AS conjuncts —
+        // individually hard (so single rarely closes all 3 in one chain), diverse (different
+        // attempts close different ones), so pooling can matter. The §4.5 decisive case.
+        "grad_hard" => Some(vec![
+            "∀ n : ℕ, (∑ i ∈ Finset.range (n + 1), i ^ 3) * 4 = (n * (n + 1)) ^ 2",
+            "StrictMono (fun x : ℝ => x ^ 3 + x)",
+            "∀ n : ℕ, Polynomial.eval 2 (∑ i ∈ Finset.range n, (Polynomial.X : Polynomial ℤ) ^ i) = 2 ^ n - 1",
+        ]),
+        // grad_calibrated: 6 conjuncts of MODERATE single-shot difficulty (induction /
+        // nlinarith-with-hint / ring) — the ~33% band where partial progress is graded and
+        // different attempts plausibly close different ones. The §4.5 decisive task.
+        "grad_calibrated" => Some(vec![
+            "∀ n : ℕ, ∑ i ∈ Finset.range n, (2*i+1) = n^2",
+            "∀ a b : ℝ, a^2 + b^2 ≥ 2*a*b",
+            "∀ a b : ℝ, (a+b)^2 ≤ 2*(a^2+b^2)",
+            "∀ a b : ℝ, a*b ≤ (a^2 + b^2)/2",
+            "∀ a b c : ℝ, a^2+b^2+c^2 ≥ a*b+b*c+c*a",
+            "∀ n : ℕ, n^2 + n = n*(n+1)",
+        ]),
         _ => None,
     }
 }
@@ -109,7 +128,7 @@ fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path,
     if BYPASS.iter().any(|b| lower.contains(b)) {
         return false;
     }
-    let src = format!("import Mathlib\ntheorem diag_{tag} : {goal} := {proof}\n");
+    let src = format!("import Mathlib\nopen Finset in\ntheorem diag_{tag} : {goal} := {proof}\n");
     let file = std::env::temp_dir().join(format!("gradc_{tag}.lean"));
     if std::fs::write(&file, &src).is_err() {
         return false;
