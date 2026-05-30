@@ -80,6 +80,9 @@ enum Policy {
     ShuffledPrice,
     NoPrice,
     Single,
+    Parallel,
+    Majority,
+    BestFirst,
 }
 
 impl Policy {
@@ -89,9 +92,9 @@ impl Policy {
             "shuffled_price" => Ok(Policy::ShuffledPrice),
             "no_price" => Ok(Policy::NoPrice),
             "single" => Ok(Policy::Single),
-            "parallel" | "majority" | "best_first" => {
-                Err(format!("policy `{s}` lands in P0-C (full baseline matrix)"))
-            }
+            "parallel" => Ok(Policy::Parallel),
+            "majority" => Ok(Policy::Majority),
+            "best_first" => Ok(Policy::BestFirst),
             _ => Err(format!("unknown policy `{s}`")),
         }
     }
@@ -101,7 +104,15 @@ impl Policy {
             Policy::ShuffledPrice => "shuffled_price",
             Policy::NoPrice => "no_price",
             Policy::Single => "single",
+            Policy::Parallel => "parallel",
+            Policy::Majority => "majority",
+            Policy::BestFirst => "best_first",
         }
+    }
+    /// Price-family policies emit a Bear ChallengeTx (short) per node; the
+    /// non-market baselines are Bulls-only (no short, no price game).
+    fn emits_challenges(self) -> bool {
+        matches!(self, Policy::Market | Policy::ShuffledPrice | Policy::NoPrice)
     }
 }
 
@@ -244,6 +255,7 @@ fn select_parent(
     pi: &BTreeMap<TxId, NodeMarketEntry>,
     all_nodes: &[TxId],
     own_last: Option<&TxId>,
+    node_conf: &BTreeMap<String, u64>,
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
@@ -261,7 +273,14 @@ fn select_parent(
                 Some(all_nodes[rng.gen_range(0..all_nodes.len())].clone())
             }
         }
-        Policy::Single => own_last.cloned(),
+        // Own-chain baselines (no shared routing): refine only this agent's last node.
+        Policy::Single | Policy::Parallel | Policy::Majority => own_last.cloned(),
+        // Greedy best-first: extend the highest-confidence node on the shared tape,
+        // with NO price and NO Bear short — isolates the priced market from plain greed.
+        Policy::BestFirst => all_nodes
+            .iter()
+            .max_by_key(|t| node_conf.get(&t.0).copied().unwrap_or(0))
+            .cloned(),
     }
 }
 
@@ -405,6 +424,9 @@ async fn run(args: Args) -> Result<(), String> {
     let mut node_body: BTreeMap<String, String> = BTreeMap::new();
     let mut node_feedback: BTreeMap<String, String> = BTreeMap::new();
     let mut own_last: BTreeMap<String, TxId> = BTreeMap::new();
+    let mut node_conf: BTreeMap<String, u64> = BTreeMap::new();
+    let mut verified_agents: BTreeSet<String> = BTreeSet::new();
+    let majority_threshold = agents.len() / 2 + 1;
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
     let mut omega_node: Option<String> = None;
     let mut time_to_first_proof_s: Option<f64> = None;
@@ -419,7 +441,7 @@ async fn run(args: Args) -> Result<(), String> {
 
             // Parent selection (policy-governed).
             let mut rng = StdRng::seed_from_u64(args.seed + round as u64 * 131 + ai as u64);
-            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &mut rng);
+            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &mut rng);
             let (parent_body, parent_feedback) = match &parent_tx {
                 Some(t) => (node_body.get(&t.0).cloned(), node_feedback.get(&t.0).cloned()),
                 None => (None, None),
@@ -490,20 +512,24 @@ async fn run(args: Args) -> Result<(), String> {
             own_last.insert(agent.clone(), TxId(work_tx_id.clone()));
             node_body.insert(work_tx_id.clone(), body.clone());
             node_feedback.insert(work_tx_id.clone(), outcome.feedback.clone());
+            node_conf.insert(work_tx_id.clone(), confidence_pct);
 
-            // Short challenge → price_yes (priced policies). Non-fatal.
-            let challenger = challengers[ai % challengers.len()].clone();
-            if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
-                lt += 1;
-                match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, CHALLENGE_STAKE_MICRO, ce, &format!("lm{step_idx}"), lt) {
-                    Ok(chal) => match submit_await(&seq, chal, root, "ChallengeTx").await {
-                        Ok(r) => {
-                            root = r;
-                            lt += 1;
-                        }
-                        Err(e) => eprintln!("lm challenge skip node{step_idx}: {e}"),
-                    },
-                    Err(e) => eprintln!("lm challenge build skip: {e}"),
+            // Short challenge → price_yes (price-family policies only; non-market
+            // baselines are Bulls-only). Non-fatal.
+            if args.policy.emits_challenges() {
+                let challenger = challengers[ai % challengers.len()].clone();
+                if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
+                    lt += 1;
+                    match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, CHALLENGE_STAKE_MICRO, ce, &format!("lm{step_idx}"), lt) {
+                        Ok(chal) => match submit_await(&seq, chal, root, "ChallengeTx").await {
+                            Ok(r) => {
+                                root = r;
+                                lt += 1;
+                            }
+                            Err(e) => eprintln!("lm challenge skip node{step_idx}: {e}"),
+                        },
+                        Err(e) => eprintln!("lm challenge build skip: {e}"),
+                    }
                 }
             }
 
@@ -557,11 +583,17 @@ async fn run(args: Args) -> Result<(), String> {
             });
             step_idx += 1;
             if is_verified {
-                if omega_node.is_none() {
+                verified_agents.insert(agent.clone());
+                // Majority/self-consistency: OMEGA only once a strict majority of
+                // DISTINCT agents have each produced a Verified proof. All other
+                // policies settle on the first Verified node.
+                let omega_now =
+                    args.policy != Policy::Majority || verified_agents.len() >= majority_threshold;
+                if omega_now && omega_node.is_none() {
                     omega_node = Some(work_tx_id.clone());
                     time_to_first_proof_s = Some(t0.elapsed().as_secs_f64());
                 }
-                if !args.continue_past_omega {
+                if omega_node.is_some() && !args.continue_past_omega {
                     break 'outer;
                 }
             }
@@ -645,4 +677,65 @@ async fn run(args: Args) -> Result<(), String> {
         golden_path_tokens, total_tokens, wall_clock_s, pput, args.out.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn own_chain_policies_refine_own_last_not_others() {
+        let pi = BTreeMap::new();
+        let conf = BTreeMap::new();
+        let nodes = vec![TxId("n_other".into()), TxId("n_mine".into())];
+        let own = TxId("n_mine".into());
+        let mut rng = StdRng::seed_from_u64(7);
+        for p in [Policy::Single, Policy::Parallel, Policy::Majority] {
+            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &mut rng);
+            assert_eq!(got, Some(TxId("n_mine".into())), "{p:?} must refine own_last");
+        }
+    }
+
+    #[test]
+    fn parallel_without_own_last_starts_fresh_root() {
+        let pi = BTreeMap::new();
+        let conf = BTreeMap::new();
+        let nodes = vec![TxId("someone_elses".into())];
+        let mut rng = StdRng::seed_from_u64(7);
+        // No shared tape: a parallel agent never adopts another agent's node.
+        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &mut rng), None);
+    }
+
+    #[test]
+    fn best_first_extends_highest_confidence_node() {
+        let pi = BTreeMap::new();
+        let mut conf = BTreeMap::new();
+        conf.insert("lo".to_string(), 30);
+        conf.insert("hi".to_string(), 95);
+        conf.insert("mid".to_string(), 60);
+        let nodes = vec![TxId("lo".into()), TxId("hi".into()), TxId("mid".into())];
+        let mut rng = StdRng::seed_from_u64(7);
+        assert_eq!(
+            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &mut rng),
+            Some(TxId("hi".into()))
+        );
+    }
+
+    #[test]
+    fn only_price_family_emits_bear_shorts() {
+        for p in [Policy::Market, Policy::ShuffledPrice, Policy::NoPrice] {
+            assert!(p.emits_challenges(), "{p:?} is price-family");
+        }
+        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst] {
+            assert!(!p.emits_challenges(), "{p:?} is Bulls-only");
+        }
+    }
+
+    #[test]
+    fn policy_parse_roundtrips_all_arms() {
+        for s in ["market", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first"] {
+            assert_eq!(Policy::parse(s).unwrap().label(), s);
+        }
+        assert!(Policy::parse("bogus").is_err());
+    }
 }
