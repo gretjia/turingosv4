@@ -56,12 +56,12 @@ use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::sdk::actor::boltzmann_select_parent_v2;
+use turingosv4::sdk::actor::boltzmann_softmax_select_parent;
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
 use turingosv4::state::typed_tx::{OutcomeSide, TypedTx};
-use turingosv4::state::{BoltzmannMaskPolicy, NodeMarketEntry};
+use turingosv4::state::NodeMarketEntry;
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
 const PROVIDER_AGENT: &str = "Agent_user_1";
@@ -141,6 +141,7 @@ struct Args {
     n_agents: usize,
     n_rounds: usize,
     seed: u64,
+    boltzmann_temp: f64,
     continue_past_omega: bool,
 }
 
@@ -223,6 +224,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         n_agents: get("n-agents").and_then(|s| s.parse().ok()).unwrap_or(8),
         n_rounds: get("n-rounds").and_then(|s| s.parse().ok()).unwrap_or(6),
         seed: get("seed").and_then(|s| s.parse().ok()).unwrap_or(0xB01),
+        boltzmann_temp: get("boltzmann-temp").and_then(|s| s.parse().ok()).unwrap_or(0.15),
         continue_past_omega: get("continue-past-omega").map(|s| s == "true").unwrap_or(false),
     })
 }
@@ -270,14 +272,17 @@ fn select_parent(
     own_last: Option<&TxId>,
     node_conf: &BTreeMap<String, u64>,
     node_doubt: &BTreeMap<String, i64>,
+    temp: f64,
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
-        Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_select_parent_v2(pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
+        // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
+        // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
+        Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_softmax_select_parent(pi, &BTreeSet::new(), temp, rng)
             .or_else(|| all_nodes.last().cloned()),
         Policy::ShuffledPrice => {
             let shuffled = shuffle_prices(pi, rng);
-            boltzmann_select_parent_v2(&shuffled, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
+            boltzmann_softmax_select_parent(&shuffled, &BTreeSet::new(), temp, rng)
                 .or_else(|| all_nodes.last().cloned())
         }
         Policy::NoPrice => {
@@ -518,7 +523,7 @@ async fn run(args: Args) -> Result<(), String> {
 
             // Parent selection (policy-governed).
             let mut rng = StdRng::seed_from_u64(args.seed + round as u64 * 131 + ai as u64);
-            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &node_doubt, &mut rng);
+            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &node_doubt, args.boltzmann_temp, &mut rng);
             let (parent_body, parent_feedback) = match &parent_tx {
                 Some(t) => (node_body.get(&t.0).cloned(), node_feedback.get(&t.0).cloned()),
                 None => (None, None),
@@ -794,7 +799,7 @@ mod tests {
         let own = TxId("n_mine".into());
         let mut rng = StdRng::seed_from_u64(7);
         for p in [Policy::Single, Policy::Parallel, Policy::Majority] {
-            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &BTreeMap::new(), &mut rng);
+            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &BTreeMap::new(), 0.15, &mut rng);
             assert_eq!(got, Some(TxId("n_mine".into())), "{p:?} must refine own_last");
         }
     }
@@ -806,7 +811,7 @@ mod tests {
         let nodes = vec![TxId("someone_elses".into())];
         let mut rng = StdRng::seed_from_u64(7);
         // No shared tape: a parallel agent never adopts another agent's node.
-        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &BTreeMap::new(), &mut rng), None);
+        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng), None);
     }
 
     #[test]
@@ -819,7 +824,7 @@ mod tests {
         let nodes = vec![TxId("lo".into()), TxId("hi".into()), TxId("mid".into())];
         let mut rng = StdRng::seed_from_u64(7);
         assert_eq!(
-            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &BTreeMap::new(), &mut rng),
+            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng),
             Some(TxId("hi".into()))
         );
     }
