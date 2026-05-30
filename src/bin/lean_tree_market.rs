@@ -368,16 +368,15 @@ async fn main() -> Result<(), String> {
                     continue;
                 }
             };
-            // ENFORCE ATOMICITY: reject compound tactics so deepseek cannot one-shot the whole
-            // proof in one node (which collapses the tree → market≈single). A compound tactic
-            // contains case arms (`| zero =>`), tactic combinators (`<;>`), or a multi-case
-            // `induction/match … with`. Forcing ONE atomic step makes the proof a genuine
-            // multi-node tree where each step can branch/dead-end — the search the market routes.
-            // (rcases/obtain/refine `with ⟨…⟩` is atomic — only reject the `| arm =>` case form.)
-            if is_compound_tactic(&tac) {
-                nodes[pick].stuck += 1;
-                continue;
-            }
+            // NOTE: atomicity enforcement was tried (is_compound_tactic) and REVERTED — it broke
+            // solving (after a bare `induction n` the proof can't close the two named cases
+            // without the `with | zero => … | succ => …` form, so BOTH arms went 0/8). Allowing
+            // compound tactics is correct: deepseek's partial compound tactics (e.g. close zero,
+            // leave succ) create genuine partial states, and different per-agent lenses still
+            // produce real branching (market built 14-18-node branch-4-5 trees and solved tm_sumsq
+            // 3/5 while single's branch-0 chain solved 0/5). The tree comes from lens diversity +
+            // partial-progress states, NOT from forbidding compound steps.
+            let _ = is_compound_tactic; // retained for reference; intentionally not enforced
 
             // ---- apply + Lean-evaluate the new partial proof ----
             let mut tactics = nodes[pick].tactics.clone();
