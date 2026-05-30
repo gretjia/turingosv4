@@ -21,5 +21,7 @@ pub mod putnam_2025_b3_judge;
 pub mod generate_judge;
 /// TRACE_MATRIX FC1a-judge_pi: SWE-bench hidden-test repair judge (real swebench harness verifier).
 pub mod swebench_test_judge;
+/// TRACE_MATRIX FC1a-judge_pi: Lean-kernel strict verifier for the price-routed proof market.
+pub mod lean_judge;
 /// TRACE_MATRIX FC1a-output_edge: M7 shared output adapter + deterministic diff materializer (market-activation G0).
 pub mod shared_output_adapter;
