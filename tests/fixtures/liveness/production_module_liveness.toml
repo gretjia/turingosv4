@@ -311,6 +311,7 @@ module_ids = [
   "bin::gen_run_summary",
   "bin::g0_market_activation_current_kernel",
   "bin::g1_market_live_agent",
+  "bin::lean_graded_diag",
   "bin::lean_market_agent",
   "bin::market_external_agent_current_kernel",
   "bin::math_competition_reasoning_current_kernel",
