@@ -37,9 +37,11 @@ use crate::judges::math_step_judge::{JudgeVerdict, MathStepJudge};
 use crate::runtime::attempt_telemetry::{LeanErrorClass, LeanVerdictKind};
 use crate::sdk::sanitized_runner::{env_allowlist_from_current, run_sanitized, SanitizedCommand};
 
+/// TRACE_MATRIX FC1a-judge_pi: pinned Lean toolchain for the JudgeAI verifier.
 /// Toolchain that the existing minif2f proofs pin to (elan layout name).
 pub const PINNED_TOOLCHAIN: &str = "leanprover--lean4---v4.24.0";
 
+/// TRACE_MATRIX FC1a-judge_pi: kernel-trust-bypass tokens the JudgeAI rejects.
 /// Tokens that close a goal without a real kernel proof or bypass kernel trust.
 /// `sorry`/`admit` also surface as warnings (caught by `-DwarningAsError`), but we
 /// reject them at the source so the verdict is `SorryBlocked` (not `Failed`), and so
@@ -55,6 +57,7 @@ const FEEDBACK_MAX: usize = 240;
 
 static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// TRACE_MATRIX FC1a-judge_pi: typed JudgeAI verdict for one candidate proof.
 /// Strict Lean outcome for one candidate proof against the fixed target theorem.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeanOutcome {
@@ -67,11 +70,13 @@ pub struct LeanOutcome {
 }
 
 impl LeanOutcome {
+    /// TRACE_MATRIX FC1a-judge_pi: true iff the JudgeAI verdict is a clean OMEGA.
     pub fn is_verified(&self) -> bool {
         matches!(self.verdict_kind, LeanVerdictKind::Verified)
     }
 }
 
+/// TRACE_MATRIX FC1a-judge_pi: pure Lean-kernel JudgeAI verifier (one target theorem).
 /// A pure Lean verifier bound to ONE fixed target theorem.
 #[derive(Debug, Clone)]
 pub struct LeanJudge {
@@ -90,6 +95,7 @@ pub struct LeanJudge {
 }
 
 impl LeanJudge {
+    /// TRACE_MATRIX FC1a-judge_pi: construct the JudgeAI verifier with defaults.
     /// Construct with sane defaults: the pinned toolchain bin, repo-root cwd, 60s.
     pub fn new(preamble: impl Into<String>) -> Self {
         Self {
@@ -101,6 +107,7 @@ impl LeanJudge {
         }
     }
 
+    /// TRACE_MATRIX FC1a-judge_pi: assemble a candidate proof body into a checkable file.
     /// Assemble the full `.lean` source for a candidate proof body.
     pub fn assemble(&self, candidate_body: &str) -> String {
         let mut s = String::with_capacity(self.preamble.len() + candidate_body.len() + 2);
@@ -113,6 +120,7 @@ impl LeanJudge {
         s
     }
 
+    /// TRACE_MATRIX FC1a-judge_pi: the JudgeAI verdict — verify a candidate proof body.
     /// Verify a candidate proof body and return the strict Lean outcome.
     pub fn verify(&self, candidate_body: &str) -> LeanOutcome {
         // 1. Source-scan the CANDIDATE (the preamble is trusted/fixed). Strip
@@ -203,6 +211,7 @@ fn failed(exit_code: i32, timed_out: bool, feedback: String) -> LeanOutcome {
     }
 }
 
+/// TRACE_MATRIX FC1a-judge_pi: resolve the pinned Lean toolchain bin for the verifier.
 /// Resolve the pinned Lean toolchain binary; fall back to a bare `lean` (PATH) when
 /// the pinned toolchain is absent (e.g. CI without v4.24.0 — callers gate on
 /// `lean_bin.exists()` for real-run tests).

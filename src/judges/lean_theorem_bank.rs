@@ -22,6 +22,7 @@ use serde::Deserialize;
 
 use crate::judges::lean_judge::{default_lean_bin, LeanJudge, PINNED_TOOLCHAIN};
 
+/// TRACE_MATRIX FC1a-judge_pi: a target theorem in the JudgeAI problem-set bank.
 #[derive(Debug, Clone, Deserialize)]
 pub struct LeanTheorem {
     pub id: String,
@@ -37,6 +38,7 @@ pub struct LeanTheorem {
 }
 
 impl LeanTheorem {
+    /// TRACE_MATRIX FC1a-judge_pi: build the JudgeAI verifier for this theorem.
     /// Build a `LeanJudge` for this theorem. `mathlib_lean_path` is required for
     /// `needs_mathlib` theorems (the colon-joined olean search path from
     /// `lake env printenv LEAN_PATH`); ignored for core theorems.
@@ -52,6 +54,7 @@ impl LeanTheorem {
     }
 }
 
+/// TRACE_MATRIX FC1a-judge_pi: load the JudgeAI problem-set bank from JSONL.
 /// Parse a JSONL theorem bank. Blank lines and `//`-prefixed comment lines skip.
 pub fn load_bank(path: impl AsRef<Path>) -> Result<Vec<LeanTheorem>, String> {
     let p = path.as_ref();
@@ -69,6 +72,7 @@ pub fn load_bank(path: impl AsRef<Path>) -> Result<Vec<LeanTheorem>, String> {
     Ok(out)
 }
 
+/// TRACE_MATRIX FC1a-judge_pi: resolve Mathlib LEAN_PATH for the JudgeAI verifier.
 /// Resolve the Mathlib `LEAN_PATH` by asking lake in the Mathlib project dir.
 /// Returns `None` if lake/dir is unavailable (callers then skip Mathlib theorems).
 pub fn mathlib_lean_path(mathlib_dir: impl AsRef<Path>, lake_bin: &Path) -> Option<String> {
@@ -88,6 +92,7 @@ pub fn mathlib_lean_path(mathlib_dir: impl AsRef<Path>, lake_bin: &Path) -> Opti
     }
 }
 
+/// TRACE_MATRIX FC1a-judge_pi: default lake binary for Mathlib LEAN_PATH resolution.
 /// Default lake binary (pinned toolchain), mirroring `default_lean_bin`.
 pub fn default_lake_bin() -> PathBuf {
     if let Some(home) = std::env::var_os("HOME") {
