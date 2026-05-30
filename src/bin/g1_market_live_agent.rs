@@ -38,6 +38,8 @@ use turingosv4::runtime::proposal_telemetry::{
     ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
 };
 use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
+use turingosv4::sdk::actor::boltzmann_select_parent_v2;
+use turingosv4::state::BoltzmannMaskPolicy;
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
@@ -46,7 +48,7 @@ use turingosv4::state::typed_tx::{OutcomeSide, TypedTx};
 const SPONSOR_AGENT: &str = "Agent_user_0";
 const PROVIDER_AGENT: &str = "Agent_user_1";
 const MARKET_SEED_MICRO: i64 = 100_000;
-const TASK_ESCROW_MICRO: i64 = 1_000_000;
+const TASK_ESCROW_MICRO: i64 = 2_000; // only needs >0 for WorkTx admission; small → many nodes
 const CHALLENGE_STAKE_MICRO: i64 = 500;
 const MIN_STAKE_MICRO: i64 = 250;
 const MAX_STAKE_MICRO: i64 = 20_000;
@@ -65,6 +67,7 @@ struct Args {
     model: String,
     n_agents: usize,
     n_rounds: usize,
+    continue_past_omega: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -135,6 +138,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         model: get("model").unwrap_or_else(|| "deepseek-chat".into()),
         n_agents: get("n-agents").and_then(|s| s.parse().ok()).unwrap_or(5),
         n_rounds: get("n-rounds").and_then(|s| s.parse().ok()).unwrap_or(6),
+        continue_past_omega: get("continue-past-omega").map(|s| s == "true").unwrap_or(true),
     })
 }
 
@@ -266,7 +270,12 @@ async fn run(args: Args) -> Result<(), String> {
                     n.price_yes_num.unwrap_or(0), n.price_yes_den.unwrap_or(1)));
             }
             let recent = accepted_steps.iter().rev().take(3).cloned().collect::<Vec<_>>().join(" | ");
-            let parent_hint = node_tx_ids.last().map(|t| t.0.clone());
+            // Price-driven parent hint (boltzmann argmax + epsilon over the live price_index) → branching.
+            let parent_hint = {
+                let mut rng = StdRng::seed_from_u64(0xB01 + round as u64 * 31 + ai as u64);
+                boltzmann_select_parent_v2(&pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), &mut rng)
+                    .map(|t| t.0).or_else(|| node_tx_ids.last().map(|t| t.0.clone()))
+            };
             let prompt = format!(
                 "=== Task ===\n{ZETA_TASK}\n=== Market (price is signal, not truth) ===\n{market}\n=== Recent accepted steps ===\n{recent}\n=== Your turn (round {round}, you are {agent}) ===\n\
 Propose the NEXT proof step that advances toward the result. If the proof is finished, your step_text MUST contain \"[COMPLETE]\" and \"-1/12\".\n\
@@ -336,7 +345,8 @@ suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\"
                 is_omega,
             });
             step_idx += 1;
-            if is_omega { omega_node = Some(work_tx_id); break 'outer; }
+            if is_omega && omega_node.is_none() { omega_node = Some(work_tx_id.clone()); }
+            if is_omega && !args.continue_past_omega { break 'outer; }
         }
     }
 
