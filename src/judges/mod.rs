@@ -23,5 +23,7 @@ pub mod generate_judge;
 pub mod swebench_test_judge;
 /// TRACE_MATRIX FC1a-judge_pi: Lean-kernel strict verifier for the price-routed proof market.
 pub mod lean_judge;
+/// TRACE_MATRIX FC1a-judge_pi: Lean theorem bank (JSONL problem set) for the proof market.
+pub mod lean_theorem_bank;
 /// TRACE_MATRIX FC1a-output_edge: M7 shared output adapter + deterministic diff materializer (market-activation G0).
 pub mod shared_output_adapter;
