@@ -65,6 +65,17 @@ fn theorem(id: &str) -> Option<(&'static str, &'static str)> {
             "import Mathlib\ntheorem tm (n : ℕ) (hn : 1 ≤ n) : n + 1 ≤ 2^n := by",
             "(n : ℕ) (hn : 1 ≤ n) ⊢ n + 1 ≤ 2^n",
         )),
+        // Genuinely multi-step (induction → sum_range_succ → ih → push_cast/ring): with enforced
+        // atomicity these are 4-5 node chains where the middle steps (rw/push_cast) dead-end if
+        // wrong → the search band where tree branching + pooling can beat a single DFS chain.
+        "tm_sq" => Some((
+            "import Mathlib\nopen Finset in\ntheorem tm (n : ℕ) : (∑ i ∈ Finset.range (n+1), (i:ℤ)^2) * 6 = n*(n+1)*(2*n+1) := by",
+            "(n : ℕ) ⊢ (∑ i ∈ Finset.range (n+1), (i:ℤ)^2) * 6 = n*(n+1)*(2*n+1)",
+        )),
+        "tm_geom" => Some((
+            "import Mathlib\nopen Finset in\ntheorem tm (n : ℕ) : (∑ i ∈ Finset.range n, (2:ℤ)^i) + 1 = 2^n := by",
+            "(n : ℕ) ⊢ (∑ i ∈ Finset.range n, (2:ℤ)^i) + 1 = 2^n",
+        )),
         _ => None,
     }
 }
@@ -180,6 +191,18 @@ fn eval_proof(
         return Eval::Partial { goals, n };
     }
     Eval::Invalid
+}
+
+/// True if the tactic is COMPOUND (closes multiple steps/cases at once) → rejected so proofs
+/// must be built one atomic step at a time (genuine tree). `| arm =>` case blocks and `<;>`
+/// combinators are compound; `rcases h with ⟨a,b⟩` (no `=>`) is atomic and allowed.
+fn is_compound_tactic(t: &str) -> bool {
+    let s = t.trim();
+    s.contains("<;>")
+        || s.contains("=>")              // case arms / match arms / `with | ... =>`
+        || s.contains('\n')              // multi-line = multiple steps
+        || s.contains(';')               // tactic sequencing
+        || (s.contains(" with ") && s.contains('|')) // induction/cases ... with | ...
 }
 
 fn extract_json(s: &str) -> Option<serde_json::Value> {
@@ -310,12 +333,15 @@ async fn main() -> Result<(), String> {
             };
             let parent = &nodes[pick];
             let prompt = format!(
-                "You are proving a Lean 4 (Mathlib) theorem ONE ATOMIC TACTIC AT A TIME. Apply exactly \
-                 ONE tactic — do NOT submit a whole multi-step proof, and do NOT use `<;>` chains or a \
-                 full `induction … with` that closes every case at once; take a SINGLE step so the proof \
-                 can branch. Your preferred style: {lens}\n\nTactics applied so far:\n{}\n\nCurrent \
-                 remaining goal state:\n{}\n\nGive the single next tactic valid from THIS state. Output \
-                 ONLY JSON: {{\"tactic\": \"<one tactic>\"}}. No `sorry`.",
+                "You are proving a Lean 4 (Mathlib) theorem ONE ATOMIC TACTIC AT A TIME. Rules: apply \
+                 EXACTLY ONE atomic tactic; do NOT submit a whole proof; NO `<;>`, NO `;` sequencing, \
+                 NO `| case =>` arms, NO `=>`. For induction use bare `induction n` (NOT `induction n \
+                 with | ...`) — I will then show you each resulting case to solve separately. Examples \
+                 of ONE atomic tactic: `intro n`, `induction n`, `simp`, `rw [Finset.sum_range_succ]`, \
+                 `push_cast`, `ring`, `nlinarith [sq_nonneg (a-b)]`, `omega`, `constructor`. Your \
+                 preferred style: {lens}\n\nTactics applied so far:\n{}\n\nCurrent remaining goal \
+                 state:\n{}\n\nGive the single next atomic tactic valid from THIS state. Output ONLY \
+                 JSON: {{\"tactic\": \"<one atomic tactic>\"}}. No `sorry`.",
                 if parent.tactics.is_empty() { "(none)".into() } else { parent.tactics.join("\n") },
                 parent.goals,
             );
@@ -342,6 +368,16 @@ async fn main() -> Result<(), String> {
                     continue;
                 }
             };
+            // ENFORCE ATOMICITY: reject compound tactics so deepseek cannot one-shot the whole
+            // proof in one node (which collapses the tree → market≈single). A compound tactic
+            // contains case arms (`| zero =>`), tactic combinators (`<;>`), or a multi-case
+            // `induction/match … with`. Forcing ONE atomic step makes the proof a genuine
+            // multi-node tree where each step can branch/dead-end — the search the market routes.
+            // (rcases/obtain/refine `with ⟨…⟩` is atomic — only reject the `| arm =>` case form.)
+            if is_compound_tactic(&tac) {
+                nodes[pick].stuck += 1;
+                continue;
+            }
 
             // ---- apply + Lean-evaluate the new partial proof ----
             let mut tactics = nodes[pick].tactics.clone();
