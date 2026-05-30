@@ -68,6 +68,8 @@ const PROVIDER_AGENT: &str = "Agent_user_1";
 const MARKET_SEED_MICRO: i64 = 100_000;
 const TASK_ESCROW_MICRO: i64 = 2_000;
 const CHALLENGE_STAKE_MICRO: i64 = 500;
+const MIN_SHORT_MICRO: i64 = 250;
+const MAX_SHORT_MICRO: i64 = 8_000;
 const MIN_STAKE_MICRO: i64 = 250;
 const MAX_STAKE_MICRO: i64 = 20_000;
 const BASE_WORK_STAKE: i64 = 1_000;
@@ -162,6 +164,8 @@ struct Manifest {
     n_rounds: usize,
     seed: u64,
     llm_calls: usize,
+    bear_calls: usize,
+    bear_tokens: u64,
     parse_fails: usize,
     verified_count: usize,
     failed_count: usize,
@@ -340,6 +344,50 @@ fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedbac
     p
 }
 
+/// Informed Bear short (P0-E): an independent skeptic LLM estimates P(this proof does NOT
+/// compile); the short stake scales with that doubt, so weak proofs get a big short (low
+/// price_yes) and strong ones a small short (high price_yes) — the price-discovery signal
+/// the market routes on. Without it, every Long pins to max stake (agents are ~100%
+/// confident) and every price is identical, making MARKET and A0 indistinguishable.
+/// Money math is integer (doubt → integer percent → integer stake). Returns
+/// (short_micro, tokens). Falls back to a flat short on LLM/parse error.
+async fn bear_doubt_short(
+    llm: &ResilientLLMClient,
+    model: &str,
+    theorem: &LeanTheorem,
+    body: &str,
+) -> (i64, u64) {
+    let prompt = format!(
+        "You are a SKEPTIC in a proof market. A prover submitted the Lean 4 proof body below \
+         for the goal. Estimate the probability it does NOT compile under the Lean kernel \
+         (0.0 = certainly compiles, 1.0 = certainly fails). Judge ONLY from the text; be \
+         calibrated (most terse first attempts fail). Output ONLY JSON.\n\n\
+         === Goal ===\n{}\n\n=== Proof body ===\n{}\n\nReturn EXACTLY: {{\"doubt\":0.0-1.0}}",
+        theorem.preamble, body
+    );
+    match llm
+        .generate(&GenerateRequest {
+            model: model.into(),
+            messages: vec![Message { role: "user".into(), content: prompt }],
+            temperature: Some(0.3),
+            max_tokens: Some(60),
+        })
+        .await
+    {
+        Ok(r) => {
+            let doubt = extract_json_object(&r.content)
+                .and_then(|v| v.get("doubt").and_then(|x| x.as_f64()))
+                .unwrap_or(0.5)
+                .clamp(0.0, 1.0);
+            // probability → integer percent (not a money op); stake math stays integer.
+            let doubt_pct = (doubt * 100.0) as i64;
+            let short = MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100;
+            (short, (r.prompt_tokens + r.completion_tokens) as u64)
+        }
+        Err(_) => (CHALLENGE_STAKE_MICRO, 0),
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
     let argv: Vec<String> = std::env::args().skip(1).collect();
@@ -439,6 +487,7 @@ async fn run(args: Args) -> Result<(), String> {
     let mut verified_agents: BTreeSet<String> = BTreeSet::new();
     let majority_threshold = agents.len() / 2 + 1;
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
+    let (mut bear_calls, mut bear_tokens_total) = (0usize, 0u64);
     let mut omega_node: Option<String> = None;
     let mut time_to_first_proof_s: Option<f64> = None;
     let mut step_idx = 0u64;
@@ -528,10 +577,14 @@ async fn run(args: Args) -> Result<(), String> {
             // Short challenge → price_yes (price-family policies only; non-market
             // baselines are Bulls-only). Non-fatal.
             if args.policy.emits_challenges() {
+                // Informed Bear: short stake scales with an independent skeptic's doubt.
+                let (short_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                bear_calls += 1;
+                bear_tokens_total += bear_tok;
                 let challenger = challengers[ai % challengers.len()].clone();
                 if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
                     lt += 1;
-                    match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, CHALLENGE_STAKE_MICRO, ce, &format!("lm{step_idx}"), lt) {
+                    match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, short_micro, ce, &format!("lm{step_idx}"), lt) {
                         Ok(chal) => match submit_await(&seq, chal, root, "ChallengeTx").await {
                             Ok(r) => {
                                 root = r;
@@ -636,7 +689,7 @@ async fn run(args: Args) -> Result<(), String> {
         }
         golden_path.reverse();
     }
-    let total_tokens: u64 = nodes.iter().map(|n| n.tokens).sum();
+    let total_tokens: u64 = nodes.iter().map(|n| n.tokens).sum::<u64>() + bear_tokens_total;
     let wall_clock_s = t0.elapsed().as_secs_f64();
     let pput = if omega_node.is_none() || wall_clock_s <= 0.0 { 0.0 } else { golden_path_tokens as f64 / wall_clock_s };
 
@@ -660,6 +713,8 @@ async fn run(args: Args) -> Result<(), String> {
         n_rounds: args.n_rounds,
         seed: args.seed,
         llm_calls,
+        bear_calls,
+        bear_tokens: bear_tokens_total,
         parse_fails,
         verified_count,
         failed_count,
@@ -683,8 +738,8 @@ async fn run(args: Args) -> Result<(), String> {
     }
     std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).map_err(|e| format!("ser: {e}"))?).map_err(|e| format!("write: {e}"))?;
     println!(
-        "lean_market[{}] problem={} agents={} rounds={} llm={} parse_fail={} verified={} failed={} nodes={} distinct_prices={} omega={} ttfp={:?}s gp_tokens={} total_tokens={} wall={:.1}s pput={:.2} manifest={}",
-        args.policy.label(), args.problem, n_agents, args.n_rounds, llm_calls, parse_fails, verified_count, failed_count,
+        "lean_market[{}] problem={} agents={} rounds={} llm={} bear={} parse_fail={} verified={} failed={} nodes={} distinct_prices={} omega={} ttfp={:?}s gp_tokens={} total_tokens={} wall={:.1}s pput={:.2} manifest={}",
+        args.policy.label(), args.problem, n_agents, args.n_rounds, llm_calls, bear_calls, parse_fails, verified_count, failed_count,
         manifest.nodes.len(), distinct_price_ratios, manifest.omega_reached, time_to_first_proof_s,
         golden_path_tokens, total_tokens, wall_clock_s, pput, args.out.display()
     );
