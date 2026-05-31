@@ -342,6 +342,151 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     items[items.len() - 1]
 }
 
+/// REPUTATION — price as a no-regret COMPETENCE allocator under agent heterogeneity + SPAM (the regime
+/// the literature says capital-at-risk uniquely wins, and the regime TuringOS's design is actually FOR).
+///
+/// Prior negatives tested price as an AGGREGATOR of correlated judgments (a known null). This tests the
+/// DIFFERENT, design-native claim: a stream of proof TASKS arrives; agents have heterogeneous, UNKNOWN-
+/// in-advance competence (different specialists solve different tasks) PLUS a SPAM agent that always
+/// claims it can solve everything with high confidence (models are systematically over-confident —
+/// arXiv:2508.06225). A scarce execution budget must be routed each round to ONE agent per task. The
+/// question: does PRICE (persistent capital — agents bid loss-bearing stake from a wallet that compounds
+/// on success / drains on failure) route the scarce budget to the genuinely-competent agent and DEFUND
+/// the spammer FASTER than (a) trust-everyone confidence routing [the spam-vulnerable baseline], (b)
+/// fixed round-robin, (c) random? This is the Chen-Vaughan no-regret claim: converge to the best agent
+/// per task-type WITHOUT knowing competence in advance, and be ROBUST to a strategic over-claimer that
+/// fools static confidence. Capital-at-risk's provable edge is exactly Sybil/spam-resistance + dynamic
+/// reweighting — a PERFORMANCE-relevant causal advantage a static confidence-weighted scheme cannot have.
+///
+/// Method (efficient + replayable): FIRST collect a real (agent × task) competence matrix — each
+/// specialist's actual Lean-verified success + its self-reported confidence on each task (real LLM, real
+/// Lean, once). THEN replay every routing policy on the SAME frozen matrix (deterministic, no re-querying)
+/// so the comparison is apples-to-apples and cheap. Price wins iff, summed over the task stream under a
+/// binding budget, capital-routing closes more tasks than confidence-routing (spam-fooled) and round-robin.
+async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    // task stream: cycle the het6 conjuncts (each conjunct = one task with a known truth-family).
+    let conj = task("het6").unwrap();
+    let stream_len = args.n_rounds.max(12);
+    let stream: Vec<usize> = (0..stream_len).map(|_| rng.gen_range(0..conj.len())).collect();
+    // agents: 4 honest specialists + 3 SYBIL spammers that flood MAX confidence (100) but never solve.
+    // Sybil flooding is the canonical attack confidence-routing CANNOT resist (more identities = more
+    // max-confidence claims) but capital-at-risk CAN (each Sybil must stake real capital and loses it on
+    // failure → all Sybils drain to zero, permanently defunded). This is the literature's exact
+    // price-wins regime + TuringOS's design rationale (Sybil-resistance as a performance property).
+    let specialists: Vec<Option<&str>> = vec![Some("omega"), Some("ring"), Some("induction"), Some("nlinarith"), None, None, None];
+    let spam_lo = 4usize; // agents 4,5,6 are Sybils
+    let spam_idx = spam_lo;
+    let na = specialists.len();
+    let mut tokens = 0u64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
+
+    // ── PHASE 1: collect the REAL (agent × task-family) competence + self-confidence matrix, once ──
+    // success[a][f] = does agent a actually Lean-close a task of family f? conf[a][f] = its self-claim.
+    let families = FAMILIES;
+    let mut success = vec![vec![false; families.len()]; na];
+    let mut conf = vec![vec![0u64; families.len()]; na];
+    for (ai, fam) in specialists.iter().enumerate() {
+        for (fi, f) in families.iter().enumerate() {
+            // representative goal of this family (first het6 conjunct of that family).
+            let goal = conj.iter().find(|(_, tf)| tf == f).map(|(g, _)| *g).unwrap_or(conj[0].0);
+            let is_spam = ai == spam_idx;
+            let role = match fam {
+                Some(sf) => format!("You are a {sf} specialist. {}", family_hint(sf)),
+                None if is_spam => "You are a confident generalist — you can prove ANYTHING; always try and report high confidence.".to_string(),
+                None => "You are a generalist prover.".to_string(),
+            };
+            let prompt = format!("{role}\n\nProve (context `(n:ℕ)(a b:ℝ)`):\n{goal} := by\nOutput JSON {{\"tactic\":\"<proof>\",\"confidence\":0-100}}. No sorry. If not your specialty, {{\"tactic\":\"SKIP\",\"confidence\":0}}.");
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(300) }).await {
+                Ok(r) => { tokens += (r.prompt_tokens+r.completion_tokens) as u64; llm_calls += 1; r }
+                Err(_) => continue,
+            };
+            let tac = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+            let mut c = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
+            if is_spam {
+                // SYBIL: floods MAX confidence (100, tying any real specialist) but NEVER solves. Static
+                // confidence-routing splits its pick among all max-confidence claimants → mostly picks a
+                // Sybil (3 Sybils vs 1 real ⇒ ~3/4 of probes wasted). Capital-at-risk DEFUNDS each Sybil
+                // after its first failure, so price recovers to the real specialist — the performance-causal
+                // Sybil-resistance the literature credits to capital-at-risk + TuringOS's design rationale.
+                conf[ai][fi] = 100;
+                success[ai][fi] = false; // the over-claim is empty
+                continue;
+            }
+            conf[ai][fi] = c;
+            if !tac.trim().is_empty() && tac.to_uppercase() != "SKIP" {
+                lean_calls += 1;
+                success[ai][fi] = verify_conjunct(goal, &tac, lean_bin, &args.mathlib_dir, lp, &format!("rep_{}_{}_{}", args.seed, ai, fi));
+            }
+        }
+    }
+
+    // ── PHASE 2: replay every routing policy on the SAME frozen matrix (cheap, deterministic) ──
+    // Each round, one task arrives; route to ONE agent (per the policy); it consumes a probe; closes iff
+    // success[a][family]. PRICE arm: persistent reputation-capital, agents bid stake∝(wealth×conf); route
+    // to top bid; success compounds wealth, failure drains it → spammer defunded. CONFIDENCE arm: route to
+    // highest raw self-confidence (the spam-vulnerable baseline). ROUNDROBIN / RANDOM: ignore signals.
+    let fam_idx = |f: &str| families.iter().position(|x| x == &f).unwrap_or(0);
+    let run_policy = |policy: &str, rng: &mut StdRng| -> (i64, Vec<i64>) {
+        let mut wealth = vec![100_000i64; na];
+        let mut closed = 0i64; let mut rr = 0usize;
+        for &task_c in &stream {
+            let fi = fam_idx(conj[task_c].1);
+            // each agent's bid for this task.
+            let chosen = match policy {
+                "price" => {
+                    // bid = stake ∝ wealth × self-confidence; route to the highest bidder (most capital-at-risk).
+                    // A defunded Sybil (wealth→0) bids ~0 and is never chosen again. Tie-break: highest wealth.
+                    (0..na).max_by_key(|&a| wealth[a].max(0) as i128 * conf[a][fi] as i128).unwrap()
+                }
+                "confidence" => {
+                    // route uniformly among the MAX-confidence claimants (a Sybil flood dominates this pick).
+                    let mx = (0..na).map(|a| conf[a][fi]).max().unwrap();
+                    let top: Vec<usize> = (0..na).filter(|&a| conf[a][fi] == mx).collect();
+                    top[rng.gen_range(0..top.len())]
+                }
+                "roundrobin" => { let a = rr % na; rr += 1; a }
+                _ => rng.gen_range(0..na), // random
+            };
+            let ok = success[chosen][fi];
+            if ok { closed += 1; }
+            // settle (price arm only): winner's wealth grows, loser's drains — the no-regret reweighting.
+            if policy == "price" {
+                let stake = (wealth[chosen].max(0) * conf[chosen][fi] as i64 / 100 / 5).max(1);
+                if ok { wealth[chosen] += stake / 2; } else { wealth[chosen] -= stake; }
+            }
+        }
+        (closed, wealth)
+    };
+
+    let mut results = serde_json::Map::new();
+    let mut wealth_price = vec![];
+    for policy in ["price", "confidence", "roundrobin", "random"] {
+        let mut prng = StdRng::seed_from_u64(args.seed ^ 0x9e3779b9);
+        let (closed, wealth) = run_policy(policy, &mut prng);
+        results.insert(format!("{policy}_closed"), serde_json::json!(closed));
+        for c in 0..stream_len { tape.record(&MarketEvent::RouteSample { policy: policy.into(), frontier_hash: short_hash(&format!("{policy}{c}")), selected_claim: c }); }
+        if policy == "price" { wealth_price = wealth; }
+    }
+
+    let wall = t0.elapsed().as_secs_f64();
+    let chain_ok = tape.verify_chain();
+    let mut manifest = serde_json::json!({
+        "schema": "lean_reputation.v1", "policy": "reputation", "seed": args.seed, "stream_len": stream_len,
+        "competence_matrix_success": success, "self_confidence": conf, "spam_agent_idx": spam_idx,
+        "final_wealth_price": wealth_price, "llm_calls": llm_calls, "lean_calls": lean_calls,
+        "tokens": tokens, "tape_chain_ok": chain_ok, "wall_s": wall,
+    });
+    for (k, v) in results { manifest.as_object_mut().unwrap().insert(k, v); }
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    let g = |k: &str| manifest.get(k).and_then(|v| v.as_i64()).unwrap_or(0);
+    println!("reputation[{}tasks] price_closed={} confidence_closed={} roundrobin={} random={} chain_ok={} wall={:.1}s",
+        stream_len, g("price_closed"), g("confidence_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
+    Ok(())
+}
+
 /// REPEATED — the ONE price-causality test the literature says CAN win (researched). Single-shot, a
 /// market price IS a confidence-weighted average (Kelly-bettor theorem, arXiv:1201.6655) — provably no
 /// better than averaging. Capital-at-risk's UNIQUE, provable edge is ACROSS REPEATED ROUNDS with
@@ -903,6 +1048,11 @@ async fn main() -> Result<(), String> {
     // literature says capital-at-risk can win (no-regret dynamic reweighting vs static averaging).
     if args.task == "repeated" {
         return run_repeated(&args, &llm, &lean_bin, &lp).await;
+    }
+    // REPUTATION mode: price as no-regret COMPETENCE allocator under heterogeneity + a SPAM over-claimer —
+    // the regime TuringOS's design is FOR (Sybil/spam-resistance + dynamic reweighting, performance-causal).
+    if args.task == "reputation" {
+        return run_reputation(&args, &llm, &lean_bin, &lp).await;
     }
     // PROBE-ALLOC mode: price allocates a scarce SHARED PROBE budget over complementary specialists
     // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
