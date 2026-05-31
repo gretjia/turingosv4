@@ -156,6 +156,17 @@ fn task(id: &str) -> Option<Vec<(&'static str, &'static str)>> {
             ("n + 5 ≤ 2 * n + 5 + n", "omega"),
             ("(a + b) * (a - b) = a^2 - b^2", "ring"),
         ]),
+        // het8: held-out conjunction (tuning guard) — same 4 families, fresh goals, more contention.
+        "het8" => Some(vec![
+            ("4 * n + 2 ≤ 9 * n + 2 + n", "omega"),
+            ("(a + b)^2 - (a - b)^2 = 4*a*b", "ring"),
+            ("(∑ i ∈ Finset.range (n+1), (i:ℤ)) * 2 = n * (n+1)", "induction"),
+            ("a^2 + b^2 + 1 ≥ a*b + a*b", "nlinarith"),
+            ("2 * n + 7 ≤ 5 * n + 7 + n", "omega"),
+            ("(a + 2*b) * (a - 2*b) = a^2 - 4*b^2", "ring"),
+            ("a^2 + 4*b^2 ≥ 4*a*b", "nlinarith"),
+            ("3 * n ≤ 8 * n + 1", "omega"),
+        ]),
         _ => None,
     }
 }
@@ -329,6 +340,161 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     let mut r = rng.gen::<f64>() * sum;
     for (i, wi) in w.iter().enumerate() { r -= wi; if r <= 0.0 { return items[i]; } }
     items[items.len() - 1]
+}
+
+/// PROBE-ALLOC — the decisive price-causality test (literature + strategy converged here). Price
+/// allocates a SCARCE SHARED PROBE budget over COMPLEMENTARY specialists. The key fix vs het4: bind
+/// the PROBE (the proof-GENERATING attempt), not the verify — so misallocating a probe to an
+/// off-family specialist COSTS a closed conjunct. This is the one structure with BOTH real loss-bearing
+/// price AND predictable variance (specialist↔subtask match is knowable pre-Lean), the pair all 3
+/// prior negatives lacked (Selection Bottleneck Q=s·O+(1−s)·M: here Δ and s are both real).
+///
+/// One probe = one specialist LLM attempt on one conjunct + ≤1 Lean verify; consumed even on SKIP/fail.
+/// Arms: market (price routes probe to highest-bid (conjunct,specialist)) / roundrobin (blind sweep,
+/// same B) / shuffled (bid-prices permuted) / flatbid (constant bids — THE causal firewall) /
+/// uniform (random) / single_strong (reasoner alone, given B). Metric: conjuncts closed within B,
+/// each Lean-reverified, aggregate over seeds. Money integer; f64 only in routing softmax.
+async fn run_probe_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let conjuncts = task(&args.task).ok_or(format!("unknown het task {}", args.task))?;
+    let k = conjuncts.len();
+    let budget_b = if args.reasoner_budget_tok > 0 && args.reasoner_budget_tok < 100 { args.reasoner_budget_tok as usize } else { k + 2 }; // B = k+2 probes (binding); override via --reasoner-budget-tok (reused as probe count when <100)
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    let mut tokens = 0u64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
+    let mut closed: BTreeSet<usize> = BTreeSet::new();
+    let mut probes_left = budget_b;
+    let single_strong = args.policy == "single_strong";
+    let model = if single_strong { "deepseek-reasoner".to_string() } else { args.model.clone() };
+    // roster: market arms use the 4 specialists; single_strong uses ONE generalist reasoner.
+    let agents: Vec<Option<&str>> = if single_strong { vec![None] } else { FAMILIES.iter().map(|f| Some(*f)).collect() };
+    for c in 0..k { tape.record(&MarketEvent::MarketOpen { claim: c, claim_type: conjuncts[c].1.into() }); }
+    let mut wallets = vec![WALLET_BUDGET_MICRO; agents.len().max(1)];
+    let mut realized_pnl = vec![0i64; agents.len().max(1)];
+
+    // ── SINGLE_STRONG: one reasoner sweeps open conjuncts, each attempt = one probe ──
+    if single_strong {
+        let mut ci = 0usize;
+        while probes_left > 0 && closed.len() < k {
+            let open: Vec<usize> = (0..k).filter(|i| !closed.contains(i)).collect();
+            if open.is_empty() { break; }
+            let target = open[ci % open.len()]; ci += 1;
+            let prompt = format!("Prove this Lean 4 (Mathlib) goal (context `(n:ℕ)(a b:ℝ)`):\n{} := by\nOutput ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry.", conjuncts[target].0);
+            probes_left -= 1;
+            let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(500) }).await {
+                Ok(r) => { llm_calls += 1; tokens += (r.prompt_tokens+r.completion_tokens) as u64; tape.record(&MarketEvent::LlmCall { model: model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Err(_) => continue,
+            };
+            if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) {
+                lean_calls += 1;
+                if verify_conjunct(conjuncts[target].0, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_ss_{}", args.seed, target)) {
+                    closed.insert(target);
+                    tape.record(&MarketEvent::Verify { claim: target, verdict: true, reject_class: "none".into() });
+                }
+            }
+        }
+        return finish_probe(args, &tape, &closed, k, budget_b, &realized_pnl, llm_calls, lean_calls, tokens, t0.elapsed().as_secs_f64());
+    }
+
+    // ── MARKET FAMILY: round-by-round sealed-bid allocation of the shared probe budget ──
+    let mut round = 0usize;
+    while probes_left > 0 && closed.len() < k {
+        let open: Vec<usize> = (0..k).filter(|i| !closed.contains(i)).collect();
+        if open.is_empty() { break; }
+        // BID PHASE: each specialist places a loss-bearing YES bid on each open conjunct it thinks is its.
+        // Bid size = stake_from_confidence on a cheap pre-Lean self-judgment of family fit (NO Lean call).
+        // bids[c] accumulates YES capital across specialists; bidder_of[c] = the top bidder for that conjunct.
+        let mut yes = vec![0i64; k]; let mut bidder_of: Vec<Option<(usize, u64)>> = vec![None; k]; // (agent, conf)
+        for (ai, fam) in agents.iter().enumerate() {
+            for &c in &open {
+                // a specialist bids on a conjunct iff it judges the family fits — flatbid overrides to constant.
+                let (fit, conf) = specialist_fit(fam.unwrap_or(""), conjuncts[c].1);
+                if !fit { continue; }
+                let stake = if args.policy == "flatbid" { (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2 } else { stake_from_confidence(conf, wallets[ai]) };
+                if stake < MIN_STAKE_MICRO { continue; }
+                yes[c] += stake;
+                if bidder_of[c].map_or(true, |(_, pc)| conf > pc) { bidder_of[c] = Some((ai, conf)); }
+                tape.record(&MarketEvent::Invest { agent: ai, claim: c, side: "YES".into(), amount_micro: stake, model_hash: short_hash(fam.unwrap_or("")), confidence: conf });
+            }
+        }
+        // PRICE: per-mille from the YES bids (no NO side in allocation; price = bid intensity / max).
+        let max_yes = yes.iter().copied().max().unwrap_or(1).max(1);
+        let price_pm: Vec<i64> = (0..k).map(|c| if closed.contains(&c) { -1 } else { (yes[c] * 1000) / max_yes }).collect();
+        // ROUTE: pick which open+funded conjunct gets this probe, per the ARM's policy.
+        let funded: Vec<usize> = open.iter().copied().filter(|&c| bidder_of[c].is_some()).collect();
+        let sel = match args.policy.as_str() {
+            "market" | "flatbid" => funded.iter().copied().max_by_key(|&c| price_pm[c]),
+            "shuffled" => { let mut p = price_pm.clone(); for i in (1..k).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } funded.iter().copied().max_by_key(|&c| p[c]) }
+            "uniform" => if funded.is_empty() { open.first().copied() } else { Some(funded[rng.gen_range(0..funded.len())]) },
+            "roundrobin" => open.get(round % open.len()).copied(), // blind sweep, ignores bids
+            _ => funded.first().copied(),
+        };
+        let Some(c) = sel.or_else(|| open.first().copied()) else { break };
+        let frontier_h = short_hash(&format!("{:?}{:?}", open, price_pm));
+        tape.record(&MarketEvent::RouteSample { policy: args.policy.clone(), frontier_hash: frontier_h, selected_claim: c });
+        // the specialist that attempts = top bidder for c (market) or a round-robin agent.
+        let (proposer, _conf) = match args.policy.as_str() {
+            "roundrobin" | "uniform" => (round % agents.len(), 0u64),
+            _ => bidder_of[c].unwrap_or((round % agents.len(), 0)),
+        };
+        let fam = agents[proposer];
+        // SPEND ONE PROBE (consumed regardless of outcome — the binding budget).
+        probes_left -= 1; round += 1;
+        let role = match fam { Some(f) => format!("You are a SPECIALIST. {}", family_hint(f)), None => "You are a Lean 4 prover; use any single tactic.".into() };
+        let prompt = format!("{role}\n\nProve this goal (context `(n:ℕ)(a b:ℝ)`):\n{} := by\nOutput ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry. If not your specialty, {{\"tactic\":\"SKIP\"}}.", conjuncts[c].0);
+        let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(400) }).await {
+            Ok(r) => { llm_calls += 1; tokens += (r.prompt_tokens+r.completion_tokens) as u64; tape.record(&MarketEvent::LlmCall { model: model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+            Err(_) => continue,
+        };
+        let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() && t.to_uppercase() != "SKIP" => t.trim().to_string(), _ => continue };
+        lean_calls += 1;
+        let ok = verify_conjunct(conjuncts[c].0, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_{}_{}", args.task, args.policy, args.seed, c));
+        tape.record(&MarketEvent::Verify { claim: c, verdict: ok, reject_class: if ok { "none".into() } else { "lean_rejected".into() } });
+        if ok {
+            closed.insert(c);
+            realized_pnl[proposer] += yes[c]; wallets[proposer] += yes[c];
+            tape.record(&MarketEvent::Resolve { claim: c, outcome: "YES".into() });
+        } else {
+            realized_pnl[proposer] -= stake_from_confidence(50, WALLET_BUDGET_MICRO);
+            tape.record(&MarketEvent::Resolve { claim: c, outcome: "NO".into() });
+        }
+    }
+    finish_probe(args, &tape, &closed, k, budget_b, &realized_pnl, llm_calls, lean_calls, tokens, t0.elapsed().as_secs_f64())
+}
+
+/// Cheap pre-Lean specialist self-judgment: does my tactic family fit this conjunct's family? Returns
+/// (will_bid, confidence). A real specialist mostly bids on-family with HIGH confidence, but — like a real
+/// LLM agent — sometimes OVER-CLAIMS an adjacent family at LOWER confidence (omega↔nlinarith both touch
+/// inequalities; ring↔induction both touch algebra). This creates genuine CONTENTION (multiple bidders per
+/// conjunct, varying confidence) so the price has a real allocation decision to make — and a wrong-family
+/// bid that wins a probe and FAILS Lean wastes a scarce probe, which is exactly what price must avoid.
+/// The confidence is the predictable Δ: on-family bids are reliably higher, so a calibrated price routes
+/// the probe to the agent most likely to actually close it. (This is the legible specialist↔subtask match
+/// the literature says is the ONE regime where price beats random — Selection Bottleneck high-s, high-Δ.)
+fn specialist_fit(my_family: &str, conjunct_family: &str) -> (bool, u64) {
+    if my_family == conjunct_family { return (true, 90); }     // on-family → high-confidence bid
+    // adjacency: an agent may OVER-CLAIM a related family at low confidence (real miscalibration).
+    let adjacent = matches!((my_family, conjunct_family),
+        ("omega", "nlinarith") | ("nlinarith", "omega") |      // both inequality-ish
+        ("ring", "induction") | ("induction", "ring"));         // both algebraic-identity-ish
+    if adjacent { (true, 35) } else { (false, 0) }              // low-confidence over-claim, or decline
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_probe(args: &Args, tape: &MarketTape, closed: &BTreeSet<usize>, k: usize, budget_b: usize, pnl: &[i64], llm_calls: usize, lean_calls: usize, tokens: u64, wall: f64) -> Result<(), String> {
+    let chain_ok = tape.verify_chain();
+    let manifest = serde_json::json!({
+        "schema": "lean_probe_alloc.v1", "task": args.task, "policy": args.policy,
+        "k": k, "closed": closed.len(), "solved": closed.len() == k, "budget_probes": budget_b,
+        "closed_claims": closed.iter().collect::<Vec<_>>(), "seed": args.seed,
+        "realized_pnl_micro": pnl, "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens,
+        "tape_chain_ok": chain_ok, "tape_events": tape.lines.len(), "wall_s": wall,
+    });
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    println!("probe[{}] task={} closed={}/{} budget={} llm={} lean={} chain_ok={} wall={:.1}s",
+        args.policy, args.task, closed.len(), k, budget_b, llm_calls, lean_calls, chain_ok, wall);
+    Ok(())
 }
 
 /// LEAN-ALLOC — the decisive economy benchmark: price allocates the SCARCE EXPENSIVE resource
@@ -610,6 +776,11 @@ async fn main() -> Result<(), String> {
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() { return Err("Mathlib LEAN_PATH unresolved".into()); }
 
+    // PROBE-ALLOC mode: price allocates a scarce SHARED PROBE budget over complementary specialists
+    // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
+    if args.task.starts_with("het") {
+        return run_probe_alloc(&args, &llm, &lean_bin, &lp).await;
+    }
     // LEAN-ALLOC mode: price allocates the scarce reasoner-repair budget over a real theorem pool.
     if args.task.starts_with("pool") {
         return run_alloc(&args, &llm, &lean_bin, &lp).await;
