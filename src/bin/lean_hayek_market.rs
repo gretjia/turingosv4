@@ -149,6 +149,24 @@ fn task(id: &str) -> Option<Vec<(&'static str, &'static str)>> {
 }
 const PREAMBLE_VARS: &str = "(n : ℕ) (a b : ℝ)";
 const FAMILIES: [&str; 4] = ["omega", "ring", "induction", "nlinarith"];
+
+/// COMPETE mode: ONE hard goal, N agents each propose a DIFFERENT-quality proof. This is where price
+/// becomes causally testable — the agents are naturally MIScalibrated (confident-but-wrong vs really
+/// right), so the funded proofs differ in TRUE value, and under a scarce verify budget the router must
+/// pick WHICH PROOF to verify. Price (competitive YES bets + NO shorts) should route the scarce verify
+/// to a CORRECT proof faster than shuffled/uniform. The hardness is the honest variance source — NOT a
+/// fabricated trap (no hand-tuning to a win). Each goal is genuinely provable; the model just isn't sure.
+fn compete_goal(id: &str) -> Option<(&'static str, &'static str)> {
+    // (goal, a hint of the real difficulty — agents are NOT told the answer)
+    match id {
+        // provable but each needs a specific non-obvious move; deepseek often proposes plausible-wrong proofs.
+        "cmp_amgm" => Some(("a^2 + b^2 + 1 ≥ a*b + a + b", "nlinarith with the right square hints")),
+        "cmp_sum" => Some(("(∑ i ∈ Finset.range (n+1), (i:ℤ)^2) * 6 = n*(n+1)*(2*n+1)", "induction + sum_range_succ + ring")),
+        "cmp_ineq" => Some(("2*(a^2 + b^2) ≥ (a + b)^2", "nlinarith [sq_nonneg (a-b)]")),
+        "cmp_pow" => Some(("(n:ℤ)^2 + 1 ≥ 2*n", "nlinarith [sq_nonneg ((n:ℤ)-1)]")),
+        _ => None,
+    }
+}
 fn family_hint(fam: &str) -> &'static str {
     match fam {
         "omega" => "You may ONLY use the `omega` tactic (linear integer/nat arithmetic). If the goal is not linear arithmetic, output {\"tactic\":\"SKIP\"}.",
@@ -247,15 +265,127 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     items[items.len() - 1]
 }
 
+/// COMPETE mode — the H2-testable structure. N agents each propose a proof of ONE hard goal; the
+/// proofs differ in TRUE value (model miscalibration). Each proof is a tradeable item; agents place
+/// YES/NO capital bets on proofs (peer assessment, loss-bearing). Under a SCARCE verify budget the
+/// router picks WHICH PROOF to spend a Lean-verify on. SUCCESS = a correct proof verified within budget.
+/// Price is causal iff RealPrice finds a correct proof in fewer verifies than Shuffled/Uniform.
+async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let (goal, _hint) = compete_goal(&args.task).ok_or(format!("unknown compete goal {}", args.task))?;
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    let n_agents = 6usize;
+    tape.record(&MarketEvent::MarketOpen { claim: 0, claim_type: "compete".into() });
+
+    // ── PROPOSAL PHASE: each agent submits a proof + self-confidence (varied temperature → varied quality) ──
+    let mut proofs: Vec<(usize, String, u64)> = Vec::new(); // (agent, proof, self_confidence)
+    let mut tokens = 0u64; let mut llm_calls = 0usize;
+    for ai in 0..n_agents {
+        let temp = 0.2 + 0.12 * ai as f64; // spread temperature → genuine proof-quality variance
+        let prompt = format!("You are a Lean 4 (Mathlib) prover. Context binds `(n:ℕ)(a b:ℝ)`.\n\nProve:\n{goal}\n\nOutput JSON {{\"tactic\":\"<proof body, one or more tactics>\",\"confidence\":0-100}}. confidence = how sure you are it COMPILES (you LOSE staked capital if it fails). No `sorry`/`admit`.");
+        let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(400) }).await {
+            Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+            Err(_) => continue,
+        };
+        if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) {
+            if !tac.trim().is_empty() && tac.to_uppercase() != "SKIP" {
+                let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
+                tape.record(&MarketEvent::Proposal { agent: ai, claim: proofs.len(), output_hash: short_hash(&tac) });
+                proofs.push((ai, tac.trim().to_string(), conf));
+            }
+        }
+    }
+    let m = proofs.len();
+    if m == 0 { return Err("no proofs proposed".into()); }
+
+    // ── BETTING PHASE: every agent places loss-bearing YES/NO capital on every proof (peer assessment) ──
+    // Each agent reads the proof text (NOT the Lean verdict — top level never leaks the oracle) and bets.
+    // YES = "this proof compiles"; NO = "it doesn't". Real micro-capital, finite wallet (opportunity cost).
+    let mut yes = vec![0i64; m]; let mut no = vec![0i64; m];
+    let mut wallets = vec![WALLET_BUDGET_MICRO; n_agents];
+    let mut realized_pnl = vec![0i64; n_agents];
+    for (pi, (_pa, proof, _pc)) in proofs.iter().enumerate() {
+        for bi in 0..n_agents {
+            let prompt = format!("Assess this candidate Lean 4 proof of `{goal}` (context `(n:ℕ)(a b:ℝ)`):\n```\n{proof}\n```\nWill it COMPILE in Lean 4 + Mathlib with NO error and NO sorry? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.");
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
+                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+                Err(_) => continue,
+            };
+            let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
+            let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
+            let stake = stake_from_confidence(conf, wallets[bi]);
+            if stake < MIN_STAKE_MICRO { continue; }
+            let model_h = short_hash(&format!("{}:bettor{}", args.model, bi));
+            if verdict == "YES" { wallets[bi] -= stake; yes[pi] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "YES".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); }
+            else if verdict == "NO" && args.policy != "realprice_no_no" { wallets[bi] -= stake; no[pi] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "NO".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); }
+        }
+    }
+
+    // ── ROUTING + VERIFY PHASE: spend the scarce verify budget on price-selected PROOFS until one passes ──
+    let price_pm: Vec<i64> = (0..m).map(|p| price_yes_permille(yes[p], no[p])).collect();
+    let mut remaining: Vec<usize> = (0..m).collect();
+    let mut verifies_used = 0usize; let mut lean_calls = 0usize;
+    let mut solved = false; let mut winning_proof: Option<usize> = None;
+    let mut attempts = vec![0u32; m];
+    while verifies_used < args.verify_budget && !remaining.is_empty() {
+        let frontier_h = short_hash(&format!("{:?}{:?}", remaining, price_pm));
+        // route over REMAINING proofs by the arm's policy (price / shuffled / central / uniform).
+        let prices_now: Vec<i64> = price_pm.clone();
+        let sel_idx = route(&args.policy, &remaining, &prices_now, &attempts, args.temp, &mut rng);
+        let Some(p) = sel_idx else { break };
+        tape.record(&MarketEvent::RouteSample { policy: args.policy.clone(), frontier_hash: frontier_h, selected_claim: p });
+        remaining.retain(|&x| x != p);
+        let (proposer, proof, _c) = &proofs[p];
+        lean_calls += 1; verifies_used += 1;
+        let ok = verify_conjunct(goal, proof, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_{}_{}", args.task, args.policy, args.seed, p));
+        tape.record(&MarketEvent::Verify { claim: p, verdict: ok, reject_class: if ok { "none".into() } else { "lean_rejected".into() } });
+        // SETTLE proof p: YES-bettors win if ok, NO-bettors win if !ok (real PnL, zero-sum within the pool).
+        if ok {
+            realized_pnl[*proposer] += 5_000; // proposer bounty for a correct proof
+            tape.record(&MarketEvent::Resolve { claim: p, outcome: "YES".into() });
+            solved = true; winning_proof = Some(p); break;
+        } else {
+            realized_pnl[*proposer] -= 2_000;
+            tape.record(&MarketEvent::Resolve { claim: p, outcome: "NO".into() });
+        }
+    }
+
+    let wall = t0.elapsed().as_secs_f64();
+    let chain_ok = tape.verify_chain();
+    let manifest = serde_json::json!({
+        "schema": "lean_hayek_compete.v1", "task": args.task, "policy": args.policy, "mode": "compete",
+        "n_proofs": m, "solved": solved, "winning_proof": winning_proof,
+        "verify_budget": args.verify_budget, "verifies_used": verifies_used,
+        "seed": args.seed, "temp": args.temp, "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens,
+        "yes_pools": yes, "no_pools": no, "price_pm": price_pm, "realized_pnl_micro": realized_pnl,
+        "tape_chain_ok": chain_ok, "tape_events": tape.lines.len(), "wall_s": wall,
+    });
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    println!(
+        "hayek-compete[{}] task={} proofs={} solved={} verifies={}/{} llm={} lean={} tokens={} chain_ok={} wall={:.1}s",
+        args.policy, args.task, m, solved, verifies_used, args.verify_budget, llm_calls, lean_calls, tokens, chain_ok, wall
+    );
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let args = parse_args()?;
-    let conjuncts = task(&args.task).ok_or(format!("unknown task {}", args.task))?;
-    let k = conjuncts.len();
     let llm = ResilientLLMClient::new(&args.proxy, 120, 3);
     let lean_bin = default_lean_bin();
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() { return Err("Mathlib LEAN_PATH unresolved".into()); }
+
+    // COMPETE mode: one hard goal, many proofs of varying TRUE quality, scarce verify budget,
+    // price routes WHICH PROOF to verify. This is the task structure that can test H2.
+    if args.task.starts_with("cmp_") {
+        return run_compete(&args, &llm, &lean_bin, &lp).await;
+    }
+
+    let conjuncts = task(&args.task).ok_or(format!("unknown task {}", args.task))?;
+    let k = conjuncts.len();
     let mut rng = StdRng::seed_from_u64(args.seed);
     let t0 = Instant::now();
     let mut tape = MarketTape::new();
