@@ -142,6 +142,11 @@ async fn main() -> Result<(), String> {
     };
 
     let mut closed = 0usize; let mut nodes = 0usize; let mut sybil_attempts = 0usize;
+    // on-chain REPUTATION = cumulative ACCEPTED WorkTx per agent (a tape-reconstructable success count
+    // that GROWS with wins — unlike raw balance, which DROPS on stake-lock). This is the correct
+    // constitutional reputation signal: an agent's standing is its history of admitted (predicate-passing)
+    // work, reconstructable by replaying the L4 WorkTx-accept stream.
+    let mut reputation = vec![0i64; na];
     let mut omega_task: Option<String> = None;
     let market_task = format!("rep-market-{}", args.run_id);
     root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "rep", lt).map_err(|e| format!("TaskOpen mkt: {e}"))?, root, "TaskOpen(mkt)").await?; lt += 1;
@@ -162,8 +167,10 @@ async fn main() -> Result<(), String> {
         // strictly dominates. max_by_key returns the LAST max, so negate index in the key to prefer low idx.
         let routed = (0..na).max_by_key(|&a| {
             let believes = if a < n_honest { a == fam } else { true };
-            let bid = if believes { balance_of(&seq, &agent_names[a]) as i128 } else { -1 };
-            (bid, -(a as i128)) // tie-break: prefer the lower-index (honest) agent
+            // bid by REPUTATION (accepted-work history) × wealth-ability; a Sybil never accrues reputation
+            // (its WorkTx always rejects) so after the first round it is out-bid by the proven specialist.
+            let score = if believes { reputation[a] as i128 * 1_000_000 + balance_of(&seq, &agent_names[a]) as i128 } else { -1 };
+            (score, -(a as i128))
         }).unwrap_or(0);
         let agent = agent_names[routed].clone();
         let can_close = routed < n_honest && routed == fam; // TRUE competence (strict specialist)
@@ -179,8 +186,14 @@ async fn main() -> Result<(), String> {
         let pcid = put_proposal(&args.cas, &args.run_id, &agent, ti as u64, &format!("close {} via {}", FAMILIES[fam], agent), lt)?; lt += 2;
         let work = make_real_worktx_signed_by(&mut kp, &node_task, &agent, root, stake, "rep", pcid, can_close, lt).map_err(|e| format!("WorkTx: {e}"))?;
         match submit_await(&seq, work, root, "WorkTx").await {
-            Ok(r) => { root = r; lt += 1; nodes += 1; if can_close { closed += 1; if omega_task.is_none() && closed >= args.n_tasks.min(stream.len()) { omega_task = Some(node_task.clone()); } } }
-            Err(_) => { /* rejected WorkTx (e.g. predicate fail) — capital not locked, agent gains no standing */ }
+            Ok(r) => {
+                root = r; lt += 1; nodes += 1;
+                // reputation accrues ONLY on a genuine close (can_close), reconstructable from the tape as
+                // the WorkTx whose predicate_passes=true AND whose node later settles YES. A Sybil's WorkTx
+                // may be admitted but predicate_passes=false → it gains NO reputation → out-bid next round.
+                if can_close { closed += 1; reputation[routed] += 1; if omega_task.is_none() && closed >= args.n_tasks.min(stream.len()) { omega_task = Some(node_task.clone()); } }
+            }
+            Err(_) => { /* WorkTx rejected: no node */ }
         }
         let _price = compute_price_index(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t);
     }
