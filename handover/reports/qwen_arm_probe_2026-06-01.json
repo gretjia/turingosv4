@@ -1,0 +1,119 @@
+{
+  "axiom_whitelist": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "complementary_pairs": {
+    "Qwen/Qwen3.5-397B-A17B__vs__qwen3.6-max-preview": {
+      "a_only": 0,
+      "a_only_ids": [],
+      "b_only": 1,
+      "b_only_ids": [
+        "lm_cube4"
+      ]
+    },
+    "Qwen/Qwen3.5-397B-A17B__vs__qwen3.7-max": {
+      "a_only": 0,
+      "a_only_ids": [],
+      "b_only": 2,
+      "b_only_ids": [
+        "lm_cube4",
+        "lm_comm_conj"
+      ]
+    },
+    "qwen3.6-max-preview__vs__qwen3.7-max": {
+      "a_only": 0,
+      "a_only_ids": [],
+      "b_only": 1,
+      "b_only_ids": [
+        "lm_comm_conj"
+      ]
+    }
+  },
+  "k_samples": 2,
+  "lean_calls": 57,
+  "llm_calls": 57,
+  "max_rounds": 2,
+  "models": [
+    "qwen3.7-max",
+    "qwen3.6-max-preview",
+    "Qwen/Qwen3.5-397B-A17B"
+  ],
+  "n_theorems": 6,
+  "none_solved_count": 1,
+  "none_solved_ids": [
+    "lm_sum_cubes"
+  ],
+  "per_model": {
+    "Qwen/Qwen3.5-397B-A17B": {
+      "mean_p_hat": 0.4166666666666667,
+      "p_hat": {
+        "lm_B1": 1.0,
+        "lm_comm_conj": 0.0,
+        "lm_cube4": 0.0,
+        "lm_det_mul": 0.5,
+        "lm_poly_eval_factor": 1.0,
+        "lm_sum_cubes": 0.0
+      },
+      "solved_count_at_k": 3,
+      "solved_ids": [
+        "lm_B1",
+        "lm_det_mul",
+        "lm_poly_eval_factor"
+      ],
+      "tokens": 4971
+    },
+    "qwen3.6-max-preview": {
+      "mean_p_hat": 0.4166666666666667,
+      "p_hat": {
+        "lm_B1": 0.5,
+        "lm_comm_conj": 0.0,
+        "lm_cube4": 0.5,
+        "lm_det_mul": 0.5,
+        "lm_poly_eval_factor": 1.0,
+        "lm_sum_cubes": 0.0
+      },
+      "solved_count_at_k": 4,
+      "solved_ids": [
+        "lm_B1",
+        "lm_cube4",
+        "lm_det_mul",
+        "lm_poly_eval_factor"
+      ],
+      "tokens": 5214
+    },
+    "qwen3.7-max": {
+      "mean_p_hat": 0.6666666666666666,
+      "p_hat": {
+        "lm_B1": 1.0,
+        "lm_comm_conj": 0.5,
+        "lm_cube4": 0.5,
+        "lm_det_mul": 1.0,
+        "lm_poly_eval_factor": 1.0,
+        "lm_sum_cubes": 0.0
+      },
+      "solved_count_at_k": 5,
+      "solved_ids": [
+        "lm_B1",
+        "lm_comm_conj",
+        "lm_cube4",
+        "lm_det_mul",
+        "lm_poly_eval_factor"
+      ],
+      "tokens": 4876
+    }
+  },
+  "schema": "lean_emergence_stage1.v1",
+  "seed": 1,
+  "temp": 0.7,
+  "union_solved_count": 5,
+  "union_solved_ids": [
+    "lm_B1",
+    "lm_poly_eval_factor",
+    "lm_cube4",
+    "lm_comm_conj",
+    "lm_det_mul"
+  ],
+  "wall_s": 1491.422912333
+}

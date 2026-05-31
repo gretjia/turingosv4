@@ -38,6 +38,7 @@ struct Args {
     proxy: String,
     mathlib_dir: PathBuf,
     out: PathBuf,
+    resume: bool,              // if set, preload <out>.partial.json and skip already-computed (model,theorem) cells
 }
 
 fn parse_args() -> Result<Args, String> {
@@ -54,6 +55,7 @@ fn parse_args() -> Result<Args, String> {
         proxy: get("--proxy").unwrap_or_else(|| "http://localhost:8123".into()),
         mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
         out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/emergence.json".into()),
+        resume: a.iter().any(|x| x == "--resume"),
     })
 }
 
@@ -83,6 +85,14 @@ fn default_lean_bin() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
     let p = PathBuf::from(&home).join(".elan/toolchains/leanprover--lean4---v4.24.0/bin/lean");
     if p.exists() { p } else { PathBuf::from("lean") }
+}
+
+/// Sidecar checkpoint path for the run: `<out>` + `.partial.json`. Written after each model completes
+/// its theorem loop so a crash/sleep/kill mid-run leaves completed models' hit counts recoverable.
+fn partial_path(out: &Path) -> PathBuf {
+    let mut s = out.as_os_str().to_os_string();
+    s.push(".partial.json");
+    PathBuf::from(s)
 }
 
 /// Verify a candidate proof body under Lean WITH the real #print-axioms gate. Returns (clean, feedback).
@@ -147,16 +157,6 @@ fn extract_theorem_name(preamble: &str) -> Option<String> {
     None
 }
 
-trait StripThm { fn strip_prefix_theorem(&self) -> Option<&str>; }
-impl StripThm for str {
-    fn strip_prefix_theorem(&self) -> Option<&str> {
-        let t = self.trim_start();
-        t.strip_prefix("theorem").map(|rest| {
-            rest.trim_start().splitn(2, char::is_whitespace).nth(1).unwrap_or(rest)
-        })
-    }
-}
-
 /// Extract the proof body from a model reply. Robust to the REAL failure modes observed with strong
 /// reasoners emitting LONG multi-line proofs: (1) clean JSON, (2) markdown ```json fences, (3) bare
 /// literal newlines INSIDE the JSON string value (a formatting slip that makes serde reject the whole
@@ -192,6 +192,18 @@ fn extract_tactic(s: &str) -> Option<String> {
     None
 }
 
+/// On-disk checkpoint payload: the partial hit matrix + per-model tokens, written after each model and
+/// reloaded by `--resume`. Typed so resume uses a structured parser (constitution §12), not Value walking.
+/// k_samples/max_rounds/seed are carried for a resume-time sanity check against the current args.
+#[derive(serde::Deserialize)]
+struct PartialState {
+    #[serde(default)] hit: BTreeMap<String, BTreeMap<String, usize>>,
+    #[serde(default)] tokens_by_model: BTreeMap<String, u64>,
+    #[serde(default)] k_samples: usize,
+    #[serde(default)] max_rounds: usize,
+    #[serde(default)] seed: u64,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let args = parse_args()?;
@@ -208,35 +220,82 @@ async fn main() -> Result<(), String> {
     let mut tokens_by_model: BTreeMap<String, u64> = BTreeMap::new();
     let mut llm_calls = 0usize; let mut lean_calls = 0usize;
 
+    // --resume: preload completed (model,theorem) cells from the sidecar so a re-launched run skips them.
+    let partial = partial_path(&args.out);
+    if args.resume {
+        match std::fs::read_to_string(&partial) {
+            Ok(text) => match serde_json::from_str::<PartialState>(&text) {
+                Ok(p) => {
+                    if p.k_samples != 0 && (p.k_samples != args.k_samples || p.max_rounds != args.max_rounds || p.seed != args.seed) {
+                        eprintln!("[resume] WARN checkpoint params (k={} rounds={} seed={}) differ from current (k={} rounds={} seed={}); loaded hit counts reflect the OLD params",
+                            p.k_samples, p.max_rounds, p.seed, args.k_samples, args.max_rounds, args.seed);
+                    }
+                    let cells: usize = p.hit.values().map(|m| m.len()).sum();
+                    hit = p.hit;
+                    tokens_by_model = p.tokens_by_model;
+                    eprintln!("[resume] loaded {cells} prior (model,theorem) cell(s) across {} model(s) from {}", hit.len(), partial.display());
+                }
+                Err(e) => eprintln!("[resume] partial file {} unreadable ({e}); starting fresh", partial.display()),
+            },
+            Err(_) => eprintln!("[resume] no partial checkpoint at {}; starting fresh", partial.display()),
+        }
+    }
+
     for model in &args.models {
-        let mh = hit.entry(model.clone()).or_default();
-        for thm in &thms {
-            let mut hits = 0usize;
-            for s in 0..args.k_samples {
-                // one DRAW = up to max_rounds of propose→Lean→feedback→retry (multi-round; single-shot under-measures p).
-                let mut msgs = vec![Message { role: "user".into(), content: format!(
-                    "Prove this Lean 4 (Mathlib) theorem. Use Lean4 syntax (fun x => ... , induction n with | zero => | succ k ih =>). Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit/native_decide.\n\n{}", thm.preamble) }];
-                let mut solved = false;
-                for r in 0..args.max_rounds {
-                    let temp = args.temp + 0.05 * s as f64; // spread temperature across draws for diversity
-                    let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: msgs.clone(), temperature: Some(temp.min(1.2)), max_tokens: Some(8000) }).await {
-                        Ok(x) => { llm_calls += 1; *tokens_by_model.entry(model.clone()).or_default() += (x.prompt_tokens + x.completion_tokens) as u64; x }
-                        Err(_) => break,
-                    };
-                    let tac = match extract_tactic(&resp.content) { Some(t) if !t.trim().is_empty() => t, _ => break };
-                    lean_calls += 1;
-                    let (ok, fb) = verify_axiom_clean(&thm.preamble, &tac, &lean_bin, &args.mathlib_dir, &lp, &format!("{}_{}_{}_{}", args.seed, model.replace('/', "_"), thm.id, s));
-                    if ok { solved = true; break; }
-                    if r + 1 < args.max_rounds {
-                        msgs.push(Message { role: "assistant".into(), content: resp.content });
-                        msgs.push(Message { role: "user".into(), content: format!("Lean REJECTED that: {fb}\nFix it. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}.") });
+        {
+            let mh = hit.entry(model.clone()).or_default();
+            for thm in &thms {
+                // --resume skip: this (model,theorem) cell was already computed in a prior run.
+                if args.resume {
+                    if let Some(&prev) = mh.get(&thm.id) {
+                        eprintln!("  [resume] skip {model} {} ({prev}/{} draws clean, from checkpoint)", thm.id, args.k_samples);
+                        continue;
                     }
                 }
-                if solved { hits += 1; }
+                let mut hits = 0usize;
+                for s in 0..args.k_samples {
+                    // one DRAW = up to max_rounds of propose→Lean→feedback→retry (multi-round; single-shot under-measures p).
+                    let mut msgs = vec![Message { role: "user".into(), content: format!(
+                        "Prove this Lean 4 (Mathlib) theorem. Use Lean4 syntax (fun x => ... , induction n with | zero => | succ k ih =>). Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit/native_decide.\n\n{}", thm.preamble) }];
+                    let mut solved = false;
+                    for r in 0..args.max_rounds {
+                        let temp = args.temp + 0.05 * s as f64; // spread temperature across draws for diversity
+                        let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: msgs.clone(), temperature: Some(temp.min(1.2)), max_tokens: Some(8000) }).await {
+                            Ok(x) => { llm_calls += 1; *tokens_by_model.entry(model.clone()).or_default() += (x.prompt_tokens + x.completion_tokens) as u64; x }
+                            Err(_) => break,
+                        };
+                        let tac = match extract_tactic(&resp.content) { Some(t) if !t.trim().is_empty() => t, _ => break };
+                        lean_calls += 1;
+                        let (ok, fb) = verify_axiom_clean(&thm.preamble, &tac, &lean_bin, &args.mathlib_dir, &lp, &format!("{}_{}_{}_{}", args.seed, model.replace('/', "_"), thm.id, s));
+                        if ok { solved = true; break; }
+                        if r + 1 < args.max_rounds {
+                            msgs.push(Message { role: "assistant".into(), content: resp.content });
+                            msgs.push(Message { role: "user".into(), content: format!("Lean REJECTED that: {fb}\nFix it. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}.") });
+                        }
+                    }
+                    if solved { hits += 1; }
+                }
+                mh.insert(thm.id.clone(), hits);
+                let _ = rng.gen::<u8>(); // keep rng live per (model,thm) for reproducible temp spread
+                eprintln!("  {model} {} : {hits}/{} draws clean", thm.id, args.k_samples);
             }
-            mh.insert(thm.id.clone(), hits);
-            let _ = rng.gen::<u8>(); // keep rng live per (model,thm) for reproducible temp spread
-            eprintln!("  {model} {} : {hits}/{} draws clean", thm.id, args.k_samples);
+        } // drop mh's mutable borrow of `hit` before serializing the whole map below
+
+        // CHECKPOINT (after this model's theorem loop): persist the partial hit matrix + tokens so a crash,
+        // sleep, or kill during the multi-hour run keeps every COMPLETED model's per-theorem hit counts.
+        // The final full write at the end of main is left unchanged; this is purely additive durability.
+        let snapshot = serde_json::json!({
+            "schema": "lean_emergence_stage1.partial.v1",
+            "seed": args.seed, "k_samples": args.k_samples, "max_rounds": args.max_rounds,
+            "models": args.models, "completed_through_model": model,
+            "hit": hit, "tokens_by_model": tokens_by_model,
+        });
+        match serde_json::to_string_pretty(&snapshot) {
+            Ok(s) => match std::fs::write(&partial, s) {
+                Ok(()) => eprintln!("[checkpoint] wrote partial after model {model} → {}", partial.display()),
+                Err(e) => eprintln!("[checkpoint] WARN could not write {}: {e}", partial.display()),
+            },
+            Err(e) => eprintln!("[checkpoint] WARN could not serialize partial: {e}"),
         }
     }
 
