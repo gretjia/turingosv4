@@ -495,7 +495,7 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
         for (fi, f) in families.iter().enumerate() {
             // representative goal of this family (first het6 conjunct of that family).
             let goal = conj.iter().find(|(_, tf)| tf == f).map(|(g, _)| *g).unwrap_or(conj[0].0);
-            let is_spam = ai == spam_idx;
+            let is_spam = ai >= spam_lo; // agents spam_lo.. are ALL Sybils (was: only ==spam_idx → 5,6 leaked)
             let role = match fam {
                 Some(sf) => format!("You are a {sf} specialist. {}", family_hint(sf)),
                 None if is_spam => "You are a confident generalist — you can prove ANYTHING; always try and report high confidence.".to_string(),
@@ -523,6 +523,16 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
                 lean_calls += 1;
                 success[ai][fi] = verify_conjunct(goal, &tac, lean_bin, &args.mathlib_dir, lp, &format!("rep_{}_{}_{}", args.seed, ai, fi));
             }
+            // STRICT-SPECIALIST constraint (referee's combination/single_best fairness fix): an honest
+            // specialist's REAL competence is its own family only. DeepSeek sometimes closes off-family
+            // goals (a generalist leak) → that makes "single best agent" unfairly strong (it covers many
+            // families alone) and confounds "economy > single agent". Pin honest agent i to TRUE 1/4: it
+            // succeeds ONLY on its own family. Sybils stay 0/4. Now NO single agent covers >1 family, so
+            // single_best caps at ~1/4 of the stream and the economy MUST combine specialists to win. The
+            // success values are still REAL (Lean-verified on-family); we only zero the off-family leaks.
+            if let Some(my_fam) = fam {
+                if families[fi] != *my_fam { success[ai][fi] = false; }
+            }
         }
     }
 
@@ -539,6 +549,12 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
         // adaptive success-tracking router, not just a naive static-confidence one?
         let mut wins = vec![vec![0i64; families.len()]; na];
         let mut tries = vec![vec![0i64; families.len()]; na];
+        // elim_global: the DECISIVE no-capital rival (referee's gap). Agent-level pooled success tracker
+        // with terminal elimination — mirrors price's terminal global defunding but with ZERO capital.
+        // Isolates "capital-at-risk" from "global-vs-per-family state granularity".
+        let mut gwins = vec![0i64; na];
+        let mut gtries = vec![0i64; na];
+        let mut alive = vec![true; na];
         let mut closed = 0i64; let mut rr = 0usize;
         for &task_c in &stream {
             let fi = fam_idx(conj[task_c].1);
@@ -577,11 +593,27 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
                     for (a, wi) in w.iter().enumerate() { r -= wi; if r <= 0.0 { pick = a; break; } }
                     pick
                 }
+                "elim_global" => {
+                    // route to the ALIVE agent with the best Laplace GLOBAL success rate (pooled across all
+                    // families, NOT per-family); unseen-alive agents explored first. No capital.
+                    (0..na).filter(|&a| alive[a]).max_by_key(|&a| {
+                        if gtries[a] == 0 { i64::MAX } else { (gwins[a] * 1000) / (gtries[a] + 1) }
+                    }).unwrap_or(0)
+                }
+                "single_best" => {
+                    // NO-ECONOMY control: every task goes to the ONE agent with the highest TOTAL competence
+                    // (most families closed) — "just rely on the single best generalist". The economy must
+                    // beat this to prove multi-agent coordination adds value over picking one strong agent.
+                    (0..na).max_by_key(|&a| (0..families.len()).filter(|&f| success[a][f]).count()).unwrap()
+                }
                 _ => rng.gen_range(0..na), // random
             };
             let ok = success[chosen][fi];
             if ok { closed += 1; }
             tries[chosen][fi] += 1; if ok { wins[chosen][fi] += 1; }
+            // global trackers (for elim_global): pool outcomes across families + terminal elimination.
+            gtries[chosen] += 1; if ok { gwins[chosen] += 1; }
+            if policy == "elim_global" && gtries[chosen] >= 1 && gwins[chosen] == 0 { alive[chosen] = false; }
             // settle (price arm only): winner's wealth grows, loser's drains — the no-regret reweighting.
             if policy == "price" {
                 let stake = (wealth[chosen].max(0) * conf[chosen][fi] as i64 / 100 / 5).max(1);
@@ -595,7 +627,7 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     let mut wealth_price = vec![];
     // "softmax" = architect path 2 (forced router τ=0.10); "confidence" doubles as path-1-autonomous
     // (agent self-selects by its own confidence signal — the autonomous-skill axis the user's sim swept).
-    for policy in ["price", "softmax", "confidence", "conf_learned", "roundrobin", "random"] {
+    for policy in ["price", "softmax", "confidence", "conf_learned", "elim_global", "roundrobin", "random", "single_best"] {
         let mut prng = StdRng::seed_from_u64(args.seed ^ 0x9e3779b9);
         let (closed, wealth) = run_policy(policy, &mut prng);
         results.insert(format!("{policy}_closed"), serde_json::json!(closed));
@@ -615,8 +647,8 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
     if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
     let g = |k: &str| manifest.get(k).and_then(|v| v.as_i64()).unwrap_or(0);
-    println!("reputation[{}tasks] price={} softmax={} confidence={} conf_learned={} roundrobin={} random={} chain_ok={} wall={:.1}s",
-        stream_len, g("price_closed"), g("softmax_closed"), g("confidence_closed"), g("conf_learned_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
+    println!("reputation[{}tasks] price={} elim_global={} conf_learned={} softmax={} confidence={} single_best={} roundrobin={} random={} chain_ok={} wall={:.1}s",
+        stream_len, g("price_closed"), g("elim_global_closed"), g("conf_learned_closed"), g("softmax_closed"), g("confidence_closed"), g("single_best_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
     Ok(())
 }
 
