@@ -1008,6 +1008,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     let n_bettors = 4usize;
     let mut yes = vec![0i64; residual.len()]; let mut no = vec![0i64; residual.len()];
     let mut conf_sum = vec![0i64; residual.len()]; // proposer-confidence proxy for A_CONFGREEDY
+    let mut reasoner_conf = vec![0i64; residual.len()]; // the SINGLE reasoner-bettor's raw p_success (skeptic-rerank)
     for (ri, (ti, body, _e)) in residual.iter().enumerate() {
         let thm = &pool[*ti];
         for bi in 0..n_bettors {
@@ -1023,6 +1024,8 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
             let stake = stake_from_confidence(conf, WALLET_BUDGET_MICRO);
             conf_sum[ri] += conf as i64;
+            // skeptic-rerank signal: the reasoner bettor's raw success belief (signed by verdict), NO capital.
+            if bettor_m.contains("reasoner") { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
             if stake < MIN_STAKE_MICRO { continue; }
             let mh = short_hash(&format!("{bettor_m}:{bi}"));
             if verdict == "YES" { yes[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "YES".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
@@ -1038,6 +1041,9 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
         "shuffled" => { let mut p = price_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } order.sort_by(|&a,&b| p[b].cmp(&p[a])); } // price permuted → causality probe
         "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i,j); } } // no price
         "confgreedy" => order.sort_by(|&a, &b| conf_sum[b].cmp(&conf_sum[a])),       // raw confidence, no market
+        // skeptic-rerank: order by the SINGLE reasoner-bettor's raw p_success (a strong critic, NO capital,
+        // NO market). Rules out "a strong judge helped, not the market" — market must beat THIS too.
+        "skeptic_rerank" => order.sort_by(|&a, &b| reasoner_conf[b].cmp(&reasoner_conf[a])),
         _ => {} // roundrobin = index order
     }
     let frontier_h = short_hash(&format!("{:?}{:?}", order, price_pm));
@@ -1064,21 +1070,26 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
 #[allow(clippy::too_many_arguments)]
 fn finish_alloc(args: &Args, tape: &MarketTape, banked: &BTreeSet<String>, pool: &[PoolThm], residual: usize, reasoner_ct: u64, chat_ct: u64, micro_usd: i64, llm_calls: usize, lean_calls: usize, wall: f64) -> Result<(), String> {
     let chain_ok = tape.verify_chain();
-    // primary metric: banked per reasoner-completion-kilotoken (×1000 for integer-friendly reporting).
-    let per_rk = if reasoner_ct > 0 { (banked.len() as f64) / (reasoner_ct as f64 / 1000.0) } else { 0.0 };
+    // PRIMARY metric: banked_at_B = axiom-clean theorems banked at the FIXED reasoner-token budget B (== pass
+    // rate at equal compute; least gameable). All arms share the same B, so banked.len() IS banked@B.
+    let banked_at_b = banked.len();
+    // SECONDARY (honest cost context, NEVER the gate): Cost-of-Pass = micro-USD per Lean-verified solve
+    // (arXiv 2504.13359), and the old per-rktok ratio (rewards under-spend → demoted to secondary).
+    let cost_of_pass_micro_usd = if banked_at_b > 0 { micro_usd / banked_at_b as i64 } else { i64::MAX };
+    let per_rk = if reasoner_ct > 0 { (banked_at_b as f64) / (reasoner_ct as f64 / 1000.0) } else { 0.0 };
     let manifest = serde_json::json!({
-        "schema": "lean_hayek_alloc.v1", "policy": args.policy, "pool_size": pool.len(),
-        "banked": banked.len(), "banked_ids": banked.iter().collect::<Vec<_>>(), "residual": residual,
+        "schema": "lean_hayek_alloc.v2", "policy": args.policy, "pool_size": pool.len(),
+        "banked_at_B": banked_at_b, "banked_ids": banked.iter().collect::<Vec<_>>(), "residual": residual,
         "reasoner_completion_tokens": reasoner_ct, "chat_completion_tokens": chat_ct,
         "reasoner_budget_tok": args.reasoner_budget_tok, "micro_usd": micro_usd,
-        "banked_per_reasoner_ktok": per_rk, "seed": args.seed,
+        "cost_of_pass_micro_usd": cost_of_pass_micro_usd, "banked_per_reasoner_ktok": per_rk, "seed": args.seed,
         "llm_calls": llm_calls, "lean_calls": lean_calls, "tape_chain_ok": chain_ok, "tape_events": tape.lines.len(), "wall_s": wall,
     });
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
     if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
     println!(
-        "alloc[{}] banked={}/{} residual={} reasoner_tok={}/{} micro_usd={} per_rktok={:.3} chain_ok={} wall={:.1}s",
-        args.policy, banked.len(), pool.len(), residual, reasoner_ct, args.reasoner_budget_tok, micro_usd, per_rk, chain_ok, wall
+        "alloc[{}] banked_at_B={}/{} residual={} reasoner_tok={}/{} cost_of_pass_uusd={} micro_usd={} chain_ok={} wall={:.1}s",
+        args.policy, banked_at_b, pool.len(), residual, reasoner_ct, args.reasoner_budget_tok, cost_of_pass_micro_usd, micro_usd, chain_ok, wall
     );
     Ok(())
 }
