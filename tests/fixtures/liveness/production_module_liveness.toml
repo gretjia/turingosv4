@@ -312,6 +312,7 @@ module_ids = [
   "bin::g0_market_activation_current_kernel",
   "bin::g1_market_live_agent",
   "bin::lean_graded_diag",
+  "bin::lean_hetero_market",
   "bin::lean_market_agent",
   "bin::lean_tree_market",
   "bin::market_external_agent_current_kernel",
