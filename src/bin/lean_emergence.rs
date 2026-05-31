@@ -97,13 +97,18 @@ fn verify_axiom_clean(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: 
     let head = preamble.trim_end();
     // strip a trailing ":= by" and the leading `theorem <name...>`/`example` → re-emit as `theorem _emerge ... := by`
     let body_indented: String = body.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n");
-    // robust: keep the user's full statement but ensure a name. If it already says `theorem <name>`, reuse; else inject.
-    let named = if let Some(rest) = head.strip_prefix_theorem() {
-        format!("theorem _emerge {rest}")
+    // ROBUST naming (the prior splitn logic corrupted `theorem name {M:Type*}` signatures → even REFERENCE
+    // proofs failed = every p was a harness artifact). Strategy: KEEP the statement verbatim; reuse the
+    // existing theorem name if present (just append `#print axioms <name>`); only inject a name for an
+    // anonymous `example`, line-anchored so we don't touch the word "example" inside the goal.
+    let (named, thm_name) = if let Some(name) = extract_theorem_name(head) {
+        (head.to_string(), name)
     } else {
-        head.replace("example", "theorem _emerge").to_string()
+        // anonymous example → rename the FIRST `example` token at a line start to a named theorem.
+        let renamed = head.replacen("example", "theorem _emerge", 1);
+        (renamed, "_emerge".to_string())
     };
-    let src = format!("{named}\n{body_indented}\n#print axioms _emerge\n");
+    let src = format!("{named}\n{body_indented}\n#print axioms {thm_name}\n");
     let file = std::env::temp_dir().join(format!("emerge_{tag}.lean"));
     if std::fs::write(&file, &src).is_err() { return (false, "write fail".into()); }
     let out = match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
@@ -129,21 +134,62 @@ fn verify_axiom_clean(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: 
     (true, "no axiom dependency".into())
 }
 
+/// Extract the existing theorem name from a preamble (the token after `theorem`/`lemma`), if any.
+/// Returns None for an anonymous `example`. Names stop at whitespace, `(`, `{`, `[`, or `:`.
+fn extract_theorem_name(preamble: &str) -> Option<String> {
+    for kw in ["theorem ", "lemma "] {
+        if let Some(i) = preamble.find(kw) {
+            let after = &preamble[i + kw.len()..];
+            let name: String = after.chars().take_while(|c| !c.is_whitespace() && !matches!(c, '(' | '{' | '[' | ':')).collect();
+            if !name.is_empty() { return Some(name); }
+        }
+    }
+    None
+}
+
 trait StripThm { fn strip_prefix_theorem(&self) -> Option<&str>; }
 impl StripThm for str {
     fn strip_prefix_theorem(&self) -> Option<&str> {
         let t = self.trim_start();
         t.strip_prefix("theorem").map(|rest| {
-            // drop the original name token, keep the signature `(args) : goal := by`
             rest.trim_start().splitn(2, char::is_whitespace).nth(1).unwrap_or(rest)
         })
     }
 }
 
+/// Extract the proof body from a model reply. Robust to the REAL failure modes observed with strong
+/// reasoners emitting LONG multi-line proofs: (1) clean JSON, (2) markdown ```json fences, (3) bare
+/// literal newlines INSIDE the JSON string value (a formatting slip that makes serde reject the whole
+/// object — the bug that mis-measured reasoner p as ~0). The last fallback regex-grabs the value between
+/// `"tactic":` and the final `"` and un-escapes \n/\t/\", so a model that "knows the proof" is not lost
+/// to a JSON quoting slip.
 fn extract_tactic(s: &str) -> Option<String> {
-    let v: serde_json::Value = serde_json::from_str(s.trim()).ok()
-        .or_else(|| { let a = s.find('{')?; let b = s.rfind('}')?; serde_json::from_str(&s[a..=b]).ok() })?;
-    v.get("tactic").and_then(|x| x.as_str()).map(|s| s.trim().to_string())
+    let cleaned = s.trim().trim_start_matches("```json").trim_start_matches("```").trim_end_matches("```").trim();
+    // 1) strict JSON
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(cleaned) {
+        if let Some(t) = v.get("tactic").and_then(|x| x.as_str()) { return Some(t.trim().to_string()); }
+    }
+    // 2) the {...} substring as strict JSON
+    if let (Some(a), Some(b)) = (cleaned.find('{'), cleaned.rfind('}')) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&cleaned[a..=b]) {
+            if let Some(t) = v.get("tactic").and_then(|x| x.as_str()) { return Some(t.trim().to_string()); }
+        }
+    }
+    // 3) TOLERANT: grab everything between the FIRST `"tactic":` value-quote and the LAST quote before `}`.
+    //    Handles bare literal newlines in the value (invalid JSON but recoverable). Un-escape common escapes.
+    if let Some(ti) = cleaned.find("\"tactic\"") {
+        let after = &cleaned[ti + 8..];
+        if let Some(q1) = after.find('"') {
+            let val_region = &after[q1 + 1..];
+            // the value ends at the last `"` that precedes the final `}` (or end of string)
+            let end = val_region.rfind("\"}").or_else(|| val_region.rfind('"')).unwrap_or(val_region.len());
+            let raw = &val_region[..end];
+            let unescaped = raw.replace("\\n", "\n").replace("\\t", "\t").replace("\\\"", "\"").replace("\\\\", "\\");
+            let t = unescaped.trim();
+            if !t.is_empty() { return Some(t.to_string()); }
+        }
+    }
+    None
 }
 
 #[tokio::main]
@@ -173,7 +219,7 @@ async fn main() -> Result<(), String> {
                 let mut solved = false;
                 for r in 0..args.max_rounds {
                     let temp = args.temp + 0.05 * s as f64; // spread temperature across draws for diversity
-                    let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: msgs.clone(), temperature: Some(temp.min(1.2)), max_tokens: Some(3000) }).await {
+                    let resp = match llm.generate(&GenerateRequest { model: model.clone(), messages: msgs.clone(), temperature: Some(temp.min(1.2)), max_tokens: Some(8000) }).await {
                         Ok(x) => { llm_calls += 1; *tokens_by_model.entry(model.clone()).or_default() += (x.prompt_tokens + x.completion_tokens) as u64; x }
                         Err(_) => break,
                     };
