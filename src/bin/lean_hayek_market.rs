@@ -60,16 +60,20 @@ const ALPHA_MICRO: i64 = 1_000; // Laplace smoothing α (in micro units), so emp
 //   Qwen/Qwen3-32B               $0.14 in / $0.57 out  (/models/qwen-qwen3-32b)
 //   Qwen/Qwen2.5-72B-Instruct    $0.59 in / $0.59 out  (/models/qwen-qwen2-5-72b-instruct)
 // DeepSeek rows — bare "deepseek-*" ids route to api.deepseek.com; pinned to the DeepSeek API USD price
-// used as this experiment's cost baseline (https://api-docs.deepseek.com/quick_start/pricing).
-//   NOTE 2026-05-31: DeepSeek has since folded deepseek-chat/deepseek-reasoner into deepseek-v4-flash
-//   ($0.28 in cache-miss / $0.28 out). These baseline rows are left at the historical values on purpose
-//   so earlier banked-per-dollar tapes stay comparable — re-pin them deliberately, not by accident.
+// (https://api-docs.deepseek.com/quick_start/pricing, retrieved 2026-05-31). The live official catalog is
+// now exactly {deepseek-v4-flash, deepseek-v4-pro}; deepseek-chat/deepseek-reasoner are being deprecated
+// (they map to flash non-thinking / thinking). v4-pro/v4-flash MUST precede the bare "deepseek" catch-all:
+// "deepseek" is a substring of "deepseek-v4-pro", so an earlier liberal row would steal the match and
+// under-bill the flagship — the exact OBL-012 class of bug. The legacy reasoner/deepseek baseline pins are
+// kept (after the specific rows) so earlier banked-per-dollar tapes stay comparable — re-pin deliberately.
 const MODEL_RATES: &[(&str, i64, i64)] = &[
     ("deepseek-ai/DeepSeek-V3.2", 270_000, 410_000),   // SiliconFlow $0.27 / $0.41
     ("Qwen/Qwen3-32B", 140_000, 570_000),              // SiliconFlow $0.14 / $0.57
     ("Qwen/Qwen2.5-72B-Instruct", 590_000, 590_000),   // SiliconFlow $0.59 / $0.59
-    ("reasoner", 550_000, 2_190_000),                  // DeepSeek API $0.55 / $2.19 (baseline pin)
-    ("deepseek", 270_000, 1_100_000),                  // DeepSeek API $0.27 / $1.10 (baseline pin)
+    ("deepseek-v4-pro", 435_000, 870_000),             // DeepSeek API $0.435 / $0.87 (75%-off promo; regular $1.74/$3.48 = 1_740_000/3_480_000 — re-pin when promo ends)
+    ("deepseek-v4-flash", 140_000, 280_000),           // DeepSeek API $0.14 cache-miss / $0.28
+    ("reasoner", 550_000, 2_190_000),                  // DeepSeek API $0.55 / $2.19 (legacy baseline pin)
+    ("deepseek", 270_000, 1_100_000),                  // DeepSeek API $0.27 / $1.10 (legacy baseline catch-all — MUST stay last)
 ];
 // FALLBACK for an id not in MODEL_RATES — clearly a PROXY, not a true price (deepseek-chat-class). An
 // unlisted model is a roster gap to close (add a row above), never a license to under-bill the metric.
@@ -1602,6 +1606,12 @@ mod tests {
         // ordering guard: "deepseek-reasoner" contains both "reasoner" and "deepseek"; reasoner row wins.
         assert_eq!(call_micro_usd("deepseek-reasoner", 0, 1_000_000), 2_190_000);
         assert_eq!(call_micro_usd("deepseek-chat", 0, 1_000_000), 1_100_000);
+        // ordering guard (OBL-012 / v4 workhorse): "deepseek-v4-pro" CONTAINS the bare "deepseek"
+        // catch-all substring — its specific row MUST win, or the flagship under-bills at $0.27/$1.10.
+        assert_eq!(call_micro_usd("deepseek-v4-pro", 1_000_000, 0), 435_000);
+        assert_eq!(call_micro_usd("deepseek-v4-pro", 0, 1_000_000), 870_000);
+        assert_eq!(call_micro_usd("deepseek-v4-flash", 1_000_000, 0), 140_000);
+        assert_eq!(call_micro_usd("deepseek-v4-flash", 0, 1_000_000), 280_000);
         // unknown id → labeled fallback, never a strong-model rate by accident.
         assert_eq!(
             call_micro_usd("Qwen/Qwen3-Coder-30B-A3B-Instruct", 0, 1_000_000),
