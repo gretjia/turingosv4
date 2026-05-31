@@ -208,7 +208,7 @@ fn extract(s: &str, key: &str) -> Option<serde_json::Value> {
 }
 fn short_hash(s: &str) -> String { let mut h = Sha256::new(); h.update(s.as_bytes()); format!("{:x}", h.finalize())[..12].to_string() }
 
-struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf> }
+struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf> }
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
     let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
@@ -221,6 +221,9 @@ fn parse_args() -> Result<Args, String> {
         temp: get("--temp").and_then(|s| s.parse().ok()).unwrap_or(0.3),
         proxy: get("--proxy").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("--model").unwrap_or_else(|| "deepseek-chat".into()),
+        // H4: assessment bets may come from a DIFFERENT model than the proposer (heterogeneous
+        // assessors → informative price). Defaults to the proposer model (homogeneous baseline).
+        bettor_model: get("--bettor-model").or_else(|| get("--model")).unwrap_or_else(|| "deepseek-chat".into()),
         mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
         out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/hayek.json".into()),
         tape_out: get("--tape-out").map(Into::into),
@@ -308,8 +311,11 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
     for (pi, (_pa, proof, _pc)) in proofs.iter().enumerate() {
         for bi in 0..n_agents {
             let prompt = format!("Assess this candidate Lean 4 proof of `{goal}` (context `(n:ℕ)(a b:ℝ)`):\n```\n{proof}\n```\nWill it COMPILE in Lean 4 + Mathlib with NO error and NO sorry? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.");
-            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
-                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+            // Heterogeneous assessors (H4): alternate bettors across models so independent judgment
+            // makes the price informative. Even bettor indices use the proposer model; odd use bettor_model.
+            let bettor_m = if bi % 2 == 1 { args.bettor_model.clone() } else { args.model.clone() };
+            let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
+                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
                 Err(_) => continue,
             };
             let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
