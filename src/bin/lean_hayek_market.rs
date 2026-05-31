@@ -387,44 +387,54 @@ async fn run_skillsweep(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     }
     // PHASE 2: replay autonomous vs softmax across a SKILL sweep on the frozen matrix (cheap, deterministic).
     // includes HIDDEN-GEM tasks: a rare task family only ONE specialist closes → rewards skilled discovery.
+    // HIDDEN-GEM family: pick a family that exactly ONE agent closes (rare competence) and assign it a high
+    // REWARD (3×). Price (= fraction of agents that close it) is LOW for it (only 1/na), so a softmax router
+    // UNDER-routes it; but a high-skill autonomous agent that KNOWS it can close this rare-but-valuable task
+    // captures the reward. This reproduces the sim's "low-price high-reward hidden node" asymmetry on real data.
+    let agent_closes: Vec<usize> = (0..families.len()).map(|fi| (0..na).filter(|&a| success[a][fi]).count()).collect();
+    let gem_fam = (0..families.len()).filter(|&fi| agent_closes[fi] == 1).min_by_key(|&fi| agent_closes[fi]);
+    let gem_reward = 3i64;
     let skills = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
     let stream_len = args.n_rounds.max(40);
-    let stream: Vec<usize> = (0..stream_len).map(|_| rng.gen_range(0..conj.len())).collect();
-    let fam_idx = |f: &str| families.iter().position(|x| x == &f).unwrap_or(0);
+    // stream over the families that ARE closable by someone (incl. the gem); reward-weighted scoring.
+    let closable: Vec<usize> = (0..families.len()).filter(|&fi| agent_closes[fi] >= 1).collect();
+    let stream: Vec<usize> = (0..stream_len).map(|_| closable[rng.gen_range(0..closable.len())]).collect();
+    let reward = |fi: usize| -> i64 { if Some(fi) == gem_fam { gem_reward } else { 1 } };
     let mut sweep = serde_json::Map::new();
     for &skill in &skills {
         // self-estimate[a][t] = blend(true success, noise) by skill. Deterministic per (skill, agent, fam).
-        let mut auto_closed = 0i64; let mut soft_closed = 0i64;
+        let mut auto_closed = 0i64; let mut soft_closed = 0i64; // REWARD-weighted (gem worth 3×)
         let mut srng = StdRng::seed_from_u64(args.seed ^ ((skill * 1000.0) as u64));
-        for &task_c in &stream {
-            let fi = fam_idx(conj[task_c].1);
+        for &fi in &stream {
             // AUTONOMOUS: each agent forms a noisy self-estimate; task → highest self-estimate.
             let est: Vec<f64> = (0..na).map(|a| {
                 let truth = if success[a][fi] { 1.0 } else { 0.0 };
                 skill * truth + (1.0 - skill) * srng.gen::<f64>()
             }).collect();
             let auto_pick = (0..na).max_by(|&x, &y| est[x].partial_cmp(&est[y]).unwrap()).unwrap();
-            if success[auto_pick][fi] { auto_closed += 1; }
-            // SOFTMAX forced: top-level samples by softmax(true competence-price / τ). Price = fraction of
-            // agents that truly close this family (tape-reconstructible), broadcast as a distribution.
+            if success[auto_pick][fi] { auto_closed += reward(fi); }
+            // SOFTMAX forced: top-level samples by softmax(competence-price / τ). Price = fraction of agents
+            // that close this family — the gem's price is LOW (1/na), so softmax under-prioritizes it.
             let tau = 0.10f64;
-            let price: Vec<f64> = (0..na).map(|a| if success[a][fi] { 1.0 } else { 0.0 }).collect();
+            let price: Vec<f64> = (0..na).map(|a| if success[a][fi] { agent_closes[fi] as f64 / na as f64 } else { 0.0 }).collect();
             let mx = price.iter().cloned().fold(f64::MIN, f64::max);
             let w: Vec<f64> = price.iter().map(|p| ((p - mx) / tau).exp()).collect();
             let sum: f64 = w.iter().sum();
             let mut r = srng.gen::<f64>() * sum; let mut soft_pick = 0;
             for (a, wi) in w.iter().enumerate() { r -= wi; if r <= 0.0 { soft_pick = a; break; } }
-            if success[soft_pick][fi] { soft_closed += 1; }
+            if success[soft_pick][fi] { soft_closed += reward(fi); }
         }
-        let delta = auto_closed - soft_closed; // Δ = autonomous − softmax (>0 ⇒ autonomous wins)
+        let delta = auto_closed - soft_closed; // Δ = autonomous − softmax (reward-weighted; >0 ⇒ autonomous wins)
         sweep.insert(format!("skill_{:.2}", skill), serde_json::json!({"autonomous": auto_closed, "softmax": soft_closed, "delta": delta}));
         for c in 0..4 { tape.record(&MarketEvent::RouteSample { policy: format!("skill{:.2}", skill), frontier_hash: short_hash(&format!("{skill}{c}")), selected_claim: c }); }
     }
+    let _gem = gem_fam;
     let wall = t0.elapsed().as_secs_f64();
     let chain_ok = tape.verify_chain();
     let mut manifest = serde_json::json!({
-        "schema": "lean_skillsweep.v1", "policy": "skillsweep", "seed": args.seed, "stream_len": stream_len,
-        "competence_matrix": success, "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens,
+        "schema": "lean_skillsweep.v2", "policy": "skillsweep", "seed": args.seed, "stream_len": stream_len,
+        "competence_matrix": success, "hidden_gem_family": gem_fam, "gem_reward": gem_reward,
+        "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens,
         "tape_chain_ok": chain_ok, "wall_s": wall,
     });
     for (k, v) in sweep { manifest.as_object_mut().unwrap().insert(k, v); }
