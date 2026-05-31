@@ -1,0 +1,50 @@
+{
+  "preregistration": "TuringOS price-economy benchmark — LEAN-ALLOC on the real 44-theorem Mathlib pool",
+  "date": "2026-05-31",
+  "locked_before_any_counted_run": true,
+  "rationale": "Replace the weak synthetic-competence benchmark (merged PR #222) with a defensible one: REAL deepseek competence + real Lean ground truth + a recognized cost-normalized metric, structured to beat the published equal-budget skeptic (arXiv 2604.02460). Metric name Cost-of-Pass from arXiv 2504.13359; comparison structure from arXiv 2408.03314 (strategy dominance on the solve-vs-budget curve).",
+
+  "task_suite": "tests/fixtures/lean_theorems_pool.jsonl — 44 real Mathlib theorems, 8 domains, proof-body lines 1-21, reference proofs Lean-verified (self-test only, never shown to agents). Pilot confirmed dynamic range: chat free-banks 17/44, residual 27-30, reasoner repairs ~16 uncapped.",
+
+  "binding_budget_B_reasoner_completion_tokens": 4000,
+  "B_justification": "Pilot: uncapped reasoner repaired 16/27 residual using 6711 tok (~420 tok/repair). B=4000 confirmed BINDING: market banked_at_B=13/30 at the cap (4137 tok), < the 16 uncapped → only ~43% of residual repairable, so repair ORDER (the thing the economy controls) is what is measured. This is the fix for the false-null (probe-mode tied because order didn't matter).",
+
+  "arms": {
+    "market": "price-descending order of reasoner repair (the economy under test)",
+    "solo": "single-strongest: one deepseek-reasoner, NO market, whole budget B sequential over residual — THE must-beat (refutes the equal-budget multi-agent skeptic)",
+    "shuffled": "identical pipeline, price vector permuted before ordering — the causality firewall (market==shuffled = honest NO-GO)",
+    "confgreedy": "order by raw summed proposer confidence, no capital, no market — rules out a cheap confidence heuristic tying",
+    "skeptic_rerank": "order by the single reasoner-bettor's raw p_success, no capital, no market — rules out 'a strong critic helped, not the market'",
+    "random": "seeded permutation, no signal — floor"
+  },
+
+  "scale": "6 arms × 12 seeds × 44-theorem pool = 72 runs. Interleaved per-seed so a crash yields paired data. Every run gets the IDENTICAL B=4000.",
+
+  "primary_metric": "banked_at_B = count of axiom-clean theorems banked at the fixed reasoner-token budget B (== pass rate at equal compute; least gameable). All arms share B, so banked.len() IS banked@B.",
+  "secondary_metric": "cost_of_pass_micro_usd = integer micro-USD per Lean-verified solve (arXiv 2504.13359). NEVER the gate.",
+
+  "statistics": "Wilcoxon signed-rank, paired by seed, one-sided (H1: market > foil). Holm-Bonferroni over the 4 primary comparisons (solo/shuffled/confgreedy/skeptic_rerank), family alpha=0.05.",
+
+  "GO_conditions_all_must_hold": [
+    "(1) banked_market > banked_solo: mean uplift >= +3 theorems AND Holm-corrected p < 0.05 — the headline (beats single-strong at equal budget)",
+    "(2) banked_market > banked_shuffled: Holm-corrected p < 0.05 — the causality gate (price is not decorative)",
+    "(3) banked_market > banked_confgreedy: Holm-corrected p < 0.05 — rules out cheap heuristic",
+    "(4) banked_market > banked_skeptic_rerank: Holm-corrected p < 0.05 — rules out 'a strong critic, not the market'",
+    "(5) banked_market >= banked_random + 2 — sanity floor",
+    "(6) 100% of banked_ids re-verify Lean-clean under #print axioms (no sorryAx) — scripts/bench_axiom_reverify.py exit 0",
+    "(7) price dispersion non-trivial: >= 4 distinct price-permille values AND price-vs-Lean-outcome rank-correlation > 0, checked BEFORE unblinding banked counts"
+  ],
+
+  "NOGO_report_honestly_do_not_patch": [
+    "shuffled ties-or-beats market → price decorative",
+    "market beats solo only by spending more reasoner tokens → budget not equal (guarded by identical logged B)",
+    "per-arm banked CIs statistically indistinguishable",
+    "price does not disperse → mechanism degenerate"
+  ],
+
+  "WEAK_GO_lane": "banked tied but secondary Cost-of-Pass clearly favors market (routes scarce reasoner only to high-EV residual) → report as 'cheaper auditable solver', NOT 'stronger solver'.",
+
+  "discipline": "FC1/FC2/FC3 untouched; no §6 surface; integer money; every solve independently Lean + #print-axioms re-verified; aggregate over 12 seeds (single runs gave false positives twice); PR-only; result decides whether to do the overall merge.",
+
+  "retired_from_external_claim": "reputation mode (hardcoded Sybil) and probe mode (synthetic 4-family) are DIAGNOSTIC-only; not part of this headline benchmark."
+}

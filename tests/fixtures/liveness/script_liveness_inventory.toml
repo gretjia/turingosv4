@@ -101,6 +101,21 @@ covered_by = [
 ]
 
 [[script_group]]
+id = "lean_benchmark_analysis_tools"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/analyze_emerge_stage1.py",
+  "scripts/bench_aggregate.py",
+  "scripts/bench_axiom_reverify.py",
+]
+covered_by = [
+  "handover/preregistration",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
 id = "swebench_probe_scripts"
 classification = "local_probe"
 status = "dev_only"

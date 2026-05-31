@@ -45,15 +45,54 @@ const MIN_STAKE_MICRO: i64 = 1_000;
 const MAX_STAKE_MICRO: i64 = 40_000;
 const ALPHA_MICRO: i64 = 1_000; // Laplace smoothing α (in micro units), so empty claim → p=0.5
 
-// Pinned DeepSeek rates, integer micro-USD per 1M tokens (cost path is integer-only, no f64).
-// deepseek-chat ~$0.27/$1.10 in/out; deepseek-reasoner ~$0.55/$2.19 in/out per 1M tok.
-const CHAT_IN_UPMT: i64 = 270_000;   // micro-USD per 1M prompt tokens (chat)
-const CHAT_OUT_UPMT: i64 = 1_100_000;
-const REASONER_IN_UPMT: i64 = 550_000;
-const REASONER_OUT_UPMT: i64 = 2_190_000;
+// ── per-model micro-USD rates (cost path is integer-only, no f64) ────────────
+// Each row: (model-id substring, in_micro_usd_per_1M_prompt_tok, out_micro_usd_per_1M_completion_tok).
+// ROWS ORDERED MOST-SPECIFIC FIRST — call_micro_usd bills the FIRST row whose substring is contained in
+// the model id, so a heterogeneous strong model is priced at ITS real rate, never silently at the
+// deepseek-chat proxy. The liberal "reasoner"/"deepseek" catch-alls MUST stay last: a full slash-id like
+// "deepseek-ai/DeepSeek-V3.2" also contains "deepseek" and must match its own row first. Adding a model
+// to the roster = add a row here; an unlisted id falls through to FALLBACK below. (tests guard the order.)
+//
+// SiliconFlow rows — any slash-form id ("Org/Model") routes to api.siliconflow.cn
+// (src/drivers/llm_proxy.py::detect_provider), so the true price is SiliconFlow's published USD list
+// price. Retrieved 2026-05-31 from https://www.siliconflow.com :
+//   deepseek-ai/DeepSeek-V3.2    $0.27 in / $0.41 out  (blog: "DeepSeek-V3.2-Exp Now on SiliconFlow")
+//   Qwen/Qwen3-32B               $0.14 in / $0.57 out  (/models/qwen-qwen3-32b)
+//   Qwen/Qwen2.5-72B-Instruct    $0.59 in / $0.59 out  (/models/qwen-qwen2-5-72b-instruct)
+// DeepSeek rows — bare "deepseek-*" ids route to api.deepseek.com; pinned to the DeepSeek API USD price
+// (https://api-docs.deepseek.com/quick_start/pricing, retrieved 2026-05-31). The live official catalog is
+// now exactly {deepseek-v4-flash, deepseek-v4-pro}; deepseek-chat/deepseek-reasoner are being deprecated
+// (they map to flash non-thinking / thinking). v4-pro/v4-flash MUST precede the bare "deepseek" catch-all:
+// "deepseek" is a substring of "deepseek-v4-pro", so an earlier liberal row would steal the match and
+// under-bill the flagship — the exact OBL-012 class of bug. The legacy reasoner/deepseek baseline pins are
+// kept (after the specific rows) so earlier banked-per-dollar tapes stay comparable — re-pin deliberately.
+const MODEL_RATES: &[(&str, i64, i64)] = &[
+    ("deepseek-ai/DeepSeek-V3.2", 270_000, 410_000),   // SiliconFlow $0.27 / $0.41
+    ("Qwen/Qwen3-32B", 140_000, 570_000),              // SiliconFlow $0.14 / $0.57
+    ("Qwen/Qwen2.5-72B-Instruct", 590_000, 590_000),   // SiliconFlow $0.59 / $0.59
+    ("deepseek-v4-pro", 435_000, 870_000),             // DeepSeek API $0.435 / $0.87 (75%-off promo; regular $1.74/$3.48 = 1_740_000/3_480_000 — re-pin when promo ends)
+    ("deepseek-v4-flash", 140_000, 280_000),           // DeepSeek API $0.14 cache-miss / $0.28
+    ("reasoner", 550_000, 2_190_000),                  // DeepSeek API $0.55 / $2.19 (legacy baseline pin)
+    ("deepseek", 270_000, 1_100_000),                  // DeepSeek API $0.27 / $1.10 (legacy baseline catch-all — MUST stay last)
+];
+// FALLBACK for an id not in MODEL_RATES — clearly a PROXY, not a true price (deepseek-chat-class). An
+// unlisted model is a roster gap to close (add a row above), never a license to under-bill the metric.
+const FALLBACK_IN_UPMT: i64 = 270_000;
+const FALLBACK_OUT_UPMT: i64 = 1_100_000;
+
 /// integer micro-USD for a call, by model (the real dollar cost — the scarce resource's denominator).
+/// First MODEL_RATES row whose substring is in `model` wins (most-specific-first); else FALLBACK.
 fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 {
-    let (i, o) = if model.contains("reasoner") { (REASONER_IN_UPMT, REASONER_OUT_UPMT) } else { (CHAT_IN_UPMT, CHAT_OUT_UPMT) };
+    let (i, o) = {
+        let mut rate = (FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT);
+        for &(id, in_upmt, out_upmt) in MODEL_RATES {
+            if model.contains(id) {
+                rate = (in_upmt, out_upmt);
+                break;
+            }
+        }
+        rate
+    };
     (prompt_tok as i64 * i + completion_tok as i64 * o) / 1_000_000
 }
 
@@ -209,20 +248,71 @@ fn default_lean_bin() -> PathBuf {
     let p = PathBuf::from(&home).join(".elan/toolchains/leanprover--lean4---v4.24.0/bin/lean");
     if p.exists() { p } else { PathBuf::from("lean") }
 }
+// ── axiom-clean gate (real `#print axioms`, not a string ban) ───────────────
+// A proof that merely COMPILES is not sound: it can smuggle `sorryAx` (sorry/admit), the
+// native_decide trust axioms (`Lean.ofReduceBool`/`Lean.trustCompiler`), or a hand-declared `axiom`,
+// all of which produce NO "error" and slip past an exit-success + string-ban check. The only honest
+// certificate is Lean's own `#print axioms`: the proof's transitive axiom set must be ⊆ the standard
+// classical trust base. THIS is what makes the "axiom-clean (no sorryAx)" doc claims true.
+const AXIOM_ALLOWLIST: [&str; 3] = ["propext", "Classical.choice", "Quot.sound"];
+
+/// Parse the dependency set printed by `#print axioms <name>` out of Lean's raw (ORIGINAL-case)
+/// output. Lean emits exactly one of:
+///   `'<name>' depends on axioms: [propext, Classical.choice, Quot.sound]`
+///   `'<name>' does not depend on any axioms`
+/// Returns the axiom names (empty set for the "no axioms" case), or None if no such line is present
+/// (which co-occurs with a hard compile error). Case-sensitive — axiom names are (sorryAx, Quot.sound).
+fn parse_axiom_set(raw: &str) -> Option<BTreeSet<String>> {
+    if raw.contains("does not depend on any axioms") { return Some(BTreeSet::new()); }
+    let after = &raw[raw.find("depends on axioms:")? + "depends on axioms:".len()..];
+    let lb = after.find('[')?;
+    let rb = after[lb..].find(']')? + lb;
+    Some(after[lb + 1..rb].split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+}
+
+/// True iff every axiom the proof depends on is in AXIOM_ALLOWLIST. None (no `#print axioms` line was
+/// parsed) is NOT clean — fail-closed: never certify "axiom-clean" without having read the axiom set.
+fn axiom_set_clean(axioms: &Option<BTreeSet<String>>) -> bool {
+    match axioms {
+        Some(set) => set.iter().all(|a| AXIOM_ALLOWLIST.contains(&a.as_str())),
+        None => false,
+    }
+}
+
+/// Wrap a candidate proof's full source (which MUST define a theorem named `thm_name`), append
+/// `#print axioms <thm_name>`, run Lean ONCE, and report (compiles_clean, axiom_set, lowercased_out).
+/// The spec'd pair is (compiles_clean, axiom_set); the third value is the lowercased Lean output,
+/// returned so callers reuse the SAME run for their error-class signal (we never run Lean twice).
+/// `compiles_clean` = exit 0 ∧ no "error" in output. A `sorry` is a *warning*, deliberately NOT failed
+/// here — it surfaces as `sorryAx` in `axiom_set`, which is the principled (and string-ban-proof) catch.
+fn run_lean_axioms(src: &str, thm_name: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str)
+    -> (bool, Option<BTreeSet<String>>, String) {
+    let full = format!("{src}\n#print axioms {thm_name}\n");
+    let file = std::env::temp_dir().join(format!("axck_{tag}.lean"));
+    if std::fs::write(&file, &full).is_err() { return (false, None, "io".into()); }
+    match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
+        Ok(o) => {
+            let raw = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+            let low = raw.to_lowercase();
+            let compiles_clean = o.status.success() && !low.contains("error");
+            let axioms = parse_axiom_set(&raw);
+            (compiles_clean, axioms, low)
+        }
+        Err(_) => (false, None, "exec".into()),
+    }
+}
+
+/// Verify a competing conjunct proof: it must type-check under Lean AND be axiom-clean (axiom set ⊆
+/// AXIOM_ALLOWLIST — no sorryAx, no native_decide trust axioms, no hand-declared axiom). The theorem
+/// is named `c_{tag}` so `#print axioms` can certify it (one Lean run, inside run_lean_axioms).
 fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> bool {
     let low = proof.to_lowercase();
     if low.contains("sorry") || low.contains("admit") { return false; }
-    let src = format!("import Mathlib\nopen Finset in\ntheorem c_{tag} {PREAMBLE_VARS} : {goal} := by\n{}\n",
+    let name = format!("c_{tag}");
+    let src = format!("import Mathlib\nopen Finset in\ntheorem {name} {PREAMBLE_VARS} : {goal} := by\n{}",
         proof.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n"));
-    let file = std::env::temp_dir().join(format!("hayek_{tag}.lean"));
-    if std::fs::write(&file, &src).is_err() { return false; }
-    match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
-        Ok(o) => {
-            let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
-            o.status.success() && !t.contains("sorry") && !t.contains("error")
-        }
-        Err(_) => false,
-    }
+    let (compiles_clean, axioms, _) = run_lean_axioms(&src, &name, lean_bin, mathlib_dir, lp, tag);
+    compiles_clean && axiom_set_clean(&axioms)
 }
 fn extract(s: &str, key: &str) -> Option<serde_json::Value> {
     let v: serde_json::Value = serde_json::from_str(s.trim()).ok()
@@ -248,7 +338,46 @@ fn load_pool(path: &str, subset: usize) -> Vec<PoolThm> {
     if subset > 0 && subset < out.len() { out.truncate(subset); }
     out
 }
-/// Verify a full pool theorem (preamble + candidate body) under Lean + axiom-clean (no sorryAx).
+/// Ensure a pool preamble's LAST declaration is a NAMED theorem so `#print axioms <name>` can run.
+/// A preamble ends in `<decl> ... := by` where <decl> is either `example` (anonymous) or a named
+/// `theorem`/`lemma`. Returns (named_preamble, name): for `example` the keyword is rewritten to
+/// `theorem <gen>`; an already-named decl is reused verbatim. The target is the LAST decl (the one the
+/// appended body completes) — earlier helper decls are left alone. Assumes line (`--`) comments only.
+fn ensure_named(preamble: &str, tag: &str) -> (String, String) {
+    let gen: String = format!(
+        "pool_{}",
+        tag.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect::<String>()
+    );
+    let ident = |c: char| c.is_alphanumeric() || c == '_' || c == '\'' || c == '.';
+    let is_example = |t: &str| match t.strip_prefix("example") {
+        Some(r) => r.chars().next().map_or(true, |c| !ident(c)),
+        None => false,
+    };
+    let lines: Vec<&str> = preamble.lines().collect();
+    let mut decl_idx: Option<usize> = None;
+    for (i, line) in lines.iter().enumerate() {
+        let t = line.trim_start();
+        if is_example(t) || t.starts_with("theorem ") || t.starts_with("lemma ") { decl_idx = Some(i); }
+    }
+    let di = match decl_idx { Some(i) => i, None => return (preamble.to_string(), gen) };
+    let line = lines[di];
+    let indent = &line[..line.len() - line.trim_start().len()];
+    let t = line.trim_start();
+    let (new_line, name) = if is_example(t) {
+        (format!("{indent}theorem {gen}{}", &t["example".len()..]), gen.clone())
+    } else {
+        let kw = if t.starts_with("theorem ") { "theorem " } else { "lemma " };
+        let nm: String = t[kw.len()..].trim_start().chars().take_while(|&c| ident(c)).collect();
+        if nm.is_empty() { return (preamble.to_string(), gen); }
+        (line.to_string(), nm)
+    };
+    let mut out: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    out[di] = new_line;
+    (out.join("\n"), name)
+}
+/// Verify a full pool theorem (preamble + candidate body) under Lean AND certify it is axiom-clean:
+/// `#print axioms` must report only axioms in AXIOM_ALLOWLIST (no sorryAx, no native_decide axioms, no
+/// hand-declared axiom). The real gate lives in verify_pool_err / run_lean_axioms.
 fn verify_pool(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> bool {
     verify_pool_err(preamble, body, lean_bin, mathlib_dir, lp, tag).0
 }
@@ -257,27 +386,37 @@ fn verify_pool(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, 
 /// Returns (verified, error_class). Classes ordered roughly near→far:
 ///   "unsolved_goals" (proof shape right, goals left) > "type_mismatch" (close) > "rewrite_failed"
 ///   > "unknown_id" (wrong lemma name) > "parse" (malformed) > "none" (verified) / "other".
+/// Soundness classes (compiled with NO error but axiom-DIRTY, so the old gate would have wrongly
+/// passed them): "sorry_axiom" (sorryAx — sorry/admit), "nonstandard_axiom" (native_decide trust
+/// axioms or a hand-declared `axiom`), "axiom_unparsed" (no `#print axioms` line — fail-closed).
 fn verify_pool_err(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> (bool, String) {
     let low = body.to_lowercase();
     if low.contains("sorry") || low.contains("admit") || low.contains("native_decide") { return (false, "bypass".into()); }
+    let (named_preamble, name) = ensure_named(preamble, tag);
     let indented: String = body.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n");
-    let src = format!("{preamble}\n{indented}\n");
-    let file = std::env::temp_dir().join(format!("alloc_{tag}.lean"));
-    if std::fs::write(&file, &src).is_err() { return (false, "io".into()); }
-    match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
-        Ok(o) => {
-            let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
-            if o.status.success() && !t.contains("error") && !t.contains("sorry") { return (true, "none".into()); }
-            let class = if t.contains("unsolved goals") { "unsolved_goals" }
-                else if t.contains("type mismatch") { "type_mismatch" }
-                else if t.contains("rewrite") || t.contains("motive is not type correct") { "rewrite_failed" }
-                else if t.contains("unknown identifier") || t.contains("unknown constant") { "unknown_id" }
-                else if t.contains("unexpected token") || t.contains("expected") { "parse" }
-                else { "other" };
-            (false, class.into())
-        }
-        Err(_) => (false, "exec".into()),
+    let src = format!("{named_preamble}\n{indented}");
+    let (compiles_clean, axioms, t) = run_lean_axioms(&src, &name, lean_bin, mathlib_dir, lp, tag);
+    if compiles_clean {
+        // AXIOM GATE — the real `#print axioms` check. The proof type-checks; it counts ONLY if every
+        // axiom it depends on is in AXIOM_ALLOWLIST. sorryAx, native_decide's Lean.ofReduceBool /
+        // Lean.trustCompiler, and hand-declared axioms all compile WITHOUT any "error" and would slip
+        // past the old exit-success + string-ban check; here they are rejected.
+        if axiom_set_clean(&axioms) { return (true, "none".into()); }
+        let class = match &axioms {
+            Some(s) if s.contains("sorryAx") => "sorry_axiom",
+            Some(_) => "nonstandard_axiom",
+            None => "axiom_unparsed",
+        };
+        return (false, class.into());
     }
+    // Genuine compile error → the existing proximity-to-correct class (price-discrimination signal).
+    let class = if t.contains("unsolved goals") { "unsolved_goals" }
+        else if t.contains("type mismatch") { "type_mismatch" }
+        else if t.contains("rewrite") || t.contains("motive is not type correct") { "rewrite_failed" }
+        else if t.contains("unknown identifier") || t.contains("unknown constant") { "unknown_id" }
+        else if t.contains("unexpected token") || t.contains("expected") { "parse" }
+        else { "other" };
+    (false, class.into())
 }
 
 struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64 }
@@ -1008,6 +1147,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     let n_bettors = 4usize;
     let mut yes = vec![0i64; residual.len()]; let mut no = vec![0i64; residual.len()];
     let mut conf_sum = vec![0i64; residual.len()]; // proposer-confidence proxy for A_CONFGREEDY
+    let mut reasoner_conf = vec![0i64; residual.len()]; // the SINGLE reasoner-bettor's raw p_success (skeptic-rerank)
     for (ri, (ti, body, _e)) in residual.iter().enumerate() {
         let thm = &pool[*ti];
         for bi in 0..n_bettors {
@@ -1023,6 +1163,8 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
             let stake = stake_from_confidence(conf, WALLET_BUDGET_MICRO);
             conf_sum[ri] += conf as i64;
+            // skeptic-rerank signal: the reasoner bettor's raw success belief (signed by verdict), NO capital.
+            if bettor_m.contains("reasoner") { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
             if stake < MIN_STAKE_MICRO { continue; }
             let mh = short_hash(&format!("{bettor_m}:{bi}"));
             if verdict == "YES" { yes[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "YES".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
@@ -1038,6 +1180,9 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
         "shuffled" => { let mut p = price_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } order.sort_by(|&a,&b| p[b].cmp(&p[a])); } // price permuted → causality probe
         "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i,j); } } // no price
         "confgreedy" => order.sort_by(|&a, &b| conf_sum[b].cmp(&conf_sum[a])),       // raw confidence, no market
+        // skeptic-rerank: order by the SINGLE reasoner-bettor's raw p_success (a strong critic, NO capital,
+        // NO market). Rules out "a strong judge helped, not the market" — market must beat THIS too.
+        "skeptic_rerank" => order.sort_by(|&a, &b| reasoner_conf[b].cmp(&reasoner_conf[a])),
         _ => {} // roundrobin = index order
     }
     let frontier_h = short_hash(&format!("{:?}{:?}", order, price_pm));
@@ -1064,21 +1209,26 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
 #[allow(clippy::too_many_arguments)]
 fn finish_alloc(args: &Args, tape: &MarketTape, banked: &BTreeSet<String>, pool: &[PoolThm], residual: usize, reasoner_ct: u64, chat_ct: u64, micro_usd: i64, llm_calls: usize, lean_calls: usize, wall: f64) -> Result<(), String> {
     let chain_ok = tape.verify_chain();
-    // primary metric: banked per reasoner-completion-kilotoken (×1000 for integer-friendly reporting).
-    let per_rk = if reasoner_ct > 0 { (banked.len() as f64) / (reasoner_ct as f64 / 1000.0) } else { 0.0 };
+    // PRIMARY metric: banked_at_B = axiom-clean theorems banked at the FIXED reasoner-token budget B (== pass
+    // rate at equal compute; least gameable). All arms share the same B, so banked.len() IS banked@B.
+    let banked_at_b = banked.len();
+    // SECONDARY (honest cost context, NEVER the gate): Cost-of-Pass = micro-USD per Lean-verified solve
+    // (arXiv 2504.13359), and the old per-rktok ratio (rewards under-spend → demoted to secondary).
+    let cost_of_pass_micro_usd = if banked_at_b > 0 { micro_usd / banked_at_b as i64 } else { i64::MAX };
+    let per_rk = if reasoner_ct > 0 { (banked_at_b as f64) / (reasoner_ct as f64 / 1000.0) } else { 0.0 };
     let manifest = serde_json::json!({
-        "schema": "lean_hayek_alloc.v1", "policy": args.policy, "pool_size": pool.len(),
-        "banked": banked.len(), "banked_ids": banked.iter().collect::<Vec<_>>(), "residual": residual,
+        "schema": "lean_hayek_alloc.v2", "policy": args.policy, "pool_size": pool.len(),
+        "banked_at_B": banked_at_b, "banked_ids": banked.iter().collect::<Vec<_>>(), "residual": residual,
         "reasoner_completion_tokens": reasoner_ct, "chat_completion_tokens": chat_ct,
         "reasoner_budget_tok": args.reasoner_budget_tok, "micro_usd": micro_usd,
-        "banked_per_reasoner_ktok": per_rk, "seed": args.seed,
+        "cost_of_pass_micro_usd": cost_of_pass_micro_usd, "banked_per_reasoner_ktok": per_rk, "seed": args.seed,
         "llm_calls": llm_calls, "lean_calls": lean_calls, "tape_chain_ok": chain_ok, "tape_events": tape.lines.len(), "wall_s": wall,
     });
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
     if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
     println!(
-        "alloc[{}] banked={}/{} residual={} reasoner_tok={}/{} micro_usd={} per_rktok={:.3} chain_ok={} wall={:.1}s",
-        args.policy, banked.len(), pool.len(), residual, reasoner_ct, args.reasoner_budget_tok, micro_usd, per_rk, chain_ok, wall
+        "alloc[{}] banked_at_B={}/{} residual={} reasoner_tok={}/{} cost_of_pass_uusd={} micro_usd={} chain_ok={} wall={:.1}s",
+        args.policy, banked_at_b, pool.len(), residual, reasoner_ct, args.reasoner_budget_tok, cost_of_pass_micro_usd, micro_usd, chain_ok, wall
     );
     Ok(())
 }
@@ -1351,4 +1501,123 @@ async fn main() -> Result<(), String> {
         llm_calls, lean_calls, skips, tokens, chain_ok, wall
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod axiom_gate_tests {
+    //! Soundness checks for the `#print axioms` gate. The PURE tests (parser + namer) always run. The
+    //! prover test requires the LIVE Lean + Mathlib toolchain the binary uses — set `MATHLIB_DIR` to a
+    //! Mathlib checkout to run it:
+    //!   `MATHLIB_DIR=/path/to/mathlib4 cargo test --bin lean_hayek_market axiom_gate`
+    //! Absent that, it SKIPS LOUDLY rather than silently passing — it cannot run without a real prover.
+    use super::*;
+
+    fn set(xs: &[&str]) -> BTreeSet<String> { xs.iter().map(|s| s.to_string()).collect() }
+
+    fn toolchain() -> Option<(PathBuf, PathBuf, String)> {
+        let mathlib = PathBuf::from(std::env::var("MATHLIB_DIR").ok()?);
+        if !mathlib.exists() { return None; }
+        let lp = lean_path(&mathlib)?;
+        Some((default_lean_bin(), mathlib, lp))
+    }
+
+    // Pin the exact `#print axioms` line shapes + allowlist semantics (no toolchain needed).
+    #[test]
+    fn parse_and_allowlist_semantics() {
+        assert_eq!(parse_axiom_set("'_t' depends on axioms: [propext]"), Some(set(&["propext"])));
+        assert_eq!(parse_axiom_set("'t' depends on axioms: [propext, Classical.choice, Quot.sound]"),
+            Some(set(&["propext", "Classical.choice", "Quot.sound"])));
+        assert_eq!(parse_axiom_set("'t' depends on axioms: [sorryAx]"), Some(set(&["sorryAx"])));
+        assert_eq!(parse_axiom_set("'t' does not depend on any axioms"), Some(BTreeSet::new()));
+        assert_eq!(parse_axiom_set("no print-axioms line here"), None);
+
+        assert!(axiom_set_clean(&parse_axiom_set("'t' depends on axioms: [propext, Quot.sound]")));
+        assert!(axiom_set_clean(&parse_axiom_set("'t' does not depend on any axioms")));
+        assert!(!axiom_set_clean(&parse_axiom_set("'t' depends on axioms: [sorryAx]")));
+        assert!(!axiom_set_clean(&parse_axiom_set("'t' depends on axioms: [Lean.ofReduceBool, Lean.trustCompiler]")));
+        assert!(!axiom_set_clean(&None)); // fail-closed: never certify without reading the axiom set
+    }
+
+    // `example` preambles must become a named theorem so `#print axioms <name>` resolves; already-named
+    // decls are reused verbatim; the LAST decl is the target even behind a helper decl.
+    #[test]
+    fn ensure_named_renames_example_keeps_named_picks_last() {
+        let (src, name) = ensure_named("import Mathlib\n\nexample (a : ℤ) : a = a := by", "1_rp_free_3_2");
+        assert_eq!(name, "pool_1_rp_free_3_2");
+        assert!(src.contains("theorem pool_1_rp_free_3_2 (a : ℤ) : a = a := by"), "got: {src}");
+        assert!(!src.contains("example"));
+
+        let (src2, name2) = ensure_named("import Mathlib\n\ntheorem foo (n : ℕ) : n = n := by", "x");
+        assert_eq!(name2, "foo");
+        assert!(src2.contains("theorem foo (n : ℕ) : n = n := by")); // unchanged
+
+        let (_, name3) = ensure_named("import Mathlib\ntheorem helper : True := by trivial\ntheorem tgt : True := by", "y");
+        assert_eq!(name3, "tgt");
+    }
+
+    // THE soundness gate against the real prover: the axiom gate catches what the string ban cannot.
+    #[test]
+    fn axiom_gate_beats_string_ban() {
+        let (lean, mathlib, lp) = match toolchain() {
+            Some(t) => t,
+            None => { eprintln!("SKIP axiom_gate_beats_string_ban: set MATHLIB_DIR to a Lean+Mathlib checkout to run it"); return; }
+        };
+
+        // (A) CLEAN: axiom set ⊆ allowlist (propext) → PASSES.
+        let (ok, cls) = verify_pool_err(
+            "import Mathlib\n\ntheorem t_clean (n : ℕ) : n + 0 = n := by", "simp",
+            &lean, &mathlib, &lp, "ut_clean");
+        assert!(ok, "a propext/Quot.sound proof must pass the axiom gate (class={cls})");
+        assert_eq!(cls, "none");
+
+        // (B) SORRY smuggled via a PREAMBLE helper: the body is `exact t_helper`, so the body string-ban
+        // (which scans the body only) does NOT fire. Rejection must come from the AXIOM GATE (sorryAx).
+        let (ok, cls) = verify_pool_err(
+            "import Mathlib\n\ntheorem t_helper : (2 : Nat) = 3 := by sorry\ntheorem t_sm : (2 : Nat) = 3 := by",
+            "exact t_helper", &lean, &mathlib, &lp, "ut_sorry");
+        assert!(!ok, "a sorry-backed proof must be rejected");
+        assert_ne!(cls, "bypass", "must NOT be caught by the body string-ban — that would miss the point");
+        assert_eq!(cls, "sorry_axiom", "must be rejected specifically by the axiom gate (sorryAx)");
+
+        // (C) NONSTANDARD AXIOM: a hand-declared axiom compiles with NO error and NO sorry, so the OLD
+        // exit-success + string-ban gate would WRONGLY accept it. Only the allowlist rejects it.
+        let (ok, cls) = verify_pool_err(
+            "import Mathlib\n\naxiom ut_cheat : (2 : Nat) = 3\ntheorem t_ax : (2 : Nat) = 3 := by",
+            "exact ut_cheat", &lean, &mathlib, &lp, "ut_axiom");
+        assert!(!ok, "a hand-axiom proof must be rejected by the axiom gate");
+        assert_eq!(cls, "nonstandard_axiom");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Guards the money path: every roster model bills at ITS published rate, the most-specific row
+    // wins, and the arithmetic stays integer. If a future edit reorders MODEL_RATES so a catch-all
+    // shadows a specific row (e.g. bare "deepseek" before "deepseek-ai/DeepSeek-V3.2"), this fails.
+    #[test]
+    fn call_micro_usd_bills_each_model_at_its_true_rate() {
+        // strong SiliconFlow models — NOT the deepseek-chat proxy (the bug this table fixes).
+        assert_eq!(call_micro_usd("deepseek-ai/DeepSeek-V3.2", 1_000_000, 0), 270_000);
+        assert_eq!(call_micro_usd("deepseek-ai/DeepSeek-V3.2", 0, 1_000_000), 410_000);
+        assert_eq!(call_micro_usd("Qwen/Qwen3-32B", 1_000_000, 1_000_000), 140_000 + 570_000);
+        assert_eq!(call_micro_usd("Qwen/Qwen2.5-72B-Instruct", 0, 1_000_000), 590_000);
+        // ordering guard: "deepseek-reasoner" contains both "reasoner" and "deepseek"; reasoner row wins.
+        assert_eq!(call_micro_usd("deepseek-reasoner", 0, 1_000_000), 2_190_000);
+        assert_eq!(call_micro_usd("deepseek-chat", 0, 1_000_000), 1_100_000);
+        // ordering guard (OBL-012 / v4 workhorse): "deepseek-v4-pro" CONTAINS the bare "deepseek"
+        // catch-all substring — its specific row MUST win, or the flagship under-bills at $0.27/$1.10.
+        assert_eq!(call_micro_usd("deepseek-v4-pro", 1_000_000, 0), 435_000);
+        assert_eq!(call_micro_usd("deepseek-v4-pro", 0, 1_000_000), 870_000);
+        assert_eq!(call_micro_usd("deepseek-v4-flash", 1_000_000, 0), 140_000);
+        assert_eq!(call_micro_usd("deepseek-v4-flash", 0, 1_000_000), 280_000);
+        // unknown id → labeled fallback, never a strong-model rate by accident.
+        assert_eq!(
+            call_micro_usd("Qwen/Qwen3-Coder-30B-A3B-Instruct", 0, 1_000_000),
+            FALLBACK_OUT_UPMT
+        );
+        // integer-only, sub-1M scaling: 500k output tok of V3.2 = 410_000 * 500_000 / 1_000_000.
+        assert_eq!(call_micro_usd("deepseek-ai/DeepSeek-V3.2", 0, 500_000), 205_000);
+    }
 }

@@ -1,0 +1,5 @@
+seed1 tasks=24 sybils=6 closed=24 sybil_routed=0 replay_green=True
+seed2 tasks=24 sybils=6 closed=24 sybil_routed=0 replay_green=True
+seed3 tasks=24 sybils=6 closed=24 sybil_routed=0 replay_green=True
+seed4 tasks=24 sybils=6 closed=24 sybil_routed=0 replay_green=True
+seed5 tasks=24 sybils=6 closed=24 sybil_routed=0 replay_green=True

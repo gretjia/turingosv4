@@ -1,0 +1,40 @@
+{
+  "preregistration": "TuringOS EMERGE Stage-1 — heterogeneous strong-model capability study on the real 44-theorem Mathlib pool",
+  "date": "2026-05-31",
+  "locked_before_reading_any_result": true,
+  "supersedes_belief": "An earlier single-model difficulty read said the 44-pool had only 1 headroom theorem and a fresh graduate band had to be curated. That conclusion was a HARNESS-BUG ARTIFACT (JSON-parse drop of multi-line proofs + theorem-name corruption, both fixed in commit 9437334f). The corrected read (deepseek-reasoner, k=4) gives union 17/44, mean_p 0.18, and 16 theorems in the headroom band p in (0,1) — enough to run Stage-1 on the existing real-Mathlib pool without curating.",
+
+  "architect_directive": "(1) validate BOTH verifier-coverage AND heterogeneous strong-model combination, in one Stage-1 run; (2) workhorse = STRONG models (reasoner / V3.2 / 32B+); (3) 2026-05-31: add deepseek-v4-pro via the DeepSeek OFFICIAL API channel and exercise the multi-API-channel — all calls must be de-branded, de-channel, generic (future: many brands).",
+
+  "thesis_under_test": {
+    "A_verifier_coverage": "With a Lean verifier picking ANY correct sample, does temperature sampling raise solve-rate above single-shot? pass@k = 1-(1-p)^k has no 1/2 ceiling (unlike majority vote). The architect's high-temperature 'lucky-guess' question is rational iff p>0 and pass@k climbs.",
+    "B_heterogeneous_combination": "Do heterogeneous STRONG models (different training families -> complementary errors, Hong-Page diversity D>0) cover more theorems together than the best single model at equal per-model budget? This is the open lane: all frontier provers (AlphaProof, Seed-Prover, DeepSeek-Prover-V1.5/V2) are single-backbone / same-family; cross-family combination is untested."
+  },
+
+  "models_3_strong_2_channels": {
+    "deepseek-v4-pro": "DeepSeek OFFICIAL API channel (api.deepseek.com) — the new flagship; bare id routes there via llm_proxy.py::detect_provider",
+    "deepseek-ai/DeepSeek-V3.2": "SiliconFlow channel (api.siliconflow.cn) — prior-gen 671B MoE; slash-form id routes there",
+    "Qwen/Qwen3-32B": "SiliconFlow channel — Qwen family = the load-bearing CROSS-FAMILY diversity (DeepSeek vs Qwen)"
+  },
+  "multi_api_channel": "Calls go through ONE generic local gateway (http://localhost:8123, src/drivers/llm_proxy.py). The calling harness (src/bin/lean_emergence.rs) is DE-BRANDED: it sends only model-id strings to one OpenAI-compatible endpoint and never names a channel. Channel routing is centralized in the gateway's PROVIDERS registry + detect_provider() + the explicit provider:model escape hatch. Adding a future brand = one PROVIDERS row, zero caller change. Verified 2026-05-31: bare deepseek-v4-pro returns a real Lean proof via the official channel; de-branded grep of src/bin/ shows the study harness names zero channels.",
+
+  "task_suite": "tests/fixtures/lean_theorems_pool.jsonl — full 44 real Mathlib theorems (NOT pre-filtered by any one model's success, so 'model A solves what the globally-best model cannot' is detectable). Reference proofs Lean-verified, never shown to agents.",
+
+  "run_config": { "k_samples": 4, "max_rounds": 2, "temperature": 0.8, "axiom_whitelist": ["propext", "Classical.choice", "Quot.sound"], "out": "/tmp/emerge_stage1.json" },
+
+  "honesty_gates": [
+    "every counted solve re-verifies Lean-clean with #print axioms footprint subset of the whitelist (rejects sorryAx + native_decide trust axioms) — verify_axiom_clean in-harness",
+    "per-(model,theorem) hit count over k draws is the raw datum; p_hat = hits/k; no single-best-run cherry-pick"
+  ],
+
+  "decision_rules_locked": {
+    "A_coverage_validated_if": "for >= 1 model, empirical pass@4 (1-(1-p_hat)^4 aggregated, OR union-over-4-draws solve count) exceeds pass@1 by a real margin on the headroom band — i.e. sampling + Lean rescues theorems a single shot misses.",
+    "B_combination_validated_if": "union(3 models) solved-count > best-single-model solved-count on the shared 44-pool, AND >= 1 CONCRETE complementary theorem exists (solved by a model that is NOT the globally-best single model). Reported as the count and the explicit theorem ids.",
+    "B_null_if": "union approx equals best-single (the strongest model dominates; heterogeneity buys ~0 coverage) — report honestly; consistent with same-evidence D approx 0, and would steer toward depth (thinking-mode / tree-search) over breadth.",
+    "combination_target_set_for_stage2": "theorems solved by exactly one model (or by a strict subset that excludes the globally-best) = the heterogeneity payload. Stage-2 (combination vs coverage vs homogeneous) runs ONLY if this set has >= 3 theorems."
+  },
+
+  "stage2_gate": "Proceed to EMERGE Stage-2 (combination economy vs pure coverage vs homogeneous-ensemble, under TuringOS price routing) iff B is validated with a combination-target set of >= 3 theorems. Otherwise Stage-1 is itself the finding (coverage works / combination null), and the next move is depth not breadth.",
+
+  "discipline": "FC1/FC2/FC3 untouched; no section-6 surface; integer money; PR-only; de-branded/de-channel calling; result read only AFTER this file is committed."
+}

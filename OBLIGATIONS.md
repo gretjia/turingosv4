@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, OBL-009, OBL-010, and OBL-011 are satisfied. OBL-010: G0 market activation 11/11 by real run + replay (PR #216). OBL-011: G1 live-LLM agent market reaches OMEGA (permissive + strict verifier) with real price discovery, plus G2 scale curve N=4/8/16/30 (PPUT~120, scale-flat) and cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, OBL-009, OBL-010, OBL-011, and OBL-012 are satisfied. OBL-012: lean_hayek_market `call_micro_usd` now bills each roster model at its true published per-model price (per-1M-token integer micro-USD table, most-specific-first match + labeled fallback), fixing the silent deepseek-chat-proxy mispricing of heterogeneous strong models (Class 1–2; guard unit test PASS). OBL-010: G0 market activation 11/11 by real run + replay (PR #216). OBL-011: G1 live-LLM agent market reaches OMEGA (permissive + strict verifier) with real price discovery, plus G2 scale curve N=4/8/16/30 (PPUT~120, scale-flat) and cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
 
 ---
 
@@ -152,3 +152,12 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Last-touched: 2026-05-30
 - Next action: architect picks A/B/C in the §8 proposal → implement multi-node priced DAG → 11/11; then G1 real-Docker capability.
 - Last-touched: 2026-05-29
+
+## OBL-012: lean_hayek_market 成本函数按真实 per-model 价格计费（异构强模型不再以 deepseek-chat 代理价误算）
+- Source: 架构师 2026-05-31 — "call_micro_usd 只分两档（含 reasoner → reasoner 价；else → deepseek-chat 回退），任何非 DeepSeek 模型（如 Qwen/Qwen3-32B、deepseek-ai/DeepSeek-V3.2、Qwen/Qwen2.5-72B-Instruct）都被静默按 deepseek-chat \$0.27/\$1.10 计费——money-path 正确性 bug（宪法 §12 诚实整数成本）。为 harness 真正会调用的强模型加入 per-1M-token 整数 micro-USD in/out 常量，用小表按 model 串匹配（最具体优先 + 明确 fallback），全整数（money path 无 f64），价格取自 provider 公布定价并在代码注释引用。任何 cost-per-solved / banked-per-dollar 头条指标必须用真实 per-model 价格。"
+- Level: must
+- Status: satisfied
+- Risk class: 1–2（诊断 bin 的成本/指标路径；非 §6 受限面、非权威经济状态；宪法 §12 整数 money 规则适用且已保持）
+- Evidence: `src/bin/lean_hayek_market.rs` —— 新增 `MODEL_RATES` 表（slash-form id 经 `llm_proxy.detect_provider` 路由 api.siliconflow.cn → 取 SiliconFlow 公布 USD list price；bare `deepseek-*` → api.deepseek.com baseline pin）+ 明确 `FALLBACK_IN/OUT_UPMT` + `call_micro_usd` 改为最具体优先匹配，算术全整数。价格 2026-05-31 核实并在注释引用：DeepSeek-V3.2 \$0.27/\$0.41、Qwen3-32B \$0.14/\$0.57、Qwen2.5-72B-Instruct \$0.59/\$0.59（siliconflow.com 各 model 页 + 公告）。守序 guard 单测 `tests::call_micro_usd_bills_each_model_at_its_true_rate` PASS（`cargo test --bin lean_hayek_market` → 1 passed; 0 failed；bin 干净编译，未引入新 warning）。
+- Open decision（非阻塞，待架构师定夺，未静默改动）: DeepSeek 官方已将 deepseek-chat/deepseek-reasoner 归并入 deepseek-v4-flash（\$0.28 in cache-miss / \$0.28 out），现有 reasoner \$0.55/\$2.19、chat \$0.27/\$1.10 baseline 行相对官方现价已过期；为保历史 banked-per-dollar tape 可比，本次故意保留旧 baseline。是否 re-pin（及 deepseek-reasoner 是否应指 v4-pro \$0.435/\$0.87promo｜\$1.74/\$3.48）由架构师决定，可开 OBL-013。
+- Last-touched: 2026-05-31
