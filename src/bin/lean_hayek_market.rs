@@ -45,6 +45,18 @@ const MIN_STAKE_MICRO: i64 = 1_000;
 const MAX_STAKE_MICRO: i64 = 40_000;
 const ALPHA_MICRO: i64 = 1_000; // Laplace smoothing α (in micro units), so empty claim → p=0.5
 
+// Pinned DeepSeek rates, integer micro-USD per 1M tokens (cost path is integer-only, no f64).
+// deepseek-chat ~$0.27/$1.10 in/out; deepseek-reasoner ~$0.55/$2.19 in/out per 1M tok.
+const CHAT_IN_UPMT: i64 = 270_000;   // micro-USD per 1M prompt tokens (chat)
+const CHAT_OUT_UPMT: i64 = 1_100_000;
+const REASONER_IN_UPMT: i64 = 550_000;
+const REASONER_OUT_UPMT: i64 = 2_190_000;
+/// integer micro-USD for a call, by model (the real dollar cost — the scarce resource's denominator).
+fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 {
+    let (i, o) = if model.contains("reasoner") { (REASONER_IN_UPMT, REASONER_OUT_UPMT) } else { (CHAT_IN_UPMT, CHAT_OUT_UPMT) };
+    (prompt_tok as i64 * i + completion_tok as i64 * o) / 1_000_000
+}
+
 /// confidence (0..100) → integer stake, sized by belief, capped to wallet. The capital an agent
 /// is willing to LOSE if its proof fails — honest skin in the game.
 fn stake_from_confidence(confidence_pct: u64, wallet: i64) -> i64 {
@@ -60,7 +72,7 @@ enum MarketEvent {
     MarketOpen { claim: usize, claim_type: String },
     Invest { agent: usize, claim: usize, side: String, amount_micro: i64, model_hash: String, confidence: u64 },
     Proposal { agent: usize, claim: usize, output_hash: String },
-    LlmCall { model: String, tokens: u64 },
+    LlmCall { model: String, prompt_tokens: u64, completion_tokens: u64 },
     Verify { claim: usize, verdict: bool, reject_class: String },
     RouteSample { policy: String, frontier_hash: String, selected_claim: usize },
     Resolve { claim: usize, outcome: String },
@@ -85,7 +97,7 @@ impl MarketTape {
             MarketEvent::MarketOpen { claim, claim_type } => self.append("MarketOpen", serde_json::json!({"claim":claim,"claim_type":claim_type})),
             MarketEvent::Invest { agent, claim, side, amount_micro, model_hash, confidence } => self.append("Invest", serde_json::json!({"agent":agent,"claim":claim,"side":side,"amount_micro":amount_micro,"model_hash":model_hash,"confidence":confidence})),
             MarketEvent::Proposal { agent, claim, output_hash } => self.append("Proposal", serde_json::json!({"agent":agent,"claim":claim,"output_hash":output_hash})),
-            MarketEvent::LlmCall { model, tokens } => self.append("LLMCall", serde_json::json!({"model":model,"tokens":tokens})),
+            MarketEvent::LlmCall { model, prompt_tokens, completion_tokens } => self.append("LLMCall", serde_json::json!({"model":model,"prompt_tokens":prompt_tokens,"completion_tokens":completion_tokens})),
             MarketEvent::Verify { claim, verdict, reject_class } => self.append("Verify", serde_json::json!({"claim":claim,"verdict":verdict,"reject_class":reject_class})),
             MarketEvent::RouteSample { policy, frontier_hash, selected_claim } => self.append("RouteSample", serde_json::json!({"policy":policy,"frontier_hash":frontier_hash,"selected_claim":selected_claim})),
             MarketEvent::Resolve { claim, outcome } => self.append("Resolve", serde_json::json!({"claim":claim,"outcome":outcome})),
@@ -208,7 +220,39 @@ fn extract(s: &str, key: &str) -> Option<serde_json::Value> {
 }
 fn short_hash(s: &str) -> String { let mut h = Sha256::new(); h.update(s.as_bytes()); format!("{:x}", h.finalize())[..12].to_string() }
 
-struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf> }
+// ── pool theorem (for LEAN-ALLOC). reference_body is SELF-TEST ONLY — never shown to agents. ──
+struct PoolThm { id: String, preamble: String } // preamble ends with ":= by"
+fn load_pool(path: &str, subset: usize) -> Vec<PoolThm> {
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let t = line.trim();
+        if t.is_empty() || t.starts_with("//") { continue; }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
+            if let (Some(id), Some(pre)) = (v["id"].as_str(), v["preamble"].as_str()) {
+                out.push(PoolThm { id: id.into(), preamble: pre.into() });
+            }
+        }
+    }
+    if subset > 0 && subset < out.len() { out.truncate(subset); }
+    out
+}
+/// Verify a full pool theorem (preamble + candidate body) under Lean + axiom-clean (no sorryAx).
+fn verify_pool(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> bool {
+    let low = body.to_lowercase();
+    if low.contains("sorry") || low.contains("admit") || low.contains("native_decide") { return false; }
+    let indented: String = body.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n");
+    let src = format!("{preamble}\n{indented}\n");
+    let file = std::env::temp_dir().join(format!("alloc_{tag}.lean"));
+    if std::fs::write(&file, &src).is_err() { return false; }
+    match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
+        Ok(o) => { let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
+            o.status.success() && !t.contains("error") && !t.contains("sorry") }
+        Err(_) => false,
+    }
+}
+
+struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64 }
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
     let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
@@ -227,6 +271,8 @@ fn parse_args() -> Result<Args, String> {
         mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
         out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/hayek.json".into()),
         tape_out: get("--tape-out").map(Into::into),
+        pool_subset: get("--pool-subset").and_then(|s| s.parse().ok()).unwrap_or(0),
+        reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(5000),
     })
 }
 
@@ -268,6 +314,161 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     items[items.len() - 1]
 }
 
+/// LEAN-ALLOC — the decisive economy benchmark: price allocates the SCARCE EXPENSIVE resource
+/// (deepseek-reasoner repair budget). The literal Hayek thesis, measured as VERIFIED THEOREMS BANKED
+/// PER REASONER-DOLLAR. Cheap chat + Lean are ~free; the reasoner is the genuine ~10x cost, so pricing
+/// WHICH failed proof earns a reasoner repair is where price has real economic content.
+///
+/// Per run (one seed, one arm):
+///  1. cheap propose + FREE bank: k chat agents propose per theorem; Lean-verify; banked-free if any passes.
+///  2. residual = unsolved theorems (each carries its best failed chat attempt).
+///  3. assess + price: per residual, heterogeneous bettors (chat + 1 reasoner) stake loss-bearing capital
+///     YES/NO on "a reasoner repair will compile" → price_t = (YES+α)/(YES+NO+2α).
+///  4. price-triaged reasoner REPAIR under a fixed reasoner-completion-token budget B: spend repairs in
+///     the ARM's order (price-descending / random / shuffled / confidence) until B exhausted; Lean-verify each.
+///  5. settle: reasoner-clean → YES wins (split NO pool); fail/unreached → YES forfeits.
+/// Metric: axiom-clean theorems banked / reasoner-completion-ktok. Money integer; f64 only in routing.
+async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let pool_path = args.task.strip_prefix("pool:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
+    let pool = load_pool(pool_path, args.pool_subset);
+    if pool.is_empty() { return Err("empty pool".into()); }
+    let reasoner = "deepseek-reasoner";
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    let mut reasoner_completion_tok = 0u64; let mut chat_completion_tok = 0u64;
+    let mut micro_usd = 0i64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
+    let mut banked: BTreeSet<String> = BTreeSet::new();
+    let stmt = |pre: &str| pre.trim_end().trim_end_matches(":= by").trim().to_string();
+
+    // helper closure can't be async; inline the LLM call. propose with chat.
+    let k_propose = 4usize;
+    let mut residual: Vec<(usize, String, String)> = Vec::new(); // (pool_idx, best_failed_body, lean_err_class)
+
+    // ── PHASE 1: cheap chat propose + free Lean bank ──
+    for (ti, thm) in pool.iter().enumerate() {
+        tape.record(&MarketEvent::MarketOpen { claim: ti, claim_type: "pool".into() });
+        let mut best_fail: Option<String> = None;
+        let mut solved_free = false;
+        for ai in 0..k_propose {
+            let temp = 0.2 + 0.12 * ai as f64;
+            let prompt = format!("Prove this Lean 4 (Mathlib) theorem. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.\n\n{} := by", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(500) }).await {
+                Ok(r) => { llm_calls += 1; chat_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Err(_) => continue,
+            };
+            let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() && t.to_uppercase() != "SKIP" => t.trim().to_string(), _ => continue };
+            lean_calls += 1;
+            if verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_free_{}_{}", args.seed, args.policy, ti, ai)) {
+                banked.insert(thm.id.clone());
+                tape.record(&MarketEvent::Verify { claim: ti, verdict: true, reject_class: "none".into() });
+                tape.record(&MarketEvent::Resolve { claim: ti, outcome: "YES_FREE".into() });
+                solved_free = true; break;
+            } else { best_fail = Some(tac); }
+        }
+        if !solved_free {
+            if let Some(bf) = best_fail { residual.push((ti, bf, "lean_rejected".into())); }
+        }
+    }
+
+    // A_SOLO: skip the market entirely — give the whole reasoner budget to ONE reasoner, sequential.
+    if args.policy == "solo" {
+        for (ti, _bf, _e) in &residual {
+            if reasoner_completion_tok >= args.reasoner_budget_tok { break; }
+            let thm = &pool[*ti];
+            let prompt = format!("Prove this Lean 4 (Mathlib) theorem. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.\n\n{} := by", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: reasoner.into(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(600) }).await {
+                Ok(r) => { llm_calls += 1; reasoner_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(reasoner, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: reasoner.into(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Err(_) => continue,
+            };
+            if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) {
+                lean_calls += 1;
+                if verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_solo_{}", args.seed, ti)) {
+                    banked.insert(thm.id.clone());
+                    tape.record(&MarketEvent::Verify { claim: *ti, verdict: true, reject_class: "none".into() });
+                }
+            }
+        }
+        return finish_alloc(args, &tape, &banked, &pool, residual.len(), reasoner_completion_tok, chat_completion_tok, micro_usd, llm_calls, lean_calls, t0.elapsed().as_secs_f64());
+    }
+
+    // ── PHASE 2: assess + price each residual (heterogeneous bettors: chat + 1 reasoner) ──
+    let n_bettors = 4usize;
+    let mut yes = vec![0i64; residual.len()]; let mut no = vec![0i64; residual.len()];
+    let mut conf_sum = vec![0i64; residual.len()]; // proposer-confidence proxy for A_CONFGREEDY
+    for (ri, (ti, body, _e)) in residual.iter().enumerate() {
+        let thm = &pool[*ti];
+        for bi in 0..n_bettors {
+            let bettor_m = if bi == n_bettors - 1 { reasoner.to_string() } else { args.model.clone() }; // 1 reasoner assessor
+            let prompt = format!("Assess this candidate Lean 4 proof of `{}`:\n```\n{body}\n```\nWill a careful REPAIR of this attempt compile in Lean4+Mathlib? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
+                Ok(r) => { llm_calls += 1; if bettor_m.contains("reasoner") { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Err(_) => continue,
+            };
+            let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
+            let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
+            let stake = stake_from_confidence(conf, WALLET_BUDGET_MICRO);
+            conf_sum[ri] += conf as i64;
+            if stake < MIN_STAKE_MICRO { continue; }
+            let mh = short_hash(&format!("{bettor_m}:{bi}"));
+            if verdict == "YES" { yes[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "YES".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
+            else if verdict == "NO" { no[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "NO".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
+        }
+    }
+    let price_pm: Vec<i64> = (0..residual.len()).map(|ri| price_yes_permille(yes[ri], no[ri])).collect();
+
+    // ── PHASE 3: order residual by the ARM's policy, spend reasoner repair budget B ──
+    let mut order: Vec<usize> = (0..residual.len()).collect();
+    match args.policy.as_str() {
+        "market" => order.sort_by(|&a, &b| price_pm[b].cmp(&price_pm[a])),         // price-descending (the economy)
+        "shuffled" => { let mut p = price_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } order.sort_by(|&a,&b| p[b].cmp(&p[a])); } // price permuted → causality probe
+        "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i,j); } } // no price
+        "confgreedy" => order.sort_by(|&a, &b| conf_sum[b].cmp(&conf_sum[a])),       // raw confidence, no market
+        _ => {} // roundrobin = index order
+    }
+    let frontier_h = short_hash(&format!("{:?}{:?}", order, price_pm));
+    for &ri in &order {
+        if reasoner_completion_tok >= args.reasoner_budget_tok { break; }
+        let (ti, body, err) = &residual[ri];
+        let thm = &pool[*ti];
+        tape.record(&MarketEvent::RouteSample { policy: args.policy.clone(), frontier_hash: frontier_h.clone(), selected_claim: ri });
+        let prompt = format!("Repair this failed Lean 4 (Mathlib) proof attempt of `{}` (it gave: {err}).\nFailed attempt:\n```\n{body}\n```\nOutput a CORRECT proof as JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.", stmt(&thm.preamble));
+        let resp = match llm.generate(&GenerateRequest { model: reasoner.into(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(600) }).await {
+            Ok(r) => { llm_calls += 1; reasoner_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(reasoner, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: reasoner.into(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+            Err(_) => continue,
+        };
+        let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() => t.trim().to_string(), _ => continue };
+        lean_calls += 1;
+        let ok = verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_rep_{}", args.seed, args.policy, ti));
+        tape.record(&MarketEvent::Verify { claim: *ti, verdict: ok, reject_class: if ok { "none".into() } else { "reasoner_failed".into() } });
+        if ok { banked.insert(thm.id.clone()); tape.record(&MarketEvent::Resolve { claim: ri, outcome: "YES".into() }); }
+        else { tape.record(&MarketEvent::Resolve { claim: ri, outcome: "NO".into() }); }
+    }
+    finish_alloc(args, &tape, &banked, &pool, residual.len(), reasoner_completion_tok, chat_completion_tok, micro_usd, llm_calls, lean_calls, t0.elapsed().as_secs_f64())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish_alloc(args: &Args, tape: &MarketTape, banked: &BTreeSet<String>, pool: &[PoolThm], residual: usize, reasoner_ct: u64, chat_ct: u64, micro_usd: i64, llm_calls: usize, lean_calls: usize, wall: f64) -> Result<(), String> {
+    let chain_ok = tape.verify_chain();
+    // primary metric: banked per reasoner-completion-kilotoken (×1000 for integer-friendly reporting).
+    let per_rk = if reasoner_ct > 0 { (banked.len() as f64) / (reasoner_ct as f64 / 1000.0) } else { 0.0 };
+    let manifest = serde_json::json!({
+        "schema": "lean_hayek_alloc.v1", "policy": args.policy, "pool_size": pool.len(),
+        "banked": banked.len(), "banked_ids": banked.iter().collect::<Vec<_>>(), "residual": residual,
+        "reasoner_completion_tokens": reasoner_ct, "chat_completion_tokens": chat_ct,
+        "reasoner_budget_tok": args.reasoner_budget_tok, "micro_usd": micro_usd,
+        "banked_per_reasoner_ktok": per_rk, "seed": args.seed,
+        "llm_calls": llm_calls, "lean_calls": lean_calls, "tape_chain_ok": chain_ok, "tape_events": tape.lines.len(), "wall_s": wall,
+    });
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    println!(
+        "alloc[{}] banked={}/{} residual={} reasoner_tok={}/{} micro_usd={} per_rktok={:.3} chain_ok={} wall={:.1}s",
+        args.policy, banked.len(), pool.len(), residual, reasoner_ct, args.reasoner_budget_tok, micro_usd, per_rk, chain_ok, wall
+    );
+    Ok(())
+}
+
 /// COMPETE mode — the H2-testable structure. N agents each propose a proof of ONE hard goal; the
 /// proofs differ in TRUE value (model miscalibration). Each proof is a tradeable item; agents place
 /// YES/NO capital bets on proofs (peer assessment, loss-bearing). Under a SCARCE verify budget the
@@ -288,7 +489,7 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
         let temp = 0.2 + 0.12 * ai as f64; // spread temperature → genuine proof-quality variance
         let prompt = format!("You are a Lean 4 (Mathlib) prover. Context binds `(n:ℕ)(a b:ℝ)`.\n\nProve:\n{goal}\n\nOutput JSON {{\"tactic\":\"<proof body, one or more tactics>\",\"confidence\":0-100}}. confidence = how sure you are it COMPILES (you LOSE staked capital if it fails). No `sorry`/`admit`.");
         let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(400) }).await {
-            Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+            Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
             Err(_) => continue,
         };
         if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) {
@@ -315,7 +516,7 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
             // makes the price informative. Even bettor indices use the proposer model; odd use bettor_model.
             let bettor_m = if bi % 2 == 1 { args.bettor_model.clone() } else { args.model.clone() };
             let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
-                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
                 Err(_) => continue,
             };
             let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
@@ -384,6 +585,10 @@ async fn main() -> Result<(), String> {
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() { return Err("Mathlib LEAN_PATH unresolved".into()); }
 
+    // LEAN-ALLOC mode: price allocates the scarce reasoner-repair budget over a real theorem pool.
+    if args.task.starts_with("pool") {
+        return run_alloc(&args, &llm, &lean_bin, &lp).await;
+    }
     // COMPETE mode: one hard goal, many proofs of varying TRUE quality, scarce verify budget,
     // price routes WHICH PROOF to verify. This is the task structure that can test H2.
     if args.task.starts_with("cmp_") {
@@ -429,7 +634,7 @@ async fn main() -> Result<(), String> {
             let role = match fam { Some(f) => format!("You are a SPECIALIST. {}", family_hint(f)), None => "You are a generalist Lean 4 prover; use any single appropriate tactic.".into() };
             let prompt = format!("{role}\n\nProve this Lean 4 (Mathlib) goal (context binds `(n:ℕ)(a b:ℝ)`):\n{goal}\n\nIf you can close it, output JSON {{\"tactic\":\"<proof body>\",\"confidence\":0-100}} where confidence is how SURE you are it compiles (you will LOSE staked capital if it fails). If it is not your specialty, output {{\"tactic\":\"SKIP\"}}. No `sorry`.");
             let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(400) }).await {
-                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), tokens: (r.prompt_tokens + r.completion_tokens) as u64 }); r }
+                Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
                 Err(_) => continue,
             };
             let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) {
