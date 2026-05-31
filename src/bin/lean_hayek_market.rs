@@ -239,16 +239,33 @@ fn load_pool(path: &str, subset: usize) -> Vec<PoolThm> {
 }
 /// Verify a full pool theorem (preamble + candidate body) under Lean + axiom-clean (no sorryAx).
 fn verify_pool(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> bool {
+    verify_pool_err(preamble, body, lean_bin, mathlib_dir, lp, tag).0
+}
+/// As verify_pool but also returns a coarse error CLASS — a PREDICTABLE proximity-to-correct signal an
+/// assessor can read (a near-miss vs a far-miss), so the market price can discriminate repair-EV.
+/// Returns (verified, error_class). Classes ordered roughly near→far:
+///   "unsolved_goals" (proof shape right, goals left) > "type_mismatch" (close) > "rewrite_failed"
+///   > "unknown_id" (wrong lemma name) > "parse" (malformed) > "none" (verified) / "other".
+fn verify_pool_err(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> (bool, String) {
     let low = body.to_lowercase();
-    if low.contains("sorry") || low.contains("admit") || low.contains("native_decide") { return false; }
+    if low.contains("sorry") || low.contains("admit") || low.contains("native_decide") { return (false, "bypass".into()); }
     let indented: String = body.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n");
     let src = format!("{preamble}\n{indented}\n");
     let file = std::env::temp_dir().join(format!("alloc_{tag}.lean"));
-    if std::fs::write(&file, &src).is_err() { return false; }
+    if std::fs::write(&file, &src).is_err() { return (false, "io".into()); }
     match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
-        Ok(o) => { let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
-            o.status.success() && !t.contains("error") && !t.contains("sorry") }
-        Err(_) => false,
+        Ok(o) => {
+            let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
+            if o.status.success() && !t.contains("error") && !t.contains("sorry") { return (true, "none".into()); }
+            let class = if t.contains("unsolved goals") { "unsolved_goals" }
+                else if t.contains("type mismatch") { "type_mismatch" }
+                else if t.contains("rewrite") || t.contains("motive is not type correct") { "rewrite_failed" }
+                else if t.contains("unknown identifier") || t.contains("unknown constant") { "unknown_id" }
+                else if t.contains("unexpected token") || t.contains("expected") { "parse" }
+                else { "other" };
+            (false, class.into())
+        }
+        Err(_) => (false, "exec".into()),
     }
 }
 
@@ -348,7 +365,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     // ── PHASE 1: cheap chat propose + free Lean bank ──
     for (ti, thm) in pool.iter().enumerate() {
         tape.record(&MarketEvent::MarketOpen { claim: ti, claim_type: "pool".into() });
-        let mut best_fail: Option<String> = None;
+        let mut best_fail: Option<(String, String)> = None; // (proof body, error class)
         let mut solved_free = false;
         for ai in 0..k_propose {
             let temp = 0.2 + 0.12 * ai as f64;
@@ -359,15 +376,21 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             };
             let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() && t.to_uppercase() != "SKIP" => t.trim().to_string(), _ => continue };
             lean_calls += 1;
-            if verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_free_{}_{}", args.seed, args.policy, ti, ai)) {
+            let (ok, eclass) = verify_pool_err(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_{}_free_{}_{}", args.seed, args.policy, ti, ai));
+            if ok {
                 banked.insert(thm.id.clone());
                 tape.record(&MarketEvent::Verify { claim: ti, verdict: true, reject_class: "none".into() });
                 tape.record(&MarketEvent::Resolve { claim: ti, outcome: "YES_FREE".into() });
                 solved_free = true; break;
-            } else { best_fail = Some(tac); }
+            } else {
+                // keep the NEAREST-miss attempt (best error class), not just the last — gives the
+                // market a real proximity-to-correct signal to price.
+                let rank = |c: &str| match c { "unsolved_goals" => 5, "type_mismatch" => 4, "rewrite_failed" => 3, "unknown_id" => 2, "parse" => 1, _ => 0 };
+                if best_fail.as_ref().map_or(true, |(_, ec)| rank(&eclass) > rank(ec)) { best_fail = Some((tac, eclass)); }
+            }
         }
         if !solved_free {
-            if let Some(bf) = best_fail { residual.push((ti, bf, "lean_rejected".into())); }
+            if let Some((bf, ec)) = best_fail { residual.push((ti, bf, ec)); }
         }
     }
 
@@ -400,7 +423,9 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
         let thm = &pool[*ti];
         for bi in 0..n_bettors {
             let bettor_m = if bi == n_bettors - 1 { reasoner.to_string() } else { args.model.clone() }; // 1 reasoner assessor
-            let prompt = format!("Assess this candidate Lean 4 proof of `{}`:\n```\n{body}\n```\nWill a careful REPAIR of this attempt compile in Lean4+Mathlib? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.", stmt(&thm.preamble));
+            // surface the Lean error CLASS — a predictable proximity-to-correct signal the market can price.
+            let (_ti2, _b2, eclass) = &residual[ri];
+            let prompt = format!("Assess how CLOSE this failed Lean 4 attempt at `{}` is to a correct proof.\n```\n{body}\n```\nLean rejected it with error class: {eclass} (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Will a careful repair likely succeed? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.", stmt(&thm.preamble));
             let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
                 Ok(r) => { llm_calls += 1; if bettor_m.contains("reasoner") { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
                 Err(_) => continue,

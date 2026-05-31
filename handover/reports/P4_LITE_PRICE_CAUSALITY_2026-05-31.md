@@ -98,3 +98,37 @@ and H4 become jointly testable.
   + compete mode. Liveness 12/12, R-022 green.
 - This report: the honest H2-on-het4 negative + the compete-mode miscalibration finding + the
   heterogeneity decision point.
+
+## Update 2 — LEAN-ALLOC (price allocates the scarce reasoner-repair budget) — honest mixed result
+Per the /goal authorization to ALTER the mechanism toward what proves economy validity, a 4-agent design
+workflow picked the strongest benchmark: price allocates the SCARCE EXPENSIVE resource (deepseek-reasoner
+repair calls), measured as VERIFIED THEOREMS BANKED PER REASONER-DOLLAR (the literal Hayek thesis + the
+product thesis "cheap market beats one strong agent per dollar"). Built `run_alloc` (commit 75a6ee57):
+cheap chat panel + free Lean-bank → residual → heterogeneous-assessor price → reasoner repairs spent in
+the arm's order under a token budget B → settle. Cost split per model, integer micro-USD; replayable tape.
+
+**De-risk MEASURED real:** chat free-banks only 7/44 pool theorems → residual 37 (genuine reasoner headroom).
+
+**Causal smoke (market vs shuffled vs random, SAME 16 theorems, SAME budget, ONLY routing differs, 2 seeds):**
+```
+  random     avg_banked=5.0   per_reasoner_ktok=2.680   <- HIGHEST
+  market     avg_banked=4.0   per_reasoner_ktok=2.164
+  shuffled   avg_banked=3.0   per_reasoner_ktok=1.417
+```
+market > shuffled (price beats destroyed-price) BUT **random ≥ market** — a RED FLAG. If uniform-random
+allocation matches/beats price allocation, the price is NOT the causal advantage. Honest reading: at N=2
+this is market ≈ random ≈ noise; NOT a clean price win.
+
+**Root-cause diagnosis (the real obstacle, same family as het4):** the price was asked to predict "will a
+reasoner repair of this attempt succeed" — but reasoner repair success on this residual has little
+PREDICTABLE variance (it's nearly a coin flip per theorem, uncorrelated with anything an assessor can see),
+so routing order barely matters. No predictable repair-EV variance ⟹ price has nothing to discriminate ⟹
+random ties price. This is the het4 lesson at the allocation layer.
+
+**Next mechanism alteration (authorized; FC/§6 untouched):** make the price predict something an assessor
+CAN judge and that DOES vary — e.g. "how close is this failed attempt to correct" read from the Lean error
+class (a `type mismatch` / `unsolved goals` is near; an `unknown identifier` / parse error is far), and
+tighten the budget so only ~2-3 repairs fit (real scarcity). Only if price then beats BOTH shuffled AND
+random over ≥8 seeds is the economy's causal value proven. If it still ties random, the honest conclusion
+is that on Lean-repair allocation the multi-agent gain (if any) is parallelism, not price — and we report
+that and reframe (auditable substrate, not "price thinks"). Not chasing a tuned win.
