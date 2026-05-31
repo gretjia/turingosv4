@@ -430,27 +430,41 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     let fam_idx = |f: &str| families.iter().position(|x| x == &f).unwrap_or(0);
     let run_policy = |policy: &str, rng: &mut StdRng| -> (i64, Vec<i64>) {
         let mut wealth = vec![100_000i64; na];
+        // conf_learned baseline: a FAIR strong rival — per-(agent,family) running success rate (Laplace),
+        // routes to the best EMPIRICAL performer. This is the real test: does capital-at-risk beat an
+        // adaptive success-tracking router, not just a naive static-confidence one?
+        let mut wins = vec![vec![0i64; families.len()]; na];
+        let mut tries = vec![vec![0i64; families.len()]; na];
         let mut closed = 0i64; let mut rr = 0usize;
         for &task_c in &stream {
             let fi = fam_idx(conj[task_c].1);
-            // each agent's bid for this task.
             let chosen = match policy {
                 "price" => {
-                    // bid = stake ∝ wealth × self-confidence; route to the highest bidder (most capital-at-risk).
-                    // A defunded Sybil (wealth→0) bids ~0 and is never chosen again. Tie-break: highest wealth.
+                    // bid = stake ∝ wealth × self-confidence; route to the highest bidder. A defunded Sybil
+                    // (wealth→0) bids ~0 and is never chosen again.
                     (0..na).max_by_key(|&a| wealth[a].max(0) as i128 * conf[a][fi] as i128).unwrap()
                 }
                 "confidence" => {
-                    // route uniformly among the MAX-confidence claimants (a Sybil flood dominates this pick).
+                    // naive static confidence — uniform among max-confidence claimants (Sybil-flooded).
                     let mx = (0..na).map(|a| conf[a][fi]).max().unwrap();
                     let top: Vec<usize> = (0..na).filter(|&a| conf[a][fi] == mx).collect();
                     top[rng.gen_range(0..top.len())]
+                }
+                "conf_learned" => {
+                    // FAIR strong baseline: route to best (Laplace-smoothed) empirical success rate; explore
+                    // unseen agents first. Tracks realized outcomes just like the market does — but with NO
+                    // capital, so it cannot DEFUND a Sybil, only down-rank it after wasted probes.
+                    (0..na).max_by_key(|&a| {
+                        let w = wins[a][fi]; let t = tries[a][fi];
+                        if t == 0 { 1_000_000i64 } else { (w * 1000) / (t + 1) } // unseen → explore
+                    }).unwrap()
                 }
                 "roundrobin" => { let a = rr % na; rr += 1; a }
                 _ => rng.gen_range(0..na), // random
             };
             let ok = success[chosen][fi];
             if ok { closed += 1; }
+            tries[chosen][fi] += 1; if ok { wins[chosen][fi] += 1; }
             // settle (price arm only): winner's wealth grows, loser's drains — the no-regret reweighting.
             if policy == "price" {
                 let stake = (wealth[chosen].max(0) * conf[chosen][fi] as i64 / 100 / 5).max(1);
@@ -462,7 +476,7 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
 
     let mut results = serde_json::Map::new();
     let mut wealth_price = vec![];
-    for policy in ["price", "confidence", "roundrobin", "random"] {
+    for policy in ["price", "confidence", "conf_learned", "roundrobin", "random"] {
         let mut prng = StdRng::seed_from_u64(args.seed ^ 0x9e3779b9);
         let (closed, wealth) = run_policy(policy, &mut prng);
         results.insert(format!("{policy}_closed"), serde_json::json!(closed));
@@ -482,8 +496,8 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
     if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
     let g = |k: &str| manifest.get(k).and_then(|v| v.as_i64()).unwrap_or(0);
-    println!("reputation[{}tasks] price_closed={} confidence_closed={} roundrobin={} random={} chain_ok={} wall={:.1}s",
-        stream_len, g("price_closed"), g("confidence_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
+    println!("reputation[{}tasks] price={} confidence={} conf_learned={} roundrobin={} random={} chain_ok={} wall={:.1}s",
+        stream_len, g("price_closed"), g("confidence_closed"), g("conf_learned_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
     Ok(())
 }
 

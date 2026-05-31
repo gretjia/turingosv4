@@ -1,0 +1,11 @@
+s3 price=16 conf_learned=10 confidence=11 rr=7 rand=10 chain_ok=True
+s2 price=16 conf_learned=12 confidence=14 rr=9 rand=11 chain_ok=True
+s1 price=16 conf_learned=12 confidence=14 rr=14 rand=9 chain_ok=True
+s4 price=15 conf_learned=9 confidence=10 rr=7 rand=9 chain_ok=True
+s5 price=18 conf_learned=13 confidence=16 rr=11 rand=14 chain_ok=True
+s6 price=17 conf_learned=13 confidence=16 rr=12 rand=10 chain_ok=True
+s8 price=16 conf_learned=11 confidence=14 rr=7 rand=10 chain_ok=True
+s9 price=18 conf_learned=11 confidence=8 rr=9 rand=12 chain_ok=True
+s7 price=17 conf_learned=12 confidence=16 rr=12 rand=12 chain_ok=True
+s10 price=18 conf_learned=13 confidence=14 rr=10 rand=12 chain_ok=True
+REP_DONE
