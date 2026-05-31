@@ -97,6 +97,9 @@ pub fn boltzmann_select_parent_v2<R: Rng>(
     best.map(|t| t.clone())
 }
 
+/// TRACE_MATRIX FC1-N5: price-routed parent selection feeding the rtool read-view (which node's
+/// context the agent fetches next); Boltzmann-softmax attention distribution over node prices.
+///
 /// TRUE Boltzmann (softmax) parent selection — constitution Art. II.2.1 explore/exploit balance.
 ///
 /// `boltzmann_select_parent_v2` above is argmax-by-price (+ epsilon-uniform): pure
