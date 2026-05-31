@@ -342,6 +342,119 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     items[items.len() - 1]
 }
 
+/// REPEATED — the ONE price-causality test the literature says CAN win (researched). Single-shot, a
+/// market price IS a confidence-weighted average (Kelly-bettor theorem, arXiv:1201.6655) — provably no
+/// better than averaging. Capital-at-risk's UNIQUE, provable edge is ACROSS REPEATED ROUNDS with
+/// PERSISTENT WEALTH: accurate bettors' capital compounds, so the wealth-weighted (market) verdict
+/// DYNAMICALLY self-calibrates and is no-regret vs the BEST bettor — WITHOUT knowing who that is in
+/// advance (Chen-Vaughan FTRL O(√T), arXiv:1003.0034). This is also exactly the constitution's intent:
+/// a PERSISTENT ledger across tasks, not a single shot.
+///
+/// Design: a sequence of T proof-verification questions (does proof P_t of goal G_t compile?). N
+/// heterogeneous assessors (different models/temps → genuinely DISPERSED noisy private judgments — the
+/// Hong-Page diversity the prior negatives lacked) each round bet capital YES/NO from a PERSISTENT
+/// wallet; the wealth-weighted market verdict is recorded; Lean settles (ground truth); winners' wealth
+/// compounds. Compare the MARKET verdict's accuracy to (a) the best single assessor, (b) a FIXED-weight
+/// (unweighted) average, (c) a static confidence-weighted average. GO if the market (dynamic wealth
+/// weighting) beats the fixed-weight baselines AND approaches the best single assessor over T rounds —
+/// the no-regret convergence the theory predicts and a static average cannot do without an oracle.
+async fn run_repeated(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    // Heterogeneous assessor pool: distinct (model, temperature) → dispersed noisy judgments.
+    let assessors: Vec<(&str, f64)> = vec![
+        (args.model.as_str(), 0.2), (args.model.as_str(), 0.7),
+        ("deepseek-reasoner", 0.3), (args.model.as_str(), 1.0),
+        ("deepseek-reasoner", 0.6),
+    ];
+    let na = assessors.len();
+    let mut wealth = vec![100_000i64; na];     // PERSISTENT wallets — the load-bearing change
+    let mut correct = vec![0i64; na];          // per-assessor running accuracy (for "best single")
+    let mut total = vec![0i64; na];
+    // Build a sequence of (goal, proof, ground_truth) verification questions from cmp_* goals: for each
+    // goal, generate a few proofs at varied temp and Lean-label them — a stream of real YES/NO questions.
+    let goals = ["cmp_ineq", "cmp_pow", "cmp_amgm", "cmp_sum"];
+    let mut questions: Vec<(String, String, bool)> = Vec::new();
+    let mut tokens = 0u64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
+    for g in goals.iter().cycle().take(args.n_rounds) {
+        let (goal, _h) = compete_goal(g).ok_or("bad goal")?;
+        let temp = 0.2 + 0.8 * rng.gen::<f64>();
+        let prompt = format!("Prove this Lean 4 (Mathlib) goal (context `(n:ℕ)(a b:ℝ)`):\n{goal}\nOutput ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry.");
+        let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(400) }).await {
+            Ok(r) => { tokens += (r.prompt_tokens+r.completion_tokens) as u64; llm_calls += 1; r }
+            Err(_) => continue,
+        };
+        let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() => t.trim().to_string(), _ => continue };
+        lean_calls += 1;
+        let gt = verify_conjunct(goal, &tac, lean_bin, &args.mathlib_dir, lp, &format!("rep_{}_{}", args.seed, questions.len()));
+        questions.push((goal.to_string(), tac, gt));
+    }
+    if questions.is_empty() { return Err("no questions generated".into()); }
+
+    // ── REPEATED BETTING: each round, assessors bet from PERSISTENT wealth; market = wealth-weighted ──
+    let (mut market_correct, mut unweighted_correct, mut confwt_correct) = (0i64, 0i64, 0i64);
+    let n_rounds_real = questions.len();
+    for (qi, (goal, proof, gt)) in questions.iter().enumerate() {
+        tape.record(&MarketEvent::MarketOpen { claim: qi, claim_type: "verify_q".into() });
+        let mut yes_wealth = 0i64; let mut no_wealth = 0i64;        // wealth-weighted market
+        let mut yes_count = 0i64; let mut no_count = 0i64;          // unweighted vote
+        let mut yes_conf = 0i64; let mut no_conf = 0i64;            // confidence-weighted (static)
+        let mut votes: Vec<(bool, u64, i64)> = Vec::new();          // (said_yes, conf, stake) per assessor
+        for ai in 0..na {
+            let (m, t) = assessors[ai];
+            let prompt = format!("Will this Lean 4 (Mathlib) proof of `{goal}` COMPILE with no error/sorry?\n```\n{proof}\n```\nOutput JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake capital and LOSE it if wrong.");
+            let resp = match llm.generate(&GenerateRequest { model: m.into(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(t), max_tokens: Some(100) }).await {
+                Ok(r) => { tokens += (r.prompt_tokens+r.completion_tokens) as u64; llm_calls += 1; tape.record(&MarketEvent::LlmCall { model: m.into(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Err(_) => continue,
+            };
+            let said_yes = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).map(|s| s.contains("YES")).unwrap_or(false);
+            let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
+            // stake = fraction of PERSISTENT wealth scaled by confidence (Kelly-ish; capital at risk).
+            let stake = (wealth[ai].max(0) * conf as i64 / 100 / 4).clamp(0, wealth[ai].max(0));
+            votes.push((said_yes, conf, stake));
+            if said_yes { yes_wealth += stake; yes_count += 1; yes_conf += conf as i64; }
+            else { no_wealth += stake; no_count += 1; no_conf += conf as i64; }
+            total[ai] += 1; if said_yes == *gt { correct[ai] += 1; }
+            tape.record(&MarketEvent::Invest { agent: ai, claim: qi, side: if said_yes {"YES".into()} else {"NO".into()}, amount_micro: stake, model_hash: short_hash(&format!("{m}:{t}")), confidence: conf });
+        }
+        // three aggregated verdicts:
+        let market_says_yes = yes_wealth > no_wealth;          // WEALTH-weighted (the market)
+        let unweighted_says_yes = yes_count > no_count;        // 1-agent-1-vote
+        let confwt_says_yes = yes_conf > no_conf;              // static confidence-weighted
+        if market_says_yes == *gt { market_correct += 1; }
+        if unweighted_says_yes == *gt { unweighted_correct += 1; }
+        if confwt_says_yes == *gt { confwt_correct += 1; }
+        // SETTLE: winners (bet == gt) gain a share of losers' staked capital → wealth COMPOUNDS.
+        let loser_pool: i64 = votes.iter().filter(|(sy,_,_)| sy != gt).map(|(_,_,s)| *s).sum();
+        let winner_stake: i64 = votes.iter().filter(|(sy,_,_)| sy == gt).map(|(_,_,s)| *s).sum::<i64>().max(1);
+        for (ai, (sy, _c, s)) in votes.iter().enumerate() {
+            if sy == gt { wealth[ai] += loser_pool * s / winner_stake; }  // win: take share of loser pool
+            else { wealth[ai] -= s; }                                      // lose: forfeit stake
+        }
+        tape.record(&MarketEvent::Resolve { claim: qi, outcome: if *gt {"YES".into()} else {"NO".into()} });
+    }
+    // best single assessor accuracy (the strong individual baseline).
+    let best_single = (0..na).map(|i| if total[i]>0 { correct[i]*1000/total[i] } else { 0 }).max().unwrap_or(0);
+    let wall = t0.elapsed().as_secs_f64();
+    let chain_ok = tape.verify_chain();
+    let manifest = serde_json::json!({
+        "schema": "lean_repeated.v1", "policy": "repeated", "rounds": n_rounds_real, "seed": args.seed,
+        "market_acc_pm": market_correct*1000/n_rounds_real as i64,
+        "unweighted_acc_pm": unweighted_correct*1000/n_rounds_real as i64,
+        "confwt_acc_pm": confwt_correct*1000/n_rounds_real as i64,
+        "best_single_acc_pm": best_single,
+        "final_wealth": wealth, "per_assessor_acc_pm": (0..na).map(|i| if total[i]>0 {correct[i]*1000/total[i]} else {0}).collect::<Vec<_>>(),
+        "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens, "tape_chain_ok": chain_ok, "wall_s": wall,
+    });
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    println!("repeated[{}rounds] market_acc={} unweighted={} confwt={} best_single={} (per-mille) chain_ok={} wall={:.1}s",
+        n_rounds_real, market_correct*1000/n_rounds_real as i64, unweighted_correct*1000/n_rounds_real as i64,
+        confwt_correct*1000/n_rounds_real as i64, best_single, chain_ok, wall);
+    Ok(())
+}
+
 /// PROBE-ALLOC — the decisive price-causality test (literature + strategy converged here). Price
 /// allocates a SCARCE SHARED PROBE budget over COMPLEMENTARY specialists. The key fix vs het4: bind
 /// the PROBE (the proof-GENERATING attempt), not the verify — so misallocating a probe to an
@@ -700,6 +813,10 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
     let mut yes = vec![0i64; m]; let mut no = vec![0i64; m];
     let mut wallets = vec![WALLET_BUDGET_MICRO; n_agents];
     let mut realized_pnl = vec![0i64; n_agents];
+    // conf_signed[p] = Σ over bettors of (+conf if YES, −conf if NO): the CONFIDENCE-WEIGHTED-AVERAGE
+    // signal (the literature's STRONG baseline — Brier/confidence weighting captures the aggregation
+    // gains; the question is whether CAPITAL-AT-RISK price beats THIS, not just random). No capital here.
+    let mut conf_signed = vec![0i64; m];
     for (pi, (_pa, proof, _pc)) in proofs.iter().enumerate() {
         for bi in 0..n_agents {
             let prompt = format!("Assess this candidate Lean 4 proof of `{goal}` (context `(n:ℕ)(a b:ℝ)`):\n```\n{proof}\n```\nWill it COMPILE in Lean 4 + Mathlib with NO error and NO sorry? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.");
@@ -715,8 +832,8 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
             let stake = stake_from_confidence(conf, wallets[bi]);
             if stake < MIN_STAKE_MICRO { continue; }
             let model_h = short_hash(&format!("{}:bettor{}", args.model, bi));
-            if verdict == "YES" { wallets[bi] -= stake; yes[pi] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "YES".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); }
-            else if verdict == "NO" && args.policy != "realprice_no_no" { wallets[bi] -= stake; no[pi] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "NO".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); }
+            if verdict == "YES" { wallets[bi] -= stake; yes[pi] += stake; conf_signed[pi] += conf as i64; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "YES".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); }
+            else if verdict == "NO" { conf_signed[pi] -= conf as i64; if args.policy != "realprice_no_no" { wallets[bi] -= stake; no[pi] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: pi, side: "NO".into(), amount_micro: stake, model_hash: model_h, confidence: conf }); } }
         }
     }
 
@@ -728,9 +845,15 @@ async fn run_compete(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp:
     let mut attempts = vec![0u32; m];
     while verifies_used < args.verify_budget && !remaining.is_empty() {
         let frontier_h = short_hash(&format!("{:?}{:?}", remaining, price_pm));
-        // route over REMAINING proofs by the arm's policy (price / shuffled / central / uniform).
-        let prices_now: Vec<i64> = price_pm.clone();
-        let sel_idx = route(&args.policy, &remaining, &prices_now, &attempts, args.temp, &mut rng);
+        // route over REMAINING proofs by the arm's policy.
+        // conf_avg = the STRONG baseline: pick the highest confidence-weighted-average proof (no capital).
+        // market(realprice) must beat THIS, not just random, to prove capital-at-risk adds value.
+        let sel_idx = if args.policy == "conf_avg" {
+            remaining.iter().copied().max_by_key(|&p| conf_signed[p])
+        } else {
+            let prices_now: Vec<i64> = price_pm.clone();
+            route(&args.policy, &remaining, &prices_now, &attempts, args.temp, &mut rng)
+        };
         let Some(p) = sel_idx else { break };
         tape.record(&MarketEvent::RouteSample { policy: args.policy.clone(), frontier_hash: frontier_h, selected_claim: p });
         remaining.retain(|&x| x != p);
@@ -776,6 +899,11 @@ async fn main() -> Result<(), String> {
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() { return Err("Mathlib LEAN_PATH unresolved".into()); }
 
+    // REPEATED mode: persistent-wealth market over a stream of verify-questions — the ONE design the
+    // literature says capital-at-risk can win (no-regret dynamic reweighting vs static averaging).
+    if args.task == "repeated" {
+        return run_repeated(&args, &llm, &lean_bin, &lp).await;
+    }
     // PROBE-ALLOC mode: price allocates a scarce SHARED PROBE budget over complementary specialists
     // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
     if args.task.starts_with("het") {
