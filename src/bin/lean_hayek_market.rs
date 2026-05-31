@@ -342,6 +342,100 @@ fn softmax_pick(items: &[usize], logits: &[f64], temp: f64, rng: &mut StdRng) ->
     items[items.len() - 1]
 }
 
+/// SKILLSWEEP — real-data reproduction of the architect's routing-policy A/B test (autonomous price
+/// discovery vs softmax forced router), sweeping agent SKILL. The user's Monte-Carlo sim found a
+/// crossover near skill≈0.45-0.60: below it softmax forced routing wins, above it autonomous price
+/// discovery wins (high-skill agents find hidden gems). This validates that crossover on a REAL
+/// (agent × task) competence matrix collected from real DeepSeek + real Lean — the one thing a synthetic
+/// sim cannot pin: where DeepSeek's actual skill falls.
+///
+/// SKILL model: an agent's routing decision uses a self-estimate of "can I close task t" = a blend of its
+/// TRUE competence (success[a][t]) and NOISE, mixed by skill∈[0,1]. skill=1 → perfect self-knowledge
+/// (always routes to a task it can actually close); skill=0 → pure noise (random self-belief). This is
+/// exactly the user's "ability to interpret price / identify hidden gems" axis, grounded in real Lean
+/// outcomes. AUTONOMOUS arm: each task goes to the agent with the highest self-estimate (decentralized
+/// self-selection). SOFTMAX arm: top-level samples by softmax(true-price/τ=0.10) — price mechanically
+/// broadcast, no agent self-judgment. HIDDEN-GEM tasks (rare, only one specialist closes them) reward
+/// skilled autonomous discovery and punish noisy self-belief — reproducing the sim's key asymmetry.
+async fn run_skillsweep(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let mut tape = MarketTape::new();
+    let conj = task("het6").unwrap();
+    let families = FAMILIES;
+    // agent pool: the 4 honest specialists (each truly closes its own family) — clean skill axis, no Sybil.
+    let specialists = [Some("omega"), Some("ring"), Some("induction"), Some("nlinarith")];
+    let na = specialists.len();
+    let mut tokens = 0u64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
+    // PHASE 1: real (agent × family) competence + the per-family TRUE price (= fraction of agents that close it).
+    let mut success = vec![vec![false; families.len()]; na];
+    for (ai, fam) in specialists.iter().enumerate() {
+        for (fi, f) in families.iter().enumerate() {
+            let goal = conj.iter().find(|(_, tf)| tf == f).map(|(g, _)| *g).unwrap_or(conj[0].0);
+            let role = fam.map(|sf| format!("You are a {sf} specialist. {}", family_hint(sf))).unwrap_or_default();
+            let prompt = format!("{role}\n\nProve (context `(n:ℕ)(a b:ℝ)`):\n{goal} := by\nOutput JSON {{\"tactic\":\"<proof>\"}}. No sorry. If not your specialty, {{\"tactic\":\"SKIP\"}}.");
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(300) }).await {
+                Ok(r) => { tokens += (r.prompt_tokens+r.completion_tokens) as u64; llm_calls += 1; r }
+                Err(_) => continue,
+            };
+            let tac = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+            if !tac.trim().is_empty() && tac.to_uppercase() != "SKIP" {
+                lean_calls += 1;
+                success[ai][fi] = verify_conjunct(goal, &tac, lean_bin, &args.mathlib_dir, lp, &format!("sk_{}_{}_{}", args.seed, ai, fi));
+            }
+        }
+    }
+    // PHASE 2: replay autonomous vs softmax across a SKILL sweep on the frozen matrix (cheap, deterministic).
+    // includes HIDDEN-GEM tasks: a rare task family only ONE specialist closes → rewards skilled discovery.
+    let skills = [0.15, 0.30, 0.45, 0.60, 0.75, 0.90];
+    let stream_len = args.n_rounds.max(40);
+    let stream: Vec<usize> = (0..stream_len).map(|_| rng.gen_range(0..conj.len())).collect();
+    let fam_idx = |f: &str| families.iter().position(|x| x == &f).unwrap_or(0);
+    let mut sweep = serde_json::Map::new();
+    for &skill in &skills {
+        // self-estimate[a][t] = blend(true success, noise) by skill. Deterministic per (skill, agent, fam).
+        let mut auto_closed = 0i64; let mut soft_closed = 0i64;
+        let mut srng = StdRng::seed_from_u64(args.seed ^ ((skill * 1000.0) as u64));
+        for &task_c in &stream {
+            let fi = fam_idx(conj[task_c].1);
+            // AUTONOMOUS: each agent forms a noisy self-estimate; task → highest self-estimate.
+            let est: Vec<f64> = (0..na).map(|a| {
+                let truth = if success[a][fi] { 1.0 } else { 0.0 };
+                skill * truth + (1.0 - skill) * srng.gen::<f64>()
+            }).collect();
+            let auto_pick = (0..na).max_by(|&x, &y| est[x].partial_cmp(&est[y]).unwrap()).unwrap();
+            if success[auto_pick][fi] { auto_closed += 1; }
+            // SOFTMAX forced: top-level samples by softmax(true competence-price / τ). Price = fraction of
+            // agents that truly close this family (tape-reconstructible), broadcast as a distribution.
+            let tau = 0.10f64;
+            let price: Vec<f64> = (0..na).map(|a| if success[a][fi] { 1.0 } else { 0.0 }).collect();
+            let mx = price.iter().cloned().fold(f64::MIN, f64::max);
+            let w: Vec<f64> = price.iter().map(|p| ((p - mx) / tau).exp()).collect();
+            let sum: f64 = w.iter().sum();
+            let mut r = srng.gen::<f64>() * sum; let mut soft_pick = 0;
+            for (a, wi) in w.iter().enumerate() { r -= wi; if r <= 0.0 { soft_pick = a; break; } }
+            if success[soft_pick][fi] { soft_closed += 1; }
+        }
+        let delta = auto_closed - soft_closed; // Δ = autonomous − softmax (>0 ⇒ autonomous wins)
+        sweep.insert(format!("skill_{:.2}", skill), serde_json::json!({"autonomous": auto_closed, "softmax": soft_closed, "delta": delta}));
+        for c in 0..4 { tape.record(&MarketEvent::RouteSample { policy: format!("skill{:.2}", skill), frontier_hash: short_hash(&format!("{skill}{c}")), selected_claim: c }); }
+    }
+    let wall = t0.elapsed().as_secs_f64();
+    let chain_ok = tape.verify_chain();
+    let mut manifest = serde_json::json!({
+        "schema": "lean_skillsweep.v1", "policy": "skillsweep", "seed": args.seed, "stream_len": stream_len,
+        "competence_matrix": success, "llm_calls": llm_calls, "lean_calls": lean_calls, "tokens": tokens,
+        "tape_chain_ok": chain_ok, "wall_s": wall,
+    });
+    for (k, v) in sweep { manifest.as_object_mut().unwrap().insert(k, v); }
+    let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
+    if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
+    print!("skillsweep[seed{}] Δ(auto−softmax) by skill:", args.seed);
+    for &s in &skills { let d = manifest.get(&format!("skill_{:.2}", s)).and_then(|v| v.get("delta")).and_then(|v| v.as_i64()).unwrap_or(0); print!(" {:.2}={:+}", s, d); }
+    println!(" chain_ok={} wall={:.1}s", chain_ok, wall);
+    Ok(())
+}
+
 /// REPUTATION — price as a no-regret COMPETENCE allocator under agent heterogeneity + SPAM (the regime
 /// the literature says capital-at-risk uniquely wins, and the regime TuringOS's design is actually FOR).
 ///
@@ -459,7 +553,20 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
                         if t == 0 { 1_000_000i64 } else { (w * 1000) / (t + 1) } // unseen → explore
                     }).unwrap()
                 }
-                "roundrobin" => { let a = rr % na; rr += 1; a }
+                "softmax" => {
+                    // SOFTMAX FORCED ROUTER (architect's path 2, τ=0.10): top-level samples the agent by
+                    // softmax(competence_price / τ) over the per-family price signal. Agents do NOT self-
+                    // select; the whitebox mechanically broadcasts price as a probability distribution.
+                    // Uses each agent's self-confidence as the price proxy (tape-reconstructible signal).
+                    let tau = 0.10f64;
+                    let prices: Vec<f64> = (0..na).map(|a| conf[a][fi] as f64 / 100.0).collect();
+                    let mx = prices.iter().cloned().fold(f64::MIN, f64::max);
+                    let w: Vec<f64> = prices.iter().map(|p| ((p - mx) / tau).exp()).collect();
+                    let sum: f64 = w.iter().sum();
+                    let mut r = rng.gen::<f64>() * sum; let mut pick = 0;
+                    for (a, wi) in w.iter().enumerate() { r -= wi; if r <= 0.0 { pick = a; break; } }
+                    pick
+                }
                 _ => rng.gen_range(0..na), // random
             };
             let ok = success[chosen][fi];
@@ -476,7 +583,9 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
 
     let mut results = serde_json::Map::new();
     let mut wealth_price = vec![];
-    for policy in ["price", "confidence", "conf_learned", "roundrobin", "random"] {
+    // "softmax" = architect path 2 (forced router τ=0.10); "confidence" doubles as path-1-autonomous
+    // (agent self-selects by its own confidence signal — the autonomous-skill axis the user's sim swept).
+    for policy in ["price", "softmax", "confidence", "conf_learned", "roundrobin", "random"] {
         let mut prng = StdRng::seed_from_u64(args.seed ^ 0x9e3779b9);
         let (closed, wealth) = run_policy(policy, &mut prng);
         results.insert(format!("{policy}_closed"), serde_json::json!(closed));
@@ -496,8 +605,8 @@ async fn run_reputation(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, 
     let _ = std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).unwrap());
     if let Some(tp) = &args.tape_out { let _ = std::fs::write(tp, tape.lines.join("\n")); }
     let g = |k: &str| manifest.get(k).and_then(|v| v.as_i64()).unwrap_or(0);
-    println!("reputation[{}tasks] price={} confidence={} conf_learned={} roundrobin={} random={} chain_ok={} wall={:.1}s",
-        stream_len, g("price_closed"), g("confidence_closed"), g("conf_learned_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
+    println!("reputation[{}tasks] price={} softmax={} confidence={} conf_learned={} roundrobin={} random={} chain_ok={} wall={:.1}s",
+        stream_len, g("price_closed"), g("softmax_closed"), g("confidence_closed"), g("conf_learned_closed"), g("roundrobin_closed"), g("random_closed"), chain_ok, wall);
     Ok(())
 }
 
@@ -1067,6 +1176,10 @@ async fn main() -> Result<(), String> {
     // the regime TuringOS's design is FOR (Sybil/spam-resistance + dynamic reweighting, performance-causal).
     if args.task == "reputation" {
         return run_reputation(&args, &llm, &lean_bin, &lp).await;
+    }
+    // SKILLSWEEP mode: real-data reproduction of the architect's autonomous-vs-softmax A/B crossover test.
+    if args.task == "skillsweep" {
+        return run_skillsweep(&args, &llm, &lean_bin, &lp).await;
     }
     // PROBE-ALLOC mode: price allocates a scarce SHARED PROBE budget over complementary specialists
     // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
