@@ -97,6 +97,56 @@ pub fn boltzmann_select_parent_v2<R: Rng>(
     best.map(|t| t.clone())
 }
 
+/// TRACE_MATRIX FC1-N5: price-routed parent selection feeding the rtool read-view (which node's
+/// context the agent fetches next); Boltzmann-softmax attention distribution over node prices.
+///
+/// TRUE Boltzmann (softmax) parent selection — constitution Art. II.2.1 explore/exploit balance.
+///
+/// `boltzmann_select_parent_v2` above is argmax-by-price (+ epsilon-uniform): pure
+/// EXPLOITATION → every agent collapses onto the single highest-price node → the work-DAG
+/// degenerates to ONE chain (multi-agent ≈ single-agent) and the group loses heterogeneity —
+/// the exact "过度利用 → 收敛同一局部最优 → 集体平庸" failure Art. II.2.1 forbids. This samples
+/// node i with probability ∝ exp(price_i / temperature), so attention is DISTRIBUTED across
+/// promising nodes (incl. EARLY ones → non-local re-expansion / new branches / backtracking),
+/// preserving heterogeneity while staying price-guided. Temperature is the explore/exploit knob
+/// (→0 = argmax-like exploit; large = uniform explore). f64 is used for the stochastic POLICY
+/// only (NOT a money path; the chosen parent is recorded on tape, so replay reconstructs the
+/// selection from L4, never by recompute — determinism is on the tape, not in this softmax).
+pub fn boltzmann_softmax_select_parent<R: Rng>(
+    price_index: &std::collections::BTreeMap<crate::state::TxId, crate::state::NodeMarketEntry>,
+    mask_set: &std::collections::BTreeSet<crate::state::TxId>,
+    temperature: f64,
+    rng: &mut R,
+) -> Option<crate::state::TxId> {
+    let cands: Vec<(&crate::state::TxId, f64)> = price_index
+        .iter()
+        .filter(|(id, e)| e.price_yes.is_some() && !mask_set.contains(id))
+        .map(|(id, e)| {
+            let p = e.price_yes.as_ref().expect("filtered for Some");
+            (id, (p.numerator as f64) / (p.denominator as f64))
+        })
+        .collect();
+    if cands.is_empty() {
+        return None;
+    }
+    let t = if temperature <= 0.0 { 1e-6 } else { temperature };
+    // softmax with max-subtraction for numerical stability
+    let maxp = cands.iter().map(|(_, p)| *p).fold(f64::MIN, f64::max);
+    let weights: Vec<f64> = cands.iter().map(|(_, p)| ((p - maxp) / t).exp()).collect();
+    let sum: f64 = weights.iter().sum();
+    if !(sum > 0.0) {
+        return Some(cands[0].0.clone());
+    }
+    let mut r = rng.gen::<f64>() * sum;
+    for (i, w) in weights.iter().enumerate() {
+        r -= *w;
+        if r <= 0.0 {
+            return Some(cands[i].0.clone());
+        }
+    }
+    Some(cands[cands.len() - 1].0.clone())
+}
+
 // ── Tests ───────────────────────────────────────────────────────
 
 #[cfg(test)]

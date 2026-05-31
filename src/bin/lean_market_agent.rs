@@ -56,12 +56,12 @@ use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
-use turingosv4::sdk::actor::boltzmann_select_parent_v2;
+use turingosv4::sdk::actor::boltzmann_softmax_select_parent;
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
 use turingosv4::state::typed_tx::{OutcomeSide, TypedTx};
-use turingosv4::state::{BoltzmannMaskPolicy, NodeMarketEntry};
+use turingosv4::state::NodeMarketEntry;
 
 const SPONSOR_AGENT: &str = "Agent_user_0";
 const PROVIDER_AGENT: &str = "Agent_user_1";
@@ -79,42 +79,51 @@ const VERIFY_BOND_MICRO: i64 = 500;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Policy {
     Market,
+    RandomBear,
+    FixedBear,
     ShuffledPrice,
     NoPrice,
     Single,
     Parallel,
     Majority,
     BestFirst,
+    SkepticRerank,
 }
 
 impl Policy {
     fn parse(s: &str) -> Result<Self, String> {
         match s {
             "market" => Ok(Policy::Market),
+            "random_bear" => Ok(Policy::RandomBear),
+            "fixed_bear" => Ok(Policy::FixedBear),
             "shuffled_price" => Ok(Policy::ShuffledPrice),
             "no_price" => Ok(Policy::NoPrice),
             "single" => Ok(Policy::Single),
             "parallel" => Ok(Policy::Parallel),
             "majority" => Ok(Policy::Majority),
             "best_first" => Ok(Policy::BestFirst),
+            "skeptic_rerank" => Ok(Policy::SkepticRerank),
             _ => Err(format!("unknown policy `{s}`")),
         }
     }
     fn label(self) -> &'static str {
         match self {
             Policy::Market => "market",
+            Policy::RandomBear => "random_bear",
+            Policy::FixedBear => "fixed_bear",
             Policy::ShuffledPrice => "shuffled_price",
             Policy::NoPrice => "no_price",
             Policy::Single => "single",
             Policy::Parallel => "parallel",
             Policy::Majority => "majority",
             Policy::BestFirst => "best_first",
+            Policy::SkepticRerank => "skeptic_rerank",
         }
     }
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
     /// non-market baselines are Bulls-only (no short, no price game).
     fn emits_challenges(self) -> bool {
-        matches!(self, Policy::Market | Policy::ShuffledPrice | Policy::NoPrice)
+        matches!(self, Policy::Market | Policy::RandomBear | Policy::FixedBear | Policy::ShuffledPrice | Policy::NoPrice)
     }
 }
 
@@ -132,6 +141,7 @@ struct Args {
     n_agents: usize,
     n_rounds: usize,
     seed: u64,
+    boltzmann_temp: f64,
     continue_past_omega: bool,
 }
 
@@ -214,6 +224,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         n_agents: get("n-agents").and_then(|s| s.parse().ok()).unwrap_or(8),
         n_rounds: get("n-rounds").and_then(|s| s.parse().ok()).unwrap_or(6),
         seed: get("seed").and_then(|s| s.parse().ok()).unwrap_or(0xB01),
+        boltzmann_temp: get("boltzmann-temp").and_then(|s| s.parse().ok()).unwrap_or(0.15),
         continue_past_omega: get("continue-past-omega").map(|s| s == "true").unwrap_or(false),
     })
 }
@@ -260,14 +271,18 @@ fn select_parent(
     all_nodes: &[TxId],
     own_last: Option<&TxId>,
     node_conf: &BTreeMap<String, u64>,
+    node_doubt: &BTreeMap<String, i64>,
+    temp: f64,
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
-        Policy::Market => boltzmann_select_parent_v2(pi, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
+        // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
+        // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
+        Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_softmax_select_parent(pi, &BTreeSet::new(), temp, rng)
             .or_else(|| all_nodes.last().cloned()),
         Policy::ShuffledPrice => {
             let shuffled = shuffle_prices(pi, rng);
-            boltzmann_select_parent_v2(&shuffled, &BTreeSet::new(), &BoltzmannMaskPolicy::default(), rng)
+            boltzmann_softmax_select_parent(&shuffled, &BTreeSet::new(), temp, rng)
                 .or_else(|| all_nodes.last().cloned())
         }
         Policy::NoPrice => {
@@ -284,6 +299,12 @@ fn select_parent(
         Policy::BestFirst => all_nodes
             .iter()
             .max_by_key(|t| node_conf.get(&t.0).copied().unwrap_or(0))
+            .cloned(),
+        // B6 skeptic-rerank: extend the LOWEST-doubt node per the SAME skeptic (critic-matched
+        // budget); shared tape, NO price, NO short — isolates the critic heuristic from the market.
+        Policy::SkepticRerank => all_nodes
+            .iter()
+            .min_by_key(|t| node_doubt.get(&t.0).copied().unwrap_or(i64::MAX))
             .cloned(),
     }
 }
@@ -484,6 +505,7 @@ async fn run(args: Args) -> Result<(), String> {
     let mut node_feedback: BTreeMap<String, String> = BTreeMap::new();
     let mut own_last: BTreeMap<String, TxId> = BTreeMap::new();
     let mut node_conf: BTreeMap<String, u64> = BTreeMap::new();
+    let mut node_doubt: BTreeMap<String, i64> = BTreeMap::new();
     let mut verified_agents: BTreeSet<String> = BTreeSet::new();
     let majority_threshold = agents.len() / 2 + 1;
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
@@ -501,7 +523,7 @@ async fn run(args: Args) -> Result<(), String> {
 
             // Parent selection (policy-governed).
             let mut rng = StdRng::seed_from_u64(args.seed + round as u64 * 131 + ai as u64);
-            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &mut rng);
+            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &node_doubt, args.boltzmann_temp, &mut rng);
             let (parent_body, parent_feedback) = match &parent_tx {
                 Some(t) => (node_body.get(&t.0).cloned(), node_feedback.get(&t.0).cloned()),
                 None => (None, None),
@@ -577,8 +599,17 @@ async fn run(args: Args) -> Result<(), String> {
             // Short challenge → price_yes (price-family policies only; non-market
             // baselines are Bulls-only). Non-fatal.
             if args.policy.emits_challenges() {
-                // Informed Bear: short stake scales with an independent skeptic's doubt.
-                let (short_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                // Bear short by policy: informed (skeptic-LLM doubt) for market/shuffled/no_price;
+                // random U(0,1) with NO skeptic call (M1); or fixed constant (M2). M1/M2 isolate
+                // whether the *informed* price signal (vs noise / vs a constant) does the work.
+                let (short_micro, bear_tok) = match args.policy {
+                    Policy::RandomBear => {
+                        let doubt_pct = rng.gen_range(0..=100) as i64;
+                        (MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100, 0u64)
+                    }
+                    Policy::FixedBear => (CHALLENGE_STAKE_MICRO, 0u64),
+                    _ => bear_doubt_short(&llm, &args.model, &theorem, &body).await,
+                };
                 bear_calls += 1;
                 bear_tokens_total += bear_tok;
                 let challenger = challengers[ai % challengers.len()].clone();
@@ -595,6 +626,16 @@ async fn run(args: Args) -> Result<(), String> {
                         Err(e) => eprintln!("lm challenge build skip: {e}"),
                     }
                 }
+            }
+
+            // B6 skeptic-rerank: the SAME skeptic scores each node (critic-matched budget) to
+            // drive argmin-doubt selection — NOT a market short. Isolates "a critic helped" from
+            // "the market helped" (prereg v2 rule 7). Bear tokens count toward budget.
+            if args.policy == Policy::SkepticRerank {
+                let (doubt_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                bear_calls += 1;
+                bear_tokens_total += bear_tok;
+                node_doubt.insert(work_tx_id.clone(), doubt_micro);
             }
 
             // Chain-record the Lean verdict so the OMEGA is reconstructable from tape
@@ -758,7 +799,7 @@ mod tests {
         let own = TxId("n_mine".into());
         let mut rng = StdRng::seed_from_u64(7);
         for p in [Policy::Single, Policy::Parallel, Policy::Majority] {
-            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &mut rng);
+            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &BTreeMap::new(), 0.15, &mut rng);
             assert_eq!(got, Some(TxId("n_mine".into())), "{p:?} must refine own_last");
         }
     }
@@ -770,7 +811,7 @@ mod tests {
         let nodes = vec![TxId("someone_elses".into())];
         let mut rng = StdRng::seed_from_u64(7);
         // No shared tape: a parallel agent never adopts another agent's node.
-        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &mut rng), None);
+        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng), None);
     }
 
     #[test]
@@ -783,24 +824,24 @@ mod tests {
         let nodes = vec![TxId("lo".into()), TxId("hi".into()), TxId("mid".into())];
         let mut rng = StdRng::seed_from_u64(7);
         assert_eq!(
-            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &mut rng),
+            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng),
             Some(TxId("hi".into()))
         );
     }
 
     #[test]
     fn only_price_family_emits_bear_shorts() {
-        for p in [Policy::Market, Policy::ShuffledPrice, Policy::NoPrice] {
+        for p in [Policy::Market, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
-        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst] {
+        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst, Policy::SkepticRerank] {
             assert!(!p.emits_challenges(), "{p:?} is Bulls-only");
         }
     }
 
     #[test]
     fn policy_parse_roundtrips_all_arms() {
-        for s in ["market", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first"] {
+        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first", "skeptic_rerank"] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());
