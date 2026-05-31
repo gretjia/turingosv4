@@ -1,0 +1,6 @@
+# SKILLSWEEP v2 (hidden-gem reward-weighted) — real-Lean reproduction of architect's A/B crossover
+# Δ = autonomous − softmax, reward-weighted (gem=3x). >0 autonomous wins, <0 softmax wins.
+# skills: 0.15 0.30 0.45 0.60 0.75 0.90
+seed1 gem=1: [-19, -6, 8, 6, 13, 13]
+seed2 gem=3: [-27, -26, 12, 9, 12, 15]
+seed3 gem=3: [-38, -5, -3, 25, 12, 15]

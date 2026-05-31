@@ -1,0 +1,11 @@
+s2 price=14 elim_global=5 conf_learned=5 confidence=5 single_best=4 chain_ok=True
+s1 price=15 elim_global=3 conf_learned=5 confidence=4 single_best=3 chain_ok=True
+s3 price=15 elim_global=5 conf_learned=3 confidence=5 single_best=5 chain_ok=True
+s6 price=13 elim_global=4 conf_learned=6 confidence=4 single_best=2 chain_ok=True
+s4 price=13 elim_global=4 conf_learned=2 confidence=5 single_best=7 chain_ok=True
+s5 price=16 elim_global=7 conf_learned=6 confidence=4 single_best=2 chain_ok=True
+s8 price=5 elim_global=4 conf_learned=0 confidence=1 single_best=2 chain_ok=True
+s7 price=13 elim_global=5 conf_learned=5 confidence=1 single_best=3 chain_ok=True
+s9 price=7 elim_global=6 conf_learned=1 confidence=1 single_best=2 chain_ok=True
+s10 price=15 elim_global=9 conf_learned=6 confidence=2 single_best=1 chain_ok=True
+CLEAN_DONE
