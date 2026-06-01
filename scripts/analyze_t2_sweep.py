@@ -14,19 +14,23 @@ import json, sys, glob, os, itertools, argparse
 from collections import defaultdict
 
 def wilcoxon_one_sided_greater(diffs):
-    """Paired Wilcoxon signed-rank, H1: median(diff) > 0. Exact-ish via normal approx; returns p (one-sided)."""
+    """Paired Wilcoxon signed-rank, H1: median(diff) > 0. Prefers scipy (exact for small n); else a
+    CONTINUITY-CORRECTED normal approximation (conservative). QC 2026-06-01: the uncorrected approx was
+    anti-conservative for small n (n=5 all-positive gave 0.022 vs exact ~0.031) and is not used for headlines."""
     d = [x for x in diffs if x != 0]
     n = len(d)
     if n == 0:
         return 1.0
+    try:
+        from scipy.stats import wilcoxon  # exact/auto for the counted sweep when installed
+        return float(wilcoxon(d, alternative="greater", zero_method="wilcox").pvalue)
+    except Exception:
+        pass
     import math
-    ranks = sorted(range(n), key=lambda i: abs(d[i]))
-    # average ranks for ties in |d|
-    rk = [0.0]*n
-    i = 0
     s = sorted(range(n), key=lambda i: abs(d[i]))
+    rk = [0.0]*n
     j = 0
-    while j < n:
+    while j < n:                                  # average ranks for |d| ties
         k = j
         while k+1 < n and abs(d[s[k+1]]) == abs(d[s[j]]):
             k += 1
@@ -39,8 +43,7 @@ def wilcoxon_one_sided_greater(diffs):
     var = n*(n+1)*(2*n+1)/24.0
     if var == 0:
         return 1.0
-    z = (w_plus - mean) / math.sqrt(var)
-    # one-sided greater: large W+ => small p
+    z = (w_plus - mean - 0.5) / math.sqrt(var)    # -0.5 continuity correction (upper tail) → conservative
     return 0.5 * math.erfc(z / math.sqrt(2))
 
 def holm(pvals):

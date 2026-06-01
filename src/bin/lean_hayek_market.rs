@@ -1093,6 +1093,14 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             Err(_) => None,
         }
     } else { None };
+    // QC (2026-06-01): a coordinator cell whose central-ranking call FAILS must NOT silently fall back to
+    // index-order (= roundrobin), which would make a broken coordinator indistinguishable from a working one
+    // and invalidate the market-vs-coordinator headline. Hard-fail it → the cell errors out and is EXCLUDED
+    // from the sweep (a measurement failure, like a replay failure). A coordinator manifest that EXISTS thus
+    // provably ranked; its chosen order is auditable via the RouteSample sequence on the tape.
+    if args.policy == "coordinator" && (coord_order.as_ref().map_or(true, |o| o.is_empty())) {
+        return Err("coordinator central-ranking call produced no valid non-empty order — cell EXCLUDED (no silent roundrobin fallback)".into());
+    }
 
     // ── PHASE 3: order residual by the ARM's policy, spend reasoner repair budget B ──
     let mut order: Vec<usize> = (0..residual.len()).collect();
