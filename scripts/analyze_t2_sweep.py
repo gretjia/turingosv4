@@ -3,12 +3,13 @@
 
 Reads per-(arm, seed) lean_hayek_alloc.v2 manifests, computes banked@B per arm, runs paired Wilcoxon
 signed-rank (market vs each foil) with Holm-Bonferroni, and emits the verdict against the locked prereg
-(T2_COUNTED_SWEEP_PREREG_2026-06-01.json). Verdict A requires market > coordinator AND market > shuffled
+(T2_SHARED_STATE_PREREG_2026-06-01.json, v2 — the confound-free shared-state design; v1
+T2_COUNTED_SWEEP_PREREG is superseded). Verdict A requires market > coordinator AND market > shuffled
 (PRIMARY) AND market > flatbid, all Holm-p<0.05, every headline cell replay-green. A is NEVER inferred from B.
 
-Usage: python3 scripts/analyze_t2_sweep.py "<glob like /tmp/g2_{arm}_{seed}.json>" [--alpha 0.05]
-       or  python3 scripts/analyze_t2_sweep.py --dir /tmp --prefix g2 --seeds 7,8 --arms solo,coordinator,market,shuffled,flatbid,random
-Read-out only (never a gate); prints the per-arm table + comparisons + GO/WEAK-GO/NO-GO.
+Usage: python3 scripts/analyze_t2_sweep.py --dir handover/evidence/t2_shared_sweep_2026-06-01 \
+         --prefix t2s --seeds 8,9,10,11,12,13,14,15,16,17,18,19 --arms market,coordinator,shuffled,flatbid,random,index
+Read-out only (never a gate); prints the per-arm table + comparisons + GO/INCONCLUSIVE/NO-GO.
 """
 import json, sys, glob, os, itertools, argparse
 from collections import defaultdict
@@ -61,10 +62,10 @@ def holm(pvals):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dir", default="/tmp")
-    ap.add_argument("--prefix", default="g2")
-    ap.add_argument("--seeds", default="7,8")
-    ap.add_argument("--arms", default="solo,coordinator,market,shuffled,flatbid,random")
+    ap.add_argument("--dir", default="handover/evidence/t2_shared_sweep_2026-06-01")
+    ap.add_argument("--prefix", default="t2s")
+    ap.add_argument("--seeds", default="8,9,10,11,12,13,14,15,16,17,18,19")
+    ap.add_argument("--arms", default="market,coordinator,shuffled,flatbid,random,index")
     ap.add_argument("--alpha", type=float, default=0.05)
     a = ap.parse_args()
     seeds = [s.strip() for s in a.seeds.split(",")]
