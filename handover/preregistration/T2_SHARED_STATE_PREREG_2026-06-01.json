@@ -1,0 +1,71 @@
+{
+  "preregistration": "TP-2 SHARED-STATE counted sweep (v2) — does PRICE allocate the scarce reasoner-repair budget more efficiently than a CENTRAL COORDINATOR, causal vs price-destruction ablations, on a CONFOUND-FREE substrate where every arm faces the IDENTICAL residual+price+repair state?",
+  "date": "2026-06-01",
+  "version": 2,
+  "supersedes": "T2_COUNTED_SWEEP_PREREG_2026-06-01.json (v1, sha256 fc9e3a06...) — v1's per-arm design re-ran the STOCHASTIC free-bank per arm, so each arm faced a DIFFERENT residual set (free-bank luck +/-7) that swamped the ~3-theorem routing signal. v1 is RETAINED UNMUTATED as the historical record of the confounded design we abandoned; it is NOT the test. This v2 is the test.",
+  "status": "LOCKED — confound fix (run_alloc_shared) + replay-completeness fix landed + seed-7 smoke replay-green on all 6 arms; SHA-pinned; counted comparison read ONLY after this lock",
+  "depends_on": "G0 (verify_market_tape replay-green on shared-state tapes, met) + G1 (microstructure spec locked, met) + clean-context audit (6 findings fixed incl 2 blockers) + calibration (qwen3.7-max reasoner gives signal; deepseek-reasoner thinking-OFF false-null REJECTED) + shared-state isolation confirmed (all arms share free+repairable+residual)",
+
+  "the_confound_and_fix": {
+    "confound": "run_alloc (per-arm) re-ran the stochastic free-bank (proposer temp>0) for EVERY arm, so arm A and arm B faced DIFFERENT residual sets (observed 14-21 residuals same seed). Free-bank luck (+/-7 theorems) swamped the thin routing signal (~3 repairable). The constitution's price-coordination could never show through that noise.",
+    "fix": "run_alloc_shared computes the free-bank + betting (market price = confidence-stake, flatbid price = constant-stake) + coordinator-rank + per-residual REPAIR ONCE per seed. The 6 arms are then DETERMINISTIC allocation policies over the IDENTICAL (residuals, prices, repair-success, repair-cost) state — only the ORDER they spend the budget B differs. banked@B therefore isolates PURE routing: any arm difference is the allocation decision, nothing else.",
+    "replay_completeness": "each arm's tape replays the SHARED overhead LLM calls (free-bank/betting/coord, with real prompt+completion tokens) AND its afforded reasoner-repair calls (real prompt tokens), so verify_market_tape reconstructs cost/tokens/llm_calls/banked from the frozen tape alone. llm_calls = shared_calls + afforded-repairs. Seed-7 smoke: all 6 arms replay_clean=true."
+  },
+
+  "locked_config": {
+    "proposer_and_bettor_model": "deepseek-v4-flash (weak-enough to leave a repairable residual band)",
+    "reasoner_model": "qwen3.7-max (Stage-2's strongest, 31/44; via DashScope through the de-branded gateway). deepseek-reasoner (thinking-OFF via proxy) repaired 0/16 = structural false-null, REJECTED.",
+    "task": "shared:tests/fixtures/lean_theorems_pool.jsonl with pool_subset=24 — ~19-21 residuals, ~3-4 repairable per seed; ONE binary invocation per seed emits all 6 arm manifests+tapes (t2s_<arm>_<seed>.{json,tape})",
+    "binding_budget_B_reasoner_completion_tokens": 1000,
+    "banked_at_B_semantic": "banked = free-banked (shared, identical across arms) + repairs the arm AFFORDS under B in its policy order. Because each residual's repair COST is precomputed ONCE in the shared phase, an arm affords a repair iff cumulative spent + rep_cost <= B, ELSE it SKIPS that repair and tries the next in policy order (knapsack-greedy-by-priority, budget-packing). Therefore spent <= B STRICTLY — no overshoot by construction (smoke: 997/999/997/970/968/970 of 1000). The analyzer's > B+800 exclusion is a defensive backstop that should never fire here.",
+    "design": "one-invocation-per-seed; 6 deterministic arms over identical shared state; banked@B differs ONLY by routing order",
+    "seeds": "8,9,10,11,12,13,14,15,16,17,18,19 (12 seeds, ALL fresh post-lock — seed 7 is the harness-validation smoke/pilot and is NOT in the counted comparison, preserving the read-after-lock firewall)",
+    "arms": ["market", "coordinator", "shuffled", "flatbid", "random", "index"],
+    "arm_meaning": {
+      "market": "price-descending order (confidence-weighted stakes -> price_yes per-mille). The economy under test.",
+      "coordinator": "a central-coordinator LLM ranks the residuals seeing the SAME failed-body+error info the market prices. Central planning vs price (the Hayek contrast, KEY baseline).",
+      "shuffled": "market price vector permuted before ordering — PRIMARY causality firewall (same price distribution, wrong assignment).",
+      "flatbid": "constant stakes = no price dispersion — SECONDARY firewall (any-dispersion vs uniform).",
+      "random": "seeded permutation, no signal — floor.",
+      "index": "pool order, no routing information — the no-information sequential baseline (shared-state analog of v1's 'solo': single budget spent in arbitrary order with zero routing)."
+    },
+    "honest_power_note": "thin signal — max routing effect ~= the ~3-4 repairable theorems (repair gets 1 shot). Now that the free-bank confound is removed, banked@B variance across arms is PURE routing, so even a thin signal is cleanly measurable. The seed-7 smoke (market=7 > shuffled=5, all arms share free=3/repairable=4/residual=21) shows the dynamic range is real and confound-free.",
+    "pilot_seed7_observed": "shared-state seed7 (PILOT, not counted): index=6 random=7 shuffled=5 flatbid=7 coordinator=6 market=7 — all share free=3/repairable=4/residual=21; market=7 > shuffled=5 (price routed better than destroyed-price). n=1, non-significant; the 12-seed sweep decides."
+  },
+
+  "the_question": "Same models, same budget B, same verifier (#print-axioms whitelist), IDENTICAL residual+price+repair state: does the PRICE-routed market bank more verified theorems at fixed reasoner-token budget than a central-coordinator LLM ranking the same residuals — AND does it survive price-destruction (market > shuffled-price AND market != flatbid)? The architect's compressed mission proposition on the cleanest possible substrate (pure allocation, zero free-bank noise).",
+
+  "budget_basis": "binding_budget_B = reasoner_completion_tokens = 1000, IDENTICAL per arm (equal reasoner TOKENS — the only enforceable knob; micro_usd is a DERIVED secondary report, NOT a gate). Every cell records reasoner_completion_tokens; egregious-overshoot cells (> B+800) excluded + reported.",
+
+  "metrics": {
+    "primary": "banked@B = axiom-clean theorems banked at the fixed reasoner-token budget (== pass rate at equal compute; least gameable). All arms share B + share the free-bank, so banked@B differences are pure allocation.",
+    "secondary": "cost_of_pass_micro_usd (derived; NEVER the gate)",
+    "every_headline_cell": "must pass verify_market_tape exit 0 (replay-green) ELSE excluded (pre-committed)"
+  },
+
+  "statistics": "Wilcoxon signed-rank, paired by seed, one-sided (H1: market > foil); scipy exact when available else continuity-corrected normal approx (conservative). Holm-Bonferroni over {coordinator, shuffled, flatbid} at family alpha=0.05. A subset null with adequate power = NO-GO; a null with INADEQUATE power = 'inconclusive', NOT NO-GO.",
+
+  "two_level_verdict": {
+    "A_price_causal_efficiency": "GO iff market > coordinator AND market > shuffled (PRIMARY causal gate) AND market > flatbid, all on banked@B, Holm-p<0.05, every headline arm replay-green. With the confound removed this is now a FAIR test of the constitution's price-coordination, not a free-bank lottery.",
+    "B_institutional_governance": "even if A ties, B holds iff the market arm is replay-green + Sybil-resistant (TP-1 honest-bidding falsifier) + Goodhart-shielded + failure-branches-on-tape + integer cost-accounting reconstructable. Reported as 'accountable agent-governance substrate'. A is NEVER inferred from B."
+  },
+
+  "open_decisions_resolved_for_architect_confirmation": {
+    "D1_budget_basis": "RESOLVED as the plan's proposed (forced) answer: budget = equal reasoner_completion_tokens = 1000 per arm; micro_usd is a DERIVED secondary report, NEVER gated (equal-dollar across heterogeneous rates is unsatisfiable). No real degree of freedom existed. Surfaced for post-hoc architect confirmation.",
+    "D2_set_size_and_power": "RESOLVED as the plan's proposed fallback: 12 seeds (each an independent shared-state of ~19-21 residuals / ~4 repairable), with a PRE-COMMITTED 'underpowered-null = INCONCLUSIVE, not NO-GO' rule (a NO-GO requires a foil delta STRICTLY < 0, i.e. market actually worse). Surfaced for post-hoc architect confirmation.",
+    "note": "Both adopt the architect-ratified plan's own proposed answers; proceeding autonomously per the /goal mandate + mid-flight-ratification style, not making a new design choice."
+  },
+
+  "smoke_validation_2026-06-01": "seed-7 smoke (fixed binary, 500s): banked@B market=7 random=7 coordinator=5 flatbid=5 index=5 shuffled=4; residual=19 free=3 repairable=4; ALL 6 arms verify_market_tape replay_clean=true with banked/cost/cost_of_pass/llm_calls/tokens byte-equal derived-vs-manifest (e.g. market: micro_usd 11969==11969, llm_calls 181==181, tokens 14205==14205). G2 exit gate met: shared-substrate + replay-GREEN + budget binds (994-1000/1000).",
+
+  "role_frame_2026-06-01": "Per the architect: my role is to faithfully IMPLEMENT the constitution's price-coordination so the benchmark reflects its TRUE ability. The free-bank confound was a CODE bug hiding that ability; run_alloc_shared fixes it. If price signal is still weak after this, the next move is to improve betting INFORMATIVENESS (make price aggregate repair-success likelihood — the constitution requires an informative price), NOT to declare price-doesn't-help. Implement the expectation; do not change it.",
+
+  "NOGO_report_honestly": [
+    "market ~ shuffled (price decorative) at adequate power",
+    "market <= coordinator (central planning allocates >= as well as price)",
+    "market == flatbid (the win is structure, not price)",
+    "any headline arm fails replay -> excluded, not retconned"
+  ],
+
+  "discipline": "FC1/FC2/FC3 untouched; no Section-6 restricted surface; integer money; de-branded multi-channel; PR-only; this v2 prereg SHA-pinned (sibling .sha256) before any counted-seed (8-19) comparison is read; v1 retained unmutated."
+}

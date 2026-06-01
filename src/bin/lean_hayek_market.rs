@@ -973,6 +973,116 @@ fn finish_probe(args: &Args, tape: &MarketTape, closed: &BTreeSet<usize>, k: usi
 ///     the ARM's order (price-descending / random / shuffled / confidence) until B exhausted; Lean-verify each.
 ///  5. settle: reasoner-clean → YES wins (split NO pool); fail/unreached → YES forfeits.
 /// Metric: axiom-clean theorems banked / reasoner-completion-ktok. Money integer; f64 only in routing.
+/// SHARED-STATE allocation experiment (2026-06-01 confound fix). The per-arm run_alloc re-ran the STOCHASTIC
+/// free-bank for every arm, so each arm faced a DIFFERENT residual set (free-bank luck ±7) that swamped the
+/// thin routing signal (~3 repairable) — the constitution's price-coordination could never show. Here the
+/// free-bank + betting + per-residual REPAIR are computed ONCE; the 6 arms are deterministic allocation
+/// policies over the IDENTICAL (residuals, prices, repair-outcomes) state, so banked@B differs ONLY by routing
+/// ORDER. Emits one replayable manifest+tape PER arm: /tmp(or --out dir)/t2s_<arm>_<seed>.{json,tape}.
+async fn run_alloc_shared(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let pool_path = args.task.strip_prefix("shared:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
+    let pool = load_pool(pool_path, args.pool_subset);
+    if pool.is_empty() { return Err("empty pool".into()); }
+    let reasoner = args.reasoner_model.as_str();
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let stmt = |pre: &str| pre.trim_end().trim_end_matches(":= by").trim().to_string();
+    let mut ov_chat = 0u64; let mut ov_llm = 0usize; let mut ov_micro = 0i64; // shared overhead (free+bet+coord)
+    let mut shared_calls: Vec<(String, u64, u64)> = Vec::new(); // (model, prompt, completion) — replayed onto every arm's tape so it reconstructs
+
+    // ── SHARED Phase 1: free-bank ONCE → the residual set every arm shares ──
+    let mut free_banked: Vec<usize> = Vec::new();
+    let mut residual: Vec<(usize, String, String)> = Vec::new();
+    for (ti, thm) in pool.iter().enumerate() {
+        let mut best_fail: Option<(String, String)> = None; let mut solved = false;
+        for ai in 0..4usize {
+            let temp = 0.2 + 0.12 * ai as f64;
+            let prompt = format!("Prove this Lean 4 (Mathlib) theorem. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.\n\n{} := by", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(500) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((args.model.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); r }, Err(_) => continue };
+            let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() => t.trim().to_string(), _ => continue };
+            let (ok, ec) = verify_pool_err(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_sh_free_{}_{}", args.seed, ti, ai));
+            if ok { free_banked.push(ti); solved = true; break; }
+            else { let rank = |c: &str| match c { "unsolved_goals" => 5, "type_mismatch" => 4, "rewrite_failed" => 3, "unknown_id" => 2, "parse" => 1, _ => 0 }; if best_fail.as_ref().map_or(true, |(_, e)| rank(&ec) > rank(e)) { best_fail = Some((tac, ec)); } }
+        }
+        if !solved { if let Some((b, e)) = best_fail { residual.push((ti, b, e)); } }
+    }
+    let nr = residual.len();
+
+    // ── SHARED Phase 2: betting ONCE → market price (confidence) + flatbid price (constant stake) ──
+    let n_bettors = 4usize;
+    let (mut yes, mut no) = (vec![0i64; nr], vec![0i64; nr]);
+    let (mut fyes, mut fno) = (vec![0i64; nr], vec![0i64; nr]);
+    for (ri, (ti, body, ec)) in residual.iter().enumerate() {
+        let thm = &pool[*ti];
+        for bi in 0..n_bettors {
+            let bm = if bi == n_bettors - 1 { reasoner.to_string() } else { args.model.clone() };
+            let prompt = format!("Assess how CLOSE this failed Lean 4 attempt at `{}` is to a correct proof.\n```\n{body}\n```\nLean error class: {ec} (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Will a careful repair likely succeed? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}.", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: bm.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&bm, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((bm.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); r }, Err(_) => continue };
+            let v = extract(&resp.content, "verdict").and_then(|x| x.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
+            let c = extract(&resp.content, "confidence").and_then(|x| x.as_u64()).unwrap_or(50).min(100);
+            let stake = stake_from_confidence(c, WALLET_BUDGET_MICRO); let flat = (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2;
+            if v == "YES" { yes[ri] += stake; fyes[ri] += flat; } else if v == "NO" { no[ri] += stake; fno[ri] += flat; }
+        }
+    }
+    let market_pm: Vec<i64> = (0..nr).map(|i| price_yes_permille(yes[i], no[i])).collect();
+    let flat_pm: Vec<i64> = (0..nr).map(|i| price_yes_permille(fyes[i], fno[i])).collect();
+
+    // ── SHARED coordinator rank ONCE (sees the bodies — audit fix) ──
+    let coord_order: Option<Vec<usize>> = {
+        let summary: String = residual.iter().enumerate().map(|(ri, (ti, b, ec))| { let bt: String = b.chars().take(500).collect(); format!("[{ri}] thm: {}\n  failed_attempt: {}\n  lean_error_class: {ec}", stmt(&pool[*ti].preamble), bt) }).collect::<Vec<_>>().join("\n");
+        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {nr} failed Lean 4 proof attempts. Each shows the theorem, the failed attempt, and its Lean error class. Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[EVERY residual index, best-first]}}.\n\n{summary}");
+        match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.2), max_tokens: Some(400) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((args.model.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); extract(&r.content, "order").and_then(|v| v.as_array().map(|a| a.iter().filter_map(|x| x.as_u64().map(|u| u as usize)).filter(|&i| i < nr).collect::<Vec<usize>>())) }, Err(_) => None }
+    };
+
+    // ── SHARED Phase 2.5: repair EACH residual ONCE → (success, cost, micro) shared by all arms ──
+    let mut rep_ok = vec![false; nr]; let mut rep_cost = vec![0u64; nr]; let mut rep_micro = vec![0i64; nr]; let mut rep_prompt = vec![0u64; nr];
+    for (ri, (ti, body, err)) in residual.iter().enumerate() {
+        let thm = &pool[*ti];
+        let prompt = format!("Repair this failed Lean 4 (Mathlib) proof attempt of `{}` (it gave: {err}).\nFailed attempt:\n```\n{body}\n```\nOutput a CORRECT proof as JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.", stmt(&thm.preamble));
+        let resp = match llm.generate(&GenerateRequest { model: reasoner.into(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(600) }).await { Ok(r) => { ov_llm += 1; rep_cost[ri] = r.completion_tokens as u64; rep_prompt[ri] = r.prompt_tokens as u64; rep_micro[ri] = call_micro_usd(reasoner, r.prompt_tokens as u64, r.completion_tokens as u64); r }, Err(_) => continue };
+        if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { if !tac.trim().is_empty() { rep_ok[ri] = verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_sh_rep_{}", args.seed, ti)); } }
+    }
+    let repairable = rep_ok.iter().filter(|&&x| x).count();
+
+    // ── PER-ARM deterministic allocation over the SHARED state (only the ORDER differs) ──
+    let arms = ["market", "shuffled", "flatbid", "coordinator", "random", "index"];
+    let base = args.out.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("/tmp"));
+    for arm in arms {
+        let mut order: Vec<usize> = (0..nr).collect();
+        match arm {
+            "market" => order.sort_by(|&a, &b| market_pm[b].cmp(&market_pm[a])),
+            "flatbid" => order.sort_by(|&a, &b| flat_pm[b].cmp(&flat_pm[a])),
+            "shuffled" => { let mut p = market_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i, j); } order.sort_by(|&a, &b| p[b].cmp(&p[a])); }
+            "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i, j); } }
+            "coordinator" => { if let Some(co) = &coord_order { if co.iter().copied().collect::<BTreeSet<usize>>().len() == nr { let mut seen = BTreeSet::new(); order = co.iter().copied().filter(|i| seen.insert(*i)).collect(); } } }
+            _ => {} // index = pool order (no-information baseline)
+        }
+        let mut tape = MarketTape::new();
+        tape.record(&MarketEvent::GenesisPin { run_id: format!("{arm}__seed{}", args.seed), seed: args.seed, policy: arm.to_string(), model_roster: vec![args.model.clone(), reasoner.to_string()], budget_b: args.reasoner_budget_tok, axiom_whitelist: vec!["propext".into(), "Classical.choice".into(), "Quot.sound".into()], head_commit_sha: market_tape_shared::head_commit_sha() });
+        // replay the SHARED overhead LLM calls onto this arm's tape so verify_market_tape reconstructs the full cost/tokens
+        for (m, p, c) in &shared_calls { tape.record(&MarketEvent::LlmCall { model: m.clone(), prompt_tokens: *p, completion_tokens: *c }); }
+        for &ti in &free_banked { tape.record(&MarketEvent::Verify { claim: ti, verdict: true, reject_class: "none".into() }); tape.record(&MarketEvent::Resolve { claim: ti, outcome: "YES_FREE".into() }); }
+        let (mut spent, mut banked, mut arm_micro, mut afforded) = (0u64, free_banked.len(), ov_micro, 0usize);
+        for &ri in &order {
+            if spent + rep_cost[ri] > args.reasoner_budget_tok { continue; } // can't afford this repair within B
+            spent += rep_cost[ri]; arm_micro += rep_micro[ri]; afforded += 1;
+            let ti = residual[ri].0;
+            tape.record(&MarketEvent::RouteSample { policy: arm.to_string(), frontier_hash: short_hash(&format!("{arm}{ri}")), selected_claim: ri });
+            tape.record(&MarketEvent::LlmCall { model: reasoner.to_string(), prompt_tokens: rep_prompt[ri], completion_tokens: rep_cost[ri] });
+            tape.record(&MarketEvent::Verify { claim: ti, verdict: rep_ok[ri], reject_class: if rep_ok[ri] { "none".into() } else { "reasoner_failed".into() } });
+            tape.record(&MarketEvent::Resolve { claim: ri, outcome: if rep_ok[ri] { "YES".into() } else { "NO".into() } });
+            if rep_ok[ri] { banked += 1; }
+        }
+        let cop = if banked > 0 { arm_micro / banked as i64 } else { i64::MAX };
+        let manifest = serde_json::json!({ "schema": "lean_hayek_alloc.v2", "policy": arm, "pool_size": pool.len(), "banked_at_B": banked, "residual": nr, "reasoner_completion_tokens": spent, "chat_completion_tokens": ov_chat, "reasoner_budget_tok": args.reasoner_budget_tok, "micro_usd": arm_micro, "cost_of_pass_micro_usd": cop, "seed": args.seed, "llm_calls": shared_calls.len() + afforded, "lean_calls": 0, "tape_chain_ok": tape.verify_chain(), "tape_events": tape.lines.len(), "shared_state": true, "free_banked": free_banked.len(), "repairable": repairable });
+        let _ = std::fs::write(base.join(format!("t2s_{arm}_{}.json", args.seed)), serde_json::to_string_pretty(&manifest).unwrap());
+        let _ = std::fs::write(base.join(format!("t2s_{arm}_{}.tape", args.seed)), tape.lines.join("\n"));
+        println!("shared[{arm}] seed{} banked@B={banked} (free={} +repair) repair_spent={spent}/{}", args.seed, free_banked.len(), args.reasoner_budget_tok);
+    }
+    println!("shared-state seed{} DONE: residual={nr} free_banked={} repairable={repairable} (max routing effect) shared_llm_calls={} total_llm_calls={ov_llm} wall={:.1}s", args.seed, free_banked.len(), shared_calls.len(), t0.elapsed().as_secs_f64());
+    Ok(())
+}
+
 async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
     let pool_path = args.task.strip_prefix("pool:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
     let pool = load_pool(pool_path, args.pool_subset);
@@ -1325,6 +1435,11 @@ async fn main() -> Result<(), String> {
     // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
     if args.task.starts_with("het") {
         return run_probe_alloc(&args, &llm, &lean_bin, &lp).await;
+    }
+    // SHARED-STATE T2 mode: free-bank + betting + repair computed ONCE; all 6 arms allocate over the
+    // IDENTICAL state (isolates routing; one invocation emits all arms' manifests). The confound-free path.
+    if args.task.starts_with("shared") {
+        return run_alloc_shared(&args, &llm, &lean_bin, &lp).await;
     }
     // LEAN-ALLOC mode: price allocates the scarce reasoner-repair budget over a real theorem pool.
     if args.task.starts_with("pool") {

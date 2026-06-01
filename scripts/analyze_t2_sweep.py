@@ -117,18 +117,27 @@ def main():
         pvals[f] = wilcoxon_one_sided_greater(diffs)
         deltas[f] = sum(diffs)/len(diffs) if diffs else 0
     adj = holm(pvals)
+    npos = {f: sum(1 for s in common if isinstance(banked[f].get(s),int) and banked['market'][s]-banked[f][s] > 0) for f in foils}
+    nneg = {f: sum(1 for s in common if isinstance(banked[f].get(s),int) and banked['market'][s]-banked[f][s] < 0) for f in foils}
     for f in foils:
-        print(f"  market vs {f:12} mean_delta=+{deltas[f]:.2f}  p_holm={adj[f]:.4f}  {'PASS' if adj[f]<a.alpha and deltas[f]>0 else 'fail'}")
+        print(f"  market vs {f:12} mean_delta={deltas[f]:+.2f}  (+{npos[f]}/-{nneg[f]} seeds)  p_holm={adj[f]:.4f}  {'PASS' if adj[f]<a.alpha and deltas[f]>0 else 'fail'}")
+    print(f"  (n={len(common)} paired seeds)")
 
-    primary_ok = ("shuffled" not in adj) or (adj.get("shuffled",1)<a.alpha and deltas.get("shuffled",0)>0)
+    # Per prereg: distinguish a DIRECTION breach (delta<=0 → genuine NO-GO for that contrast) from a
+    # positive-but-nonsignificant delta (underpowered → INCONCLUSIVE, NOT NO-GO). A NEVER inferred from B.
     a_go = all((adj[f]<a.alpha and deltas[f]>0) for f in foils)
+    breached = [f for f in foils if deltas[f] < 0]             # market STRICTLY WORSE → direction wrong (real NO-GO)
+    underpowered = [f for f in foils if deltas[f] >= 0 and not (adj[f] < a.alpha and deltas[f] > 0)]  # tie/positive-nonsig
     print("\n=== VERDICT (vs locked prereg) ===")
     if a_go:
-        print("  A (price-causal efficiency): GO — market beats coordinator AND shuffle AND flatbid")
-    elif not primary_ok:
-        print("  A: NO-GO — market !> shuffled-price (PRIMARY firewall): the win, if any, is not price coordination")
+        print("  A (price-causal efficiency): GO — market > coordinator AND shuffled AND flatbid (Holm-p<alpha, dir>0)")
+    elif breached:
+        tag = "PRIMARY firewall" if "shuffled" in breached else "efficiency gate"
+        print(f"  A: NO-GO ({tag}) — market did NOT out-bank {', '.join(f'{f}(d={deltas[f]:+.2f})' for f in breached)}: the win, if any, is not price coordination" if "shuffled" in breached
+              else f"  A: NO-GO (efficiency) — market <= {', '.join(f'{f}(d={deltas[f]:+.2f})' for f in breached)} (central planning / structure allocates >= as well as price)")
     else:
-        print("  A: NOT ESTABLISHED — at least one causal gate not passed (report inconclusive vs NO-GO per MDE)")
+        print(f"  A: INCONCLUSIVE — direction correct on all foils but underpowered at alpha={a.alpha}: {', '.join(f'{f}(d={deltas[f]:+.2f},p={adj[f]:.3f})' for f in underpowered)}")
+        print("     (prereg: positive-but-nonsignificant delta = inconclusive, NOT NO-GO; needs more seeds / MDE check)")
     print("  B (institutional governance): held iff every market cell is replay-green + Sybil-resistant +")
     print("     Goodhart-shielded + failures-on-tape (checked separately; A is NEVER inferred from B).")
     sys.exit(0)
