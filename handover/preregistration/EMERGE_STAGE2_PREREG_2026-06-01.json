@@ -1,0 +1,36 @@
+{
+  "preregistration": "TuringOS EMERGE Stage-2 — is the Stage-1 combination uplift REAL capability or just more sampling, and does a fair cross-family STRONG model add complementarity?",
+  "date": "2026-06-01",
+  "locked_before_reading_any_result": true,
+  "builds_on": "Stage-1 (handover/reports/EMERGE_STAGE1_FINDINGS_2026-05-31.md): A coverage VALIDATED; B combination union 26/44 > best-single 18/44 (+8) but cross-FAMILY thesis REFUTED (Qwen3-32B strictly dominated) and a sampling confound unresolved (union got 8 draws/thm vs 4).",
+
+  "two_questions": {
+    "Q1_sampling_control_PRIMARY": "Is the Stage-1 +8 genuine combination capability or just 2x the draws? Compare best-single at EQUAL TOTAL draws: deepseek-v4-pro @ k=8 vs union(v4-pro@k4, V3.2@k4)=26.",
+    "Q2_fair_cross_family": "Stage-1 refuted cross-family diversity using the too-weak Qwen3-32B. Re-test with a STRONG cross-family flagship selected by real Lean probe: does union(v4-pro, V3.2, qwen3.7-max)@k4 extend beyond union(v4-pro, V3.2)@k4=26, with >=1 qwen3.7-max-ONLY solve?"
+  },
+
+  "arm_selection_evidence": "qwen3.7-max chosen by real-Lean probe (handover/reports/qwen_arm_probe_2026-06-01.json): on 6 representative theorems (v4-pro 4/6, V3.2 6/6) the current Qwen flagships ranked qwen3.7-max 5/6 > qwen3.6-max-preview 4/6 > Qwen3.5-397B-A17B 3/6. qwen3.7-max even solved lm_det_mul (a Stage-1 combination-target v4-pro missed). It is genuinely strong (unlike the dominated Qwen3-32B), so it FAIRLY tests cross-family diversity. Routes via the DashScope channel (bare id) through the de-branded gateway — a THIRD live channel alongside DeepSeek-official + SiliconFlow.",
+
+  "runs": {
+    "A_control": "deepseek-v4-pro @ k=8, full 44 pool, max_rounds=2, temp 0.8+0.05s — the equal-total-draws control for Q1",
+    "B_crossfamily": "qwen3.7-max @ k=4, full 44 pool, max_rounds=2, temp 0.8+0.05s — the fair cross-family arm for Q2 (per-model budget matches Stage-1's k=4 for a clean 3-way union)"
+  },
+  "reuses_stage1": "v4-pro@k4 (18/44) and V3.2@k4 (16/44) from /tmp/emerge_stage1.json — same harness, core loop verified unchanged across the checkpoint commit.",
+
+  "decision_rules_locked": {
+    "Q1_combination_is_REAL_if": "v4-pro@k8 solved-count <= union(v4-pro@k4,V3.2@k4) - 3  (i.e. best-single at 8 draws still trails the 2-model union at 4-each by >=3) → combination beats equal-TOTAL-budget, not just equal per-model.",
+    "Q1_combination_is_JUST_SAMPLING_if": "v4-pro@k8 >= union@k4 - 1 (best-single at equal total draws matches the union) → the Stage-1 +8 was mostly more-draws; TuringOS multi-agent value is then cost/parallelism, not capability. Report honestly.",
+    "Q2_cross_family_helps_if": "union(v4-pro@k4, V3.2@k4, qwen3.7-max@k4) > 26 AND >=1 theorem solved ONLY by qwen3.7-max (a strong cross-family model contributes complementarity a same-family pair cannot).",
+    "Q2_cross_family_null_if": "the 3-way union <= 26 or qwen adds no unique solve → even a strong cross-family model is subsumed; diversity D~0 holds beyond model strength."
+  },
+
+  "honesty_gates": [
+    "every counted solve passes the in-harness #print-axioms whitelist {propext, Classical.choice, Quot.sound} (source-grep + positive footprint assertion; native_decide/sorry rejected)",
+    "LIMITATION carried from Stage-1: the harness records hit COUNTS, not winning proof BODIES, so solves are verified only by the inline gate (code-audited rigorous), not independently re-verified. If Stage-2 confirms combination is REAL, a follow-up must persist + re-verify winning proofs before any external headline.",
+    "checkpoint/--resume now crash-safe (commit 991336da); core measurement loop unchanged so cross-stage comparison is valid"
+  ],
+
+  "what_this_does_NOT_claim": "Neither run tests TuringOS PRICE ROUTING yet — that is the next layer (route a scarce strong-model budget over the combination-target theorems via the constitutional market) and only earns a headline AFTER Q1 shows combination is real capability. Stage-2 is the capability prerequisite, not the market test.",
+
+  "discipline": "FC1/FC2/FC3 untouched; no section-6 surface; integer money; de-branded multi-channel (3 channels now); PR-only; results read only AFTER this file is committed."
+}

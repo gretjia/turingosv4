@@ -6,7 +6,7 @@ Per-project ledger of user-stated obligations to the agent. One file, one
 schema, append-only IDs. Agents must reconcile at every implementation /
 audit / completion turn.
 
-Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, OBL-009, OBL-010, OBL-011, and OBL-012 are satisfied. OBL-012: lean_hayek_market `call_micro_usd` now bills each roster model at its true published per-model price (per-1M-token integer micro-USD table, most-specific-first match + labeled fallback), fixing the silent deepseek-chat-proxy mispricing of heterogeneous strong models (Class 1–2; guard unit test PASS). OBL-010: G0 market activation 11/11 by real run + replay (PR #216). OBL-011: G1 live-LLM agent market reaches OMEGA (permissive + strict verifier) with real price discovery, plus G2 scale curve N=4/8/16/30 (PPUT~120, scale-flat) and cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
+Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL-005, OBL-006, OBL-007, OBL-008, OBL-009, OBL-010, OBL-011, OBL-012, and OBL-013 are satisfied. OBL-013: deepseek-v4-pro wired via the DeepSeek official API channel through the generic de-branded gateway (multi-API-channel exercised across DeepSeek-official + SiliconFlow in one EMERGE Stage-1 job; calling harness names zero channels; v4-pro/v4-flash honest pricing rows added with ordering guard). OBL-012: lean_hayek_market `call_micro_usd` now bills each roster model at its true published per-model price (per-1M-token integer micro-USD table, most-specific-first match + labeled fallback), fixing the silent deepseek-chat-proxy mispricing of heterogeneous strong models (Class 1–2; guard unit test PASS). OBL-010: G0 market activation 11/11 by real run + replay (PR #216). OBL-011: G1 live-LLM agent market reaches OMEGA (permissive + strict verifier) with real price discovery, plus G2 scale curve N=4/8/16/30 (PPUT~120, scale-flat) and cost <\$0.003/OMEGA, all replay-verified; report `handover/reports/G1_G2_LIVE_MARKET_PPUT_REPORT_2026-05-30.md`. Recommended next: strong (Lean/Docker) verifier for a rigorous capability coordinate.
 
 ---
 
@@ -159,5 +159,18 @@ Current overall status: **COMPLETE** — OBL-001, OBL-002, OBL-003, OBL-004, OBL
 - Status: satisfied
 - Risk class: 1–2（诊断 bin 的成本/指标路径；非 §6 受限面、非权威经济状态；宪法 §12 整数 money 规则适用且已保持）
 - Evidence: `src/bin/lean_hayek_market.rs` —— 新增 `MODEL_RATES` 表（slash-form id 经 `llm_proxy.detect_provider` 路由 api.siliconflow.cn → 取 SiliconFlow 公布 USD list price；bare `deepseek-*` → api.deepseek.com baseline pin）+ 明确 `FALLBACK_IN/OUT_UPMT` + `call_micro_usd` 改为最具体优先匹配，算术全整数。价格 2026-05-31 核实并在注释引用：DeepSeek-V3.2 \$0.27/\$0.41、Qwen3-32B \$0.14/\$0.57、Qwen2.5-72B-Instruct \$0.59/\$0.59（siliconflow.com 各 model 页 + 公告）。守序 guard 单测 `tests::call_micro_usd_bills_each_model_at_its_true_rate` PASS（`cargo test --bin lean_hayek_market` → 1 passed; 0 failed；bin 干净编译，未引入新 warning）。
-- Open decision（非阻塞，待架构师定夺，未静默改动）: DeepSeek 官方已将 deepseek-chat/deepseek-reasoner 归并入 deepseek-v4-flash（\$0.28 in cache-miss / \$0.28 out），现有 reasoner \$0.55/\$2.19、chat \$0.27/\$1.10 baseline 行相对官方现价已过期；为保历史 banked-per-dollar tape 可比，本次故意保留旧 baseline。是否 re-pin（及 deepseek-reasoner 是否应指 v4-pro \$0.435/\$0.87promo｜\$1.74/\$3.48）由架构师决定，可开 OBL-013。
+- Open decision RESOLVED → OBL-013（架构师 2026-05-31 第二条指令拍板用 deepseek-v4-pro）: 不 re-pin 旧 baseline（保历史 tape 可比），而是新增 `deepseek-v4-pro` \$0.435/\$0.87promo + `deepseek-v4-flash` \$0.14/\$0.28 具体行（排在 bare `deepseek` catch-all 之前，most-specific-first），守序断言已扩展。详见 OBL-013。
+- Last-touched: 2026-05-31
+
+## OBL-013: deepseek-v4-pro 经 DeepSeek 官方渠道接入 + multi-API-channel，所有调用 de-branded / de-channel / generic
+- Source: 架构师 2026-05-31 第二条 — "你需要 strong model 的话还是可以用 deepseek official api 调用 deepseek v4 pro，正好可以试试 multi-API channel，注意所有的调用必须是 de-branded, de-channel, must be generic，以后可能会调用很多品牌的 api。"
+- Level: must
+- Status: satisfied（基础设施 + 计费部分已完成并真测；用 v4-pro 的能力研究 = EMERGE Stage-1，prereg 已锁、真题运行进行中，由 tasks #27/#28 跟踪）
+- Risk class: 1–2（gateway 路由 + 诊断 bin 计费；非 §6；money path 整数）
+- Evidence:
+  - 真测：经 generic gateway（`:8123`）裸 id `deepseek-v4-pro` 路由到 api.deepseek.com 官方渠道，返回正确 Lean 证明（`induction n with | zero => simp | succ n ih => simp [ih]`），real token metering。DeepSeek 官方目录实测 = {deepseek-v4-flash, deepseek-v4-pro}。
+  - de-branded 审计：`grep -rniE 'siliconflow|dashscope|api.deepseek|…' src/bin/` 对研究 harness `lean_emergence.rs` 零渠道/品牌字面量；调用层只发 model-id 到一个 generic endpoint，渠道路由集中在 gateway `src/drivers/llm_proxy.py`（PROVIDERS registry + detect_provider + `provider:model` escape hatch）。
+  - 计费诚实（接 OBL-012）：`MODEL_RATES` 加 `deepseek-v4-pro` \$0.435/\$0.87promo + `deepseek-v4-flash` \$0.14/\$0.28，排在 bare `deepseek` catch-all 之前；守序断言 `deepseek-v4-pro` 计 435k/870k（非裸 deepseek 270k/1.1M），`cargo test --bin lean_hayek_market` PASS。
+  - 架构 note：`handover/reports/MULTI_API_CHANNEL_DEBRANDED_2026-05-31.md`（含"下一个品牌只改一行 PROVIDERS"契约）。
+  - 跨渠道真跑：EMERGE Stage-1 一个 job 内 v4-pro（DeepSeek 官方）+ DeepSeek-V3.2 + Qwen3-32B（SiliconFlow）三强模型并行，harness 只传 id、gateway 全权路由。
 - Last-touched: 2026-05-31
