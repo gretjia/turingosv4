@@ -73,6 +73,10 @@ PRs for path overlap (see `AGENTS.md §4.1`). One-liner, no new mechanism.
 
 Before runner script that mutates handover/evidence/: `/runner-preflight`
 
+Before any `PROVEN` / `DEFINITIVE` / `causal` / `X > Y` efficiency headline
+(report, commit, LATEST.md, verdict, summary): `/no-proven-checklist`
+(`AGENTS.md §17`).
+
 Before writing new feedback_*.md: ask "what mechanism enforces this?"
 
 After TB SHIPPED FINAL or audit rounds > 3: `/harness-reflect`

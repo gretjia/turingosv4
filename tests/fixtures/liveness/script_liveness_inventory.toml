@@ -109,8 +109,27 @@ paths = [
   "scripts/analyze_emerge_stage1.py",
   "scripts/analyze_emerge_stage2.py",
   "scripts/analyze_t2_sweep.py",
+  "scripts/analyze_t2_routing_efficiency.py",
+  "scripts/analyze_p1_realvalue.py",
   "scripts/bench_aggregate.py",
   "scripts/bench_axiom_reverify.py",
+]
+covered_by = [
+  "handover/preregistration",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+# Forensic 2026-06-01: P1 real-value experiment + T2 shared-state sweep runners (the
+# retrospective's prescribed next-step tooling). Dev-only research runners, classified so the
+# no-zombie inventory stays closed; they do not count toward OBL-005 production closure.
+id = "p1_realvalue_t2_shared_research_runners"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/run_p1_realvalue.sh",
+  "scripts/run_t2_shared_sweep.sh",
 ]
 covered_by = [
   "handover/preregistration",

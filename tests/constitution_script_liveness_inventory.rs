@@ -113,6 +113,15 @@ fn collect_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(path) = stack.pop() {
+        // Skip Python bytecode caches: a `__pycache__/*.pyc` is a compiled build artifact, not
+        // a retained automation file (forensic 2026-06-01 — an untracked .pyc must never make the
+        // no-zombie inventory un-closeable; this corrects the scan's scope, it does not weaken it).
+        if path.file_name().map(|n| n == "__pycache__").unwrap_or(false) {
+            continue;
+        }
+        if path.extension().map(|e| e == "pyc").unwrap_or(false) {
+            continue;
+        }
         if path.is_dir() {
             for entry in
                 fs::read_dir(&path).unwrap_or_else(|err| panic!("read dir {path:?}: {err}"))
