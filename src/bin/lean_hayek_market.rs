@@ -104,70 +104,13 @@ fn stake_from_confidence(confidence_pct: u64, wallet: i64) -> i64 {
     raw.clamp(MIN_STAKE_MICRO, MAX_STAKE_MICRO).min(wallet.max(0))
 }
 
-// ── MarketTape-lite: append-only event log, prev_hash chained (ATOM 1) ──────
-// Price is DERIVED from Invest events; node.score is never authoritative.
-#[derive(Clone)]
-enum MarketEvent {
-    MarketOpen { claim: usize, claim_type: String },
-    Invest { agent: usize, claim: usize, side: String, amount_micro: i64, model_hash: String, confidence: u64 },
-    Proposal { agent: usize, claim: usize, output_hash: String },
-    LlmCall { model: String, prompt_tokens: u64, completion_tokens: u64 },
-    Verify { claim: usize, verdict: bool, reject_class: String },
-    RouteSample { policy: String, frontier_hash: String, selected_claim: usize },
-    Resolve { claim: usize, outcome: String },
-}
-
-struct MarketTape {
-    lines: Vec<String>,
-    prev_hash: String,
-}
-impl MarketTape {
-    fn new() -> Self { MarketTape { lines: Vec::new(), prev_hash: "genesis".into() } }
-    fn append(&mut self, kind: &str, body: serde_json::Value) {
-        let payload = serde_json::json!({ "kind": kind, "prev": self.prev_hash, "body": body });
-        let s = serde_json::to_string(&payload).unwrap();
-        let mut h = Sha256::new();
-        h.update(s.as_bytes());
-        self.prev_hash = format!("{:x}", h.finalize());
-        self.lines.push(s);
-    }
-    fn record(&mut self, e: &MarketEvent) {
-        match e {
-            MarketEvent::MarketOpen { claim, claim_type } => self.append("MarketOpen", serde_json::json!({"claim":claim,"claim_type":claim_type})),
-            MarketEvent::Invest { agent, claim, side, amount_micro, model_hash, confidence } => self.append("Invest", serde_json::json!({"agent":agent,"claim":claim,"side":side,"amount_micro":amount_micro,"model_hash":model_hash,"confidence":confidence})),
-            MarketEvent::Proposal { agent, claim, output_hash } => self.append("Proposal", serde_json::json!({"agent":agent,"claim":claim,"output_hash":output_hash})),
-            MarketEvent::LlmCall { model, prompt_tokens, completion_tokens } => self.append("LLMCall", serde_json::json!({"model":model,"prompt_tokens":prompt_tokens,"completion_tokens":completion_tokens})),
-            MarketEvent::Verify { claim, verdict, reject_class } => self.append("Verify", serde_json::json!({"claim":claim,"verdict":verdict,"reject_class":reject_class})),
-            MarketEvent::RouteSample { policy, frontier_hash, selected_claim } => self.append("RouteSample", serde_json::json!({"policy":policy,"frontier_hash":frontier_hash,"selected_claim":selected_claim})),
-            MarketEvent::Resolve { claim, outcome } => self.append("Resolve", serde_json::json!({"claim":claim,"outcome":outcome})),
-        }
-    }
-    /// Verify the append-only prev_hash chain (replayability gate, ATOM 5-lite).
-    fn verify_chain(&self) -> bool {
-        let mut prev = "genesis".to_string();
-        for line in &self.lines {
-            let v: serde_json::Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => return false };
-            if v["prev"].as_str() != Some(&prev) { return false; }
-            let mut h = Sha256::new(); h.update(line.as_bytes());
-            prev = format!("{:x}", h.finalize());
-        }
-        true
-    }
-    /// Re-derive each claim's (yes,no) pools from the Invest events ALONE — proves price is
-    /// tape-derivable, not an authoritative in-memory score (Art. 0.2).
-    fn derive_pools(&self, k: usize) -> Vec<(i64, i64)> {
-        let mut pools = vec![(0i64, 0i64); k];
-        for line in &self.lines {
-            let v: serde_json::Value = serde_json::from_str(line).unwrap();
-            if v["kind"] == "Invest" {
-                let c = v["body"]["claim"].as_u64().unwrap() as usize;
-                let amt = v["body"]["amount_micro"].as_i64().unwrap();
-                if v["body"]["side"] == "YES" { pools[c].0 += amt; } else { pools[c].1 += amt; }
-            }
-        }
-        pools
-    }
-}
+// ── MarketTape-lite: extracted to a bin-local shared module (TP-0A.1, behavior-preserving) so the
+// producer bin AND the standalone verify_market_tape verifier link the IDENTICAL event schema + hash
+// chain. Lives in src/ (NOT src/bin/, so cargo does not treat it as a binary) and is NOT declared in
+// lib.rs (adding a mod there is a trust-root/constitution touch); pulled in via #[path].
+#[path = "../market_tape_shared.rs"]
+mod market_tape_shared;
+use market_tape_shared::{MarketEvent, MarketTape};
 
 // ── Hayek price (ATOM 2): integer-rational, identical to compute_price_index's long/(long+short) ──
 /// p_raw scaled to per-mille (integer) to stay off f64 in the price path: 1000*(YES+α)/(YES+NO+2α).
