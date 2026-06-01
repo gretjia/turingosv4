@@ -1,8 +1,20 @@
 {
   "preregistration": "TP-2 counted sweep — does PRICE allocate the scarce reasoner-repair budget more efficiently than a CENTRAL COORDINATOR (and is the win causal vs price-destruction ablations)?",
   "date": "2026-06-01",
-  "status": "DRAFT — locked + externally SHA-pinned only AFTER the G2 smoke confirms replay-green + binding budget + dynamic range, and BEFORE any counted arm result is read",
-  "depends_on": "G0 (verify_market_tape replay-green, met) + G1 (microstructure spec locked, met) + G2 smoke (6 arms × subset × 2 seeds: every arm replay-green, B binds, banked@B varies across arms)",
+  "status": "LOCKED — calibration + clean-context audit complete; SHA-pinned; counted results read ONLY after this lock",
+  "depends_on": "G0 (verify_market_tape replay-green, met) + G1 (microstructure spec locked, met) + clean-context audit (6 findings fixed incl 2 blockers) + calibration pilot (signal present, dynamic range confirmed)",
+
+  "locked_config_from_calibration": {
+    "proposer_and_bettor_model": "deepseek-v4-flash (weak-enough to leave a repairable residual band)",
+    "reasoner_model": "qwen3.7-max (Stage-2's strongest, 31/44; via DashScope through the de-branded gateway). deepseek-reasoner (thinking-OFF via proxy) repaired 0/16 = structural false-null, REJECTED.",
+    "task": "pool: 24-theorem subset (pool_subset=24) — gives ~16-19 residuals, ~3 repairable per seed",
+    "binding_budget_B_reasoner_completion_tokens": 1000,
+    "banked_at_B_semantic": "banked by repairs STARTED while reasoner_tok < B (the gate stops new repairs at B); a cell legitimately overshoots by ONE in-progress repair; exclude only egregious overshoot > B+800",
+    "seeds": 12,
+    "arms": ["solo", "coordinator", "market", "shuffled", "flatbid", "random"],
+    "honest_power_note": "thin signal — max routing effect ~= the ~3 repairable theorems (repair gets 1 shot, vs Stage-2's k=12 draws). Combined with the H0 prior (shuffle beat market on the monolithic pool), Verdict A is EXPECTED NO-GO; the counted sweep's value is to establish Verdict A NO-GO + Verdict B (governance) on a VALID (signal-present, audited) experiment, not a false null.",
+    "pilot_seed7_observed": "market 6 > coordinator 5 > shuffled 4, flatbid 6, random 5, solo 6 — all replay-green (n=1, non-significant; the 12-seed sweep decides)"
+  },
 
   "the_question": "Same models, same budget B, same verifier (#print-axioms whitelist), same task: does the PRICE-routed market bank more verified theorems at fixed reasoner-token budget than a central-coordinator LLM ranking the same residuals — AND does it survive price-destruction (market > shuffled-price AND market != flatbid)? This is the architect's compressed mission proposition on the cleanest substrate.",
 

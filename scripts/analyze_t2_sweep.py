@@ -80,11 +80,13 @@ def main():
             if not os.path.exists(mf):
                 excluded.append((arm, seed, "no-manifest (e.g. coordinator hard-fail)")); continue
             d = json.load(open(mf))
-            # audit MAJOR-4: enforce the prereg's B-overshoot exclusion (a cell that spent > reasoner budget B
-            # is excluded, pre-committed) — the producer's budget gate can overshoot by up to one repair.
+            # audit MAJOR-4 (refined by the calibration pilot): banked@B = banked by repairs STARTED under B
+            # (the gate stops new repairs once reasoner_tok >= B), so a cell legitimately overshoots by ONE
+            # in-progress repair (<= max_tokens 600 + margin). Exclude only EGREGIOUS overshoot (> B + 800 =
+            # a bug/runaway), not the inherent bounded one-repair overshoot. Consistent + symmetric across arms.
             rct = d.get("reasoner_completion_tokens", 0); rbt = d.get("reasoner_budget_tok", 10**12)
-            if isinstance(rct,(int,float)) and isinstance(rbt,(int,float)) and rct > rbt:
-                excluded.append((arm, seed, f"over-budget reasoner_tok {rct}>{rbt}")); continue
+            if isinstance(rct,(int,float)) and isinstance(rbt,(int,float)) and rct > rbt + 800:
+                excluded.append((arm, seed, f"egregious over-budget reasoner_tok {rct} > B+800 ({rbt}+800)")); continue
             rep = (json.load(open(rr)).get("replay_clean") if os.path.exists(rr) else None)
             if rep is False:
                 excluded.append((arm, seed, "replay-FAIL")); continue   # replay-fail cells excluded from headline
