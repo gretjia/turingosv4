@@ -28,6 +28,11 @@ reconstructed from L4), route telemetry genuine.
 
 This is deliberately **under-claimed**: per AGENTS.md §17 it is a scoped, non-causal statement, not a PROVEN/causal headline.
 
+> **Refinement after the post-data §17 audit + axiom-confirm (see §2):** one crack (lm_ineq1) is **axiom-confirmed**
+> (`#print axioms ⊆ {propext, Classical.choice, Quot.sound}`) — a genuine confound-shielded **existence proof** that
+> Path-1 cracks what single+forced-routing can't. But a 6-seed re-run showed the cracks are **rarer** than the 3-seed
+> run (lm_deriv1 did **not** reproduce; combined rate ~1/9–2/9). So: **axiom-confirmed existence, rare, not significant.**
+
 ## 1. Why this experiment is trustworthy (the rigor the prior ones lacked)
 
 - **Substrate verified**: `lean_market_agent.rs` on the real ChainTape — loss-bearing price (WorkTx-Long + Bear
@@ -65,7 +70,19 @@ enforced by the binary (a `sorry/native_decide` token-scan only) or the analyzer
 *kernel-Verified* half but **not yet the *axiom-confirmed* half** of the preregistered SOLVED definition. **Required to
 count the cracks:** the in-progress `bench_axiom_reverify.py` re-run must return both reproduced proofs with
 `#print axioms ⊆ {propext, Classical.choice, Quot.sound}`. The directional/not-significant/Verdict-B framing is
-**defensible as written**; the **2-crack count is provisional** until the axiom re-run lands GREEN. **[AXIOM-CONFIRM RESULT: PENDING]**
+**defensible as written**; the **2-crack count is provisional** until the axiom re-run lands GREEN.
+
+**AXIOM-CONFIRM RESULT (2026-06-02): EXISTENCE CONFIRMED, but the cracks are RARER than the 3-seed run showed.**
+Re-run (autonomous × {lm_deriv1, lm_ineq1} × 6 fresh seeds, CAS preserved): **lm_deriv1 cracked 0/6** (its original
+1/3 did NOT reproduce!), **lm_ineq1 cracked 1/6** (s6). The reproduced lm_ineq1 crack was extracted from CAS, recompiled
+under Lean+Mathlib (it genuinely compiles — the harness is not a false-positive), and **`#print axioms ineq_amgm_concrete`
+= [propext, Classical.choice, Quot.sound] ⊆ whitelist** — **AXIOM-CLEAN** (no native_decide / sorryAx). So **autonomous
+(Path-1) produced a genuine, axiom-clean Lean proof of a hard theorem (`3a²+5b² ≥ 2√15·ab`) that single AND forced-softmax
+both failed at equal budget** — a real, confound-shielded, axiom-confirmed **existence proof**. BUT combined across both
+runs the crack rate is **~1/9 (lm_deriv1) to ~2/9 (lm_ineq1)** — the cracks are **rare and stochastic**; the single 3-seed
+run **over-estimated** the rate (a small-sample over-read, corrected here). The §17 CHALLENGE is resolved for the
+*existence* claim; the durable harness fix (inline #print-axioms gate + persist the verified proof) still stands so future
+cracks are formally clean without CAS archaeology.
 
 ## 3. What it means
 

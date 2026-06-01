@@ -43,3 +43,13 @@ signal stands as written. If either pulls an off-whitelist axiom → that crack 
 ### Disposition
 The **directional / not-significant / Verdict-B framing is fully defensible.** The **"2 cracks" count is provisional**
 (kernel-Verified, not yet axiom-confirmed) and is correctly self-gated by the report on the in-progress axiom re-run.
+
+## CHALLENGE RESOLUTION (2026-06-02)
+Axiom-confirm re-run (autonomous × lm_deriv1/lm_ineq1 × 6 seeds, CAS preserved): lm_deriv1 0/6 (original 1/3 did NOT
+reproduce), lm_ineq1 1/6 (s6). The lm_ineq1 s6 crack was extracted from CAS, recompiled under Lean+Mathlib (genuinely
+compiles → harness is NOT a false-positive), and `#print axioms ineq_amgm_concrete = [propext, Classical.choice,
+Quot.sound]` ⊆ whitelist → **AXIOM-CLEAN**. Proof persisted: handover/evidence/p1_axiom_confirm_2026-06-02/lm_ineq1_crack_VERIFIED.lean.
+**Disposition: the EXISTENCE claim (Path-1 produces an axiom-clean proof of a hard theorem single+forced-softmax can't)
+is CONFIRMED.** The cracks are rarer than the 3-seed run showed (~1/9–2/9); the result stays INCONCLUSIVE (rare, not
+significant) — but it is now an *axiom-confirmed* existence signal, not merely kernel-Verified. Durable fix still owed:
+inline #print-axioms gate + proof persistence in lean_market_agent (so future cracks are formally clean without CAS archaeology).
