@@ -1079,6 +1079,21 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     }
     let price_pm: Vec<i64> = (0..residual.len()).map(|ri| price_yes_permille(yes[ri], no[ri])).collect();
 
+    // ── COORDINATOR arm (central planning, TP-2): a single central-coordinator LLM RANKS the residuals
+    // (vs the market PRICING them). It sees the SAME proximity info (Lean error class) the market sees; the
+    // ONLY difference is central-LLM allocation vs price allocation of the scarce reasoner budget — the clean
+    // Hayek contrast. NOT a strawman: a real LLM central planner, same task/budget/verifier as the market.
+    let coord_order: Option<Vec<usize>> = if args.policy == "coordinator" {
+        let summary: String = residual.iter().enumerate()
+            .map(|(ri, (ti, _b, ec))| format!("[{ri}] thm={} lean_error_class={ec}", pool[*ti].id)).collect::<Vec<_>>().join("\n");
+        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {} failed Lean 4 proof attempts. Each carries a Lean error class (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[residual indices, best-first]}}.\n\n{summary}", residual.len());
+        match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.2), max_tokens: Some(300) }).await {
+            Ok(r) => { llm_calls += 1; chat_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 });
+                extract(&r.content, "order").and_then(|v| v.as_array().map(|a| a.iter().filter_map(|x| x.as_u64().map(|u| u as usize)).filter(|&i| i < residual.len()).collect::<Vec<usize>>())) }
+            Err(_) => None,
+        }
+    } else { None };
+
     // ── PHASE 3: order residual by the ARM's policy, spend reasoner repair budget B ──
     let mut order: Vec<usize> = (0..residual.len()).collect();
     match args.policy.as_str() {
@@ -1089,6 +1104,8 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
         // skeptic-rerank: order by the SINGLE reasoner-bettor's raw p_success (a strong critic, NO capital,
         // NO market). Rules out "a strong judge helped, not the market" — market must beat THIS too.
         "skeptic_rerank" => order.sort_by(|&a, &b| reasoner_conf[b].cmp(&reasoner_conf[a])),
+        // COORDINATOR (central planner): repair in the coordinator's chosen order, then any it omitted.
+        "coordinator" => { if let Some(co) = &coord_order { let mut seen = std::collections::BTreeSet::new(); let mut o: Vec<usize> = co.iter().copied().filter(|i| seen.insert(*i)).collect(); for i in 0..residual.len() { if seen.insert(i) { o.push(i); } } order = o; } }
         _ => {} // roundrobin = index order
     }
     let frontier_h = short_hash(&format!("{:?}{:?}", order, price_pm));
