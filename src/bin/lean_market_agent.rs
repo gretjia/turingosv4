@@ -193,6 +193,15 @@ struct Manifest {
     failed_count: usize,
     distinct_price_ratios: usize,
     price_discovery: bool,
+    // Route telemetry (Class 1, autonomous arm only; telemetry-only, no behavior change). Splits
+    // every resolve_parent_index outcome so the run can prove WHICH routing actually fired:
+    //   deliberate_fresh_root — model returned the -1 sentinel (intentional new branch)
+    //   valid_index_hit       — model named a real in-range node (genuine non-local routing)
+    //   hallucinated_out_of_range — model named an out-of-range index, fail-open bailed to a root
+    // Without this split a loss cannot be attributed to the routing PRINCIPLE vs hallucination/bail.
+    route_deliberate_fresh_root: usize,
+    route_valid_index_hit: usize,
+    route_hallucinated_out_of_range: usize,
     omega_reached: bool,
     omega_node: Option<String>,
     time_to_first_proof_s: Option<f64>,
@@ -449,10 +458,17 @@ fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedbac
 /// AUTONOMOUS landscape prompt: shows the model the FULL frontier of prior attempts (every
 /// node, including early ones) and lets it FREELY pick which to extend — by index — or start
 /// fresh (`-1`). Inverts the market control flow (parent chosen by the LLM, not pre-selected).
-/// SHIELDING: each node is shown only as (index, price_yes ratio, confidence, error-CLASS via
-/// `classify_lean_error`, body-snippet) — NEVER another node's raw Lean feedback. The SAME
+/// SHIELDING: each node is shown as (index, price_yes ratio, confidence, error-CLASS via
+/// `classify_lean_error`, body-snippet). EQUAL-RIGOR DEPTH (fairness fix): for the top-k nodes
+/// by price the row ALSO carries that node's `node_feedback` — which is ALREADY the bounded
+/// shielded `error:` line produced by `shield_lean_diagnostic` (FEEDBACK_MAX=240, lean_judge.rs)
+/// and stored on tape — the SAME text the market arm injects via `build_prompt`'s
+/// `parent_feedback` for its ONE pre-selected parent. This adds NO new information channel and NO
+/// raw stderr: it is the identical already-shielded diagnostic, plumbed breadth-wise so the
+/// autonomous arm repairs WITH detail at equal 1-call budget instead of BLIND-to-detail. The SAME
 /// shielded collective librarian digest is injected (requirement A for this arm). ONE proposal
 /// call per turn (identical budget to market).
+const AUTONOMOUS_FEEDBACK_TOPK: usize = 6;
 fn build_autonomous_prompt(
     theorem: &LeanTheorem,
     node_tx_ids: &[TxId],
@@ -476,18 +492,54 @@ fn build_autonomous_prompt(
     if node_tx_ids.is_empty() {
         p.push_str("\n=== Landscape: EMPTY (you are the first attempt; use parent_node = -1) ===\n");
     } else {
-        p.push_str("\n=== Landscape — all prior attempts (index : price_yes : confidence : error-class : body-snippet) ===\n");
+        // The top-k nodes by price_yes get the SAME shielded `error:` diagnostic the market arm
+        // sees for its single chosen parent (depth parity); the rest carry the coarse class only.
+        let price_of = |tx: &TxId| -> f64 {
+            pi.get(tx)
+                .and_then(|e| e.price_yes.as_ref())
+                .map(|r| (r.numerator as f64) / (r.denominator.max(1) as f64))
+                .unwrap_or(0.0)
+        };
+        let mut ranked: Vec<usize> = (0..node_tx_ids.len()).collect();
+        ranked.sort_by(|&a, &b| {
+            price_of(&node_tx_ids[b])
+                .partial_cmp(&price_of(&node_tx_ids[a]))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        let detail_set: BTreeSet<usize> = ranked.into_iter().take(AUTONOMOUS_FEEDBACK_TOPK).collect();
+        p.push_str("\n=== Landscape — all prior attempts (index : price_yes : confidence : error-class : body [FULL for top-priced nodes, else snippet] [: shielded Lean error for top-priced nodes]) ===\n");
         for (idx, tx) in node_tx_ids.iter().enumerate() {
             let body = node_body.get(&tx.0).map(|b| b.trim().replace('\n', " ")).unwrap_or_default();
-            let snip: String = body.chars().take(110).collect();
-            let class = node_feedback.get(&tx.0).map(|f| classify_lean_error(f)).unwrap_or("pending");
+            let fb = node_feedback.get(&tx.0);
+            let class = fb.map(|f| classify_lean_error(f)).unwrap_or("pending");
             let conf = node_conf.get(&tx.0).copied().unwrap_or(0);
             let (pn, pd) = pi
                 .get(tx)
                 .and_then(|e| e.price_yes.as_ref())
                 .map(|r| (r.numerator, r.denominator))
                 .unwrap_or((0, 0));
-            p.push_str(&format!("[{idx}] price={pn}/{pd} conf={conf}% class={class} :: `{snip}`\n"));
+            // BODY depth-parity (§17 rigged-arm fix): the top-k price nodes carry the FULL node_body
+            // — the SAME untruncated text build_prompt feeds the market arm for its single chosen
+            // parent (`p.push_str(body)`). The rest carry the coarse 110-char snippet. This matches
+            // the breadth the FEEDBACK channel already uses (detail_set top-k get the full shielded
+            // error, rest get class only); it adds NO new information channel and NO second call —
+            // node_body already holds the full body on-tape — it only stops strawmanning a free
+            // chooser that previously could not read the line it chose to extend. ONE call, same budget.
+            let body_shown: String = if detail_set.contains(&idx) {
+                body.clone()
+            } else {
+                body.chars().take(110).collect()
+            };
+            p.push_str(&format!("[{idx}] price={pn}/{pd} conf={conf}% class={class} :: `{body_shown}`"));
+            // Depth-parity: the chosen-parent-grade shielded diagnostic (already FEEDBACK_MAX=240,
+            // already error:-line only) for the top-priced nodes — the same text build_prompt feeds.
+            if detail_set.contains(&idx) {
+                if let Some(diag) = fb.filter(|d| !d.trim().is_empty()) {
+                    let diag1 = diag.replace('\n', " ");
+                    p.push_str(&format!("\n      lean-error: {diag1}"));
+                }
+            }
+            p.push('\n');
         }
     }
     if !librarian.is_empty() {
@@ -663,6 +715,8 @@ async fn run(args: Args) -> Result<(), String> {
     let majority_threshold = agents.len() / 2 + 1;
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
     let (mut bear_calls, mut bear_tokens_total) = (0usize, 0u64);
+    // Route telemetry counters (autonomous arm; Class 1, no behavior change).
+    let (mut route_fresh, mut route_hit, mut route_halluc) = (0usize, 0usize, 0usize);
     let mut omega_node: Option<String> = None;
     let mut time_to_first_proof_s: Option<f64> = None;
     let mut step_idx = 0u64;
@@ -734,6 +788,17 @@ async fn run(args: Args) -> Result<(), String> {
             if args.policy == Policy::Autonomous {
                 let chosen = v.get("parent_node").and_then(|x| x.as_i64()).unwrap_or(-1);
                 parent_tx = resolve_parent_index(&node_tx_ids, chosen);
+                // Route telemetry (Class 1, no behavior change): split the fail-open resolve into
+                // {deliberate_fresh_root, valid_index_hit, hallucinated_out_of_range} so the run can
+                // prove the headline mechanism fired (real non-local routing) vs a bailed-out
+                // hallucination. resolve_parent_index above is unchanged; we only observe `chosen`.
+                if chosen < 0 {
+                    route_fresh += 1;
+                } else if parent_tx.is_some() {
+                    route_hit += 1;
+                } else {
+                    route_halluc += 1;
+                }
             }
 
             // ── Real Lean kernel verdict ─────────────────────────────
@@ -954,6 +1019,9 @@ async fn run(args: Args) -> Result<(), String> {
         failed_count,
         distinct_price_ratios,
         price_discovery: distinct_price_ratios > 1,
+        route_deliberate_fresh_root: route_fresh,
+        route_valid_index_hit: route_hit,
+        route_hallucinated_out_of_range: route_halluc,
         omega_reached: omega_node.is_some(),
         omega_node: omega_node.clone(),
         time_to_first_proof_s,
