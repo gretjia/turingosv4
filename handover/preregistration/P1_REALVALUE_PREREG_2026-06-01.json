@@ -1,7 +1,7 @@
 {
   "preregistration": "P1 REAL-VALUE — does NON-LOCAL price-routed tree search out-SOLVE honest baselines at equal budget? The first experiment that tests BOTH constitutional dimensions: {loss-bearing YES/NO price} x {non-local tree search: agents read the full-chain price landscape and restart from any earlier node to open new branches}.",
   "date": "2026-06-01",
-  "status": "DRAFT — theorem band filled from the live single-calibration, then SHA-pinned BEFORE the counted sweep; counted comparison read ONLY after the lock + a POST-DATA clean-context audit.",
+  "status": "LOCKED v2 (2026-06-01) — hard set filled from the single-scan; autonomous arm + REAL librarian added (commit 05184f60, workflow-audited PROCEED); re-SHA-pinned BEFORE the counted sweep. WINS metric applies to BOTH price-routing arms (autonomous + market); autonomous-vs-market is the secondary scientific routing comparison. Counted comparison read ONLY after a POST-DATA §17 clean-context audit under handover/audits/.",
   "supersedes_framing": "The forensic retrospective (SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md) demoted the flat-allocation T2/T-proxy experiments (they test scheduling order, not the constitution's value) and the rigged/synthetic emergence positives. This is the corrective primary experiment on the VERIFIED real substrate.",
 
   "substrate_verified_2026-06-01": "src/bin/lean_market_agent.rs on the REAL ChainTape (not the lite tape): loss-bearing price (WorkTx-Long confidence-scaled + Bear ChallengeTx-Short -> compute_price_index) + TRUE softmax over the FULL live price index (actor.rs:115, non-local) + arbitrary-parent restart. Smoke: 13/16 non-local restarts across 7 distinct parents, distinct_price_ratios=5, verify_chaintape exit 0 (state + economic_state RECONSTRUCTED from L4, 86 entries, all signatures verified). Budget-parity bug FIXED (single now runs n_agents*n_rounds rounds = equal total proposals; commit 30bffe33).",
@@ -10,13 +10,16 @@
 
   "the_question": "On HARD theorems where a single chain (same model, same total budget) RELIABLY FAILS (0/N seeds), does the MARKET (non-local softmax tree search with loss-bearing price) SOLVE them — and is the win attributable to PRICE + NON-LOCALITY (market also beats parallel N-chains [swarm], shuffled_price, and no_price)? A market solve where single AND parallel AND shuffled_price AND no_price all fail is a clean, confound-shielded proof that price-routed non-local tree search is a superior agent organization.",
 
+  "ADDENDUM_2026-06-01_librarian_and_autonomous": "Architect's two diagnostic catches (the forced market underperformed an unfair-to-itself setup): (1) the LIBRARIAN (collective failure memory) was a lookalike — now the REAL src/runtime/librarian_broadcast.rs is wired into EVERY price arm (select_librarian_events -> build_librarian_digest -> project_role_notifications(Solver), fed by a LeanResult CAS sidecar, shielded to error-classes), HELD CONSTANT across price arms so it is a control not a confound; (2) routing was harness-FORCED softmax only — now there is a NEW 'autonomous' arm where the AGENT reads the full-chain landscape and freely chooses where to build/branch (incl early nodes), vs 'market' which is the harness-FORCED softmax push. Implemented via workflow research->impl->sandbox->audit (PROCEED, no bugs; commit 05184f60). The SCIENTIFIC comparison is autonomous (Path-1, agent chooses) vs market (Path-2, softmax forced) with model/librarian/price/budget/theorems/seeds ALL held equal — the only variable is who chooses the node. Token cost of autonomy (its single call also picks a node) reported alongside equal proof-attempts.",
+
   "arms": {
-    "market": "TRUE softmax over the full live price index (non-local restart) + loss-bearing YES/NO price + Bear shorts. The economy under test.",
-    "single": "1 agent, 1 chain, the SAME total proposal budget (n_agents*n_rounds rounds). The hard floor: theorems where THIS reliably fails are the test set.",
-    "parallel": "N independent chains (each agent refines only its OWN last node), same budget — the SWARM control. market > parallel rules out 'just more independent samples' and isolates COORDINATION (non-local re-expansion + price).",
-    "shuffled_price": "softmax over the PERMUTED price vector (same price distribution, wrong assignment) — isolates whether the PRICE (not just the tree) routes.",
-    "no_price": "random parent over the shared tape (tree, but no price signal) — isolates whether the PRICE (not just shared non-local re-expansion) is load-bearing.",
-    "secondary_optional": "majority / best_first / skeptic_rerank as further controls once the core result is in."
+    "autonomous": "PATH-1: in ONE call the AGENT reads the full-chain landscape (every node: index+price+conf+error-class+snippet, incl EARLY nodes) + the librarian digest, and freely returns {parent_node, proof_body, confidence} — its own choice of which node to extend or which early node to branch from. Loss-bearing price + Bear shorts.",
+    "market": "PATH-2: the harness picks the parent by TRUE softmax over the full live price index (forced push, non-local-capable) + loss-bearing price + Bear shorts + librarian. The forced-routing contrast to autonomous.",
+    "single": "1 agent, 1 chain, the SAME total proposal budget (n_agents*n_rounds rounds). The hard floor: theorems where THIS reliably fails (0/N) are the test set.",
+    "parallel": "N independent chains (each agent refines only its OWN last node), same budget — the SWARM control. > parallel rules out 'just more independent samples' and isolates COORDINATION.",
+    "shuffled_price": "softmax over the PERMUTED price vector (same distribution, wrong assignment) — isolates whether the PRICE (not just the tree) routes.",
+    "no_price": "random parent over the shared tape (tree, no price signal) — isolates whether the PRICE (not just shared non-local re-expansion) is load-bearing.",
+    "librarian_control": "the REAL librarian collective-failure digest is in EVERY price arm (autonomous/market/shuffled_price/no_price); single sees its own chain's failures. Held constant so the autonomous-vs-market contrast is purely the routing mode."
   },
 
   "phased_design": {
