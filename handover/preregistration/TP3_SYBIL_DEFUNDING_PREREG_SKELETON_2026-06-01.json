@@ -1,0 +1,56 @@
+{
+  "preregistration": "TP-3 (SKELETON) — Frozen-Competence Sybil-Defunding Meta-Market: the Verdict-B institutional-governance counted design. Does a loss-bearing, predicate-settled market DEFUND dishonest/Sybil bettors and concentrate capital + price-influence in honest-competent ones, so the price cannot be captured?",
+  "date": "2026-06-01",
+  "status": "SKELETON — design LOCKED, NOT a counted run. Per the architect-ratified execution plan: TP-3 prereg skeleton + frozen-competence-matrix design may proceed in parallel after G1, but NO counted meta-market until Phase-3 (TP-2 counted) is green. This file locks the design so it is ready to instantiate the moment Phase-3 lands.",
+  "relation_to_verdict_A": "Verdict A (price-causal EFFICIENCY: market out-banks coordinator + ablations on raw uplift) is tested by the TP-2 shared-state sweep. Verdict B (this) is the DEFENSIBLE FLOOR: even if A ties, the market is a self-cleaning, Sybil-resistant, replay-auditable GOVERNANCE substrate. A is NEVER inferred from B; B is NEVER spun as A.",
+
+  "the_substrate_already_exists": {
+    "bin": "src/bin/reputation_constitutional.rs (14.5KB, present 2026-05-31) — runs the SAME economy through g1's real-tx market so wealth/price/stake/settlement/Sybil-defunding are ALL reconstructable from the ChainTape alone (header lines 7-17).",
+    "mechanism_grounded_in_real_code": [
+      "each task -> a real on-chain node: TaskOpen + EscrowLock + WorkTx; stake = capital-at-risk (reputation_constitutional.rs:10-11).",
+      "an HONEST specialist whose tactic-family fits closes the task (predicate_passes=true) -> its WorkTx is ACCEPTED by the sequencer (capital locked, position gained) (:11-12).",
+      "a SYBIL's WorkTx is REJECTED by the sequencer -> capital NOT locked, NO position, gains no price/standing; a Sybil that keeps bidding NEVER accrues (reputation_constitutional.rs:12-14; honest_bidding pillar citation reputation_constitutional.rs:145-198).",
+      "price = compute_price_index over the REAL EconomicState after each accepted node (:16).",
+      "competence is FIXED/FROZEN: 4 honest tactic-family specialists each close ONLY their own family; a Sybil never closes anything (:49-50).",
+      "--n-sybils configurable (default 3) (:73); settlement via emit_system_tx(EventResolve) / escrow_vault.rs; bankruptcy risk-cap tested in tests/constitution_g3_bankruptcy_risk_cap.rs."
+    ],
+    "what_TP3_adds": "this bin demonstrates the MECHANISM (Sybil rejected, honest accrues). TP-3 promotes it to a COUNTED, pre-registered experiment with a frozen-competence MATRIX, registered endpoints, a Sybil-flood price-capture falsifier, and a tape-replay gate on the wealth trajectory."
+  },
+
+  "frozen_competence_matrix": {
+    "cohorts_fixed_true_competence": {
+      "HONEST_HIGH": "tactic-family specialist that closes its family with high reliability — accepted WorkTx accrue capital + reputation.",
+      "HONEST_LOW": "weak-but-honest bettor (lower family-fit / lower confidence) — accrues slowly.",
+      "RANDOM": "noise bettor (no family fit) — should neither systematically gain nor capture price.",
+      "SYBIL_OVERCLAIM": "systematically over-claims (bids on tasks it cannot close); WorkTx rejected -> capital-at-risk bleeds via failed escrow / never accrues.",
+      "SYBIL_FLOOD": "N low-stake Sybil identities injected at f% of total starting wealth — the price-capture stress test."
+    },
+    "frozen": "each cohort's competence is FIXED for the whole horizon (no learning) so the WEALTH dynamics isolate the MECHANISM's defunding pressure, not adaptation.",
+    "equal_start": "all bettors start at equal wealth W0 (integer MicroCoin); horizon = T settlement rounds."
+  },
+
+  "pre_registered_endpoints": {
+    "primary_sybil_defunding": "after T rounds at equal W0: wallet[SYBIL_OVERCLAIM] < wallet[HONEST_HIGH] AND reputation[SYBIL]==0, with the Sybil wealth-half-life strictly shorter than the honest half-life. (extends TP-1 honest_bidding falsifiable_predicate to a counted horizon.)",
+    "price_capture_falsifier": "inject SYBIL_FLOOD at f% of total wealth; measure (a) max transient price distortion delta_max and (b) rounds-to-defund K. GO iff delta_max <= a pre-registered bound AND K <= a pre-registered horizon (the flood is bounded + self-extinguishing). FAIL iff the flood moves the settled price persistently and defunds honest bettors first.",
+    "noise_non_accrual": "wallet[RANDOM] does not systematically grow (no free capture of price by pure noise).",
+    "replay_gate": "every bet + settlement on the ChainTape; each cohort's wealth trajectory reconstructable from the tape ALONE (derive wealth from accepted-WorkTx + escrow settle events), integer-conserved; a cell whose wealth cannot be reconstructed is EXCLUDED."
+  },
+
+  "metrics": {
+    "primary": "Sybil-defunding ratio = wallet[HONEST_HIGH](T) / wallet[SYBIL_OVERCLAIM](T) (>1, ideally ->inf as Sybil ->0); plus reputation[SYBIL]==0.",
+    "secondary": "price-distortion delta_max under flood; rounds-to-defund K; Gini / capital-concentration toward honest cohorts over time.",
+    "discipline": "integer money only; no f64 in any wealth/stake path; price-blindness of the predicate path preserved (sequencer price-grep==0 anchor, tests/tb_14_halt_triggers.rs)."
+  },
+
+  "scale_TBD_at_promotion": "cohort sizes, f%, T, W0, n-seeds, the delta_max + K bounds, and the MDE are FINALIZED (and SHA-locked) ONLY when TP-3 is promoted to a counted run after Phase-3 green — set from a calibration pilot exactly as TP-2 did. This skeleton intentionally leaves the magnitudes open; it locks the SHAPE.",
+
+  "two_level_relation": "Verdict B holds iff (market arm replay-GREEN) AND (Sybil-defunding primary endpoint met) AND (price-capture falsifier survived) AND (Goodhart-shield: agent read-view leaks no raw PredicateId — TP-1 goodhart_shield 16-site falsifier) AND (failure branches on tape). Reported as 'accountable, Sybil-resistant agent-governance substrate', NOT 'cleverer/cheaper solver'.",
+
+  "non_claims": [
+    "NOT proven incentive-compatible — honest-bidding is belief-driven capital-at-risk; we MEASURE defunding, not prove a scoring-rule optimum.",
+    "NOT 'world-first agent market' — Contract Net + market-based task allocation are prior art; the defensible claim is the OS-level combination (verifiable + replayable + predicate-settled + Sybil-resistant).",
+    "frozen competence is a DELIBERATE simplification to isolate the mechanism; an adaptive-adversary study is a later atom."
+  ],
+
+  "discipline": "FC1/FC2/FC3 untouched; NO Section-6 surface edited (all citations READ-ONLY; reputation_constitutional.rs is a bin, not Section-6); integer money; PR-only; this SKELETON is NOT yet SHA-pinned for a counted run (it locks the design SHAPE; the counted-run lock + sibling .sha256 happens at promotion after Phase-3 green)."
+}
