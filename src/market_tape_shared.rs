@@ -131,9 +131,18 @@ pub fn verify_chain_lines(lines: &[String]) -> bool {
     }
     true
 }
-/// banked@B = count of Resolve{outcome:"YES"} (each banked theorem emits exactly one).
+/// banked@B = count of DISTINCT claims that ever verified clean (a Verify{verdict:true}). A banked theorem
+/// IS a clean verify; run_alloc banks in the INITIAL path (Verify{true}, no Resolve) AND the reasoner-repair
+/// path (Verify{true} + Resolve{YES}), so counting Verify-true distinct claims is the tape-faithful banked
+/// count (counting Resolve-YES alone undercounts — caught by the TP-0A real-run replay gate 2026-06-01).
 pub fn derive_banked(lines: &[String]) -> usize {
-    parsed(lines).filter(|v| v["kind"] == "Resolve" && v["body"]["outcome"] == "YES").count()
+    let mut banked = std::collections::BTreeSet::new();
+    for v in parsed(lines) {
+        if v["kind"] == "Verify" && v["body"]["verdict"] == true {
+            if let Some(c) = v["body"]["claim"].as_u64() { banked.insert(c); }
+        }
+    }
+    banked.len()
 }
 /// total micro-USD recomputed from every LLMCall via the SHARED MODEL_RATES (never reads the manifest).
 pub fn derive_cost(lines: &[String]) -> i64 {
