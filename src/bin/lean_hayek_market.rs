@@ -336,7 +336,7 @@ fn parse_args() -> Result<Args, String> {
         out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/hayek.json".into()),
         tape_out: get("--tape-out").map(Into::into),
         pool_subset: get("--pool-subset").and_then(|s| s.parse().ok()).unwrap_or(0),
-        reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(5000),
+        reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(4000),
     })
 }
 
@@ -1067,7 +1067,11 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             };
             let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
             let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
-            let stake = stake_from_confidence(conf, WALLET_BUDGET_MICRO);
+            // flatbid firewall = CONSTANT bids (no confidence weighting) → the resulting price is the bare
+            // vote-fraction, NOT capital-weighted. Distinct from market (which weights by belief). Mirrors
+            // run_probe_alloc's flatbid. (audit BLOCKER-1 fix: flatbid was previously the unimplemented `_`
+            // default = index-order roundrobin, masquerading as the causal firewall.)
+            let stake = if args.policy == "flatbid" { (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2 } else { stake_from_confidence(conf, WALLET_BUDGET_MICRO) };
             conf_sum[ri] += conf as i64;
             // skeptic-rerank signal: the reasoner bettor's raw success belief (signed by verdict), NO capital.
             if bettor_m.contains("reasoner") { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
@@ -1084,28 +1088,38 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     // ONLY difference is central-LLM allocation vs price allocation of the scarce reasoner budget — the clean
     // Hayek contrast. NOT a strawman: a real LLM central planner, same task/budget/verifier as the market.
     let coord_order: Option<Vec<usize>> = if args.policy == "coordinator" {
+        // audit BLOCKER-2 fix: the coordinator must see the SAME per-residual signal the market bettors see
+        // (statement + failed attempt body + error class), not just the id — else the market has strictly
+        // more information and the comparison is biased toward "price beats coordinator".
         let summary: String = residual.iter().enumerate()
-            .map(|(ri, (ti, _b, ec))| format!("[{ri}] thm={} lean_error_class={ec}", pool[*ti].id)).collect::<Vec<_>>().join("\n");
-        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {} failed Lean 4 proof attempts. Each carries a Lean error class (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[residual indices, best-first]}}.\n\n{summary}", residual.len());
+            .map(|(ri, (ti, b, ec))| { let body_t: String = b.chars().take(500).collect();
+                format!("[{ri}] thm: {}\n  failed_attempt: {}\n  lean_error_class: {ec}", stmt(&pool[*ti].preamble), body_t) })
+            .collect::<Vec<_>>().join("\n");
+        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {} failed Lean 4 proof attempts. Each shows the theorem, the failed attempt, and its Lean error class (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[EVERY residual index, best-first]}}.\n\n{summary}", residual.len());
         match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.2), max_tokens: Some(300) }).await {
             Ok(r) => { llm_calls += 1; chat_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 });
                 extract(&r.content, "order").and_then(|v| v.as_array().map(|a| a.iter().filter_map(|x| x.as_u64().map(|u| u as usize)).filter(|&i| i < residual.len()).collect::<Vec<usize>>())) }
             Err(_) => None,
         }
     } else { None };
-    // QC (2026-06-01): a coordinator cell whose central-ranking call FAILS must NOT silently fall back to
-    // index-order (= roundrobin), which would make a broken coordinator indistinguishable from a working one
-    // and invalidate the market-vs-coordinator headline. Hard-fail it → the cell errors out and is EXCLUDED
-    // from the sweep (a measurement failure, like a replay failure). A coordinator manifest that EXISTS thus
-    // provably ranked; its chosen order is auditable via the RouteSample sequence on the tape.
-    if args.policy == "coordinator" && (coord_order.as_ref().map_or(true, |o| o.is_empty())) {
-        return Err("coordinator central-ranking call produced no valid non-empty order — cell EXCLUDED (no silent roundrobin fallback)".into());
+    // QC (2026-06-01, audit-hardened): a coordinator cell must produce a COMPLETE ranking — a permutation of
+    // ALL residuals. A None/empty OR a PARTIAL order (which would silently index-fill the unranked tail =
+    // partial roundrobin, audit MINOR-5) is a measurement failure → hard-fail → the cell is EXCLUDED (no
+    // silent fallback to index order). A coordinator manifest that exists thus provably ranked every residual.
+    if args.policy == "coordinator" && !residual.is_empty() {
+        let covers_all = coord_order.as_ref().map_or(false, |o|
+            o.iter().copied().collect::<std::collections::BTreeSet<usize>>().len() == residual.len());
+        if !covers_all {
+            return Err("coordinator ranking missing/partial (did not cover ALL residuals) — cell EXCLUDED (no silent index-fill)".into());
+        }
     }
 
     // ── PHASE 3: order residual by the ARM's policy, spend reasoner repair budget B ──
     let mut order: Vec<usize> = (0..residual.len()).collect();
     match args.policy.as_str() {
-        "market" => order.sort_by(|&a, &b| price_pm[b].cmp(&price_pm[a])),         // price-descending (the economy)
+        // market = confidence-weighted price; flatbid = constant-bid price (vote-fraction). BOTH order by
+        // their own price_pm — distinct arms (different stakes → different pools → different price).
+        "market" | "flatbid" => order.sort_by(|&a, &b| price_pm[b].cmp(&price_pm[a])),
         "shuffled" => { let mut p = price_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } order.sort_by(|&a,&b| p[b].cmp(&p[a])); } // price permuted → causality probe
         "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i,j); } } // no price
         "confgreedy" => order.sort_by(|&a, &b| conf_sum[b].cmp(&conf_sum[a])),       // raw confidence, no market

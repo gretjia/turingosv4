@@ -72,15 +72,29 @@ def main():
 
     banked = defaultdict(dict)   # arm -> seed -> banked@B
     replay = defaultdict(dict)
+    excluded = []                # (arm, seed, reason) — pre-committed exclusions
     for arm in arms:
         for seed in seeds:
             mf = os.path.join(a.dir, f"{a.prefix}_{arm}_{seed}.json")
             rr = os.path.join(a.dir, f"{a.prefix}_rr_{arm}_{seed}.json")
             if not os.path.exists(mf):
-                continue
+                excluded.append((arm, seed, "no-manifest (e.g. coordinator hard-fail)")); continue
             d = json.load(open(mf))
+            # audit MAJOR-4: enforce the prereg's B-overshoot exclusion (a cell that spent > reasoner budget B
+            # is excluded, pre-committed) — the producer's budget gate can overshoot by up to one repair.
+            rct = d.get("reasoner_completion_tokens", 0); rbt = d.get("reasoner_budget_tok", 10**12)
+            if isinstance(rct,(int,float)) and isinstance(rbt,(int,float)) and rct > rbt:
+                excluded.append((arm, seed, f"over-budget reasoner_tok {rct}>{rbt}")); continue
+            rep = (json.load(open(rr)).get("replay_clean") if os.path.exists(rr) else None)
+            if rep is False:
+                excluded.append((arm, seed, "replay-FAIL")); continue   # replay-fail cells excluded from headline
             banked[arm][seed] = d.get("banked_at_B")
-            replay[arm][seed] = (json.load(open(rr)).get("replay_clean") if os.path.exists(rr) else None)
+            replay[arm][seed] = rep
+    if excluded:
+        print("=== EXCLUDED cells (pre-committed: hard-fail / over-budget / replay-fail) ===")
+        for arm, seed, why in excluded:
+            print(f"  {arm} seed{seed}: {why}")
+        print()
 
     print("=== per-arm banked@B (and replay) ===")
     for arm in arms:

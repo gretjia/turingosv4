@@ -61,9 +61,14 @@ fn oracle_axiom_whitelist_is_the_locked_three() {
 /// price-causal claim is impossible without them.
 #[test]
 fn causal_control_both_ablations_exist() {
+    // audit MAJOR-3 fix: bind to the ACTUAL run_alloc Phase-3 ordering match arms (the `"<policy>" =>`
+    // pattern), NOT a whole-file grep — the old grep false-passed because run_probe_alloc (a different
+    // experiment) contains "flatbid" while run_alloc (the T2 path) had no flatbid arm = the "grep-only
+    // false pass" trap. The T2 arms must be NAMED match arms in the ordering switch.
     let s = src("src/bin/lean_hayek_market.rs");
-    assert!(s.contains("shuffled"), "shuffled-price ablation (primary causal gate) must exist");
-    assert!(s.contains("flatbid"), "flatbid firewall (secondary causal gate) must exist");
+    assert!(s.contains("\"shuffled\" =>"), "shuffled-price ablation must be a NAMED run_alloc match arm (primary causal gate)");
+    assert!(s.contains("\"flatbid\" =>"), "flatbid firewall must be a NAMED run_alloc match arm (secondary causal gate), not the `_` default");
+    assert!(s.contains("\"coordinator\" =>"), "coordinator arm must be a NAMED run_alloc match arm");
 }
 
 // ── LIVE / harness-dependent predicates — #[ignore] until the T2 harness (TP-2) exists ──
