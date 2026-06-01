@@ -290,7 +290,22 @@ impl Default for BoltzmannMaskPolicy {
     }
 }
 
+/// TP-1 exploration-floor primitive (Class-1; NOT a from_env behavior change): the minimum epsilon a
+/// COUNTED price experiment may use, so price-following cannot collapse exploration to a single node. The
+/// T2 run-validity gate rejects/records runs below this. from_env's fail-soft + the deliberate epsilon=0
+/// used in determinism tests (sdk/actor.rs, fc_alignment_conformance.rs, tb_14_canonical_masking_smoke.rs)
+/// are intentionally UNTOUCHED — this is an additive check, not a clamp.
+pub const BOLTZMANN_MIN_EPSILON_NUM: u64 = 1;
+pub const BOLTZMANN_MIN_EPSILON_DEN: u64 = 10;
+
 impl BoltzmannMaskPolicy {
+    /// true iff epsilon (= num/den) >= the experiment exploration floor (BOLTZMANN_MIN_EPSILON), via integer
+    /// cross-multiply (no f64, no division). A counted T2 cell whose epsilon is below floor is excluded.
+    pub fn epsilon_meets_experiment_floor(&self) -> bool {
+        self.epsilon_exploration_num as u128 * BOLTZMANN_MIN_EPSILON_DEN as u128
+            >= BOLTZMANN_MIN_EPSILON_NUM as u128 * self.epsilon_exploration_den as u128
+    }
+
     /// TRACE_MATRIX TB-14 Atom 4 (FC2-N28 + FC2-N29 configuration loader;
     /// charter §3 Atom 4): build a policy from process environment with
     /// per-field defaults matching `BoltzmannMaskPolicy::default()`.
@@ -538,6 +553,20 @@ mod tests {
     use super::*;
     use crate::state::typed_tx::PositionKind;
     use std::collections::BTreeMap as Map;
+
+    #[test]
+    fn epsilon_experiment_floor_gate() {
+        let eps = |n: u64, d: u64| BoltzmannMaskPolicy { epsilon_exploration_num: n, epsilon_exploration_den: d, ..Default::default() };
+        // default (1/10) sits exactly at the floor → admissible
+        assert!(BoltzmannMaskPolicy::default().epsilon_meets_experiment_floor());
+        assert!(eps(1, 10).epsilon_meets_experiment_floor());
+        assert!(eps(2, 10).epsilon_meets_experiment_floor());   // 0.2 >= 0.1
+        assert!(eps(3, 20).epsilon_meets_experiment_floor());   // 0.15 >= 0.1
+        // exploration-collapse cases are REJECTED (the gate can fail)
+        assert!(!eps(0, 10).epsilon_meets_experiment_floor());  // epsilon = 0 (the deliberate determinism value) is below floor
+        assert!(!eps(1, 100).epsilon_meets_experiment_floor()); // 0.01 < 0.1
+        assert!(!eps(9, 100).epsilon_meets_experiment_floor()); // 0.09 < 0.1
+    }
 
     fn micro(units: i64) -> MicroCoin {
         MicroCoin::from_micro_units(units)
