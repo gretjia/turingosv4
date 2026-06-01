@@ -978,6 +978,15 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     let mut rng = StdRng::seed_from_u64(args.seed);
     let t0 = Instant::now();
     let mut tape = MarketTape::new();
+    // GenesisPin MUST be the first event (TP-0A.2): pins run identity + provenance for the replay verifier.
+    tape.record(&MarketEvent::GenesisPin {
+        run_id: format!("{}__seed{}", args.policy, args.seed),
+        seed: args.seed, policy: args.policy.clone(),
+        model_roster: vec![args.model.clone(), args.bettor_model.clone(), reasoner.to_string()],
+        budget_b: args.reasoner_budget_tok,
+        axiom_whitelist: vec!["propext".into(), "Classical.choice".into(), "Quot.sound".into()],
+        head_commit_sha: market_tape_shared::head_commit_sha(),
+    });
     let mut reasoner_completion_tok = 0u64; let mut chat_completion_tok = 0u64;
     let mut micro_usd = 0i64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
     let mut banked: BTreeSet<String> = BTreeSet::new();

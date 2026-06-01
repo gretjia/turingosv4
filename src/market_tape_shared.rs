@@ -24,6 +24,9 @@ pub enum MarketEvent {
     Verify { claim: usize, verdict: bool, reject_class: String },
     RouteSample { policy: String, frontier_hash: String, selected_claim: usize },
     Resolve { claim: usize, outcome: String },
+    /// MUST be the first event on every TP-0A replay-gated tape: pins the run identity + provenance so the
+    /// standalone verifier binds the manifest to a specific (seed, arm, roster, budget, axiom-whitelist, git HEAD).
+    GenesisPin { run_id: String, seed: u64, policy: String, model_roster: Vec<String>, budget_b: u64, axiom_whitelist: Vec<String>, head_commit_sha: String },
 }
 
 pub struct MarketTape {
@@ -51,6 +54,7 @@ impl MarketTape {
             MarketEvent::Verify { claim, verdict, reject_class } => self.append("Verify", serde_json::json!({"claim":claim,"verdict":verdict,"reject_class":reject_class})),
             MarketEvent::RouteSample { policy, frontier_hash, selected_claim } => self.append("RouteSample", serde_json::json!({"policy":policy,"frontier_hash":frontier_hash,"selected_claim":selected_claim})),
             MarketEvent::Resolve { claim, outcome } => self.append("Resolve", serde_json::json!({"claim":claim,"outcome":outcome})),
+            MarketEvent::GenesisPin { run_id, seed, policy, model_roster, budget_b, axiom_whitelist, head_commit_sha } => self.append("GenesisPin", serde_json::json!({"run_id":run_id,"seed":seed,"policy":policy,"model_roster":model_roster,"budget_b":budget_b,"axiom_whitelist":axiom_whitelist,"head_commit_sha":head_commit_sha})),
         }
     }
     /// Verify the append-only prev_hash chain (replayability gate, ATOM 5-lite).
@@ -115,6 +119,18 @@ pub fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 
 fn parsed(lines: &[String]) -> impl Iterator<Item = serde_json::Value> + '_ {
     lines.iter().filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
 }
+/// Verify the prev_hash chain over RAW tape lines (the standalone verifier has only the file, no MarketTape).
+/// Identical logic to MarketTape::verify_chain; a one-byte tamper anywhere breaks the chain → false.
+pub fn verify_chain_lines(lines: &[String]) -> bool {
+    let mut prev = "genesis".to_string();
+    for line in lines {
+        let v: serde_json::Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => return false };
+        if v["prev"].as_str() != Some(&prev) { return false; }
+        let mut h = Sha256::new(); h.update(line.as_bytes());
+        prev = format!("{:x}", h.finalize());
+    }
+    true
+}
 /// banked@B = count of Resolve{outcome:"YES"} (each banked theorem emits exactly one).
 pub fn derive_banked(lines: &[String]) -> usize {
     parsed(lines).filter(|v| v["kind"] == "Resolve" && v["body"]["outcome"] == "YES").count()
@@ -140,4 +156,25 @@ pub fn derive_llm_calls(lines: &[String]) -> usize { parsed(lines).filter(|v| v[
 /// failed branches on tape = Verify{verdict:false} — a parse-fail/Lean-rejected attempt is auditable.
 pub fn derive_failures(lines: &[String]) -> usize {
     parsed(lines).filter(|v| v["kind"] == "Verify" && v["body"]["verdict"] == false).count()
+}
+
+// ── GenesisPin (TP-0A.2): mandatory-first provenance record + verifier helpers ──
+/// best-effort 40-hex git HEAD at run start — the MINIMAL provenance surrogate (NOT the real Art.0.4 Q_t/
+/// HEAD_t rebuild, which is out of scope). Falls back to "unknown" if git is unavailable.
+pub fn head_commit_sha() -> String {
+    std::process::Command::new("git").args(["rev-parse", "HEAD"]).output().ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit()))
+        .unwrap_or_else(|| "unknown".into())
+}
+/// the replay-gate invariant: the FIRST tape line must be a GenesisPin.
+pub fn first_is_genesis(lines: &[String]) -> bool {
+    lines.first().and_then(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .map(|v| v["kind"] == "GenesisPin").unwrap_or(false)
+}
+/// parse the GenesisPin body (the run's pinned identity), if present as the first event.
+pub fn derive_genesis(lines: &[String]) -> Option<serde_json::Value> {
+    if !first_is_genesis(lines) { return None; }
+    serde_json::from_str::<serde_json::Value>(&lines[0]).ok().map(|v| v["body"].clone())
 }
