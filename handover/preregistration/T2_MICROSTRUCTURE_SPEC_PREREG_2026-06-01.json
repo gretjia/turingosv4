@@ -1,0 +1,57 @@
+{
+  "preregistration": "TP-1 — TuringOS verifiable market microstructure spec (the institutional core the T2 experiment instantiates)",
+  "date": "2026-06-01",
+  "status": "spec/test/prereg lock ONLY — reads no counted result; this is a DEFINITION, not an experiment",
+  "locked_before_any_counted_run": true,
+  "code_citations_verified_2026-06-01": "every pillar cites a real file:line confirmed by grep this date; the predicate-id leak count is corrected to 16 sites (the design draft undercounted at 11/4).",
+
+  "pillars": {
+    "asset": {
+      "what_is_traded": "a NodePosition — an IMMUTABLE exposure record on an attempt node, NOT a fungible share. Two kinds only: FirstLong (the proposer's responsibility bond) + ChallengeShort (a challenger's counter-bond).",
+      "citation": "src/state/typed_tx.rs:665-706 (NodePosition = immutable exposure record; PositionKind = FirstLong|ChallengeShort; MarketBuy/MarketSell explicitly forbidden, architect §9.4)",
+      "conservation": "stake-return + escrow-release, NOT share redemption; CompleteSet/MarketBuy/Sell are OUT OF SCOPE.",
+      "falsifiable_predicate": "no MarketBuy/MarketSell PositionKind is ever constructed; every settled position resolves by stake-return/escrow-release with integer conservation."
+    },
+    "oracle": {
+      "settlement": "Lean `#print axioms` settlement bundle verified BEFORE a WorkTx is accepted; the whitelist {propext, Classical.choice, Quot.sound} is POSITIVELY asserted (sorry/admit and native_decide's Lean.ofReduceBool must FAIL — not a grep).",
+      "citation": "src/state/sequencer.rs:1234,1239,1269,1275 (verify_work_predicates PredicateFailed sites); the in-harness #print-axioms gate proven in the EMERGE stack",
+      "auditability_gap": "offline replay of the settlement is TP-0-owned (verify_market_tape); this pillar only fixes the live gate.",
+      "falsifiable_predicate": "a settlement bundle whose axiom footprint ⊄ whitelist (e.g. native_decide) is REJECTED; a positive-whitelist unit test fails if the gate degrades to a sorry/error grep."
+    },
+    "honest_bidding": {
+      "mechanism": "stake + reputation + escrow. HONESTLY STATED: this is BELIEF-driven capital-at-risk, NOT a proper scoring rule — we do not claim incentive-compatibility, we MEASURE calibration.",
+      "citation": "src/bin/lean_hayek_market.rs:99-103 (stake_from_confidence -> i64, integer); src/bin/reputation_constitutional.rs:145-198 (reputation = cumulative accepted-WorkTx; a Sybil never accrues)",
+      "pre_registered_endpoints": "Brier score by confidence bin [0,20,40,60,80,100]; Sybil-domination prediction (an honest specialist out-bids/defunds an over-claiming Sybil within K rounds at equal starting wealth).",
+      "falsifiable_predicate": "with a planted over-claiming Sybil, reputation[sybil] stays 0 and sybil_final_wallet < honest_final_wallet across the registered horizon; else honest-bidding is NOT supported."
+    },
+    "goodhart_shield": {
+      "principle": "QUANTIFY + BROADCAST + SHIELD (constitution Art.III.4): the evaluator/predicate logic is NOT exposed to mid-layer black boxes, so price-following cannot become metric-gaming.",
+      "anchor_already_green": "src/state/sequencer.rs has ZERO price references (grep -cE 'price' = 0) — the predicate path is price-blind by construction; the existing test tests/tb_14_halt_triggers.rs::price_does_not_affect_predicate_result is the conformance ANCHOR (reused, NOT re-implemented — a duplicate would be a criterion-you-cannot-fail).",
+      "new_falsifier_predicate_id_leak": "the agent-facing diagnostic must NOT leak raw PredicateId strings. Confirmed leak surface = 16 sites in src/state/sequencer.rs: 568,569,570,694,695,1234,1239,1269,1275,2465,2478,2483,2488,2496,2502,2712 (the 2465-2712 cluster has hardcoded pids like challenge_window_closed_with_no_upheld_challenge). The NEW test asserts each variant's agent projection is an opaque class label, never the PredicateId.",
+      "falsifiable_predicate": "grep price in sequencer == 0 AND the agent read-view of every one of the 16 PredicateFailed variants contains an opaque class, not the raw predicate id."
+    },
+    "exploration": {
+      "principle": "price must guide WITHOUT collapsing exploration to a local optimum (constitution exploration/exploitation balance).",
+      "binding_gate": "epsilon_min > 0 as a RUN-VALIDITY gate at the experiment-harness layer (NOT a from_env clamp — epsilon=0 is deliberately used for determinism in src/sdk/actor.rs:203/225/279, tests/fc_alignment_conformance.rs:657, tests/tb_14_canonical_masking_smoke.rs:379/565, and price_index.rs:1104). MIN_EPSILON is a named const; the T2 wrapper REJECTS a counted run whose epsilon < floor and records epsilon on tape (price_index.rs:316 from_env itself accepts 0).",
+      "citation": "src/state/price_index.rs:316 (from_env accepts epsilon=0), :391-404 (epsilon parse), :514-523 (compute_mask_set dominance)",
+      "falsifiable_predicate": "every counted cell records epsilon on tape with epsilon_num/epsilon_den s.t. 10*num >= den (>= 0.1 floor); a run with epsilon below floor is EXCLUDED from headlines; action-entropy collapse to a single node = exclusion."
+    }
+  },
+
+  "causal_control_both_ablations_required": {
+    "shuffled_price": "bid-prices permuted before routing (same price DISTRIBUTION, wrong assignment) — lean_hayek_market.rs:357. PRIMARY causal gate: MARKET > SHUFFLED-PRICE.",
+    "flatbid_firewall": "constant bids = no price signal at all — lean_hayek_market.rs:872 (stake = (MIN+MAX)/2), :885 (routing). SECONDARY gate: MARKET > FLATBID (directional).",
+    "kill_condition": "real-price beats shuffle but NOT flatbid (or == flatbid) ⇒ 'the win is structure/parallelism, not price' — NOT headline-eligible as a price-causal claim."
+  },
+
+  "eligibility_gate": "an arm enters the T2 headline ONLY if all five pillar conformance predicates pass AND verify_market_tape exits 0 (TP-0A replay-green) AND every banked proof's #print-axioms ⊆ whitelist.",
+
+  "non_claims_explicit": [
+    "NOT 'world-first agent market economy' — Contract Net (Smith 1980) + market-based multi-robot task allocation are prior art; the defensible claim is the OS-level combination (verifiable + replayable + price-coordinated + predicate-settled + Sybil-resistant).",
+    "market efficiency is NOT assumed a theorem — the price arm must empirically beat shuffle AND flatbid; the repo's own H0 (single 7 >= shuffled 6 > market 5) makes efficiency-NULL the prior on the monolithic pool.",
+    "honest-bidding is belief-driven, NOT proven incentive-compatible.",
+    "tape-canonical is TP-0-owned, NOT assumed done by this spec."
+  ],
+
+  "discipline": "FC1/FC2/FC3 untouched; NO §6 surface edited by this spec (all citations are READ-ONLY; price_index.rs is NOT §6); integer money; the frozen JSON is externally SHA-pinned (sibling .sha256, NO self_sha256 field) before any T2 arm result is read."
+}
