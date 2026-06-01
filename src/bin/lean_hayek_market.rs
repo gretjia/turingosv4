@@ -316,7 +316,7 @@ fn verify_pool_err(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Pa
     (false, class.into())
 }
 
-struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64 }
+struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64, reasoner_model: String }
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
     let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
@@ -337,6 +337,9 @@ fn parse_args() -> Result<Args, String> {
         tape_out: get("--tape-out").map(Into::into),
         pool_subset: get("--pool-subset").and_then(|s| s.parse().ok()).unwrap_or(0),
         reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(4000),
+        // the repair model (the scarce, strong reasoner). Configurable so the experiment can use a reasoner
+        // that actually CAN repair the residuals (calibration found deepseek-reasoner thinking-off banked 0).
+        reasoner_model: get("--reasoner-model").unwrap_or_else(|| "deepseek-reasoner".into()),
     })
 }
 
@@ -974,7 +977,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     let pool_path = args.task.strip_prefix("pool:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
     let pool = load_pool(pool_path, args.pool_subset);
     if pool.is_empty() { return Err("empty pool".into()); }
-    let reasoner = "deepseek-reasoner";
+    let reasoner = args.reasoner_model.as_str();
     let mut rng = StdRng::seed_from_u64(args.seed);
     let t0 = Instant::now();
     let mut tape = MarketTape::new();
@@ -1062,7 +1065,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             let (_ti2, _b2, eclass) = &residual[ri];
             let prompt = format!("Assess how CLOSE this failed Lean 4 attempt at `{}` is to a correct proof.\n```\n{body}\n```\nLean rejected it with error class: {eclass} (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Will a careful repair likely succeed? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.", stmt(&thm.preamble));
             let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
-                Ok(r) => { llm_calls += 1; if bettor_m.contains("reasoner") { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Ok(r) => { llm_calls += 1; if bettor_m.as_str() == reasoner { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
                 Err(_) => continue,
             };
             let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
@@ -1074,7 +1077,7 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             let stake = if args.policy == "flatbid" { (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2 } else { stake_from_confidence(conf, WALLET_BUDGET_MICRO) };
             conf_sum[ri] += conf as i64;
             // skeptic-rerank signal: the reasoner bettor's raw success belief (signed by verdict), NO capital.
-            if bettor_m.contains("reasoner") { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
+            if bettor_m.as_str() == reasoner { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
             if stake < MIN_STAKE_MICRO { continue; }
             let mh = short_hash(&format!("{bettor_m}:{bi}"));
             if verdict == "YES" { yes[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "YES".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
