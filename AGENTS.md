@@ -408,6 +408,7 @@ Auditor copy-pastes this batch; no human judgment in any line:
 - [ ] 无新 trait + 单一非-idiomatic impl（structural grep）
 - [ ] 无新 board-as-truth 文件存在 evidence chain 外
 - [ ] 无新 global latest pointer 作为 canonical input
+- [ ] (§17) PR 若含 `PROVEN`/`DEFINITIVE`/`causal`/`X > Y` efficiency headline，则 `/no-proven-checklist` G1–G6 全部勾选（recompute-from-tape + real model+verifier + fair equal-budget baseline + ≥N seeds + post-data audit under `handover/audits/` + no literal pass-condition）；否则 headline 必须 scoped/non-causal
 
 ### Independent audit witness verdict domain
 
@@ -524,3 +525,57 @@ other audit witness is invalid if obligation witness ≠ `OBL-ALL-CLOSED`.
 
 All thin discovery files (see §2) already redirect here. No per-agent shim.
 One file, one schema, every agent.
+
+## 17. Claim Integrity Gates (forensic retrospective 2026-06-01)
+
+Authority: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md` — a
+29-agent forensic audit found multiple `PROVEN`/`DEFINITIVE` headlines built on
+rigged baselines, synthetic-as-real data, mislabeled "price" code, and
+argmax-collapse routing, **none caught by the harness**. These gates make the
+catchable classes structurally falsifiable. ADD-only: §17 adds rules; it does
+not narrow §7, §9, or §14.
+
+### 17.1 The no-PROVEN gate (process, conjunctive)
+
+No `PROVEN` / `DEFINITIVE` / `FINAL` / `causal` / `isolated lever` / `X > Y`
+efficiency headline — in any report, commit, `LATEST.md`, verdict, or summary —
+without ALL of:
+
+- **G1** the load-bearing number **recomputed from the tape** (`derive_* ==
+  manifest`, byte-equal), not merely byte-chain-intact;
+- **G2** a **real model + real verifier** in the decision loop (no synthetic
+  skill axis such as `est = skill*truth + (1-skill)*noise`);
+- **G3** a **fair equal-budget baseline** (same signal, same compute, no
+  force-suicide, no definitional floor, no silent degenerate fallback);
+- **G4** **≥ N preregistered seeds + paired stats**, stable across a later-day
+  re-run (no single-day flip-flop);
+- **G5** a **clean-context audit run AFTER the data lands** (§9), persisted as an
+  **independent artifact under `handover/audits/`** referencing the run manifest
+  SHA(s) — never as prose inside the result report;
+- **G6** **no pass-condition asserted against a compile-time literal** (§7).
+
+Run `skills/no-proven-checklist.md` (`/no-proven-checklist`) and check every box.
+A missing box ⇒ the only legal output is a scoped, non-causal statement.
+
+### 17.2 Badge relabel — replay-green ≠ correctness
+
+"replay-green / matrix_drift 3/3 / chain_ok" = **anti-tamper + provenance-pinned
++ constitution-untouched ONLY**. It is NOT a correctness warrant. The byte chain
+(`market_tape_shared::verify_chain`) stays green for a tape whose manifest LIES;
+only G1 recompute closes that gap. Do not write discipline footers that infer
+correctness from a byte-chain badge.
+
+### 17.3 Named mechanism must match implementation (no name-lies)
+
+A function / arm / bin named for a mechanism must BE that mechanism. A `softmax`
+router must DISTRIBUTE (not argmax-collapse); a `price`-routed path must carry a
+real `price` identifier in code, not only in a comment. The canonical
+loss-bearing-price + true-softmax substrate is `src/bin/lean_market_agent.rs`.
+
+### 17.4 Mechanisms (tests that can fail — not prose)
+
+- `tests/constitution_headline_recompute_from_tape.rs` — G1 / §17.2.
+- `tests/constitution_router_name_matches_mechanism.rs` — §17.3.
+- `skills/no-proven-checklist.md` — the G1–G6 pre-claim checklist (§17.1).
+- Both gates are registered in `scripts/constitution_gates.manifest.toml` and run
+  by `bash scripts/run_constitution_gates.sh`.

@@ -105,6 +105,13 @@ const BASELINE_ALLOWLIST: &[&str] = &[
     "constitution_subagent_pr_hygiene",
     // K-HARDEN validation run (probe gate, can be deleted after validation)
     "constitution_harden_validation_probe",
+    // Forensic retrospective 2026-06-01: harness-integrity meta-gates (failure-modes
+    // #1 replay-green≠correctness, #4 name-lies). These guard the HARNESS itself, not a
+    // constitution-execution clause, so they live in the allowlist rather than the
+    // execution matrix (same rationale as constitution_subagent_pr_hygiene). Authority:
+    // handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md + AGENTS.md §17.
+    "constitution_headline_recompute_from_tape",
+    "constitution_router_name_matches_mechanism",
 ];
 
 fn manifest_gates() -> HashSet<String> {

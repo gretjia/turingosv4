@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — 'definitive' overstates a confounded run: the LEAN-ALLOC negative was an N=2 per-arm free-bank-confounded run presented as 'robust 5x-replicated'. The price-causal verdict flip-flopped 3x in one day. Honest status: price is NOT a demonstrated single-shot causal driver; the genuine result is the FAIR negative + Verdict-B governance.
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # The TuringOS price economy — definitive verdict (research-grounded, 5× replicated)
 
 > 2026-05-31. The conclusive determination on the original design's central claim — that PRICE

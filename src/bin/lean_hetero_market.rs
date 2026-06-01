@@ -12,8 +12,15 @@
 //!
 //! Arms:
 //!  market    : N specialist agents (agent i locked to tactic family i); the market routes each
-//!              OPEN conjunct to a specialist whose family fits it (price = which specialist is
-//!              needed). Combines complementary specialists. OMEGA = all conjuncts closed.
+//!              OPEN conjunct to a specialist whose family fits it (which specialist self-selects
+//!              via SKIP). Combines complementary specialists. OMEGA = all conjuncts closed.
+//!
+//!  CORRECTION 2026-06-01 (forensic retrospective §1.A): an earlier framing implied a market
+//!  price selected the specialist. That was a NAME-LIE — this bin has ZERO market / Invest /
+//!  wallet machinery (grep: no `price` identifier in code). Selection is round-robin over the
+//!  roster + SKIP self-selection, NOT a loss-bearing market. The reported "market 3.81 > single
+//!  3.00 > single_spec 1.50 PROVEN" was coverage / prompt-shaping and was ERASED at equal budget
+//!  (Stage-2 JUST_SAMPLING). Do NOT cite this bin as price-market evidence.
 //!  single    : ONE generalist agent (all tactic families) refining sequentially — the honest
 //!              control ("can one capable agent just do it all?").
 //!  single_spec: ONE specialist (family 0 only) — sanity floor: must cap at 1/4 (proves no single

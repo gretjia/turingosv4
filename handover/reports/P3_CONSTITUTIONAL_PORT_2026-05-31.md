@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — the reputation port shows price routes to specialists + defunds Sybils, but constitutional DEFUNDING is not actually implemented (the sequencer locks stake on admit and does NOT slash on reject); the headline carries no fair baseline. Honest status: Verdict-B governance demo, not a price-causal result.
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # P3 — constitutional port: the reputation economy runs verify_chaintape-green
 
 > 2026-05-31. The diagnostic agent-economy (proven 10/10 on real Lean) ported to the REAL constitutional

@@ -835,3 +835,13 @@ added = "2026-05-21"
 name = "constitution_obl005_final_closure_witness"
 authority = "OBL-005 final closure witness: verify OBL-005 satisfied, OBL-001 open, final closure audit file contains OBL005-FINAL-CLOSURE-VERIFIED, all five manifests closed, and witness does not claim global project closure"
 added = "2026-05-27"
+
+[[gate]]
+name = "constitution_headline_recompute_from_tape"
+authority = "Forensic retrospective 2026-06-01 (handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md §1.D, failure-mode #1) + AGENTS.md §17.2: replay-green != correctness. Locks recompute-from-tape — derive_* reproduces an honest manifest, catches a lying manifest while the byte chain stays green, and is a function of the tape not the manifest."
+added = "2026-06-01"
+
+[[gate]]
+name = "constitution_router_name_matches_mechanism"
+authority = "Forensic retrospective 2026-06-01 (handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md §1.C/§1.A, failure-mode #4) + AGENTS.md §17.3: named mechanism must match implementation. The softmax router must DISTRIBUTE (not argmax-collapse); a price-routing claim must carry a real price identifier in code; lean_market_agent.rs is the canonical priced-softmax substrate."
+added = "2026-06-01"

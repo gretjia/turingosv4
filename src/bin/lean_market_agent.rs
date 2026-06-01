@@ -448,6 +448,11 @@ async fn run(args: Args) -> Result<(), String> {
     let judge = theorem.judge(lean_bin, mathlib_lp.as_deref());
 
     let n_agents = if args.policy == Policy::Single { 1 } else { args.n_agents };
+    // BUDGET PARITY (forensic fix 2026-06-01): every policy gets the SAME total proposal budget
+    // = args.n_agents * args.n_rounds LLM proposals (+ the matching Lean verifies). Single is forced
+    // to 1 agent, so it must run that many ROUNDS to match — else `market` silently gets n_agents× the
+    // compute and any "market > single" is a budget artifact, not a market effect.
+    let effective_rounds = if args.policy == Policy::Single { args.n_rounds * args.n_agents } else { args.n_rounds };
     let market_task = format!("lm-market-{}", args.run_id);
     let agents: Vec<String> = (0..n_agents).map(|i| format!("Agent_{i}")).collect();
     let challengers: Vec<String> = (0..n_agents).map(|i| format!("Chal_{i}")).collect();
@@ -514,7 +519,7 @@ async fn run(args: Args) -> Result<(), String> {
     let mut time_to_first_proof_s: Option<f64> = None;
     let mut step_idx = 0u64;
 
-    'outer: for round in 0..args.n_rounds {
+    'outer: for round in 0..effective_rounds {
         for ai in 0..agents.len() {
             let agent = agents[ai].clone();
             let q = seq.q_snapshot().map_err(|e| format!("{e:?}"))?;
