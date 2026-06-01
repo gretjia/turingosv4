@@ -79,3 +79,65 @@ impl MarketTape {
         pools
     }
 }
+
+// ── Per-model cost (moved here in TP-0A.3 so the producer bin AND the standalone verify_market_tape
+// verifier link the IDENTICAL rate table — derive_cost recomputes micro_usd from the tape's LLMCall events
+// alone and NEVER reads the manifest). Integer-only (constitution §12). MODEL_RATES ordered
+// most-specific-first; the bare "deepseek" catch-all MUST stay last (it is a substring of deepseek-v4-pro,
+// the OBL-012 under-bill bug). Price provenance is documented at the original site in lean_hayek_market.rs.
+pub const MODEL_RATES: &[(&str, i64, i64)] = &[
+    ("deepseek-ai/DeepSeek-V3.2", 270_000, 410_000),
+    ("Qwen/Qwen3-32B", 140_000, 570_000),
+    ("Qwen/Qwen2.5-72B-Instruct", 590_000, 590_000),
+    ("deepseek-v4-pro", 435_000, 870_000),
+    ("deepseek-v4-flash", 140_000, 280_000),
+    ("reasoner", 550_000, 2_190_000),
+    ("deepseek", 270_000, 1_100_000),
+];
+pub const FALLBACK_IN_UPMT: i64 = 270_000;
+pub const FALLBACK_OUT_UPMT: i64 = 1_100_000;
+
+/// integer micro-USD for one LLM call. First MODEL_RATES substring match wins (most-specific-first); else
+/// FALLBACK. Role-independent (cost is a function of model + tokens only).
+pub fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 {
+    let mut rate = (FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT);
+    for &(id, in_upmt, out_upmt) in MODEL_RATES {
+        if model.contains(id) { rate = (in_upmt, out_upmt); break; }
+    }
+    (prompt_tok as i64 * rate.0 + completion_tok as i64 * rate.1) / 1_000_000
+}
+
+// ── Tape replay derivations (TP-0A.3): reconstruct the manifest's headline integers from the frozen tape
+// LINES ALONE (the same JSONL the producer writes via --tape-out), so a standalone verifier proves the PPUT
+// numbers are auditable, not read-back. NOTE (honest scope): reasoner-vs-chat token SPLIT is role-dependent
+// and the current LLMCall schema records no role, so only the TOTAL completion is tape-derivable here; the
+// split needs a `role` marker on LLMCall (deferred to when the T2 budget-parity gate must audit from tape).
+fn parsed(lines: &[String]) -> impl Iterator<Item = serde_json::Value> + '_ {
+    lines.iter().filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+}
+/// banked@B = count of Resolve{outcome:"YES"} (each banked theorem emits exactly one).
+pub fn derive_banked(lines: &[String]) -> usize {
+    parsed(lines).filter(|v| v["kind"] == "Resolve" && v["body"]["outcome"] == "YES").count()
+}
+/// total micro-USD recomputed from every LLMCall via the SHARED MODEL_RATES (never reads the manifest).
+pub fn derive_cost(lines: &[String]) -> i64 {
+    parsed(lines).filter(|v| v["kind"] == "LLMCall")
+        .map(|v| call_micro_usd(v["body"]["model"].as_str().unwrap_or(""),
+            v["body"]["prompt_tokens"].as_u64().unwrap_or(0), v["body"]["completion_tokens"].as_u64().unwrap_or(0)))
+        .sum()
+}
+/// cost-of-pass = total micro-USD / banked (i64::MAX if nothing banked) — recomputed, matches finish_alloc.
+pub fn derive_cost_of_pass(lines: &[String]) -> i64 {
+    let b = derive_banked(lines);
+    if b > 0 { derive_cost(lines) / b as i64 } else { i64::MAX }
+}
+/// total completion tokens across all LLMCall events (= reasoner_completion + chat_completion in the manifest).
+pub fn derive_total_completion(lines: &[String]) -> u64 {
+    parsed(lines).filter(|v| v["kind"] == "LLMCall").map(|v| v["body"]["completion_tokens"].as_u64().unwrap_or(0)).sum()
+}
+/// number of LLMCall events (= manifest llm_calls).
+pub fn derive_llm_calls(lines: &[String]) -> usize { parsed(lines).filter(|v| v["kind"] == "LLMCall").count() }
+/// failed branches on tape = Verify{verdict:false} — a parse-fail/Lean-rejected attempt is auditable.
+pub fn derive_failures(lines: &[String]) -> usize {
+    parsed(lines).filter(|v| v["kind"] == "Verify" && v["body"]["verdict"] == false).count()
+}

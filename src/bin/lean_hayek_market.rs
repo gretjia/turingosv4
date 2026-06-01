@@ -45,56 +45,10 @@ const MIN_STAKE_MICRO: i64 = 1_000;
 const MAX_STAKE_MICRO: i64 = 40_000;
 const ALPHA_MICRO: i64 = 1_000; // Laplace smoothing α (in micro units), so empty claim → p=0.5
 
-// ── per-model micro-USD rates (cost path is integer-only, no f64) ────────────
-// Each row: (model-id substring, in_micro_usd_per_1M_prompt_tok, out_micro_usd_per_1M_completion_tok).
-// ROWS ORDERED MOST-SPECIFIC FIRST — call_micro_usd bills the FIRST row whose substring is contained in
-// the model id, so a heterogeneous strong model is priced at ITS real rate, never silently at the
-// deepseek-chat proxy. The liberal "reasoner"/"deepseek" catch-alls MUST stay last: a full slash-id like
-// "deepseek-ai/DeepSeek-V3.2" also contains "deepseek" and must match its own row first. Adding a model
-// to the roster = add a row here; an unlisted id falls through to FALLBACK below. (tests guard the order.)
-//
-// SiliconFlow rows — any slash-form id ("Org/Model") routes to api.siliconflow.cn
-// (src/drivers/llm_proxy.py::detect_provider), so the true price is SiliconFlow's published USD list
-// price. Retrieved 2026-05-31 from https://www.siliconflow.com :
-//   deepseek-ai/DeepSeek-V3.2    $0.27 in / $0.41 out  (blog: "DeepSeek-V3.2-Exp Now on SiliconFlow")
-//   Qwen/Qwen3-32B               $0.14 in / $0.57 out  (/models/qwen-qwen3-32b)
-//   Qwen/Qwen2.5-72B-Instruct    $0.59 in / $0.59 out  (/models/qwen-qwen2-5-72b-instruct)
-// DeepSeek rows — bare "deepseek-*" ids route to api.deepseek.com; pinned to the DeepSeek API USD price
-// (https://api-docs.deepseek.com/quick_start/pricing, retrieved 2026-05-31). The live official catalog is
-// now exactly {deepseek-v4-flash, deepseek-v4-pro}; deepseek-chat/deepseek-reasoner are being deprecated
-// (they map to flash non-thinking / thinking). v4-pro/v4-flash MUST precede the bare "deepseek" catch-all:
-// "deepseek" is a substring of "deepseek-v4-pro", so an earlier liberal row would steal the match and
-// under-bill the flagship — the exact OBL-012 class of bug. The legacy reasoner/deepseek baseline pins are
-// kept (after the specific rows) so earlier banked-per-dollar tapes stay comparable — re-pin deliberately.
-const MODEL_RATES: &[(&str, i64, i64)] = &[
-    ("deepseek-ai/DeepSeek-V3.2", 270_000, 410_000),   // SiliconFlow $0.27 / $0.41
-    ("Qwen/Qwen3-32B", 140_000, 570_000),              // SiliconFlow $0.14 / $0.57
-    ("Qwen/Qwen2.5-72B-Instruct", 590_000, 590_000),   // SiliconFlow $0.59 / $0.59
-    ("deepseek-v4-pro", 435_000, 870_000),             // DeepSeek API $0.435 / $0.87 (75%-off promo; regular $1.74/$3.48 = 1_740_000/3_480_000 — re-pin when promo ends)
-    ("deepseek-v4-flash", 140_000, 280_000),           // DeepSeek API $0.14 cache-miss / $0.28
-    ("reasoner", 550_000, 2_190_000),                  // DeepSeek API $0.55 / $2.19 (legacy baseline pin)
-    ("deepseek", 270_000, 1_100_000),                  // DeepSeek API $0.27 / $1.10 (legacy baseline catch-all — MUST stay last)
-];
-// FALLBACK for an id not in MODEL_RATES — clearly a PROXY, not a true price (deepseek-chat-class). An
-// unlisted model is a roster gap to close (add a row above), never a license to under-bill the metric.
-const FALLBACK_IN_UPMT: i64 = 270_000;
-const FALLBACK_OUT_UPMT: i64 = 1_100_000;
-
-/// integer micro-USD for a call, by model (the real dollar cost — the scarce resource's denominator).
-/// First MODEL_RATES row whose substring is in `model` wins (most-specific-first); else FALLBACK.
-fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 {
-    let (i, o) = {
-        let mut rate = (FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT);
-        for &(id, in_upmt, out_upmt) in MODEL_RATES {
-            if model.contains(id) {
-                rate = (in_upmt, out_upmt);
-                break;
-            }
-        }
-        rate
-    };
-    (prompt_tok as i64 * i + completion_tok as i64 * o) / 1_000_000
-}
+// ── per-model micro-USD cost: MODEL_RATES + call_micro_usd moved to src/market_tape_shared.rs (TP-0A.3)
+// so the producer bin AND the standalone verify_market_tape link the IDENTICAL rate table — derive_cost
+// recomputes micro_usd from the tape alone using the same function. Price provenance (SiliconFlow/DeepSeek
+// USD lists, OBL-012/OBL-013) preserved in git history. Imported via `use market_tape_shared::call_micro_usd`.
 
 /// confidence (0..100) → integer stake, sized by belief, capped to wallet. The capital an agent
 /// is willing to LOSE if its proof fails — honest skin in the game.
@@ -110,7 +64,7 @@ fn stake_from_confidence(confidence_pct: u64, wallet: i64) -> i64 {
 // lib.rs (adding a mod there is a trust-root/constitution touch); pulled in via #[path].
 #[path = "../market_tape_shared.rs"]
 mod market_tape_shared;
-use market_tape_shared::{MarketEvent, MarketTape};
+use market_tape_shared::{call_micro_usd, MarketEvent, MarketTape, FALLBACK_OUT_UPMT};
 
 // ── Hayek price (ATOM 2): integer-rational, identical to compute_price_index's long/(long+short) ──
 /// p_raw scaled to per-mille (integer) to stay off f64 in the price path: 1000*(YES+α)/(YES+NO+2α).
