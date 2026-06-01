@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — 'IS valid' rests on a rigged comparison: the elim_global rival was denied the confidence signal price uses AND force-suicided by terminal elimination. A fair no-capital rival (same conf signal + global one-strike) TIES price 21=21 on 10/10. Constitutional defunding is also not actually implemented (the sequencer locks stake on admit, does not slash on reject). Honest status: Verdict-B governance, not price-causal efficiency.
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # The price-coordinated economy IS valid — reputation market, validated on real Lean data
 
 > 2026-05-31. The decisive POSITIVE result for TuringOS's central design claim — capital-priced routing

@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — this report is OVERCLAIMED. 'capital-at-risk is the isolated causal lever, PROVEN 10/10' rests on a rigged rival (elim_global was denied the confidence signal + force-suicided by terminal elimination); a fair no-capital rival TIES price 21=21 on all 10 seeds. 'Combination PROVEN 3.81>3.00>1.50' (Axis 1) has NO price code and is erased at equal budget (Stage-2 JUST_SAMPLING). The synthetic skillsweep (Axis 3) is not a real-data result. Honest status: Verdict B (Sybil-resistance/governance) ONLY, NOT Verdict A (price-causal).
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # Agent-economy emergence — PROVEN (the closing proposition, adversarially verified)
 
 > 2026-05-31. The final, defensible proposition, established by a self-driving evidence → adversarial-
