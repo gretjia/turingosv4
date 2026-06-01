@@ -59,7 +59,8 @@ for thm in $THEOREMS; do for arm in $ARMS; do for s in $SEEDS; do
   o=$(python3 -c "import json;print(json.load(open('$cell.json')).get('omega_reached','?'))" 2>/dev/null || echo '?')
   rc=$(grep -q '"economic_state_reconstructed": true' "$cell.replay.json" 2>/dev/null && echo OK || echo FAIL)
   echo "[done] $thm/$arm/s$s verified=$v omega=$o replay=$rc"
-  # keep the ChainTape repo only if replay failed (for debugging); else reclaim disk
-  [ "$rc" = OK ] && rm -rf "$repo" "$cas"
+  # keep the ChainTape repo only if replay failed (for debugging); else reclaim disk.
+  # KEEP_CAS=1 preserves repo+cas for EVERY cell (needed to axiom-verify cracked proofs post-hoc).
+  [ "${KEEP_CAS:-0}" = 1 ] || { [ "$rc" = OK ] && rm -rf "$repo" "$cas"; }
 done; done; done
 echo "=== P1 sweep complete -> $OUT ==="
