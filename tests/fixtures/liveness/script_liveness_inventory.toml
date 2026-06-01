@@ -108,6 +108,7 @@ counts_for_obl005_script_closure = false
 paths = [
   "scripts/analyze_emerge_stage1.py",
   "scripts/analyze_emerge_stage2.py",
+  "scripts/analyze_t2_sweep.py",
   "scripts/bench_aggregate.py",
   "scripts/bench_axiom_reverify.py",
 ]
