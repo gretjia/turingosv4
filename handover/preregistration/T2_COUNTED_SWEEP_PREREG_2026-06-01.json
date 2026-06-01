@@ -1,0 +1,48 @@
+{
+  "preregistration": "TP-2 counted sweep — does PRICE allocate the scarce reasoner-repair budget more efficiently than a CENTRAL COORDINATOR (and is the win causal vs price-destruction ablations)?",
+  "date": "2026-06-01",
+  "status": "DRAFT — locked + externally SHA-pinned only AFTER the G2 smoke confirms replay-green + binding budget + dynamic range, and BEFORE any counted arm result is read",
+  "depends_on": "G0 (verify_market_tape replay-green, met) + G1 (microstructure spec locked, met) + G2 smoke (6 arms × subset × 2 seeds: every arm replay-green, B binds, banked@B varies across arms)",
+
+  "the_question": "Same models, same budget B, same verifier (#print-axioms whitelist), same task: does the PRICE-routed market bank more verified theorems at fixed reasoner-token budget than a central-coordinator LLM ranking the same residuals — AND does it survive price-destruction (market > shuffled-price AND market != flatbid)? This is the architect's compressed mission proposition on the cleanest substrate.",
+
+  "arms": {
+    "solo": "single strongest model, whole budget B sequential over residual, NO market (the must-beat single baseline)",
+    "coordinator": "a central-coordinator LLM ranks the residuals (same proximity info the market prices); reasoner repairs in that order — central planning vs price (the Hayek contrast, the KEY baseline)",
+    "market": "price-descending order of residual repair (the economy under test)",
+    "shuffled": "price vector permuted before ordering — the PRIMARY causality firewall (same price distribution, wrong assignment)",
+    "flatbid": "constant bids = no price signal — the SECONDARY firewall (any-dispersion vs uniform)",
+    "random": "seeded permutation, no signal — floor"
+  },
+
+  "budget_basis": "binding_budget_B = reasoner_completion_tokens = 4000 (BENCH-established binding value), IDENTICAL per arm. This is D1's proposed answer (equal reasoner TOKENS — the only enforceable knob; micro_usd is a DERIVED secondary report, NOT a gate, since equal-dollar across heterogeneous rates is unsatisfiable). Every cell records reasoner_completion_tokens; cells exceeding B are excluded + reported.",
+
+  "task_sets": {
+    "primary_decomposable_subset": "the curated set of residual-producing theorems where the ALLOCATION decision binds (>= 8 theorems that fail cheap propose + have varying repair-difficulty, finalized from the G2 smoke's residual set) — the decisive test (the architect: the decomposable subset, NOT the monolithic pool)",
+    "null_confirmation_pool": "the full 44-theorem pool — a PRE-REGISTERED confirmation of the efficiency-NULL prior (repo H0: single 7 >= shuffled 6 > market 5 on the monolithic pool), NOT the test"
+  },
+
+  "scale": "6 arms × 12 seeds × {primary subset, 44-pool}, interleaved per seed (a crash yields paired data). Identical B per cell.",
+
+  "metrics": {
+    "primary": "banked@B = axiom-clean theorems banked at the fixed reasoner-token budget (== pass rate at equal compute; least gameable). All arms share B so banked.len() IS banked@B.",
+    "secondary": "cost_of_pass_micro_usd (derived; NEVER the gate)",
+    "every_headline_cell": "must pass verify_market_tape exit 0 (replay-green) AND #print-axioms whitelist on every banked proof, ELSE excluded (pre-committed)"
+  },
+
+  "statistics": "Wilcoxon signed-rank, paired by seed, one-sided (H1: market > foil); Holm-Bonferroni over {coordinator, shuffled, flatbid} at family alpha=0.05. Minimum detectable effect (MDE) pre-registered; a subset null with adequate power = NO-GO, a subset null with INADEQUATE power = 'inconclusive', NOT NO-GO.",
+
+  "two_level_verdict": {
+    "A_price_causal_efficiency": "GO iff market > coordinator AND market > shuffled (PRIMARY causal gate) AND market > flatbid, all on banked@B, Holm-p<0.05, every headline arm replay-green. Honest prior: A is NULL on the 44-pool; A is tested on the decomposable subset only.",
+    "B_institutional_governance": "even if A ties, B holds iff the market arm is replay-green + Sybil-resistant (TP-1 honest-bidding falsifier) + Goodhart-shielded + failure-branches-on-tape + integer cost-accounting reconstructable. Reported as 'accountable agent-governance substrate', NOT 'cleverer/cheaper solver'. A is NEVER inferred from B."
+  },
+
+  "NOGO_report_honestly": [
+    "market ~ shuffled (price decorative) at adequate power",
+    "market <= coordinator (central planning allocates >= as well as price)",
+    "market == flatbid (the win is structure/parallelism, not price)",
+    "any headline arm fails replay → excluded, not retconned"
+  ],
+
+  "discipline": "FC1/FC2/FC3 untouched; no §6; integer money; de-branded multi-channel; PR-only; this prereg SHA-pinned (external sibling .sha256) before any counted arm result is read; results read ONLY after the lock."
+}
