@@ -93,3 +93,31 @@ fn derive_cost_is_recomputed_not_read() {
     assert_ne!(from_tape, lying_manifest_cost);
     assert_eq!(mt::derive_cost(&t.lines), from_tape, "recompute is stable + manifest-independent");
 }
+
+/// End-to-end contract of the verify_market_tape BIN (not just derive_*): exit 0 on a fixture tape whose
+/// manifest matches the reconstruction, exit non-zero when the manifest disagrees with the frozen tape.
+#[test]
+fn verify_market_tape_bin_exit_code_contract() {
+    let t = fixture();
+    let dir = std::env::temp_dir();
+    let tape_path = dir.join("tp0a_fixture.tape");
+    std::fs::write(&tape_path, t.lines.join("\n")).unwrap();
+    let l = &t.lines;
+    let good = serde_json::json!({
+        "schema": "lean_hayek_alloc.v2", "banked_at_B": mt::derive_banked(l), "micro_usd": mt::derive_cost(l),
+        "cost_of_pass_micro_usd": mt::derive_cost_of_pass(l), "reasoner_completion_tokens": mt::derive_total_completion(l),
+        "chat_completion_tokens": 0, "llm_calls": mt::derive_llm_calls(l),
+    });
+    let mpath = dir.join("tp0a_fixture.json");
+    std::fs::write(&mpath, serde_json::to_string(&good).unwrap()).unwrap();
+    let bin = env!("CARGO_BIN_EXE_verify_market_tape");
+    let run = |mp: &std::path::Path| std::process::Command::new(bin)
+        .args(["--tape", tape_path.to_str().unwrap(), "--manifest", mp.to_str().unwrap(), "--out", dir.join("tp0a_rr.json").to_str().unwrap()])
+        .output().unwrap();
+    assert!(run(&mpath).status.success(), "verify_market_tape exits 0 on a matching fixture");
+    // a manifest that disagrees with the frozen tape (wrong banked) must be rejected (exit != 0)
+    let mut bad = good.clone();
+    bad["banked_at_B"] = serde_json::json!(mt::derive_banked(l) + 99);
+    std::fs::write(&mpath, serde_json::to_string(&bad).unwrap()).unwrap();
+    assert!(!run(&mpath).status.success(), "verify_market_tape rejects a manifest that disagrees with the tape");
+}
