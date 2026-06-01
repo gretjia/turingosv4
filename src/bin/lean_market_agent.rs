@@ -56,6 +56,15 @@ use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
+// REAL librarian (src/runtime/librarian_broadcast.rs): CAS-derived, role-scoped, shielded
+// collective digest of prior attempts. Fed by the LeanResult sidecar written below; the
+// previous experiment-local `librarian_digest` lookalike is removed.
+use turingosv4::runtime::librarian_broadcast::{
+    build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
+    select_librarian_events, validate_librarian_source_scope, LibrarianSourceScope,
+};
+use turingosv4::runtime::attempt_telemetry::{write_lean_result_to_cas, LeanResult};
+use turingosv4::runtime::real5_roles::AgentRole;
 use turingosv4::sdk::actor::boltzmann_softmax_select_parent;
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TaskMarketState, TxId};
@@ -79,6 +88,7 @@ const VERIFY_BOND_MICRO: i64 = 500;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Policy {
     Market,
+    Autonomous,
     RandomBear,
     FixedBear,
     ShuffledPrice,
@@ -94,6 +104,7 @@ impl Policy {
     fn parse(s: &str) -> Result<Self, String> {
         match s {
             "market" => Ok(Policy::Market),
+            "autonomous" => Ok(Policy::Autonomous),
             "random_bear" => Ok(Policy::RandomBear),
             "fixed_bear" => Ok(Policy::FixedBear),
             "shuffled_price" => Ok(Policy::ShuffledPrice),
@@ -109,6 +120,7 @@ impl Policy {
     fn label(self) -> &'static str {
         match self {
             Policy::Market => "market",
+            Policy::Autonomous => "autonomous",
             Policy::RandomBear => "random_bear",
             Policy::FixedBear => "fixed_bear",
             Policy::ShuffledPrice => "shuffled_price",
@@ -123,7 +135,7 @@ impl Policy {
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
     /// non-market baselines are Bulls-only (no short, no price game).
     fn emits_challenges(self) -> bool {
-        matches!(self, Policy::Market | Policy::RandomBear | Policy::FixedBear | Policy::ShuffledPrice | Policy::NoPrice)
+        matches!(self, Policy::Market | Policy::Autonomous | Policy::RandomBear | Policy::FixedBear | Policy::ShuffledPrice | Policy::NoPrice)
     }
 }
 
@@ -276,6 +288,10 @@ fn select_parent(
     rng: &mut StdRng,
 ) -> Option<TxId> {
     match policy {
+        // AUTONOMOUS: the LLM picks its own parent index INSIDE the proposal call, so the
+        // pre-call selector is a no-op (None). The real parent is parsed from the model's
+        // {parent_node} field and validated against node_tx_ids after the LLM returns.
+        Policy::Autonomous => None,
         // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
         // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
         Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_softmax_select_parent(pi, &BTreeSet::new(), temp, rng)
@@ -346,7 +362,69 @@ fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
     a
 }
 
-fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>) -> String {
+/// Shield a raw Lean error down to an opaque CLASS (constitution: no raw stderr / private diagnostics
+/// in ordinary agent prompts; the librarian source-scope rule). Used in the collective digest.
+fn classify_lean_error(fb: &str) -> &'static str {
+    let f = fb.to_lowercase();
+    if f.contains("unsolved goals") { "unsolved_goals" }
+    else if f.contains("type mismatch") { "type_mismatch" }
+    else if f.contains("unknown identifier") || f.contains("unknown constant") { "unknown_identifier" }
+    else if f.contains("rewrite") && f.contains("fail") { "rewrite_failed" }
+    else if f.contains("nlinarith") || f.contains("linarith") || f.contains("positivity") { "arith_failed" }
+    else if f.contains("unexpected") || f.contains("syntax") || f.contains("expected") { "syntax_error" }
+    else if f.contains("no progress") { "no_progress" }
+    else if f.trim().is_empty() { "no_feedback" }
+    else { "other_error" }
+}
+
+/// REAL librarian collective digest (src/runtime/librarian_broadcast.rs — the full
+/// constitutional mechanism, NOT a lookalike). Reads the typed LeanResult sidecars this
+/// run already wrote into CAS, builds a deterministic shielded `LibrarianDigest`, and
+/// projects the Solver crop into a bounded "=== Librarian Notices ===" prompt block.
+/// Everything that transits is an opaque error CLASS / pre-written public_summary —
+/// `assert_no_forbidden_broadcast_material` runs on every event + cluster + rendered line.
+///
+/// Returns "" (no librarian section) when the source scope is invalid, no typed evidence
+/// exists yet, or the Solver crop is empty (e.g. <2 of any one error class → no cluster).
+/// Read-only: opens a FRESH `CasStore` (open-per-read, mirrors the bin's put helpers) and
+/// never mutates the run.
+fn real_librarian_solver_notice(cas_path: &PathBuf, current_head_t: u64, problem: &str) -> String {
+    let cas = match CasStore::open(cas_path) {
+        Ok(c) => c,
+        Err(_) => return String::new(),
+    };
+    let scope = LibrarianSourceScope {
+        current_run_cas_root: derive_current_run_cas_root(&cas), // run-local surrogate, NOT a global pointer
+        prior_capsule_cids: vec![],
+        max_prior_batches: 0,
+        task_tags: vec![problem.to_string()], // problem id; fail-closed if it contains latest/pointer/.txt
+    };
+    if validate_librarian_source_scope(&scope, &cas).is_err() {
+        return String::new();
+    }
+    let events = match select_librarian_events(&cas) {
+        Ok(e) => e,
+        Err(_) => return String::new(), // fail-closed selector errored (e.g. unknown schema) → no section
+    };
+    if events.is_empty() {
+        return String::new();
+    }
+    let digest = match build_librarian_digest(scope, current_head_t, events) {
+        Ok(d) => d,
+        Err(_) => return String::new(),
+    };
+    let view = match project_role_notifications(&digest, AgentRole::Solver, 10) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+    // Empty-crop sentinel: don't inject a section that says nothing actionable.
+    if view.rendered_notice.contains("No librarian notices for this role at current scope") {
+        return String::new();
+    }
+    format!("\n{}", view.rendered_notice)
+}
+
+fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>, librarian: &str) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (Mathlib is available). Output ONLY a JSON object.\n\n");
     p.push_str("=== Target (prove the goal after `:= by`) ===\n");
@@ -359,10 +437,80 @@ fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedbac
         p.push_str(fb);
         p.push('\n');
     }
+    if !librarian.is_empty() {
+        p.push_str(librarian);
+    }
     p.push_str(
         "\nReturn EXACTLY: {\"proof_body\":\"<the Lean tactic block AFTER `:= by`, no theorem signature, no imports>\",\"confidence\":0.0-1.0}\n",
     );
     p
+}
+
+/// AUTONOMOUS landscape prompt: shows the model the FULL frontier of prior attempts (every
+/// node, including early ones) and lets it FREELY pick which to extend — by index — or start
+/// fresh (`-1`). Inverts the market control flow (parent chosen by the LLM, not pre-selected).
+/// SHIELDING: each node is shown only as (index, price_yes ratio, confidence, error-CLASS via
+/// `classify_lean_error`, body-snippet) — NEVER another node's raw Lean feedback. The SAME
+/// shielded collective librarian digest is injected (requirement A for this arm). ONE proposal
+/// call per turn (identical budget to market).
+fn build_autonomous_prompt(
+    theorem: &LeanTheorem,
+    node_tx_ids: &[TxId],
+    node_body: &BTreeMap<String, String>,
+    node_feedback: &BTreeMap<String, String>,
+    node_conf: &BTreeMap<String, u64>,
+    pi: &BTreeMap<TxId, NodeMarketEntry>,
+    librarian: &str,
+) -> String {
+    let mut p = String::new();
+    p.push_str(
+        "You are proving a theorem in Lean 4 (Mathlib is available) inside a proof-search market. \
+         You see the FULL landscape of prior attempts (the search frontier). FREELY CHOOSE which \
+         attempt to extend (give its index) OR start fresh (index -1). Prefer a promising but \
+         unfinished line; you MAY branch from an EARLY attempt if later ones are dead ends. \
+         Output ONLY a JSON object.\n\n",
+    );
+    p.push_str("=== Target (prove the goal after `:= by`) ===\n");
+    p.push_str(&theorem.preamble);
+    p.push('\n');
+    if node_tx_ids.is_empty() {
+        p.push_str("\n=== Landscape: EMPTY (you are the first attempt; use parent_node = -1) ===\n");
+    } else {
+        p.push_str("\n=== Landscape — all prior attempts (index : price_yes : confidence : error-class : body-snippet) ===\n");
+        for (idx, tx) in node_tx_ids.iter().enumerate() {
+            let body = node_body.get(&tx.0).map(|b| b.trim().replace('\n', " ")).unwrap_or_default();
+            let snip: String = body.chars().take(110).collect();
+            let class = node_feedback.get(&tx.0).map(|f| classify_lean_error(f)).unwrap_or("pending");
+            let conf = node_conf.get(&tx.0).copied().unwrap_or(0);
+            let (pn, pd) = pi
+                .get(tx)
+                .and_then(|e| e.price_yes.as_ref())
+                .map(|r| (r.numerator, r.denominator))
+                .unwrap_or((0, 0));
+            p.push_str(&format!("[{idx}] price={pn}/{pd} conf={conf}% class={class} :: `{snip}`\n"));
+        }
+    }
+    if !librarian.is_empty() {
+        p.push_str(librarian); // (A) shielded collective-failure digest, same as market
+    }
+    p.push_str(
+        "\nReturn EXACTLY: {\"parent_node\":<integer index from the landscape, or -1 for a fresh root>,\
+         \"proof_body\":\"<the Lean tactic block AFTER `:= by`, no theorem signature, no imports>\",\
+         \"confidence\":0.0-1.0}\n",
+    );
+    p
+}
+
+/// Resolve the model-chosen `parent_node` index against the canonical live node list.
+/// FAIL-OPEN to a fresh root: a negative index OR an out-of-range (hallucinated) index → None
+/// (do NOT panic, do NOT parse-fail — that would shrink the autonomous arm's node count below
+/// market's and break budget parity). A valid index → the real WorkTx id at that position.
+fn resolve_parent_index(node_tx_ids: &[TxId], chosen: i64) -> Option<TxId> {
+    if chosen < 0 {
+        None
+    } else {
+        node_tx_ids.get(chosen as usize).cloned()
+    }
 }
 
 /// Informed Bear short (P0-E): an independent skeptic LLM estimates P(this proof does NOT
@@ -534,7 +682,15 @@ async fn run(args: Args) -> Result<(), String> {
                 None => (None, None),
             };
 
-            let prompt = build_prompt(&theorem, parent_body.as_deref(), parent_feedback.as_deref());
+            // REAL librarian: shielded collective failure memory derived from the typed
+            // LeanResult sidecars written into CAS on prior attempts (all agents). `lt` is the
+            // run's monotonic logical clock → meaningful staleness; the problem id is the scope tag.
+            let lib = real_librarian_solver_notice(&args.cas, lt, &args.problem);
+            let prompt = if args.policy == Policy::Autonomous {
+                build_autonomous_prompt(&theorem, &node_tx_ids, &node_body, &node_feedback, &node_conf, &pi, &lib)
+            } else {
+                build_prompt(&theorem, parent_body.as_deref(), parent_feedback.as_deref(), &lib)
+            };
             let resp = match llm
                 .generate(&GenerateRequest {
                     model: args.model.clone(),
@@ -570,6 +726,16 @@ async fn run(args: Args) -> Result<(), String> {
             }
             let confidence_pct = (v.get("confidence").and_then(|x| x.as_f64()).unwrap_or(0.6).clamp(0.0, 1.0) * 100.0) as u64;
 
+            // AUTONOMOUS: the model picked its own parent index; validate it against the live
+            // node list (fail-open to a fresh root on a hallucinated/out-of-range index — never
+            // crash, never parse-fail). `select_parent` returned None for this arm (STEP 0); we
+            // shadow it here with the model's choice. Non-autonomous arms keep the pre-call pick.
+            let mut parent_tx = parent_tx;
+            if args.policy == Policy::Autonomous {
+                let chosen = v.get("parent_node").and_then(|x| x.as_i64()).unwrap_or(-1);
+                parent_tx = resolve_parent_index(&node_tx_ids, chosen);
+            }
+
             // ── Real Lean kernel verdict ─────────────────────────────
             let outcome = judge.verify(&body);
             let is_verified = outcome.is_verified();
@@ -577,6 +743,28 @@ async fn run(args: Args) -> Result<(), String> {
                 verified_count += 1;
             } else {
                 failed_count += 1;
+            }
+
+            // Feed the REAL librarian: write the typed LeanResult sidecar that
+            // `select_librarian_events` consumes. Raw stderr is NOT broadcast (stderr_cid=None);
+            // the librarian reads only the shielded error CLASS / verdict kind. Pass LeanOutcome's
+            // own fields verbatim so the 4-arm (exit_code, verified, error_class, verdict_kind)
+            // byte-consistency (assert_45) holds. Open-per-write (mirrors put_proposal). Non-fatal.
+            if let Ok(mut cas_w) = CasStore::open(&args.cas) {
+                let lean_result = LeanResult {
+                    attempt_id: TxId(format!("lm-node{step_idx}-{}", args.run_id)),
+                    exit_code: outcome.exit_code,
+                    verified: is_verified,
+                    stderr_cid: None,
+                    stdout_cid: None,
+                    proof_artifact_cid: None,
+                    error_class: outcome.error_class,
+                    verdict_kind: outcome.verdict_kind,
+                };
+                if let Err(e) = write_lean_result_to_cas(&mut cas_w, &lean_result, "lm-lean-result", lt) {
+                    eprintln!("lm lean_result write skip node{step_idx}: {e:?}");
+                }
+                lt += 1;
             }
 
             // ── Per-task node (EVERY attempt — Verified or Failed) ────
@@ -836,7 +1024,7 @@ mod tests {
 
     #[test]
     fn only_price_family_emits_bear_shorts() {
-        for p in [Policy::Market, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
+        for p in [Policy::Market, Policy::Autonomous, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
         for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst, Policy::SkepticRerank] {
@@ -846,9 +1034,39 @@ mod tests {
 
     #[test]
     fn policy_parse_roundtrips_all_arms() {
-        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first", "skeptic_rerank"] {
+        for s in ["market", "autonomous", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first", "skeptic_rerank"] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());
+    }
+
+    #[test]
+    fn autonomous_select_parent_is_precall_noop() {
+        // The autonomous parent is chosen by the LLM, not by select_parent; the pre-call
+        // selector MUST be a no-op (None) regardless of the landscape, so the post-parse
+        // shadow is the sole source of the parent.
+        let mut pi = BTreeMap::new();
+        let nodes = vec![TxId("n0".into()), TxId("n1".into())];
+        // even with a fully-priced landscape, autonomous pre-call selection is None.
+        pi.insert(TxId("n0".into()), NodeMarketEntry::default());
+        let mut rng = StdRng::seed_from_u64(7);
+        assert_eq!(
+            select_parent(Policy::Autonomous, &pi, &nodes, Some(&TxId("n0".into())), &BTreeMap::new(), &BTreeMap::new(), 0.15, &mut rng),
+            None
+        );
+    }
+
+    #[test]
+    fn autonomous_parent_index_resolves_and_fails_open() {
+        let nodes = vec![TxId("n0".into()), TxId("n1".into())];
+        // valid index → that node
+        assert_eq!(resolve_parent_index(&nodes, 1), Some(TxId("n1".into())));
+        assert_eq!(resolve_parent_index(&nodes, 0), Some(TxId("n0".into())));
+        // fresh-root sentinel → None
+        assert_eq!(resolve_parent_index(&nodes, -1), None);
+        // out-of-range (hallucinated) → fail-OPEN to None (not a panic, not a parse-fail)
+        assert_eq!(resolve_parent_index(&nodes, 5), None);
+        // empty landscape → None for any index
+        assert_eq!(resolve_parent_index(&[], 0), None);
     }
 }

@@ -492,7 +492,12 @@ pub fn decode_librarian_candidate(
                     == crate::runtime::genesis_report::MODEL_ASSIGNMENT_MANIFEST_SCHEMA_ID
                 || schema == "turingosv4.agent_proposal_record.v1"
                 || schema == "turingosv4.verification_result.v1"
-                || schema == "turingosv4.proposal_telemetry.v1" =>
+                || schema == "turingosv4.proposal_telemetry.v1"
+                // lean_market_agent writes an assembled-Lean-source artifact as a Generic
+                // object; it is NOT librarian evidence (the LeanResult sidecar carries the
+                // shielded verdict). Ignore it explicitly so the fail-closed selector does
+                // not HARD-ERROR when reading lean_market_agent's CAS.
+                || schema == "lm.proof_artifact.v1" =>
         {
             Ok(None)
         }
