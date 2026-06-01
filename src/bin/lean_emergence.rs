@@ -204,6 +204,27 @@ struct PartialState {
     #[serde(default)] seed: u64,
 }
 
+/// Persist the partial hit matrix + tokens to the sidecar. Called after EACH theorem so a crash/sleep/kill
+/// during a multi-hour run — INCLUDING a single-model run — loses at most one theorem's draws. Silent on
+/// success (the per-theorem progress line already prints); warns only if the write itself fails.
+#[allow(clippy::too_many_arguments)]
+fn write_partial_checkpoint(
+    partial: &Path, seed: u64, k_samples: usize, max_rounds: usize, models: &[String],
+    completed_through_model: &str, hit: &BTreeMap<String, BTreeMap<String, usize>>,
+    tokens_by_model: &BTreeMap<String, u64>,
+) {
+    let snapshot = serde_json::json!({
+        "schema": "lean_emergence_stage1.partial.v1",
+        "seed": seed, "k_samples": k_samples, "max_rounds": max_rounds,
+        "models": models, "completed_through_model": completed_through_model,
+        "hit": hit, "tokens_by_model": tokens_by_model,
+    });
+    match serde_json::to_string_pretty(&snapshot) {
+        Ok(s) => { if let Err(e) = std::fs::write(partial, s) { eprintln!("[checkpoint] WARN write {}: {e}", partial.display()); } }
+        Err(e) => eprintln!("[checkpoint] WARN serialize: {e}"),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let args = parse_args()?;
@@ -242,12 +263,12 @@ async fn main() -> Result<(), String> {
     }
 
     for model in &args.models {
+        hit.entry(model.clone()).or_default();
         {
-            let mh = hit.entry(model.clone()).or_default();
             for thm in &thms {
                 // --resume skip: this (model,theorem) cell was already computed in a prior run.
                 if args.resume {
-                    if let Some(&prev) = mh.get(&thm.id) {
+                    if let Some(&prev) = hit[model].get(&thm.id) {
                         eprintln!("  [resume] skip {model} {} ({prev}/{} draws clean, from checkpoint)", thm.id, args.k_samples);
                         continue;
                     }
@@ -275,27 +296,15 @@ async fn main() -> Result<(), String> {
                     }
                     if solved { hits += 1; }
                 }
-                mh.insert(thm.id.clone(), hits);
+                hit.get_mut(model).expect("model key present").insert(thm.id.clone(), hits);
                 let _ = rng.gen::<u8>(); // keep rng live per (model,thm) for reproducible temp spread
                 eprintln!("  {model} {} : {hits}/{} draws clean", thm.id, args.k_samples);
+                // CHECKPOINT after EACH theorem (per-theorem durability): a crash/sleep/kill during a
+                // multi-hour run — INCLUDING a single-model run — loses at most this one theorem's draws.
+                // --resume reloads these cells and skips them. (Was per-model = end-only for single-model runs.)
+                write_partial_checkpoint(&partial, args.seed, args.k_samples, args.max_rounds,
+                    &args.models, model, &hit, &tokens_by_model);
             }
-        } // drop mh's mutable borrow of `hit` before serializing the whole map below
-
-        // CHECKPOINT (after this model's theorem loop): persist the partial hit matrix + tokens so a crash,
-        // sleep, or kill during the multi-hour run keeps every COMPLETED model's per-theorem hit counts.
-        // The final full write at the end of main is left unchanged; this is purely additive durability.
-        let snapshot = serde_json::json!({
-            "schema": "lean_emergence_stage1.partial.v1",
-            "seed": args.seed, "k_samples": args.k_samples, "max_rounds": args.max_rounds,
-            "models": args.models, "completed_through_model": model,
-            "hit": hit, "tokens_by_model": tokens_by_model,
-        });
-        match serde_json::to_string_pretty(&snapshot) {
-            Ok(s) => match std::fs::write(&partial, s) {
-                Ok(()) => eprintln!("[checkpoint] wrote partial after model {model} → {}", partial.display()),
-                Err(e) => eprintln!("[checkpoint] WARN could not write {}: {e}", partial.display()),
-            },
-            Err(e) => eprintln!("[checkpoint] WARN could not serialize partial: {e}"),
         }
     }
 
