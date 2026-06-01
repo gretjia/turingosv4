@@ -1,0 +1,22 @@
+{
+  "addendum_to": "EMERGE_STAGE2_PREREG_2026-06-01.json",
+  "date": "2026-06-01",
+  "locked_before_running_the_new_control": true,
+  "trigger": "Run B (qwen3.7-max@k4) returned 23/44 — qwen3.7-max is the BEST single model on this pool (> v4-pro 18, > V3.2 16). The original prereg locked the Q1 sampling control as `deepseek-v4-pro @ k8` on the assumption that v4-pro was the strongest single model; the data refuted that assumption. Integrity note: this addendum is committed BEFORE running the new control and BEFORE reading any v4-pro@k8 result — it tightens, it does not relax.",
+
+  "Q1_original_still_runs": "deepseek-v4-pro @ k8 vs union(v4-pro@k4,V3.2@k4)=26 — the literal locked control, Run A, left running for completeness (tests whether the ORIGINAL 2-model pair beat its own best member at equal total draws).",
+
+  "Q1prime_the_tighter_control": {
+    "question": "Does the 3-model swarm beat the BEST single model at EQUAL TOTAL compute? union(v4-pro@k4, V3.2@k4, qwen3.7-max@k4) = 30/44 uses 12 draws/theorem (3 models x k4). The equal-total-draws best-single control is qwen3.7-max @ k12.",
+    "run_C": "qwen3.7-max @ k12, full 44 pool, max_rounds=2, temp 0.8+0.05s",
+    "decision_rule_locked": {
+      "EMERGENCE_REAL_if": "qwen3.7-max@k12 <= 30 - 3 = 27  (the 3-model union reaches >=3 theorems that the best single model cannot, even given the same 12 draws) → combination is genuine capability, not more-sampling.",
+      "JUST_SAMPLING_if": "qwen3.7-max@k12 >= 29  (one strong model with 12 draws matches the swarm) → the union uplift is mostly extra draws; TuringOS multi-agent value is cost/parallelism, not capability.",
+      "AMBIGUOUS_if": "28 (between thresholds) → inconclusive; run a second independent seed."
+    }
+  },
+
+  "why_this_is_the_honest_decisive_test": "The architect's grand thesis is 'multiple models -> emergent capability >= a big model.' The cleanest falsifiable form: does combining 3 heterogeneous models (at total compute T) solve more than the single best model given the same total compute T? qwen3.7-max@k12 vs union(3)@k4 is exactly that, on real Lean ground truth with the #print-axioms whitelist. v4-pro@k8 (Run A) tests only the weaker original-pair claim.",
+
+  "discipline": "FC1/2/3 untouched; no section-6; integer money; de-branded 3-channel; this rule locked before Run C executes and before any v4-pro@k8 / qwen@k12 result is read."
+}
