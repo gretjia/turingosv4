@@ -51,8 +51,24 @@ Branch `claude/p1-realvalue` (HEAD `841c08e9`, 44 ahead / 5 behind `origin/main`
    axiom-clean), re-derived McNemar+Holm by hand, ran the self-test, confirmed equal-budget + token
    invariant on all 732 cells + softmax distributes, checked the reverse (p=0.96 → NO-GO not over-stated).
 
-7. **Constitutional-compliance check (in flight, workflow `wf7b6ms3m`):** does the market faithfully
-   instantiate FC1/FC2/FC3 with broadcast/shielding/veto/predicates LIT? → `MARKET_FC_COMPLIANCE_2026-06-02.md`.
+7. **Constitutional-compliance check (workflow `wf7b6ms3m`, done): COMPLIANT-WITH-GAPS.**
+   `handover/audits/MARKET_FC_COMPLIANCE_2026-06-02.md`. The market is a faithful FC1 runtime instance on a
+   real FC2 boot producing the FC3 within-run feedback substrate; every FC1 node (N1-N15) + FC2 boot/halt
+   LIT. The four white-box mechanisms are effectively LIT with live tape evidence: **广播** broadcast
+   (librarian fires every proposal, real `lean_result.v2` sidecars, source-scoped + shielded + Solver-
+   projected); **屏蔽** shielding DECISIVELY LIT (16,723 feedback nodes, max-newlines=0 corpus-wide — a raw
+   multi-line stderr cannot produce 0 newlines, so the shield fired every fail); **谓词** predicate LIT
+   (Lean kernel + 2nd `#print-axioms` whitelist; 35/35 omega axiom-clean, 0 dirty); **Veto** correctly split
+   — in-loop loss-bearing Bear-short price veto LIT (`bear_calls` on every price arm, 0 on every Bulls-only;
+   counterexample.v1 on tape, replay-reconstructed), constitutional Veto-AI {PASS,VETO} CORRECTLY ABSENT
+   (lives at FC3, 0 grep hits — conformant, not a bypass). No HIGH-severity gaps; no name-lie, no
+   price-overrides-predicate, no raw-stderr leak, no argmax-as-softmax, no silent-drop.
+   **6 gaps (2 Medium / 3 Low / 1 Info)** — all "wired+unit-tested but no LIVE positive in this clean
+   corpus": (M1) axiom-gate's non-whitelist catch dormant (no proof smuggled a bad axiom → only the
+   fail-closed name-miss branch fired) → add a red-team `native_decide` task; (M2) librarian Stage-2
+   injection has no direct manifest tell → emit a 1-line `librarian_notice_nonempty_count` scalar; (L3)
+   SorryBlocked arm dormant; (L4) §4 `reject_class` literal-field divergence; (L5) FC2 mr-tick not
+   JSON-re-derivable; (Info6) FC3 meta-loop by-design absent (covered by `tests/constitution_fc3_closure.rs`).
 
 ## Honest scope of the NO-GO
 

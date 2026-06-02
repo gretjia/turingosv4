@@ -36,8 +36,13 @@ homogeneous regime — it does NOT refute price-ALLOCATION of a scarce budget ac
 (LEAN-ALLOC/PROBE-ALLOC, untested steelman). Report `P1_REALVALUE_V4_FINDINGS_2026-06-02.md`; audit
 `P1_REALVALUE_V4_AUDIT_2026-06-02.md`.
 
-**In flight at handover**: constitutional-compliance workflow `wf7b6ms3m` — does the market instantiate
-FC1/FC2/FC3 with broadcast/shielding/veto/predicates LIT → `handover/audits/MARKET_FC_COMPLIANCE_2026-06-02.md`.
+**Constitutional compliance (`wf7b6ms3m`, done): COMPLIANT-WITH-GAPS** —
+`handover/audits/MARKET_FC_COMPLIANCE_2026-06-02.md`. Market = faithful FC1 instance on real FC2 boot; all
+four white-box mechanisms LIT with live tape evidence (广播 librarian every proposal; 屏蔽 shield DECISIVE —
+16,723 feedback nodes 0-newlines; 谓词 Lean+axiom-gate 35/35 omega clean; price-Veto bear-short on every
+price arm / 0 on Bulls-only; constitutional Veto-AI correctly absent → FC3). No HIGH gaps. 6 gaps (2 Med:
+M1 axiom-gate true-positive dormant → red-team native_decide task; M2 librarian injection no manifest tell →
+emit `librarian_notice_nonempty_count`; 3 Low + 1 Info). These are small additive follow-ups, not blockers.
 
 **Open decisions (architect)**: (1) PR strategy (clean v4-only recommended); (2) next line — A power-up
 non-locality / B harder theorems / C price×scarce-budget-allocation (recommended steelman) / D accept
