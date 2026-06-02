@@ -29,6 +29,7 @@
 //! `LEAN_PATH` exist (set via `extra_env` / `cwd`). Class 2 (additive verifier;
 //! reuses the in-repo sanitized runner; no §6 surface).
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
@@ -55,6 +56,20 @@ pub const KERNEL_BYPASS_TOKENS: &[&str] = &["sorry", "admit", "native_decide"];
 /// full-stderr dump (CLAUDE.md §4 raw-Lean-stderr shielding).
 const FEEDBACK_MAX: usize = 240;
 
+/// TRACE_MATRIX FC1a-judge_pi: the classical trust base a Verified proof may depend on.
+/// A proof that merely COMPILES (`lean -DwarningAsError=true` exit 0) can still smuggle a
+/// kernel-trust bypass that is NOT an `error:` and so slips past the exit-0 check:
+///   * `sorryAx`                              — from `sorry` / `admit`,
+///   * `Lean.ofReduceBool` / `Lean.trustCompiler` — from `native_decide` (native-compiled),
+///   * any hand-declared `axiom`.
+/// The only honest soundness certificate is Lean's own `#print axioms <name>`: the transitive
+/// axiom set must be ⊆ this classical base. Mirrors the proven whitelists in
+/// `src/bin/lean_emergence.rs` (AXIOM_WHITELIST) and `src/bin/lean_hayek_market.rs`
+/// (AXIOM_ALLOWLIST). Empirically pinned on Lean v4.24.0: clean proof = `does not depend on
+/// any axioms` (empty), `simp` = `[propext]`, `native_decide` = `[Lean.ofReduceBool,
+/// Lean.trustCompiler]` (∉ whitelist → rejected).
+pub const AXIOM_WHITELIST: &[&str] = &["propext", "Classical.choice", "Quot.sound"];
+
 static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// TRACE_MATRIX FC1a-judge_pi: typed JudgeAI verdict for one candidate proof.
@@ -67,6 +82,16 @@ pub struct LeanOutcome {
     pub timed_out: bool,
     /// Bounded, shielded failure summary for the retry prompt (empty on Verified).
     pub feedback: String,
+    /// True ONLY when the kernel compiled (exit 0) but `#print axioms` exposed a
+    /// non-whitelist axiom (sorryAx / native_decide trust / a hand-declared axiom). Such an
+    /// outcome is NOT Verified — `verdict_kind` is `Failed` (so the CAS sidecar stays
+    /// assert_45-consistent), but this flag lets a reader see it was a soundness reject, not
+    /// a compile failure.
+    pub axiom_rejected: bool,
+    /// The parsed transitive axiom set (`#print axioms <name>`) on a Verified or
+    /// axiom-rejected outcome; empty Vec otherwise (and on the clean "does not depend on any
+    /// axioms" case). The audit-grade soundness footprint the bin persists into the manifest.
+    pub axioms: Vec<String>,
 }
 
 impl LeanOutcome {
@@ -132,6 +157,8 @@ impl LeanJudge {
                 exit_code: 0,
                 timed_out: false,
                 feedback: format!("kernel-bypass token `{tok}` is forbidden"),
+                axiom_rejected: false,
+                axioms: Vec::new(),
             };
         }
 
@@ -166,13 +193,10 @@ impl LeanJudge {
         let _ = std::fs::remove_file(&path);
 
         match out {
-            Ok(o) if o.success() => LeanOutcome {
-                verdict_kind: LeanVerdictKind::Verified,
-                error_class: None,
-                exit_code: 0,
-                timed_out: false,
-                feedback: String::new(),
-            },
+            // Clean exit-0 compile is NECESSARY but not SUFFICIENT: a proof can compile yet
+            // smuggle a kernel-trust-bypass axiom. Run the `#print axioms` gate (a second
+            // `lean` invocation) and require the transitive axiom set ⊆ AXIOM_WHITELIST.
+            Ok(o) if o.success() => self.axiom_gate(candidate_body),
             Ok(o) => {
                 let timed_out = o.timed_out;
                 let feedback = if timed_out {
@@ -183,6 +207,110 @@ impl LeanJudge {
                 failed(o.exit_code.unwrap_or(-1), timed_out, feedback)
             }
             Err(e) => failed(-1, false, format!("lean spawn failed: {e}")),
+        }
+    }
+
+    /// `#print axioms` whitelist gate — fires ONLY after a clean exit-0 compile (caller
+    /// guarantees `o.success()`). A second `lean` invocation on `<assembled> +
+    /// "#print axioms <name>"` exposes the transitive axiom set; the candidate is Verified
+    /// IFF that set ⊆ `AXIOM_WHITELIST`. FAIL-CLOSED everywhere a soundness fact is missing
+    /// (no theorem name, re-run does not compile, no axiom line) → `axiom_rejected`, never
+    /// Verified. Same sanitized command shape / cwd / env (incl. LEAN_PATH) as the first run.
+    fn axiom_gate(&self, candidate_body: &str) -> LeanOutcome {
+        // (1) Locate the theorem name (needed by `#print axioms <name>`). Fail-closed.
+        let name = match extract_theorem_name(&self.preamble) {
+            Some(n) => n,
+            None => {
+                return axiom_rejected(
+                    "could not locate theorem name in preamble for #print axioms".into(),
+                    Vec::new(),
+                )
+            }
+        };
+
+        // (2) Second source = the SAME assembled proof + the print-axioms query.
+        let src = format!("{}\n#print axioms {name}\n", self.assemble(candidate_body));
+        let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "turingos-leanjudge-axck-{}-{}.lean",
+            std::process::id(),
+            n
+        ));
+        if std::fs::write(&path, src.as_bytes()).is_err() {
+            return axiom_rejected(
+                "could not write temp lean file for #print axioms".into(),
+                Vec::new(),
+            );
+        }
+
+        // (3) Run with the SAME sanitized command (program, args modulo file, cwd, env).
+        let mut env = env_allowlist_from_current(&["PATH", "HOME"]);
+        for (k, v) in &self.extra_env {
+            env.insert(k.clone(), v.clone());
+        }
+        let out = run_sanitized(SanitizedCommand {
+            program: self.lean_bin.clone(),
+            args: vec![
+                "-DwarningAsError=true".into(),
+                path.to_string_lossy().into_owned(),
+            ],
+            cwd: self.cwd.clone(),
+            env,
+            stdin: None,
+            timeout: self.timeout,
+        });
+        let _ = std::fs::remove_file(&path);
+
+        // (4) The print-axioms re-run must itself compile exit-0 and emit an axiom line.
+        let o = match out {
+            Ok(o) if o.success() => o,
+            Ok(o) => {
+                let fb = if o.timed_out {
+                    "lean timed out on #print axioms".to_string()
+                } else {
+                    shield_lean_diagnostic(&o.stderr, &o.stdout)
+                };
+                return axiom_rejected(fb, Vec::new());
+            }
+            Err(e) => {
+                return axiom_rejected(
+                    format!("lean spawn failed on #print axioms: {e}"),
+                    Vec::new(),
+                )
+            }
+        };
+        let stdout = String::from_utf8_lossy(&o.stdout);
+        let parsed = match parse_axiom_set(&stdout) {
+            Some(set) => set,
+            None => {
+                return axiom_rejected("no `#print axioms` line in lean output".into(), Vec::new())
+            }
+        };
+
+        // (5) Subset check against the classical trust base.
+        let bad: Vec<String> = parsed
+            .iter()
+            .filter(|a| !AXIOM_WHITELIST.contains(&a.as_str()))
+            .cloned()
+            .collect();
+        let axioms: Vec<String> = parsed.into_iter().collect();
+        if bad.is_empty() {
+            LeanOutcome {
+                verdict_kind: LeanVerdictKind::Verified,
+                error_class: None,
+                exit_code: 0,
+                timed_out: false,
+                feedback: String::new(),
+                axiom_rejected: false,
+                axioms,
+            }
+        } else {
+            axiom_rejected(
+                format!(
+                    "non-whitelist axiom(s): {bad:?} (kernel-bypass: sorryAx/native_decide trust)"
+                ),
+                axioms,
+            )
         }
     }
 }
@@ -208,6 +336,30 @@ fn failed(exit_code: i32, timed_out: bool, feedback: String) -> LeanOutcome {
         exit_code,
         timed_out,
         feedback,
+        axiom_rejected: false,
+        axioms: Vec::new(),
+    }
+}
+
+/// Soundness reject: the candidate COMPILED (exit 0) but its `#print axioms` set is not a
+/// subset of `AXIOM_WHITELIST` (or the name/axiom line could not be obtained). Modeled as the
+/// canonical `Failed` arm (exit_code=1, error_class=LeanFailed, !verified) so the CAS
+/// `LeanResult` sidecar stays assert_45-consistent — `LeanVerdictKind` is NOT extended (that
+/// enum is an out-of-scope, repr-stable, CAS-hash-bearing surface). `axiom_rejected=true`
+/// distinguishes it from a plain compile failure; `axioms` carries the offending set.
+fn axiom_rejected(feedback: String, axioms: Vec<String>) -> LeanOutcome {
+    let mut s: String = feedback.chars().take(FEEDBACK_MAX).collect();
+    if feedback.chars().count() > FEEDBACK_MAX {
+        s.push('…');
+    }
+    LeanOutcome {
+        verdict_kind: LeanVerdictKind::Failed,
+        error_class: Some(LeanErrorClass::LeanFailed),
+        exit_code: 1,
+        timed_out: false,
+        feedback: s,
+        axiom_rejected: true,
+        axioms,
     }
 }
 
@@ -277,14 +429,57 @@ fn contains_word(hay: &str, needle: &str) -> bool {
         let at = start + rel;
         let before_ok = at == 0 || !hay[..at].chars().next_back().map(is_ident).unwrap_or(false);
         let after = at + needle.len();
-        let after_ok = after >= hay.len()
-            || !hay[after..].chars().next().map(is_ident).unwrap_or(false);
+        let after_ok =
+            after >= hay.len() || !hay[after..].chars().next().map(is_ident).unwrap_or(false);
         if before_ok && after_ok {
             return true;
         }
         start = at + needle.len();
     }
     false
+}
+
+/// Extract the theorem/lemma name from the preamble so `#print axioms <name>` can target it.
+/// Verbatim from `src/bin/lean_emergence.rs` (`extract_theorem_name`): scan for `theorem `
+/// then `lemma `, take chars until whitespace or one of `( { [ :`. `None` for a nameless
+/// `example` (the axiom gate fail-closes such a preamble).
+fn extract_theorem_name(preamble: &str) -> Option<String> {
+    for kw in ["theorem ", "lemma "] {
+        if let Some(i) = preamble.find(kw) {
+            let after = &preamble[i + kw.len()..];
+            let name: String = after
+                .chars()
+                .take_while(|c| !c.is_whitespace() && !matches!(c, '(' | '{' | '[' | ':'))
+                .collect();
+            if !name.is_empty() {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+/// Parse the dependency set printed by `#print axioms <name>` out of Lean's raw output.
+/// Verbatim semantics from `src/bin/lean_hayek_market.rs` (`parse_axiom_set`). Lean emits
+/// exactly one of:
+///   `'<name>' depends on axioms: [propext, Classical.choice, Quot.sound]`
+///   `'<name>' does not depend on any axioms`
+/// Returns the axiom names (empty set for the "no axioms" case), or `None` if no such line is
+/// present (co-occurs with a hard compile error). Case-sensitive (`sorryAx`, `Quot.sound`).
+fn parse_axiom_set(raw: &str) -> Option<BTreeSet<String>> {
+    if raw.contains("does not depend on any axioms") {
+        return Some(BTreeSet::new());
+    }
+    let after = &raw[raw.find("depends on axioms:")? + "depends on axioms:".len()..];
+    let lb = after.find('[')?;
+    let rb = after[lb..].find(']')? + lb;
+    Some(
+        after[lb + 1..rb]
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    )
 }
 
 /// Bounded, shielded diagnostic: the first `error:` line (or first non-empty line)
@@ -325,7 +520,10 @@ mod tests {
     fn bypass_tokens_detected_in_code() {
         assert_eq!(first_bypass_token("exact sorry"), Some("sorry"));
         assert_eq!(first_bypass_token("by admit"), Some("admit"));
-        assert_eq!(first_bypass_token("by native_decide"), Some("native_decide"));
+        assert_eq!(
+            first_bypass_token("by native_decide"),
+            Some("native_decide")
+        );
     }
 
     #[test]
@@ -375,7 +573,9 @@ mod tests {
 
     #[test]
     fn real_lean_verifies_valid_core_proof() {
-        let Some(bin) = toolchain_or_skip() else { return };
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
         let mut j = LeanJudge::new("theorem t (n : Nat) : n + 0 = n := by");
         j.lean_bin = bin;
         let o = j.verify("simp");
@@ -384,11 +584,111 @@ mod tests {
 
     #[test]
     fn real_lean_rejects_wrong_core_proof() {
-        let Some(bin) = toolchain_or_skip() else { return };
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
         let mut j = LeanJudge::new("theorem t : (2 : Nat) + 2 = 5 := by");
         j.lean_bin = bin;
         let o = j.verify("rfl");
         assert_eq!(o.verdict_kind, LeanVerdictKind::Failed);
         assert!(!o.feedback.is_empty());
+    }
+
+    // ── F5 axiom-gate: pure parse/extract (always run; no toolchain) ──
+
+    #[test]
+    fn parse_axiom_set_shapes() {
+        // clean proof → empty set
+        assert_eq!(
+            parse_axiom_set("'t' does not depend on any axioms"),
+            Some(BTreeSet::new())
+        );
+        // whitelist axioms
+        assert_eq!(
+            parse_axiom_set("'t' depends on axioms: [propext, Classical.choice]"),
+            Some(
+                ["propext".to_string(), "Classical.choice".to_string()]
+                    .into_iter()
+                    .collect()
+            )
+        );
+        // native_decide trust axioms (both present, ∉ whitelist)
+        let nd = parse_axiom_set("'t' depends on axioms: [Lean.ofReduceBool, Lean.trustCompiler]")
+            .expect("axiom line");
+        assert!(nd.contains("Lean.ofReduceBool"));
+        assert!(nd.contains("Lean.trustCompiler"));
+        // no axiom line at all → None (fail-closed)
+        assert_eq!(parse_axiom_set("random error text"), None);
+    }
+
+    #[test]
+    fn extract_theorem_name_shapes() {
+        assert_eq!(
+            extract_theorem_name("theorem tos_add_zero (n : Nat) : n + 0 = n := by"),
+            Some("tos_add_zero".to_string())
+        );
+        assert_eq!(
+            extract_theorem_name(
+                "import Mathlib\nopen Real\ntheorem tos_sq_add (a b : R) : a = a := by"
+            ),
+            Some("tos_sq_add".to_string())
+        );
+        // lemma keyword
+        assert_eq!(
+            extract_theorem_name("lemma helper : True := by"),
+            Some("helper".to_string())
+        );
+        // nameless example → None (axiom gate fail-closes)
+        assert_eq!(extract_theorem_name("example : True := by"), None);
+    }
+
+    // ── F5 axiom-gate: real Lean (gated on the pinned toolchain) ──
+
+    #[test]
+    fn axiom_gate_accepts_clean_proof() {
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
+        let mut j = LeanJudge::new("theorem t (n : Nat) : n + 0 = n := by");
+        j.lean_bin = bin;
+        let o = j.verify("simp");
+        assert!(o.is_verified(), "expected Verified, got {o:?}");
+        assert!(!o.axiom_rejected);
+        // this proof's footprint is `[propext]` ⊆ whitelist
+        assert!(
+            o.axioms
+                .iter()
+                .all(|a| AXIOM_WHITELIST.contains(&a.as_str())),
+            "axioms {:?} must all be whitelisted",
+            o.axioms
+        );
+    }
+
+    #[test]
+    fn axiom_gate_rejects_hand_declared_axiom() {
+        // native_decide is caught FIRST by the source token-scan (SorryBlocked), so it never
+        // reaches the axiom gate. To exercise the gate's REJECT path on a NON-source-detectable
+        // leak, hand-declare an axiom: it compiles exit-0, passes the token scan (no
+        // sorry/admit/native_decide), but `#print axioms t` prints `[evil]` ∉ whitelist.
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
+        let mut j =
+            LeanJudge::new("axiom evil : (2 : Nat) + 2 = 5\ntheorem t : (2 : Nat) + 2 = 5 := by");
+        j.lean_bin = bin;
+        let o = j.verify("exact evil");
+        assert!(
+            !o.is_verified(),
+            "axiom-dirty proof must NOT be Verified: {o:?}"
+        );
+        assert!(o.axiom_rejected, "expected axiom_rejected, got {o:?}");
+        assert!(
+            o.axioms.contains(&"evil".to_string()),
+            "axioms {:?}",
+            o.axioms
+        );
+        // CAS sidecar consistency: Failed arm shape (exit_code=1, !verified).
+        assert_eq!(o.verdict_kind, LeanVerdictKind::Failed);
+        assert_eq!(o.exit_code, 1);
     }
 }
