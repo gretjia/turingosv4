@@ -20,8 +20,9 @@ Clean v4-only PR off latest `origin/main` recommended but NOT yet opened (archit
 prompt leaked the full search landscape). Corrected the binary (`cb89a5d6`, `lean_market_agent.rs` +
 `lean_judge.rs` only): F1 decouple (Stage-1 compact route → Stage-2 byte-identical `build_prompt`,
 self-test-enforced), F5 inline `#print-axioms` gate, F2 compute telemetry, F3 topology baselines. Verified
-真跑 (self-test PROMPT-PARITY-OK; bin 13/0, judge 12/0 real Lean; gates 164/166 — 2 reds are pre-existing
-OBLIGATIONS.md + script drift; §6 clean; integer money). Then found the v3 hard floor was itself unreliable
+真跑 (self-test PROMPT-PARITY-OK; bin 14/0, judge 12/0 real Lean; gates 165/166 — the 1 red is pre-existing
+OBLIGATIONS.md reconciliation drift; the script_liveness red was MY unregistered P1 scripts, now registered
+in the OBL-005 inventory `c0e03243`; §6 clean; integer money). Then found the v3 hard floor was itself unreliable
 (`single` proves `lm_ineq1` axiom-clean — a 3-seed fluke); re-established it at `single` 0/6 → 13 hard
 theorems. Ran the corrected 9-arm sweep (prereg `d80ba8cd` SHA-locked; 732 cells, all replay-clean, cracks
 axiom-clean via the inline gate).

@@ -20,8 +20,10 @@ Branch `claude/p1-realvalue` (HEAD `841c08e9`, 44 ahead / 5 behind `origin/main`
    - **F2 telemetry** — manifest carries proposal/route/bear LLM-calls + tokens; invariant
      `total = proof+route+bear+completion`; route counted (no autonomous discount).
    - **F3 baselines** — `single_restart`, `single_tree_no_price`, `parallel_restart`.
-   - Verified 真跑: self-test PROMPT-PARITY-OK; bin 13/0; judge 12/0 real Lean; constitution gates 164/166
-     (2 reds = pre-existing OBLIGATIONS.md + script-inventory drift, attributed); §6 clean; integer money.
+   - Verified 真跑: self-test PROMPT-PARITY-OK; bin 14/0; judge 12/0 real Lean; constitution gates **165/166**
+     (1 red = pre-existing OBLIGATIONS.md reconciliation drift; the `script_liveness` red was MY unregistered
+     P1 scripts — first mis-attributed as drift, then corrected: registered in the OBL-005 inventory
+     `c0e03243`, now green); §6 clean; integer money.
 
 3. **Found a flaw DEEPER than the auditors':** the v3 "hard" theorems weren't hard. `single` gets 24
    attempts/cell; the v4 floor shows **`single` SOLVES `lm_ineq1` axiom-clean** (the v3 flagship "crack",
