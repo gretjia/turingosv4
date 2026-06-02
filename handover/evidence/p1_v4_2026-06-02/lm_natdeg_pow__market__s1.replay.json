@@ -1,0 +1,21 @@
+{
+  "l4_entries": 121,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "p1v4_lm_natdeg_pow_market_s1",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "826837f34a1071cdc3b1f8c5d62b801fc560084f4a95267668b608f1b135a9dc",
+    "final_ledger_root_hex": "ec950355929ac0e64e3988e7b918d47c829db4462e1643133d5a8a44dedb11dd",
+    "head_commit_oid_hex": "b17a0a0e70b839f7ce268973d462d273d8aacb7d",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

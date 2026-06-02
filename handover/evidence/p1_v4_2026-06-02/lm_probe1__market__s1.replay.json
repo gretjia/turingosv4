@@ -1,0 +1,21 @@
+{
+  "l4_entries": 126,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "p1v4_lm_probe1_market_s1",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "35702e3ae7ac907e69f54f38d24882312e9c6d20bd61f03e7bd0b2ae162d1447",
+    "final_ledger_root_hex": "059473a81b3dafb1dd83f9215c1f3279814118a8c915550b6650ea04ccac5ced",
+    "head_commit_oid_hex": "d687eb5dfc9607c5ac28a3d1a068c67ab9b5e15a",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

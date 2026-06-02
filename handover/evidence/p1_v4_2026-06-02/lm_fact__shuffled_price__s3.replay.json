@@ -1,0 +1,21 @@
+{
+  "l4_entries": 126,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "p1v4_lm_fact_shuffled_price_s3",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "d427bc5f606171c202d334021556d4c6b3632b5212c3a603addfbd19d46c3f06",
+    "final_ledger_root_hex": "c162c2ce1855e717079a6babb5c14a5e3de71b654a6493be83d05910f9c60169",
+    "head_commit_oid_hex": "45d9359c46a0ebf312c8067e631e4600c88eb542",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

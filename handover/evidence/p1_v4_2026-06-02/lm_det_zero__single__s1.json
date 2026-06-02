@@ -1,0 +1,72 @@
+{
+  "schema_version": "turingosv4.lean_market.v1",
+  "run_id": "p1v4_lm_det_zero_single_s1",
+  "policy": "single",
+  "model": "deepseek-v4-pro",
+  "problem": "lm_det_zero",
+  "needs_mathlib": true,
+  "n_agents": 1,
+  "n_rounds": 6,
+  "seed": 1,
+  "llm_calls": 1,
+  "bear_calls": 0,
+  "bear_tokens": 0,
+  "proposal_llm_calls": 1,
+  "route_llm_calls": 0,
+  "bear_llm_calls": 0,
+  "proof_prompt_tokens": 247,
+  "route_prompt_tokens": 0,
+  "bear_prompt_tokens": 0,
+  "completion_tokens": 25,
+  "total_model_tokens": 272,
+  "lean_verifies": 1,
+  "total_wall_clock_ms": 8594,
+  "parse_fails": 0,
+  "verified_count": 1,
+  "failed_count": 0,
+  "distinct_price_ratios": 1,
+  "price_discovery": false,
+  "axiom_whitelist": [
+    "propext",
+    "Classical.choice",
+    "Quot.sound"
+  ],
+  "route_deliberate_fresh_root": 0,
+  "route_valid_index_hit": 0,
+  "route_hallucinated_out_of_range": 0,
+  "omega_reached": true,
+  "omega_node": "worktx-lm-node0-p1v4_lm_det_zero_single_s1-lm",
+  "time_to_first_proof_s": 8.57035,
+  "golden_path": [
+    "worktx-lm-node0-p1v4_lm_det_zero_single_s1-lm"
+  ],
+  "golden_path_tokens": 272,
+  "total_tokens": 272,
+  "wall_clock_s": 8.594708208,
+  "pput": 31.647380390042905,
+  "final_state_root_hex": "e71b231c60ba0629085e633e263bc89a73de5bcf686a6859c286e71a49cd6495",
+  "runtime_repo": "handover/evidence/p1_v4_2026-06-02/repo_p1v4_lm_det_zero_single_s1",
+  "cas": "handover/evidence/p1_v4_2026-06-02/cas_p1v4_lm_det_zero_single_s1",
+  "nodes": [
+    {
+      "node_tx": "worktx-lm-node0-p1v4_lm_det_zero_single_s1-lm",
+      "task": "lm-node0-p1v4_lm_det_zero_single_s1",
+      "by_agent": "Agent_0",
+      "parent_tx": null,
+      "confidence_pct": 90,
+      "work_stake_micro": 3620,
+      "price_yes_num": 3620,
+      "price_yes_den": 3620,
+      "verdict": "Verified",
+      "is_verified": true,
+      "body_preview": "simp [Matrix.det_fin_three]; ring",
+      "feedback": "",
+      "tokens": 272,
+      "axioms": [
+        "Classical.choice",
+        "Quot.sound",
+        "propext"
+      ]
+    }
+  ]
+}

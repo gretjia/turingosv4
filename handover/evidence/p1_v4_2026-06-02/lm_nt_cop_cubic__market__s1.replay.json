@@ -1,0 +1,21 @@
+{
+  "l4_entries": 126,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "p1v4_lm_nt_cop_cubic_market_s1",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "5448c58a4a6f7c33ec3a1fc860c67c608529d33dbaf4fab93c79fb3e36d032bb",
+    "final_ledger_root_hex": "d2f1d095ecbbb160301977b25f87fadafbe6e71546fb64afa33fc87c5b00c7f8",
+    "head_commit_oid_hex": "45f2f1dbb6a7f6543baf4af342563c85999e2835",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

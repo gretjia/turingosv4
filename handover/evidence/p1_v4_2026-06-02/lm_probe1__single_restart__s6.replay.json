@@ -1,0 +1,21 @@
+{
+  "l4_entries": 98,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "p1v4_lm_probe1_single_restart_s6",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "40cbc248ca4937d3e03e4eb1769389468cfdff00cb310c13da01635f12eaca6e",
+    "final_ledger_root_hex": "76fe1dc62b882619560e95b160de39f88468d43dd74931d1cf571b595bf9ec62",
+    "head_commit_oid_hex": "a554e70832afda062679427f639a69d85f658c2d",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
