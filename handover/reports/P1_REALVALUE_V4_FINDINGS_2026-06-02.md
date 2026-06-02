@@ -10,16 +10,16 @@
 On 13 Lean theorems where a single chain **robustly fails (single 0/6 seeds = 0/78 cells)**, at equal
 budget (24 proposals/cell), real Lean kernel + inline axiom gate:
 
-**The lever is NON-LOCAL TREE SEARCH (restart/branch from any earlier node) — NOT the loss-bearing
-price, NOT the agent count, NOT free-choice routing.** A single agent that may revisit any of its own
-earlier attempts (`single_tree_no_price`, 5.1%, 329K tokens/solve) cracks **more** hard theorems, **more
-cheaply**, than the price market (2.6%, 1.13M/solve), free-choice autonomous (1.3%, 3.09M/solve), and 4
-independent linear chains (`parallel`, 2.6%). **Adding the real price signal DECREASES the solve rate
-(−3.8pp vs shuffled price) — the single biggest negative delta in the decomposition.**
+**The data point to NON-LOCAL TREE SEARCH (restart/branch from any earlier node) as the lever — not the
+loss-bearing price, not the agent count, not free-choice routing** — though the pattern is **directional,
+not statistically significant** (every McNemar `p_holm = 1.0`; cracks are sparse). A single agent that may
+revisit any of its own earlier attempts (`single_tree_no_price`, 5.1%, 329K tokens/solve) cracks more hard
+theorems, more cheaply, than the price market (2.6%, 1.13M/solve), free-choice autonomous (1.3%,
+3.09M/solve), and 4 independent linear chains (`parallel`, 2.6%). Adding the real price signal is the
+single biggest negative delta in the decomposition (−3.8pp vs shuffled price).
 
-**Neither pre-registration confirms. Nothing is statistically significant** (all McNemar `p_holm = 1.0`;
-cracks are sparse). The finding is a **consistent directional pattern + a clean efficiency ordering**, not
-a powered significant claim.
+**Neither pre-registration confirms.** The finding is a **consistent directional pattern + a clean
+efficiency ordering**, not a powered significant claim — read §4 (limitations) before citing it.
 
 ### Solve rate on the 78 hard cells (the reliability layer)
 
