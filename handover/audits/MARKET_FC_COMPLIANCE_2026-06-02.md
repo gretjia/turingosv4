@@ -93,3 +93,21 @@ Two-stage: (1) source-scan rejects `KERNEL_BYPASS_TOKENS={sorry,admit,native_dec
 
 ## CONCLUSION
 The market binary is a **faithful FC1 runtime instance** on a real FC2 boot, producing the FC3 within-run feedback substrate. 广播 / 屏蔽 / 谓词 / (price) Veto are all effectively **LIT** with live tape evidence; the constitutional Veto-AI is correctly **absent** at this layer. Verdict: **COMPLIANT-WITH-GAPS** — ship-faithful in principle, with six prioritized gaps (2 Medium, 3 Low, 1 Informational), the most important being to give the axiom-gate true-positive and the librarian-injection a live tape tell rather than code+unit+recompute proof.
+
+---
+
+## ADDENDUM — gaps M2 / L4 closed; M1 / L3 surfaced (2026-06-02)
+
+The two Medium gaps + the L4 schema divergence are now fixed in `src/bin/lean_market_agent.rs` (+ tests),
+re-verified on a **live `market`/lm_e cell** (12 proposals, 12 failed, bear_calls=12):
+
+| gap | fix (code) | LIVE tape tell |
+|---|---|---|
+| **M2** broadcast-injection had no manifest tell | `Manifest.librarian_notice_nonempty_count` + `librarian_notice_chars`, counted at the Stage-2 injection point; `f2_manifest_has_compute_telemetry_fields` asserts presence | **`librarian_notice_nonempty_count = 10/12`, `librarian_notice_chars = 2642`** — the 广播 collective notice is now a DIRECT manifest scalar (was recompute-only). The 2 misses are the first proposals, before any failure exists to summarize. |
+| **L4** §4 `reject_class` literal divergence | `reject_class_of()` + `AttemptNode.reject_class` (`lean-reject` / `axiom-rejected` / `sorry-blocked`, `None` iff Verified); deterministic `l4_reject_class_taxonomy` test | **`reject_class` on all 12 failed nodes**; invariant `reject_class==None ⟺ is_verified` holds. The constitutional reject CLASS is now a first-class node field. |
+| **M1** axiom-gate true-positive / **L3** SorryBlocked arm | already real-tested (`lean_judge.rs:668` hand-axiom→`axiom_rejected` under real Lean; `:552` `verify("sorry")→SorryBlocked`); `reject_class` now surfaces them on tape if they fire | a future production axiom-reject / sorry-block is now directly tape-visible via `reject_class` (no CAS archaeology) |
+
+**Deferred (by design / out of this binary):** **L5** (FC2 mr-tick JSON re-derivability) would touch
+`runtime/mod.rs` (trust-root) → left to a dedicated trust-root atom; **Info6** (FC3 meta-loop) is covered by
+`tests/constitution_fc3_closure.rs`, not a market run. Verify: `cargo test --bin lean_market_agent` 14/0,
+`--self-test` OK, build clean, no §6/trust-root surface touched, integer money intact.

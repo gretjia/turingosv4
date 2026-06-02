@@ -42,7 +42,7 @@ use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::judges::lean_judge::default_lean_bin;
+use turingosv4::judges::lean_judge::{default_lean_bin, LeanOutcome};
 use turingosv4::judges::lean_theorem_bank::{
     default_lake_bin, load_bank, mathlib_lean_path, LeanTheorem,
 };
@@ -64,7 +64,9 @@ use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChain
 // REAL librarian (src/runtime/librarian_broadcast.rs): CAS-derived, role-scoped, shielded
 // collective digest of prior attempts. Fed by the LeanResult sidecar written below; the
 // previous experiment-local `librarian_digest` lookalike is removed.
-use turingosv4::runtime::attempt_telemetry::{write_lean_result_to_cas, LeanResult};
+use turingosv4::runtime::attempt_telemetry::{
+    write_lean_result_to_cas, LeanResult, LeanVerdictKind,
+};
 use turingosv4::runtime::librarian_broadcast::{
     build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
     select_librarian_events, validate_librarian_source_scope, LibrarianSourceScope,
@@ -194,6 +196,10 @@ struct AttemptNode {
     price_yes_num: Option<u128>,
     price_yes_den: Option<u128>,
     verdict: String,
+    /// §4 reject taxonomy (literal-schema parity, gap L4): None iff Verified; else "lean-reject" /
+    /// "axiom-rejected" / "sorry-blocked". Surfaces the constitutional reject CLASS as a first-class
+    /// node field (was previously only inferrable from `verdict`).
+    reject_class: Option<String>,
     is_verified: bool,
     body_preview: String,
     feedback: String,
@@ -218,6 +224,11 @@ struct Manifest {
     llm_calls: usize,
     bear_calls: usize,
     bear_tokens: u64,
+    // 广播 Broadcast injection tell (FC1-N5 / Art.II) — compliance gap M2: how many Stage-2 proof
+    // prompts actually carried a NON-EMPTY librarian collective notice, + total chars injected.
+    // Makes the broadcast INJECTION directly tape-readable (was recompute-only).
+    librarian_notice_nonempty_count: usize,
+    librarian_notice_chars: u64,
     // ── F2 compute telemetry (honest LLM-call + token breakdown; auditor compute-parity) ──
     // Accounting contract (no double-count, no silent drop):
     //   proposal_llm_calls = the Stage-2 proof-cycle proposal calls (== llm_calls). One
@@ -529,6 +540,23 @@ fn classify_lean_error(fb: &str) -> &'static str {
         "no_feedback"
     } else {
         "other_error"
+    }
+}
+
+/// §4 reject taxonomy (gap L4): map a non-Verified LeanOutcome to its constitutional reject CLASS,
+/// surfaced as the AttemptNode `reject_class` field. None iff Verified. `axiom_rejected` (compiled
+/// exit-0 but `#print axioms` carried a non-whitelist axiom — sorryAx / native_decide-trust /
+/// hand-axiom) is a SOUNDNESS reject, kept distinct from a `sorry`-source block and a kernel reject.
+fn reject_class_of(o: &LeanOutcome) -> Option<String> {
+    if o.is_verified() {
+        return None;
+    }
+    if o.axiom_rejected {
+        return Some("axiom-rejected".to_string());
+    }
+    match o.verdict_kind {
+        LeanVerdictKind::SorryBlocked => Some("sorry-blocked".to_string()),
+        _ => Some("lean-reject".to_string()),
     }
 }
 
@@ -1080,6 +1108,8 @@ fn sample_manifest_for_selftest(policy: Policy) -> Manifest {
         llm_calls: proposal,
         bear_calls: 2,
         bear_tokens: 30,
+        librarian_notice_nonempty_count: proposal,
+        librarian_notice_chars: 1280,
         proposal_llm_calls: proposal,
         route_llm_calls: route_calls,
         bear_llm_calls: 2,
@@ -1300,6 +1330,9 @@ async fn run(args: Args) -> Result<(), String> {
     let (mut proof_prompt_tokens, mut completion_tokens_total) = (0u64, 0u64);
     let mut bear_prompt_tokens_total = 0u64;
     let mut lean_verifies = 0usize;
+    // M2 broadcast-injection tell: count Stage-2 prompts that carried a non-empty librarian notice.
+    let mut librarian_notice_nonempty_count = 0usize;
+    let mut librarian_notice_chars = 0u64;
     // Route telemetry counters (autonomous arm).
     let (mut route_fresh, mut route_hit, mut route_halluc) = (0usize, 0usize, 0usize);
     // Stage-1 (route-only) LLM cost, separate from Stage-2 proposal cost.
@@ -1347,6 +1380,12 @@ async fn run(args: Args) -> Result<(), String> {
             // Stage-2 build_prompt below, so the autonomous Stage-2 proof prompt is
             // byte-identical to market for the same parent (no lib recompute drift).
             let lib = real_librarian_solver_notice(&args.cas, lt, &args.problem);
+            // M2: a non-empty notice means the 广播 collective memory actually entered THIS proof
+            // prompt (Stage-2 injects `lib` via stage2_proof_prompt) — a direct tape tell.
+            if !lib.is_empty() {
+                librarian_notice_nonempty_count += 1;
+                librarian_notice_chars += lib.chars().count() as u64;
+            }
             // STAGE 1 (autonomous only): route-only call over the COMPACT frontier summary —
             // model returns ONLY the parent index. NO proof body/shielded-error here. On a
             // route LLM error, fail-open to a fresh root and STILL proceed to Stage 2 (so the
@@ -1682,6 +1721,7 @@ async fn run(args: Args) -> Result<(), String> {
                 price_yes_num: pe.and_then(|e| e.price_yes.as_ref().map(|p| p.numerator)),
                 price_yes_den: pe.and_then(|e| e.price_yes.as_ref().map(|p| p.denominator)),
                 verdict: format!("{:?}", outcome.verdict_kind),
+                reject_class: reject_class_of(&outcome),
                 is_verified,
                 body_preview: body.chars().take(120).collect(),
                 feedback: outcome.feedback.chars().take(160).collect(),
@@ -1798,6 +1838,8 @@ async fn run(args: Args) -> Result<(), String> {
         llm_calls,
         bear_calls,
         bear_tokens: bear_tokens_total,
+        librarian_notice_nonempty_count,
+        librarian_notice_chars,
         proposal_llm_calls: llm_calls,
         // F1 decouple: autonomous makes a GENUINELY SEPARATE Stage-1 route call, so route_llm_calls
         // is the real Stage-1 count (0 for pre-call-routed arms) — NOT a labeled view of proposal.
@@ -2218,6 +2260,34 @@ mod tests {
     // ── F2 telemetry: manifest carries the compute fields + honest invariants ──
 
     #[test]
+    fn l4_reject_class_taxonomy() {
+        // §4 reject CLASS is derived correctly from the LeanOutcome → AttemptNode.reject_class.
+        let mk = |vk: LeanVerdictKind, axiom_rejected: bool| LeanOutcome {
+            verdict_kind: vk,
+            error_class: None,
+            exit_code: 0,
+            timed_out: false,
+            feedback: String::new(),
+            axiom_rejected,
+            axioms: vec![],
+        };
+        assert_eq!(reject_class_of(&mk(LeanVerdictKind::Verified, false)), None);
+        assert_eq!(
+            reject_class_of(&mk(LeanVerdictKind::Failed, true)).as_deref(),
+            Some("axiom-rejected"),
+            "compiled-but-non-whitelist-axiom is a SOUNDNESS reject"
+        );
+        assert_eq!(
+            reject_class_of(&mk(LeanVerdictKind::SorryBlocked, false)).as_deref(),
+            Some("sorry-blocked")
+        );
+        assert_eq!(
+            reject_class_of(&mk(LeanVerdictKind::Failed, false)).as_deref(),
+            Some("lean-reject")
+        );
+    }
+
+    #[test]
     fn f2_manifest_has_compute_telemetry_fields() {
         let m = sample_manifest_for_selftest(Policy::Autonomous);
         let v = serde_json::to_value(&m).unwrap();
@@ -2232,9 +2302,16 @@ mod tests {
             "total_model_tokens",
             "lean_verifies",
             "total_wall_clock_ms",
+            "librarian_notice_nonempty_count",
+            "librarian_notice_chars",
         ] {
             assert!(v.get(key).is_some(), "manifest missing `{key}`");
         }
+        // M2 broadcast-injection tell: the sample exercises a non-empty librarian notice.
+        assert!(
+            m.librarian_notice_nonempty_count > 0,
+            "librarian_notice_nonempty_count must be tracked (broadcast-injection tape tell)"
+        );
         // honest accounting: no double-count; autonomous route is a SEPARATE Stage-1 call.
         assert_eq!(
             m.total_model_tokens,

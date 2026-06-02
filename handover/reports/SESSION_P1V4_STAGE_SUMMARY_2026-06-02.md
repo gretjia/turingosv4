@@ -70,6 +70,16 @@ Branch `claude/p1-realvalue` (HEAD `841c08e9`, 44 ahead / 5 behind `origin/main`
    SorryBlocked arm dormant; (L4) §4 `reject_class` literal-field divergence; (L5) FC2 mr-tick not
    JSON-re-derivable; (Info6) FC3 meta-loop by-design absent (covered by `tests/constitution_fc3_closure.rs`).
 
+8. **Gaps M2 + L4 FIXED (2026-06-02).** Added to `lean_market_agent.rs` (+ tests, build 14/0, self-test OK):
+   `Manifest.librarian_notice_nonempty_count` + `librarian_notice_chars` (M2 — 广播 injection now a direct
+   manifest scalar) and `reject_class_of()` + `AttemptNode.reject_class` (L4 — §4 reject taxonomy as a
+   node field). Re-verified on a live `market`/lm_e cell: **librarian 10/12 proposals (2642 chars),
+   reject_class on all 12 failed nodes** (invariant `None ⟺ is_verified` holds). M1 axiom-reject + L3
+   SorryBlocked were already real-Lean unit-tested (`lean_judge.rs:668`/`:552`) and are now tape-visible via
+   `reject_class`. L5 deferred (would touch `runtime/mod.rs` trust-root); Info6 by-design. No §6/trust-root
+   touched; integer money intact. → market is COMPLIANT with the two highest-value white-box tells now
+   directly tape-readable.
+
 ## Honest scope of the NO-GO
 
 P1 tested price as a **router** of a homogeneous-agent, abundant-budget proof-tree search. The NO-GO is

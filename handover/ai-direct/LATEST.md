@@ -40,9 +40,10 @@ homogeneous regime — it does NOT refute price-ALLOCATION of a scarce budget ac
 `handover/audits/MARKET_FC_COMPLIANCE_2026-06-02.md`. Market = faithful FC1 instance on real FC2 boot; all
 four white-box mechanisms LIT with live tape evidence (广播 librarian every proposal; 屏蔽 shield DECISIVE —
 16,723 feedback nodes 0-newlines; 谓词 Lean+axiom-gate 35/35 omega clean; price-Veto bear-short on every
-price arm / 0 on Bulls-only; constitutional Veto-AI correctly absent → FC3). No HIGH gaps. 6 gaps (2 Med:
-M1 axiom-gate true-positive dormant → red-team native_decide task; M2 librarian injection no manifest tell →
-emit `librarian_notice_nonempty_count`; 3 Low + 1 Info). These are small additive follow-ups, not blockers.
+price arm / 0 on Bulls-only; constitutional Veto-AI correctly absent → FC3). No HIGH gaps. **Gaps M2 + L4 FIXED (live-verified)**: `librarian_notice_nonempty_count`/`_chars` (广播
+injection now a manifest scalar — live 10/12, 2642 chars) + `AttemptNode.reject_class` (§4 reject taxonomy;
+live on all failed nodes). M1/L3 already real-Lean-tested + now tape-visible via `reject_class`. L5 deferred
+(trust-root), Info6 by-design. Build 14/0, self-test OK, no §6/trust-root touched.
 
 **Open decisions (architect)**: (1) PR strategy (clean v4-only recommended); (2) next line — A power-up
 non-locality / B harder theorems / C price×scarce-budget-allocation (recommended steelman) / D accept
