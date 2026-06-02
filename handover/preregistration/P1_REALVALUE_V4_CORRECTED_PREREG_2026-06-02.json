@@ -1,0 +1,93 @@
+{
+  "experiment": "P1 REAL-VALUE v4 — CORRECTED (post external-audit VETO)",
+  "date": "2026-06-02",
+  "binary_head": "cb89a5d6",
+  "binary": "src/bin/lean_market_agent.rs",
+  "verifier": "src/judges/lean_judge.rs (inline #print-axioms gate, fail-closed)",
+  "supersedes": [
+    "handover/preregistration/P1_REALVALUE_PREREG_2026-06-01.json (v3, confound-B)",
+    "handover/evidence/p1_realvalue_v3_2026-06-02 (autonomous-vs-market confounded)",
+    "handover/evidence/p1_scaleup_2026-06-02 (partial, confounded)"
+  ],
+  "correction_authority": "two independent external audits, both VETO the v3 causal + prereg-win claim; authoritative = 2nd report. Record: handover/audits/P1_EXTERNAL_AUDIT_VETO_AND_CORRECTION_2026-06-02.md",
+
+  "what_was_fixed_in_the_binary": {
+    "F1_decouple_confound_B": "autonomous is now TWO LLM calls: Stage-1 routes on a COMPACT frontier summary (build_route_summary: per node ONLY index/price-num-den/confidence/error-CLASS/age/short-hash — NO proof body, NO shielded Lean error, NO librarian) -> chosen parent index; Stage-2 builds the proof via the ONE shared stage2_proof_prompt = the SAME build_prompt market/single use. For the same parent the proof prompt is BYTE-IDENTICAL across arms. ENFORCED by --self-test prompt-parity (sha equal) + #[test] stage2_prompt_byte_equals_market + a divergent confound_b_control (stage2 != control), mutation-tested. autonomous and market now differ ONLY in who picks the parent.",
+    "F5_inline_axiom_gate": "LeanJudge::verify routes a clean exit-0 compile through axiom_gate (#print axioms <name>); Verified IFF transitive axiom set subset of {propext, Classical.choice, Quot.sound}; fail-closed (no name / re-run !exit0 / no axiom line / non-whitelist axiom -> axiom_rejected). omega/crack fires ONLY on axiom-clean Verified; the axiom list is recorded on the node.",
+    "F2_compute_telemetry": "manifest carries proposal_llm_calls, route_llm_calls, bear_llm_calls, proof/route/bear/completion tokens, total_model_tokens, lean_verifies, total_wall_clock_ms, route_{deliberate_fresh_root,valid_index_hit,hallucinated_out_of_range}. Invariant: total_model_tokens == proof+route+bear+completion. Route counted in the PPUT denominator (no hidden compute discount for autonomous).",
+    "F3_topology_baselines": "single_restart, single_tree_no_price, parallel_restart added."
+  },
+
+  "arms": {
+    "single": "1 agent, extend own_last only (single chain, no backtrack) — the classic baseline + the HARD-floor definer",
+    "single_restart": "1 agent; each round may root-restart (fresh) OR extend own_last — isolates backtrack/root-restart (1 agent)",
+    "single_tree_no_price": "1 agent; may extend ANY of its OWN prior nodes (uniform, NO price) — isolates own-history tree search",
+    "parallel": "N independent chains, no shared tree/price — isolates more-samples / swarm",
+    "parallel_restart": "N independent chains + root-restart, no shared price — isolates multi-agent backtrack",
+    "no_price": "N agents, shared tree, RANDOM parent (price mechanism runs but does NOT route) — isolates non-locality vs price",
+    "shuffled_price": "N agents, shared tree, softmax over a PERMUTED price — isolates the PRICE SIGNAL vs the tree",
+    "market": "N agents; the harness FORCES each to a node by softmax over the loss-bearing price (Path-2, forced price-routing)",
+    "autonomous": "N agents; each reads the compact price landscape and FREELY chooses the parent (Path-1, free-choice). DECOUPLED: proof prompt byte-identical to market for the same parent"
+  },
+  "emits_bear_short_extra_skeptic_call": ["market", "autonomous", "shuffled_price", "no_price"],
+  "bulls_only_no_bear": ["single", "single_restart", "single_tree_no_price", "parallel", "parallel_restart"],
+
+  "candidate_hard_theorem_set_18": [
+    "lm_deriv1", "lm_ineq1", "lm_ineq2", "lm_coeff_mul", "lm_nt_gcd2", "lm_median",
+    "lm_c", "lm_deriv2", "lm_det_zero", "lm_e", "lm_f", "lm_fact",
+    "lm_finset_sup", "lm_ineq3", "lm_lim1", "lm_natdeg_pow", "lm_nt_cop_cubic", "lm_probe1"
+  ],
+  "hard_floor_definition": "a candidate theorem is CONFIRMED-HARD iff `single` solves 0/ALL-floor-seeds in THIS run. Cracks count ONLY on the confirmed-hard subset (the confound-shield: on a single-0 theorem, model capability + lucky-guess variance are flattened to a 0 floor, so a crack by another arm = the organization, not the model).",
+  "CRITICAL_FINDING_v3_floor_unreliable": "The v4 validity smoke (2026-06-02, binary cb89a5d6) found `single` SOLVES lm_ineq1 (seed 1, axiom-clean proof, the SAME AM-GM route v3 credited to an autonomous 'crack'). `single` gets 24 attempts/cell (budget parity); a single success means its per-cell solve rate is high (a 0/3 cell triple is a ~5% fluke if the true per-cell rate is ~60%). So the v3 3-seed hard floor (single 0/3) was NOT robust — lm_ineq1 was never a confound-shield, and the v3 'autonomous cracked lm_ineq1 where single failed' was a small-sample artifact. CONSEQUENCE: the hard floor is re-established here with 6 floor-seeds; a theorem counts as hard ONLY if single solves 0/6. Likely a strong model (deepseek-v4-pro) solves many lm_ theorems, so the robustly-hard set may be small — which is itself an honest finding (the lm_ set may not be hard enough to shield model capability).",
+  "floor_seeds": [1, 2, 3, 4, 5, 6],
+  "crack_seeds": [1, 2, 3, 4, 5, 6],
+  "n_agents": 4,
+  "n_rounds": 6,
+  "budget_proposals_per_cell": 24,
+  "model": "deepseek-v4-pro",
+  "staged_run": "STAGE A (hard-floor): single x 18 candidates x 6 floor-seeds -> H = {single 0/6}. STAGE B (crack): {market, autonomous, parallel, shuffled_price, no_price} x H x 6 crack-seeds, paired with single over (theorem,seed). STAGE C (topology, conditional on a STAGE-B signal): {single_restart, single_tree_no_price, parallel_restart} x H x 6. Don't spend the expensive arms on non-hard theorems.",
+
+  "solved_definition": "omega_reached == a LeanJudge axiom-clean Verified (inline #print-axioms gate, real lean exit-0 + axiom-whitelist). NOT a token-scan; native_decide/sorry/hand-axiom are rejected.",
+
+  "PREREG_1_MARKET_HAYEK": {
+    "claim": "a loss-bearing price-routed market organization (market) solves hard theorems that single AND the control family cannot",
+    "CONFIRMED_WIN_per_theorem": "hard_single_0 AND market_solved>=1 AND parallel==0 AND shuffled_price==0 AND no_price==0 AND replay_clean AND axiom_clean",
+    "support_test": "paired one-sided exact McNemar, market vs {single, parallel, shuffled_price, no_price}, matched by (theorem,seed), Holm-Bonferroni over the 4 hypotheses, alpha=0.05",
+    "prior": "in the confounded v3, market solved 0/18. If market stays 0, this is an HONEST NO for the Hayek forced-price-routing claim — reported as such, not hidden."
+  },
+  "PREREG_2_AUTONOMOUS_FREECHOICE": {
+    "claim": "DECOUPLED free-choice routing (autonomous, Path-1) solves hard theorems that single + market + controls cannot — and the win is NOT the prompt-context confound (byte-identical proof prompt is enforced)",
+    "CONFIRMED_WIN_per_theorem": "hard_single_0 AND autonomous_solved>=1 AND market==0 AND parallel==0 AND no_price==0 AND prompt_byte_identical_selftest_pass AND replay_clean AND axiom_clean",
+    "support_test": "paired one-sided exact McNemar, autonomous vs {single, market, parallel, no_price}, Holm over 4, alpha=0.05",
+    "decoupled_condition": "the binary that produced the data (HEAD cb89a5d6) passes `--self-test` (sha(autonomous_stage2)==sha(market) AND != confound_b_control). Recorded as a prereq, not a per-cell field.",
+    "note": "do NOT use PREREG_1 (market) to back an autonomous result; they are separate hypotheses with separate confirmation rules (auditor mandate)."
+  },
+
+  "topology_decomposition_contrasts": [
+    "single vs single_restart: backtrack/root-restart effect, 1 agent",
+    "single_restart vs single_tree_no_price: root-or-last vs own-history tree, 1 agent",
+    "single_tree_no_price vs parallel: single-agent tree vs multi-agent independent",
+    "parallel vs parallel_restart: backtrack effect, multi agent",
+    "parallel_restart vs no_price: independent chains vs shared tree (both no price)",
+    "no_price vs shuffled_price: random node vs shuffled-price node (both no real price signal)",
+    "shuffled_price vs market: shuffled vs REAL price (isolates the PRICE SIGNAL)",
+    "market vs autonomous: forced softmax vs LLM free-choice (isolates the ROUTER), proof context byte-identical"
+  ],
+
+  "compute_parity": {
+    "principle": "proposal-parity (every arm gets 24 proof proposals/cell) with TRANSPARENT mechanism-cost accounting via telemetry. autonomous additionally makes 24 route calls (Stage-1); price arms additionally make up to 24 bear calls (skeptic short). These are recorded per arm, NOT hidden, and NOT discounted (route tokens are in the PPUT denominator).",
+    "reported_per_arm": ["proposal_llm_calls", "route_llm_calls", "bear_llm_calls", "proof_prompt_tokens", "route_prompt_tokens", "bear_prompt_tokens", "completion_tokens", "total_model_tokens", "lean_verifies"],
+    "secondary": "report a cost-adjusted (per-total-token) solve rate alongside the raw solve rate; a crack must not be a token-budget artifact."
+  },
+
+  "stats_3_layer": {
+    "existence": "at least one axiom-clean Verified proof by arm X on a confirmed-hard (single-0) theorem",
+    "reliability": "per-arm per-theorem solve rate with exact Clopper-Pearson CI + a beta-binomial posterior; seed-level paired table",
+    "causal": "ALL preregistered controls fail (0) AND arm X beats them under the paired one-sided exact McNemar + Holm; reported separately for PREREG_1 (market) and PREREG_2 (autonomous)"
+  },
+
+  "replay_gate": "every counted cell must pass verify_chaintape (economic_state_reconstructed==true) ELSE excluded. Cracks must be both replay-clean AND axiom-clean.",
+  "断点续做": "a cell with a manifest + a replay-clean report is skipped; the sweep is resumable. CAS preserved (KEEP_CAS=1) to extract + persist the actual proof text of any crack.",
+  "honesty": "no PROVEN/DEFINITIVE/causal/X>Y headline without AGENTS.md §17 G1-G6. The claim is scoped to what the corrected data warrants under the two pre-registrations. If market stays 0 and decoupled autonomous cracks are rare/non-significant, the verdict is a scoped EXISTENCE result for decoupled free-choice routing — not a Hayek price-routing win. A fresh clean-context audit runs AFTER the data lands (§17 G5), persisted under handover/audits/.",
+  "discipline": "FC1/FC2/FC3 untouched; no §6 surface; integer money; PR-only; prereg SHA-locked (this file's .sha256) BEFORE the first counted cell."
+}
