@@ -8,10 +8,10 @@ constitution, flowcharts, or historical handover here; route to them.
 If duplicated guidance conflicts, obey this file for the shared harness
 contract, then the deeper/more specific adapter for tool-local mechanics.
 
-## 0. Prime directives (读这 5 条即可；其余 §1–§17 为 reference，按需查)
+## 0. Prime directives (读这 5 条即可；其余各节为 reference，按需查)
 
 49-session 纠正频率实测 — 绝大多数纠正命中这 5 条。其余条款是细则与机制，
-按需查 §1–§17 / `HARNESS_PLAYBOOK.md`，不必每条复述：
+按需查以下各节 / `HARNESS_PLAYBOOK.md`，不必每条复述：
 
 1. **窄动作**：做且只做被要求的。不扩 scope、不加 ceremony、不写没要的代码 /
    报告 / preamble。 (corrections 19%)
@@ -79,42 +79,28 @@ For a new non-trivial task, read in this order regardless of CLI:
 10. Source files and tests for the touched surface
 
 CLI-specific notes:
-- **Claude Code** additionally reads `CLAUDE.md` (Claude-Code-specific adapter)
-  + optional memory under `~/.claude/projects/.../memory/MEMORY.md` (do not
-  depend on this path existing on other machines)
-- **Codex CLI** reads `AGENTS.md` directly (this file is the canonical entry)
-- **Gemini CLI** reads `GEMINI.md` (thin pointer to this file)
-- **Aider** reads `CONVENTIONS.md` + `.aider.conf.yml` (auto-loads this file)
-- **Cursor** reads `.cursor/rules/000-agents-alignment.mdc` (modern) or
-  `.cursorrules` (legacy fallback)
-- **Windsurf** reads `.windsurfrules`
-- **GitHub Copilot** reads `.github/copilot-instructions.md`
-- **Warp** reads `WARP.md`
-- **Antigravity** reads `AGENTS.md` directly (and `GEMINI.md` natively if
-  present); no dedicated thin discovery file is required — the universal
-  contract is enough.
+- **Claude Code** additionally reads `CLAUDE.md` + optional memory under
+  `~/.claude/projects/.../memory/MEMORY.md` (do not depend on this path on other
+  machines).
+- Every other CLI reads its own thin discovery file (listed above) and/or
+  `AGENTS.md` directly; all redirect here. Antigravity needs no thin file — the
+  universal contract suffices.
 
 ### Two-layer model (unify the contract, not the mechanism)
 
 The harness unifies the *contract*, never the *mechanism*:
 
-- **Layer 1 — universal contract (this file).** The governance rules every
-  platform obeys identically: truth order (§1), risk classes (§5), restricted
-  surfaces (§6), PR-only workflow (§14a), audit doctrine (§9), obligation ledger
-  (§16), tape-first evidence (§4), and the Karpathy coding principles (§13).
-  `AGENTS.md` is the *only* home of a rule. Thin discovery files point here;
-  they never restate it.
-- **Layer 2 — platform-native enhancement.** Each platform realizes that one
-  contract with its own best native features and keeps its own productivity
-  tooling — Claude Code's hooks / skills / subagents / plan-mode / memory,
-  Cursor's `.mdc` rules, Aider's config, Antigravity's and Codex's native
-  workflows, and so on. Layer 2 may only **ADD**; it may never
-  restate-and-narrow a Layer-1 rule. (Listing a *subset* of §6's restricted
-  surfaces, for example, reads as "only these are restricted" — a narrowing,
-  not an addition; point to §6 instead.)
+- **Layer 1 — universal contract (this file).** Truth order (§1), risk classes
+  (§5), restricted surfaces (§6), PR-only workflow (§14a), audit doctrine (§9),
+  obligation ledger (§16), tape-first evidence (§4), Karpathy principles (§13).
+  `AGENTS.md` is the *only* home of a rule; thin discovery files point here,
+  never restate it.
+- **Layer 2 — platform-native enhancement.** Each platform realizes the one
+  contract with its own native tooling (Claude hooks / skills / subagents,
+  Cursor `.mdc`, Aider config, …). Layer 2 may only **ADD**; it may never
+  restate-and-narrow a Layer-1 rule (e.g. listing a *subset* of §6 reads as
+  "only these are restricted" — point to §6, don't re-list).
 
-Same contract, platform-optimal mechanism. The harness must never flatten a
-platform to a lowest common denominator.
 `tests/cli_entry_files_redirect_to_agents.rs` enforces both halves: each thin
 file must redirect here and must not name a restricted surface absent from §6.
 
@@ -511,33 +497,23 @@ rationale.
 ## 15. Harness Guidance Maintenance
 
 This file should stay concise and load-bearing. If any agent repeats the same
-mistake twice, update `AGENTS.md` or create a small referenced playbook/skill.
-If this file grows too large, split task-specific material into separate docs
-and reference them here.
-
-Useful research baseline:
-
-- Agent-instruction docs (Codex `AGENTS.md`, Claude `CLAUDE.md`, …): keep them
-  practical, include commands/constraints/done criteria, and test/review work
-  before accepting it.
-- Evals best practice: use task-specific evals, trace/tool-level checks,
-  continuous evaluation, and clear graders rather than final-output vibes.
-- Recent AGENTS/harness research is mixed on instruction volume; therefore
-  prefer minimal, accurate, high-signal instructions over long repeated policy.
+mistake twice, **prefer a mechanism (a gate test that can fail) over more prose —
+prose at the margin does not change behavior**; update `AGENTS.md` only for a
+genuinely load-bearing rule, else create a small referenced playbook/skill. If
+this file grows too large, split task-specific material into separate docs and
+reference them here. Keep instructions minimal, accurate, high-signal over long
+repeated policy.
 
 ## 16. User Obligation Ledger (K-OBL-1, 2026-05-24)
 
-Universal across agent runtimes — Claude Code, Codex CLI, Gemini CLI, Aider,
-Cursor, Windsurf, Copilot, Warp, future runtimes.
+Universal across all agent runtimes.
 
-Per-project file: `<project_root>/OBLIGATIONS.md`. Tracks user-stated
-obligations to the agent across multi-turn conversations to prevent
-**Conversational Anchor Drift** (silent task substitution when user offers
-mid-flight debug input).
-
-Lesson source: V-010 — a 15-persona DeepSeek Chrome E2E mandate was silently
-replaced by a node/polymarket UI fix; multi-agent audit returned `PROCEED` on
-the substitution. Full skill + schema: `skills/OBLIGATIONS_LEDGER.md`.
+Per-project file: `<project_root>/OBLIGATIONS.md`. Tracks user-stated obligations
+across multi-turn conversations to prevent **Conversational Anchor Drift** (silent
+task substitution when the user offers mid-flight debug input). Lesson source:
+V-010 — a 15-persona E2E mandate silently replaced by a UI fix; multi-agent audit
+returned `PROCEED` on the substitution. Full skill + schema:
+`skills/OBLIGATIONS_LEDGER.md`.
 
 ### The four rules (mandatory, every agent)
 
