@@ -185,6 +185,39 @@ Do not build a path-lock file, a charter overlap database, or a dispatcher.
 Collisions are rare and recoverable (`git rebase`, re-run the atom). The check
 exists so we don't dispatch a parallel branch we already know will conflict.
 
+### 4.2 Full real E2E before handoff (session-mined 2026-06-03)
+
+强化 §4 step 2。对任何 evidence-bearing 或 user-facing 改动，在用户参与测试或你
+声明“已工作/完成”之前，必须先由 agent 亲自通过**真实二进制入口**完整跑通一次
+端到端流程并亲眼确认结果。真实入口 = 从 `turingos init` / `genesis` 起步的完整
+链路；**禁止**用读代码、信标签/repo 名、self-report、proxy/shortcut、或“oversee
+整个代码库模拟 turingos 在运行”代替真正运行 binary。把未跑通的产物移交给用户
+测试是禁止的——“只有你全程跑通了，我参与测试才有效率”。当流程需要模拟用户时，
+负责模拟的 sub-agent 只接收 persona + 目标约束，**零预设答案、零标准答案**，每步
+仅依据页面当前实际内容作答（blind sim）。Evidence: recurring across 3 sessions.
+
+### 4.3 Autonomy default & legal stop points (session-mined 2026-06-03)
+
+默认自主执行到底。合法停机点**只有两个**：(a) 全部相关 PR/任务 merge 完成，或
+(b) 撞到 Class-4 §8 ratification gate（§5——`fix`/`go`/`ok`/`continue`/`can`
+之类单词不构成 sign-off）。除此之外**不得**中途停下来问“选哪个方案”、也不得仅
+贴一张 status 表就等待用户表态；遇分支决策，选你判断最合理、最完整的路径继续
+推进，phase 之间做回顾自检后立即继续，直到整体 plan 全部 merge。§14a 的
+“approval + merge 由 orchestrator 负责”是**执行方式约束（你只能开 PR），不是
+停机理由**——开完 PR 应继续推进下一个 atom，不要停下等 merge 确认。Guardrail：
+此 autonomy default 永不凌驾 §5 Class-4 或 §6 restricted surfaces，那些仍需
+per-atom §8 stop。Evidence: recurring across 4 sessions.
+
+### 4.4 No silent idle — execution liveness (session-mined 2026-06-03)
+
+不得静默 idle。(1) 长任务或派发 sub-agent 后须主动汇报进度，不许无声停摆；
+(2) 派出的 sub-agent 久不返回时，主动检查其状态、从已有缓存/中间产物抢救已
+完成的工作，避免重复劳动，不要无声干等；(3) 自身因上下文中断则从断处续做，
+不得停在原地等用户主动催“你 idle 了吗”。本条是会话/编排级 liveness，区别于
+实验级 checkpoint（per-unit checkpoint + --resume，另见相应 long-run 规则）。
+Claude-Code 特有的失败症状——工具调用格式错误导致以**原始 XML 文本**显示而非
+执行——见 `CLAUDE.md §10`。Evidence: recurring across 3 sessions.
+
 ## 5. Risk Classes
 
 Use the project risk model before editing:
@@ -436,6 +469,17 @@ Separate witness role per `skills/OBLIGATIONS_LEDGER.md §3 Rule 4`. Reads
 A `PROCEED` from any other audit witness is **invalid** if obligation
 witness verdict ≠ `OBL-ALL-CLOSED`. The obligation witness does not opine on
 code/style/architecture — same subjective-opinion boundary as above.
+
+### Pre-dispatch grounding (session-mined 2026-06-03)
+
+把上面机械可核验的验收标准从 audit 侧延伸到 **plan 侧**。派发任何复杂任务或
+多-agent 分工**之前**：(1) 先声明你对任务的理解，并把完整拆解（atom 列表）呈给
+用户确认，获明确批准后再执行——任务复杂或方案不明时先研究、与用户确认方案，
+不要直接开干；(2) 每个 atom 的颗粒度须细到**低思考深度 flash-model agent** 能
+独立执行，指令自包含、不依赖上下文补全；(3) 每个 atom 须附**机械可核验**的验收
+标准（具体命令 + 期望输出），auditor 可直接 copy-paste 验证、零人工判断（与上面
+checklist 同一标准，只是施加在派发前）；(4) 验收标准与 Karpathy 取舍（§13）对齐。
+Evidence: recurring across 3 sessions.
 
 ## 14a. PR-only workflow (K-HARDEN-7, 2026-05-20) — universal across agent runtimes
 
