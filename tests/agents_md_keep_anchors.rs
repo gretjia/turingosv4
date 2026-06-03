@@ -67,6 +67,14 @@ const KEEP_ANCHORS: &[(&str, &[&str])] = &[
             "非-idiomatic impl",
         ],
     ),
+    (
+        "Full real E2E before handoff §4.3 (no unrun handoff + blind-sim persona)",
+        &["移交给用户测试", "blind sim"],
+    ),
+    (
+        "Autonomy stop-points §4.4 (§14a reconciliation, not a stop reason)",
+        &["不是停机理由", "all-merged"],
+    ),
 ];
 
 /// Read `AGENTS.md` from the package root (where `cargo test` runs). Mirrors the
