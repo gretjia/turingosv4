@@ -134,6 +134,13 @@ Prioritize:
 
 Never hide behind process if the tape is wrong.
 
+## 10. Execution liveness (Claude-specific)
+
+实现 `AGENTS.md §4.4` 的 Claude-Code 特有操作细节（ADD per `AGENTS.md §2`
+Layer 2——只补充 Claude 工具格式症状，不复述通用规则）。若某次工具调用格式
+出错，导致其调用以**原始 XML 文本**显示在 transcript 中而非真正执行，须立即
+自查、修正调用格式后重发——绝不把未执行的 raw-XML 调用当成已完成的工作。
+
 ## Historical archive
 
 The full 909-line pre-K-2.1 CLAUDE.md is at
