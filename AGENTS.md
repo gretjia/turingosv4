@@ -15,10 +15,12 @@ contract, then the deeper/more specific adapter for tool-local mechanics.
 
 1. **窄动作**：做且只做被要求的。不扩 scope、不加 ceremony、不写没要的代码 /
    报告 / preamble。 (corrections 19%)
-2. **真跑才算完成**：声明“完成”前，亲自从真实二进制入口（`turingos init` /
-   `genesis`）跑通并贴 evidence 路径；读代码 / self-report 不算。 (15%)
-3. **自主到底**：驱动到 all-merged，合法停机点只有 (a) all-merged 或
-   (b) Class-4 §8 ratification gate；别把选择反推给我。 (15%)
+2. **真跑才算完成**：声明“完成”**或交给用户测试**前，亲自从真实二进制入口
+   （`turingos init`/`genesis`）跑通并贴 evidence；读代码 / self-report 不算。
+   细则（blind-sim、禁止移交未跑通产物）见 §4.3。 (15%)
+3. **自主到底**：驱动到 all-merged——**你只开 PR、不等 merge，开完即推进下一
+   atom**；合法停机点只有 all-merged 或 Class-4 §8 gate；别把选择反推给我。
+   细则见 §4.4。 (15%)
 4. **认产物不认标签**：看真实页面 / 输出，不信名字 / 自述；诚实先讲坏消息，
    不 sycophantic。 (verify+honesty 19%)
 5. **内核默认对**：先假设内核 / 宪法正确、在外层找因；碰 §6 restricted surface
@@ -196,6 +198,22 @@ exists so we don't dispatch a parallel branch we already know will conflict.
 实验级 checkpoint（per-unit checkpoint + --resume，另见相应 long-run 规则）。
 Claude-Code 特有的失败症状——工具调用格式错误导致以**原始 XML 文本**显示而非
 执行——见 `CLAUDE.md §10`。Evidence: recurring across 3 sessions.
+
+### 4.3 Full real E2E before handoff (session-mined 2026-06-03)
+
+§0 directive 2 的细则。触发点有两个——**用户参与测试前** 与 **你声明“完成”前**，
+两者皆须先由 agent 亲自从真实二进制入口（`turingos init`/`genesis`）完整跑通一次
+并贴 evidence；读代码 / 标签 / self-report / proxy 不算。只有你全程跑通，用户参与
+才有效率——**禁止把未跑通的产物移交给用户测试**。需模拟用户时，sub-agent 只接收
+persona + 目标约束，零预设答案、零标准答案，仅依据页面当前内容作答（blind sim）。
+
+### 4.4 Autonomy default & legal stop points (session-mined 2026-06-03)
+
+§0 directive 3 的细则。目标是全部 PR/任务 all-merged；合法停机点只有 (a) all-merged
+或 (b) Class-4 §8 ratification gate（`fix`/`go`/`ok` 等单词不构成 §8 sign-off）。merge
+由 orchestrator 负责（§14a：agent 只能开 PR）——这是执行方式约束、**不是停机理由**：
+开完一个 PR 立即推进下一个 atom，不要停下等 merge 确认，也不要因“无权 merge”
+而停机。此 autonomy default 永不凌驾 §5 Class-4 / §6 restricted surfaces。
 
 ## 5. Risk Classes
 
