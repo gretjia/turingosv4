@@ -4,24 +4,20 @@
 //!
 //! Proves the TuringOS constitutional priced-DAG agent market is ALIVE on the
 //! current kernel, with REAL ChainTape L4 + CAS + CPMM state and NO live LLM
-//! (deterministic → reproducible). Targets all 11 G0 conditions (v4 §7):
+//! (deterministic → reproducible). This G0 receipt is deliberately scoped to
+//! core market price discovery conditions 1,2,3,6,7,8,9:
 //!
 //!   c1 genesis → task market / wallets / roster
 //!   c2 ≥5 participating agents      c3 ≥3 roles (Bull/Bear/Solver/Challenger)
-//!   c4 non-linear DAG branching>1   c5 a non-latest parent pick
 //!   c6 YES+NO CPMM trades           c7 a node/pool price changes
-//!   c8 reconstructable from tape (verify_chaintape)   c9 hidden-test shield
-//!   c10 sealed settlement           c11 settlement on tape
+//!   c8 reconstructable from tape (verify_chaintape)
+//!   c9 hidden-test shield
 //!
-//! Priced DAG construction (LEGITIMATE, no §6 kernel change): each DAG node is a
-//! WorkTx on its OWN task (one WorkTx per task escrow → no monetary_invariant);
-//! parent_tx links nodes ACROSS tasks (compute_canonical_edges_at_head follows
-//! parent_tx globally, sequencer.rs:7140); each node carries a Long (WorkTx) +
-//! a Short (ChallengeTx) so compute_price_index yields a per-node price_yes =
-//! work_stake / (work_stake + challenge_stake). This realises the architect's
-//! "every node has a market price; agents pick by price" vision via existing
-//! admission only (Class 2-3). CPMM YES/NO trades on a separate market task give
-//! c6/c7. boltzmann_select_parent_v2 is exercised over the real price_index.
+//! Single-node construction (no §6 kernel change): one rewardable WorkTx lands
+//! on one task escrow, and one ChallengeTx supplies the Short side for the same
+//! node price index. CPMM YES/NO trades on a separate market task give c6/c7.
+//! c4/c5 priced-DAG branching/non-latest parent selection and c10/c11 settlement
+//! closure are recorded as constrained/stage-2, not as current G0 closure.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -95,14 +91,15 @@ struct ConditionEvidence {
     c1_genesis_market_initialized: bool,
     c2_at_least_5_agents: bool,
     c3_at_least_3_roles: bool,
-    c4_branching_factor_gt_1: bool,
-    c5_non_latest_parent_pick: bool,
+    c4_c5_constraint_note: &'static str,
+    c4_branching_diagnostic_observed: bool,
+    c5_non_latest_parent_diagnostic_observed: bool,
     c6_yes_and_no_trades: bool,
     c7_price_changed: bool,
     c8_reconstructable_note: &'static str,
     c9_shielding_structural: bool,
-    c10_sealed_settlement: bool,
-    c11_settlement_in_tape: bool,
+    c10_c11_stage2_note: &'static str,
+    stage2_event_resolve_observed: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -419,14 +416,10 @@ async fn run(args: Args) -> Result<(), String> {
     let price_changed =
         pool_before_first_trade != pool_after_last_trade && pool_after_last_trade.is_some();
 
-    // ── Priced citation DAG: one WorkTx-per-task node + a ChallengeTx Short ──
-    // (solver, challenger, parent_node_idx). Edges: B→A, C→A (branch at A), D→B (non-latest).
-    let dag: [(&str, &str, Option<usize>); 4] = [
-        ("Agent_2", "Agent_6", None),
-        ("Agent_3", "Agent_7", Some(0)),
-        ("Agent_4", "Agent_8", Some(0)),
-        ("Agent_5", "Agent_9", Some(1)),
-    ];
+    // ── Single priced node: one WorkTx + one ChallengeTx Short ─────────
+    // c4/c5 multi-node DAG branching is intentionally not claimed here:
+    // one rewardable WorkTx per task escrow is the current settlement boundary.
+    let dag: [(&str, &str, Option<usize>); 1] = [("Agent_2", "Agent_3", None)];
     let mut node_tx_ids: Vec<TxId> = Vec::new();
     let mut dag_edges: Vec<(String, String)> = Vec::new();
     let mut non_latest_parent_edge: Option<(String, String)> = None;
@@ -562,17 +555,19 @@ async fn run(args: Args) -> Result<(), String> {
         .filter(|n| n.price_yes_num.is_some())
         .count();
 
-    // ── Sealed settlement (c10/c11) on the market task ───────────────
+    // ── Stage-2 settlement diagnostic on the market task ──────────────
+    // EventResolve is tape-visible, but this G0 receipt does not claim M2/M3
+    // reward-claim settlement closure.
     seq.emit_system_tx(SystemEmitCommand::EventResolve {
         task_id: TaskId(market_task.clone()),
         outcome: OutcomeSide::No,
     })
     .await
     .map_err(|e| format!("emit EventResolve: {e:?}"))?;
-    root = tb8_await_state_root_advance(&seq, root, 5_000)
+    let _resolved_root = tb8_await_state_root_advance(&seq, root, 5_000)
         .await
         .map_err(|_| "EventResolve did not advance".to_string())?;
-    let settled = seq
+    let stage2_event_resolve_observed = seq
         .q_snapshot()
         .map_err(|e| format!("{e:?}"))?
         .economic_state_t
@@ -617,14 +612,15 @@ async fn run(args: Args) -> Result<(), String> {
         c1_genesis_market_initialized: market_initialized && genesis_report_written,
         c2_at_least_5_agents: agents.len() >= 5,
         c3_at_least_3_roles: roles.len() >= 3,
-        c4_branching_factor_gt_1: max_branching > 1,
-        c5_non_latest_parent_pick: non_latest_parent_edge.is_some(),
+        c4_c5_constraint_note: "constrained: current G0 uses one rewardable WorkTx on one task escrow; multi-node priced-DAG branching/non-latest parent selection needs M2/M3 settlement redesign or an explicit multi-task model and is not claimed here",
+        c4_branching_diagnostic_observed: max_branching > 1,
+        c5_non_latest_parent_diagnostic_observed: non_latest_parent_edge.is_some(),
         c6_yes_and_no_trades: yes_trades >= 1 && no_trades >= 1,
         c7_price_changed: price_changed,
         c8_reconstructable_note: "verify via: turingos verify chaintape --repo <runtime_repo> --cas <cas> (replay reconstructs EconomicState + per-node price_index from L4)",
         c9_shielding_structural: true,
-        c10_sealed_settlement: settled,
-        c11_settlement_in_tape: settled,
+        c10_c11_stage2_note: "stage-2: EventResolve is observed on tape as a diagnostic, but M2/M3 reward-claim settlement closure is not claimed by this G0 receipt",
+        stage2_event_resolve_observed,
     };
     let manifest = G0Manifest {
         schema_version: "turingosv4.g0.market_activation.v3",
@@ -642,11 +638,12 @@ async fn run(args: Args) -> Result<(), String> {
         genesis_report_written,
         runtime_repo: args.runtime_repo.display().to_string(),
         cas: args.cas.display().to_string(),
-        closure_scope: "g0_single_instance_market_activation_conditions_1_to_11",
+        closure_scope: "g0_core_market_price_discovery_conditions_1_2_3_6_7_8_9",
         notes: vec![
-            "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM + priced-node DAG",
-            "priced DAG: one WorkTx-per-task node + ChallengeTx Short → compute_price_index per-node price_yes; cross-task parent_tx edges (CanonicalNodeGraph is task-agnostic); no §6 kernel change",
-            "c10/c11 sealed via emit_system_tx EventResolve(No) on the market task; real Docker SwebenchTestJudge settlement = G1 capability layer",
+            "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM + single WorkTx node",
+            "single WorkTx node + ChallengeTx Short → compute_price_index per-node price_yes; no same-task reward fan-out is claimed",
+            "c4/c5 priced-DAG branching/non-latest parent selection are constrained/stage-2, not current OBL-005 closure",
+            "c10/c11 reward-claim settlement closure is stage-2; EventResolve(No) is only a tape-visible diagnostic",
         ],
     };
     let json = serde_json::to_string_pretty(&manifest).map_err(|e| format!("serialize: {e}"))?;
@@ -657,14 +654,13 @@ async fn run(args: Args) -> Result<(), String> {
 
     let c = &manifest.conditions;
     println!(
-        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} chal={} branching={} priced_nodes={} c1-11=[{}{}{}{}{}{}{}T{}{}{}] manifest={}",
+        "g0_market_activation: agents={} roles={} yes={} no={} worktx={} chal={} branching={} priced_nodes={} core_c1_c2_c3_c6_c7_c9=[{}{}{}{}{}T{}] c4c5_constrained=true stage2_event_resolve={} manifest={}",
         manifest.participating_agents.len(), manifest.distinct_roles.len(),
         manifest.yes_trade_count, manifest.no_trade_count, manifest.worktx_count,
         manifest.challengetx_count, manifest.max_branching_factor, priced_count,
         c.c1_genesis_market_initialized as u8, c.c2_at_least_5_agents as u8, c.c3_at_least_3_roles as u8,
-        c.c4_branching_factor_gt_1 as u8, c.c5_non_latest_parent_pick as u8, c.c6_yes_and_no_trades as u8,
-        c.c7_price_changed as u8, c.c9_shielding_structural as u8, c.c10_sealed_settlement as u8,
-        c.c11_settlement_in_tape as u8, args.out.display()
+        c.c6_yes_and_no_trades as u8, c.c7_price_changed as u8, c.c9_shielding_structural as u8,
+        c.stage2_event_resolve_observed, args.out.display()
     );
     Ok(())
 }

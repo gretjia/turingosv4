@@ -90,6 +90,7 @@ RUNTIME_CONFIG_HASH="$(
     {
         sha256sum "$PROJECT_ROOT/scripts/run_true_suite_market_ab_current_kernel.sh"
         sha256sum "$PROJECT_ROOT/src/bin/market_external_agent_current_kernel.rs"
+        sha256sum "$PROJECT_ROOT/src/bin/g0_market_activation_current_kernel.rs"
         sha256sum "$PROJECT_ROOT/src/bin/full_system_augment_current_kernel.rs"
         sha256sum "$PROJECT_ROOT/src/bin/real16_market_performance_verifier.rs"
         sha256sum "$PROJECT_ROOT/src/runtime/market_performance_e4.rs"
@@ -189,7 +190,7 @@ run_arm D true "current-kernel market-pressure arm"
 
 G0_RUN_ID="${RUN_ID}-g0-market-activation"
 G0_DIR="$RUN_DIR/g0"
-echo "[g0] G0 market activation: deterministic YES+NO trades + ChallengeShort priced DAG"
+echo "[g0] G0 market activation: deterministic YES+NO trades + single WorkTx node + ChallengeShort"
 "$G0_MARKET" \
     --runtime-repo "$G0_DIR/runtime_repo" \
     --cas "$G0_DIR/cas" \
@@ -258,7 +259,7 @@ cat > "$RUN_DIR/market_ab_run_manifest.json" <<EOF
   "notes": [
     "candidate-only market performance report; no E4 achieved claim",
     "both arms are fresh current-kernel ChainTape/CAS runs",
-    "G0 market activation is deterministic current-kernel evidence for YES+NO trades, ChallengeShort, price changes, and priced-DAG parent selection; it does not claim live-LLM E4",
+    "G0 market activation is deterministic current-kernel evidence for YES+NO trades, one single WorkTx node, ChallengeShort, and price changes; c4/c5 priced-DAG branching and c10/c11 settlement closure remain constrained/stage-2",
     "root full_system_participation uses arm D as the market-pressure representative sample"
   ]
 }
