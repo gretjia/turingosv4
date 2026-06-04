@@ -28,12 +28,6 @@ families = ["web_product", "artifact_delivery", "user_simulator"]
 evidence = ["artifact", "audit", "user_simulator"]
 
 [[real_world_suite]]
-id = "tdma_zero_gain_demo"
-path = "handover/evidence/tdma_zero_gain_demo_20260522T115130Z"
-families = ["tdma", "retry", "zero_gain"]
-evidence = ["chaintape", "per_attempt_probes"]
-
-[[real_world_suite]]
 id = "cas_git_repair_challenge"
 path = "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z"
 families = ["cas", "git_substrate", "repair"]
@@ -741,13 +735,6 @@ risk_class = 2
 allowed_as_fc_authority = false
 restricted_surface = false
 module_ids = [
-  "bin::tdma_rc1_deepseek_nesbitt",
-  "bin::tdma_rc1_deepseek_putnam_2025_b3",
-  "bin::tdma_rc1_deepseek_putnam_a1",
-  "bin::tdma_rc1_distiller_stress",
-  "bin::tdma_rc1_nesbitt_stress",
-  "bin::tdma_rc1_real_evidence",
-  "bin::tdma_rc1_zero_gain_demo",
   "charter_core",
   "distiller",
   "git_tape_ledger",
@@ -779,8 +766,6 @@ smoke_gates = [
   "tests/constitution_true_suite_tdma_runner.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
-  "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",

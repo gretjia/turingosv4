@@ -511,6 +511,59 @@ fn retired_lean_research_diagnostic_bins_do_not_reenter_production() {
 }
 
 #[test]
+fn retired_tdma_rc1_standalone_bins_do_not_reenter_production() {
+    let groups = groups();
+    let retired_modules = [
+        "bin::tdma_rc1_deepseek_nesbitt",
+        "bin::tdma_rc1_deepseek_putnam_2025_b3",
+        "bin::tdma_rc1_deepseek_putnam_a1",
+        "bin::tdma_rc1_distiller_stress",
+        "bin::tdma_rc1_nesbitt_stress",
+        "bin::tdma_rc1_real_evidence",
+        "bin::tdma_rc1_zero_gain_demo",
+    ];
+    let retired_paths = [
+        "src/bin/tdma_rc1_deepseek_nesbitt.rs",
+        "src/bin/tdma_rc1_deepseek_putnam_2025_b3.rs",
+        "src/bin/tdma_rc1_deepseek_putnam_a1.rs",
+        "src/bin/tdma_rc1_distiller_stress.rs",
+        "src/bin/tdma_rc1_nesbitt_stress.rs",
+        "src/bin/tdma_rc1_real_evidence.rs",
+        "src/bin/tdma_rc1_zero_gain_demo.rs",
+    ];
+    let retired_evidence = [
+        "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/manifest.json",
+        "handover/evidence/tdma_zero_gain_demo_20260522T115130Z/chaintape.jsonl",
+    ];
+
+    for module in retired_modules {
+        assert!(
+            groups
+                .iter()
+                .all(|group| !group.module_ids.iter().any(|id| id == module)),
+            "retired TDMA RC1 standalone module `{module}` must not be retained in production liveness accounting"
+        );
+    }
+
+    for path in retired_paths {
+        assert!(
+            !std::path::Path::new(path).exists(),
+            "retired TDMA RC1 standalone bin `{path}` must not re-enter src/bin; use `turingos tdma run` plus `tdma_proof_current_kernel` for current ChainTape/CAS evidence"
+        );
+    }
+
+    for evidence_path in retired_evidence {
+        assert!(
+            groups.iter().all(|group| !group
+                .real_world_evidence
+                .iter()
+                .any(|path| path == evidence_path)),
+            "historical TDMA RC1 evidence `{evidence_path}` must not be counted as current production liveness evidence"
+        );
+    }
+}
+
+#[test]
 fn liveness_group_ids_are_unique() {
     assert_unique_group_ids(&groups());
 }
