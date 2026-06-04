@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 66719,
+      "archive_path": "market_action/cas.dotgit.tar.gz",
+      "archive_sha256": "228ee8553ab119556e95e6ff19692b8f9d37c675aded7efbb28c47f0c46a5d9e",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/cas",
+      "source_path": "market_action/cas/.git"
+    },
+    {
+      "archive_bytes": 3691,
+      "archive_path": "market_action/cas.worktree.tar.gz",
+      "archive_sha256": "eacf3cba9ddfc77136de3bc5297d1c95fa0e9987933e09d9ce5f209831400535",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_action/cas",
+      "source_path": "market_action/cas"
+    },
+    {
+      "archive_bytes": 27265,
+      "archive_path": "market_action/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "070c8ef705be52c1a7669edd84bfe3fbecc313de3da6b8ec6b001c427becb2a1",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_action/runtime_repo",
+      "source_path": "market_action/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1439,
+      "archive_path": "market_action/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "00a8a31c1da4f06fba8f2154df380872859a2cc2e2cbbd5853dd3912c5a7efea",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_action/runtime_repo",
+      "source_path": "market_action/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
