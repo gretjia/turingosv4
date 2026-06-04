@@ -1,0 +1,20 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_fc_trace_report.v1",
+  "run_id": "obl005_fresh_toolbench_20260604T224409Z",
+  "family_id": "toolbench_api_tool_use",
+  "fc_blocks_seen": [
+    "FC1",
+    "FC3"
+  ],
+  "input_capsule_cid": "1f6984ff2acb75c22f9e717b9a4aafbc350a74aafcbae0effcc094eac1b7aa80",
+  "answer_claim_capsule_cid": "be88d0201730067ae8e6a730b88fee6a476f6075f927fc25ca7e190d14c33e15",
+  "evaluation_capsule_cid": "be3f58b91994d309ae54d054bb1994921f8565f81c1178bd6e08ac838b569ef3",
+  "proposal_telemetry_cid": "a98ab180d673f691db2150a3401350c02b12c144d9db0be5b8eddbe93b32dea5",
+  "work_tx_id": "worktx-toolbench:577-true-suite-toolbench",
+  "work_tx_landed": true,
+  "tool_call_count": 3,
+  "tool_selection_exact_match": false,
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false
+}

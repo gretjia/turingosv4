@@ -1,0 +1,15 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_answer_claim_capsule.v1",
+  "query_id": "577",
+  "model_returned": "deepseek-chat",
+  "selected_api_ids": [
+    "ASIN Data::Product",
+    "ASIN Data::Reviews",
+    "ASIN Data::Search"
+  ],
+  "rationale": "The user wants to find top-rated fitness trackers on Amazon. ASIN Data::Search can be used to search for fitness trackers on Amazon. ASIN Data::Product can retrieve detailed features and prices for each product found. ASIN Data::Reviews can provide customer ratings to identify top-rated items.",
+  "rationale_len_chars": 294,
+  "prompt_sha256": "7991c3d461423cd861a73de1ee658bbf00150ad2f1926924ba09bc5839339007",
+  "provider_response_sha256": "73e8bfcdd5d4c3e67ced629ea4a2c8c000cf275aebee79e8bb174cadf4720980",
+  "raw_provider_response_persisted": false
+}

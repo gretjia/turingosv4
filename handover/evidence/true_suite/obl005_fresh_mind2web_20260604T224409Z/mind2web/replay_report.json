@@ -1,0 +1,21 @@
+{
+  "l4_entries": 16,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "obl005_fresh_mind2web_20260604T224409Z",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "4489ebba7cf5e4fc392cbcec9badab332d722d10ed9c7c8c7b18289341da68ed",
+    "final_ledger_root_hex": "9926eb08c790806a91bde810275356e1f200ec33dee489223a27120532d054a5",
+    "head_commit_oid_hex": "7cc1d95ff8de583eaccbb0439de9f18aeab0f7ee",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

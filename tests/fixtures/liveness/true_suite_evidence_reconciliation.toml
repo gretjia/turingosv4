@@ -151,10 +151,10 @@ blockers = [
 
 [[broad_family]]
 id = "mind2web_open_web"
-evidence_run = "obl005_fresh_mind2web_20260604T210300Z"
+evidence_run = "obl005_fresh_mind2web_20260604T224409Z"
 evidence_subdir = "mind2web"
 blockers = [
-  "domain_receipt_final_closure_missing",
+  "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
 ]
@@ -171,10 +171,10 @@ blockers = [
 
 [[broad_family]]
 id = "toolbench_api_tool_use"
-evidence_run = "obl005_fresh_toolbench_20260604T194611Z"
+evidence_run = "obl005_fresh_toolbench_20260604T224409Z"
 evidence_subdir = "toolbench"
 blockers = [
-  "domain_receipt_final_closure_missing",
+  "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
 ]
