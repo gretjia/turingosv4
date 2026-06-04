@@ -197,9 +197,18 @@ fn has_raw_provider_or_score_path(path: &str) -> bool {
     let file = lower.rsplit('/').next().unwrap_or(&lower);
     lower.ends_with(".stdout")
         || lower.ends_with(".stderr")
+        || lower.ends_with(".md")
+        || lower.ends_with(".txt")
+        || lower.ends_with(".log")
+        || lower.ends_with(".html")
+        || lower.ends_with(".htm")
         || lower.ends_with("_output.txt")
         || lower.contains("raw_prompt")
         || lower.contains("raw_response")
+        || lower.contains("browser_traces")
+        || lower.contains("dom_log")
+        || lower.contains("dom_logs")
+        || lower.contains("screenshot")
         || lower.contains("leaderboard")
         || lower.contains("accuracy")
         || lower.contains("score_only")
@@ -239,7 +248,7 @@ fn assert_no_smoke_or_stdout(task_id: &str, path: &str) {
     );
     assert!(
         !has_raw_provider_or_score_path(path),
-        "task `{task_id}` cannot use raw provider output, old/historical candidate evidence, score-only evidence, or raw stdout/stderr as liveness evidence: {path}"
+        "task `{task_id}` cannot use raw provider output, human-readable/browser artifacts, old/historical candidate evidence, score-only evidence, or raw stdout/stderr as liveness evidence: {path}"
     );
 }
 
