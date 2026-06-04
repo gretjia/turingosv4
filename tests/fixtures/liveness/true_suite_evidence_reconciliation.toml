@@ -55,11 +55,9 @@ blockers = [
 
 [[coverage_task]]
 id = "osworld_computer_use_fresh"
-evidence_run = "broad_agi_osworld_20260527T035423Z"
+evidence_run = "obl005_fresh_osworld_20260604T171857Z"
 evidence_subdir = "osworld"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -183,11 +181,9 @@ blockers = [
 
 [[broad_family]]
 id = "osworld_computer_use"
-evidence_run = "broad_agi_osworld_20260527T035423Z"
+evidence_run = "obl005_fresh_osworld_20260604T171857Z"
 evidence_subdir = "osworld"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",

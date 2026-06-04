@@ -1,0 +1,22 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_fc_trace_report.v1",
+  "run_id": "obl005_fresh_osworld_20260604T171857Z",
+  "family_id": "osworld_computer_use",
+  "fc_blocks_seen": [
+    "FC1",
+    "FC2",
+    "FC3"
+  ],
+  "snapshot_capsule_cid": "30d01d7e531ca0fcbf1f8a8d991da1cc3891e518b8d2c439a31e3767de5a2fdb",
+  "task_capsule_cid": "b77a8da5343f02fac009f10849dfb1b686f5622f2ce74ecb79d8ddc59512646c",
+  "answer_claim_capsule_cid": "94b9c6ab4ef33d9e1565436032425979ccc2522a9c39b7ff9445a9b1aa4c342a",
+  "sandbox_action_trace_cid": "36b6c588827393d9f4753c2715ab091873403f574c4d01ef49ef1a8efd143dd8",
+  "evaluation_capsule_cid": "1e34bb7a1204e330093e8d0267a4cb89fbf798cf44b6590557889ec45bf7fc93",
+  "proposal_telemetry_cid": "3db0583575c8f6aa65e1f9eced371a62500e8905f487d8a19627d1999fbd8917",
+  "work_tx_id": "worktx-osworld:offline-rename-draft-note-true-suite-osworld",
+  "work_tx_landed": true,
+  "action_match": false,
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false
+}
