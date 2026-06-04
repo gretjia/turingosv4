@@ -9,74 +9,50 @@
 
 ---
 
-## Current Snapshot (2026-05-29)
+## Current Snapshot (2026-06-04)
 
-**Session**: Post-merge reconciliation after PR #212 and platform-agnostic
-harness unification.
+**Session**: OBL-005 reopened re-audit on current main after source-receipt
+identity and closure-eligibility hardening.
 
-**Main tip**: `1f00012d` (PR #212 — SWE-bench TDMA hidden-test judge + PR
-review fixes, merged 2026-05-29). Local branch snapshots older than this should
-be treated as stale until rebased onto `origin/main`.
+**Main tip**: `11417237` (PR #250 — source receipts become closure-eligible
+when `FULL_SYSTEM_LIT && replay_green && source_tree` is recorded). Local
+branch snapshots older than this should be treated as stale until rebased onto
+`origin/main`.
 
-**Doctrine ratification 2026-05-29**: audit doctrine generalized to
-platform-agnostic clean-context audit — one clean-context audit by a fresh
-agent on any capable platform (Claude / Codex / Antigravity / …), auditor must
-not hold the implementation transcript. Supersedes single-Codex (2026-05-24)
-and dual Codex+Gemini. See `AGENTS.md §9` + `memory/feedback_dual_audit.md`.
-(Landing via the `harness/platform-agnostic-unification` PR.)
-
-**Harness unification 2026-05-29 (Phase 2)**: the `turingos_dev` self-hosting
-dev-evidence sidecar is RETIRED (Class 4, user §8 2026-05-29). Removed the
-binary, `src/runtime/dev_harness.rs`, the `pub mod dev_harness;` decl, the
-matching constitution-gate triple (test + manifest + matrix-drift allowlist),
-the liveness-fixture group, the sanitized-runner exceptions, and the dead
-`AGENTS.md §10` / `HARNESS*` runbook prose. `src/runtime/mod.rs` Trust-Root pin
-rehashed in the same atomic commit (`a9560e3a` → `cdfbbede`); boot prints
-"Trust Root verified". See commit `4264b14f` +
-`handover/alignment/OBS_R022_TURINGOS_DEV_REMOVAL_2026-05-29.md`. (Landing via
-the same `harness/platform-agnostic-unification` PR.)
+**Truth boundary**: this file is a derived handover view. If it conflicts with
+`constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
+trust those sources first.
 
 Current state:
 
-- `OBLIGATIONS.md` is globally complete: OBL-001 through OBL-009 are
-  `satisfied`. The latest additions are OBL-006 web/generate single market
-  kernel, OBL-007 no-zombie/liveness hardening, OBL-008 real NO-side router
-  trade, and OBL-009 real SWE-bench verify-retry probe.
-- PR #206 closed OBL-001 with the real 15-persona DeepSeek Chrome E2E run.
-  Final evidence remains
-  `handover/evidence/obl001_deepseek_chrome_20260527T171150Z/`; secret hygiene
-  and clean-context audit were GREEN.
-- PR #207 updated post-merge handover/ledger state after OBL-001.
-- PR #208 fixed the generate prompt hash canonical gate.
-- PR #210 (`codex/liveness-audit-hardening`) closed the web/CLI split-path risk:
-  artifact/generate bundle reads are centralized in the runtime kernel, web
-  handlers call shared runtime code, and liveness gates account for retained
-  source/scripts/workflows.
-- OBL-006/OBL-008 moved the generated Polymarket path from inventory-only to a
-  real internal market sequence: `MarketSeed -> CpmmPool ->
-  BuyWithCoinRouter(BuyYes) -> BuyWithCoinRouter(BuyNo) -> Verify ->
-  FinalizeReward -> EventResolve` on the canonical ChainTape/CAS path. Price
-  remains a signal and must not enter predicate truth.
-- PR #211 added the agent-presence/citation-DAG web surface and enriched market
-  panel state. Note: a post-merge clean worktree check found a web feature
-  compile regression in `src/web/dag_view.rs`: it imports private
-  `TaskId` through `state::typed_tx`; the import should come from
-  `state::q_state`.
-- PR #213 generalized the audit doctrine to platform-agnostic clean-context
-  audit and retired the `turingos_dev` sidecar. The current constitution gate
-  count is now 164, not 165; the one-gate drop is exactly the retired
-  `constitution_dev_harness` gate.
-- PR #212 merged the SWE-bench hidden-test judge into `turingos tdma run`.
-  Honest post-fix evidence reports loop 0/3 and bare 0/3: the real verifier and
-  real TDMA loop landed, but no benchmark advantage has been demonstrated yet.
-- Current roadmap correction: TuringOS should still be framed as a
-  Git/ChainTape/CAS/replay-native verified runtime for objective work. However,
-  the old claim that the economy layer is only `money` is stale: CompleteSet,
-  CPMM, router, YES/NO positions, and replayed internal market actions are now
-  live typed-transaction surfaces. The external public-money market remains a
-  non-claim.
-- Detailed correction report:
-  `handover/reports/TURINGOS_REAL_ROADMAP_STATUS_2026-05-29.md`.
+- `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
+  OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
+  OBL-005 remains `in_progress (reopened 2026-06-04)`.
+- PR #245 through #250 hardened OBL-005 final-closure accounting: closure
+  blocker inventory, replay-artifact GREEN checks, missing domain-closure
+  blockers, source-tree fingerprint blockers, source-tree receipt identity, and
+  source-receipt final-closure eligibility.
+- PR #250 did **not** rewrite historical true-suite evidence. It makes future
+  source-tree-bound current reruns produce closure-eligible source receipts
+  when replay and source identity are green.
+- Current reconciliation fixture still binds 21 historical evidence rows with
+  old receipts: `source_receipt_final_closure_false=21`,
+  `source_tree_fingerprint_missing=21`,
+  `fresh_final_closure_witness_missing=21`,
+  `domain_receipt_final_closure_false=13`,
+  `benchmark_capability_not_solved=10`,
+  `domain_receipt_final_closure_missing=5`, and
+  `market_no_or_short_side_missing=3`.
+- WorkTx/escrow boundary: `constitution.md` does not explicitly state a
+  WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
+  Current kernel admission allows multiple WorkTxs for the same task; TB-8
+  single-solver settlement/claim sweeping is what prevents multiple same-task
+  full escrow payouts. Current market liveness stays single-WorkTx-node with
+  multi-agent YES/NO router-side activity.
+- Current worktree note: a local untracked `cache/` directory may make
+  evidence-runner preflight fail in this checkout. Use a clean worktree for new
+  `handover/evidence/true_suite/*` runner evidence, or explicitly account for
+  the cache without staging it.
 
 Recent verification:
 
@@ -84,17 +60,30 @@ Recent verification:
 bash scripts/run_constitution_gates.sh
 # [k-1-5] total=164 failed=0
 
-npm ci
+cargo test --workspace --no-fail-fast
 # exit 0
 
-npm run build
+cargo test --test constitution_true_suite_evidence_reconciliation \
+  --test constitution_obl005_final_closure_witness -- --nocapture
 # exit 0
 
-cargo test --features web --test generate_emits_work_tx_smoke -- --nocapture
-# fails at compile time in src/web/dag_view.rs: private TaskId import from
-# state::typed_tx; does not invalidate the constitution-gate result, but blocks
-# web-feature generate smoke until repaired.
+PR #250 checks
+# r022_check SUCCESS
+# validate PR has no sidecar contamination SUCCESS
+# Constitution gate suite SUCCESS
+# Feature freeze check SUCCESS
 ```
+
+Next steps:
+
+- Generate fresh current-source true-suite evidence in a clean worktree so
+  source-tree and source-receipt blockers can be removed from new receipts
+  without mutating historical evidence.
+- Attack remaining domain/benchmark blockers honestly: a row may close only
+  when its domain manifest, benchmark result, market NO/short side, replay/CAS
+  evidence, and fresh witness all agree.
+- Keep OBL-005 open until a current final-closure witness proves every retained
+  module/script group is replay-lit, necessary support, or removed/superseded.
 
 ## Previous Snapshot
 

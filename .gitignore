@@ -5,6 +5,7 @@
 .claude/scheduled_tasks.lock
 .claude/worktrees/
 .codex
+cache/
 logs/
 proofs/
 wal/
