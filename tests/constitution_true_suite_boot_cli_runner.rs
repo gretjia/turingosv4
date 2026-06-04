@@ -226,6 +226,14 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
         Some(true),
         "boot full-system sample should light FC1/FC2/FC3/market participation"
     );
+    assert_eq!(
+        participation
+            .get("verdict")
+            .and_then(|v| v.get("final_closure_possible"))
+            .and_then(Value::as_bool),
+        Some(true),
+        "fresh boot full-system receipt should be source-closure eligible when source identity and replay are green"
+    );
     let missing = participation
         .get("verdict")
         .and_then(|v| v.get("missing"))

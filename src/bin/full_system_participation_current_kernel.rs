@@ -356,6 +356,19 @@ fn declined_count(summary: &MarketDecisionTraceSummary) -> u64 {
     summary.outcome_counts.get("declined").copied().unwrap_or(0)
 }
 
+fn source_receipt_final_closure_possible(
+    full_system_lit: bool,
+    replay_green: bool,
+    source_tree: &SourceTreeIdentity,
+) -> bool {
+    let source_identity_recorded = !source_tree.commit.trim().is_empty()
+        && matches!(
+            source_tree.status.as_str(),
+            "clean" | "dirty_allowed_recorded"
+        );
+    full_system_lit && replay_green && source_identity_recorded
+}
+
 fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), String> {
     let source_tree = source_tree_identity(args.source_root.as_ref())?;
     let replay: ReplayReport = read_json(&args.replay_report)?;
@@ -469,6 +482,8 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
     }
 
     let full = missing.is_empty();
+    let final_closure_possible =
+        source_receipt_final_closure_possible(full, replay_green, &source_tree);
     let report = FullSystemParticipationReport {
         schema_version: SCHEMA_VERSION,
         run_id: args.run_id,
@@ -522,7 +537,7 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
                 "PARTIAL_RUNNER_ONLY".to_string()
             },
             missing,
-            final_closure_possible: false,
+            final_closure_possible,
         },
     };
     Ok((report, full))

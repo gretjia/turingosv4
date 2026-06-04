@@ -135,6 +135,14 @@ pub fn assert_full_system_lit(
     );
     assert_eq!(
         report
+            .get("verdict")
+            .and_then(|v| v.get("final_closure_possible"))
+            .and_then(Value::as_bool),
+        Some(true),
+        "a source-tree-bound FULL_SYSTEM_LIT receipt should be eligible as source receipt final-closure evidence"
+    );
+    assert_eq!(
+        report
             .get("fc1")
             .and_then(|v| v.get("present"))
             .and_then(Value::as_bool),
