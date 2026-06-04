@@ -365,6 +365,7 @@ fn replay_cas_tamper_runner_script_uses_current_kernel_not_historical_fixtures()
     assert!(script.contains("audit_tape_tamper"));
     assert!(script.contains("tamper_report.json"));
     assert!(script.contains("post_tamper_replay_report.json"));
+    assert!(script.contains("restore_replay_report.json"));
     assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("governance_capsule_index.json"));
     assert!(script.contains("handover/evidence/true_suite"));
