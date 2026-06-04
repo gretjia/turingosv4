@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_api_tool_use_run.v1",
+  "run_id": "obl005_fresh_toolbench_20260604T224409Z",
+  "git_head": "8bbd2d7b766f85d8ed27535a9d75a07223c561f0",
+  "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "toolbench_dataset_url": "https://huggingface.co/datasets/tuandunghcmut/toolbench-v1/resolve/main/benchmark/g1_instruction-00000-of-00001.parquet",
+  "toolbench_source_split": "benchmark/g1_instruction",
+  "toolbench_sample_index": 0,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/genesis_report.json",
+  "toolbench_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "fc_trace_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/fc_trace_report.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/full_system_participation.json",
+  "notes": [
+    "ToolBench data comes from the public tuandunghcmut/toolbench-v1 benchmark parquet unless TOOLBENCH_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records API selection and structural tool-call hashes, not live third-party API side effects",
+    "benchmark exact-match is not treated as liveness closure"
+  ]
+}
