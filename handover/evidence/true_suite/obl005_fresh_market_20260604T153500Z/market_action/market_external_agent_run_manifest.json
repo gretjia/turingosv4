@@ -1,0 +1,21 @@
+{
+  "schema_version": "turingosv4.true_suite.market_external_agent_run.v1",
+  "run_id": "obl005_fresh_market_20260604T153500Z",
+  "git_head": "33d88be8b7835f6bde7eb2fc2e5f0301996efcab",
+  "entrypoint": "scripts/run_true_suite_market_external_agent.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/genesis_report.json",
+  "external_agent_market_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/external_agent_market_manifest.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/market_action/full_system_participation.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "market action is admitted only as signed typed tx on ChainTape"
+  ]
+}

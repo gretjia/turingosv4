@@ -14,7 +14,7 @@
 **Session**: OBL-005 reopened re-audit on current main after source-receipt
 identity and closure-eligibility hardening.
 
-**Main tip**: `5a2c74c4` (PR #252 — fresh boot/replay source evidence).
+**Main tip**: `33d88be8` (PR #253 — fresh FC3 source evidence).
 Local
 branch snapshots older than this should be treated as stale until rebased onto
 `origin/main`.
@@ -35,11 +35,13 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 17 rows to older source receipts and 4
+- Current reconciliation fixture binds 15 rows to older source receipts and 6
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
-  `obl005_fresh_fc3_20260604T150936Z`: `source_receipt_final_closure_false=17`,
-  `source_tree_fingerprint_missing=17`,
+  `obl005_fresh_fc3_20260604T150936Z`, plus
+  `obl005_fresh_market_20260604T153500Z` market evidence:
+  `source_receipt_final_closure_false=15`,
+  `source_tree_fingerprint_missing=15`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -60,6 +62,17 @@ Current state:
   fresh final closure witness. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_FC3_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
+- Fresh market evidence added this session: `market_external_agent_fresh` and
+  `market_economy_polymarket` now point at
+  `handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/`.
+  The receipt is `final_closure_possible=true` with source commit
+  `33d88be8b7835f6bde7eb2fc2e5f0301996efcab`, signed router/WorkTx evidence,
+  packaged restore replay artifacts, and replay indicators green. The live
+  external model chose `direction=yes`, so `market_no_or_short_side_missing`
+  deliberately remains; both market rows also keep domain/fresh-witness
+  blockers. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
@@ -81,7 +94,7 @@ cargo test --workspace --no-fail-fast
 # exit 0
 
 cargo test --test constitution_true_suite_evidence_reconciliation \
-  --test constitution_true_suite_fc3_governance_runner \
+  --test constitution_true_suite_market_external_agent_runner \
   --test constitution_obl005_final_closure_witness \
   --test constitution_matrix_drift -- --nocapture
 # exit 0
