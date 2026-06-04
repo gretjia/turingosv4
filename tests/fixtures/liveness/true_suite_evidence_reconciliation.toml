@@ -146,11 +146,9 @@ blockers = [
 
 [[broad_family]]
 id = "webarena_web_agent"
-evidence_run = "broad_agi_webarena_20260527T053225Z"
+evidence_run = "obl005_fresh_webarena_20260604T200738Z"
 evidence_subdir = "webarena"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
