@@ -142,6 +142,91 @@ fn packaged_git_store_for(path: &Path) -> Option<PathBuf> {
     }
 }
 
+fn is_replay_report_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_ascii_lowercase().ends_with("replay_report.json"))
+        .unwrap_or(false)
+}
+
+fn assert_replay_report_green(binding: &EvidenceBinding, path: &Path) {
+    let report: Value = serde_json::from_str(
+        &fs::read_to_string(path).unwrap_or_else(|err| panic!("read {}: {err}", path.display())),
+    )
+    .unwrap_or_else(|err| panic!("parse {}: {err}", path.display()));
+
+    if report.get("schema_version").and_then(Value::as_str)
+        == Some("turingosv4.true_suite.tdma_replay_report.v1")
+    {
+        assert_eq!(
+            report.get("ok").and_then(Value::as_bool),
+            Some(true),
+            "binding `{}` TDMA replay report is not ok: {}",
+            binding.id,
+            path.display()
+        );
+        let checks = report
+            .get("checks")
+            .and_then(Value::as_object)
+            .unwrap_or_else(|| {
+                panic!(
+                    "binding `{}` TDMA replay report has no checks object: {}",
+                    binding.id,
+                    path.display()
+                )
+            });
+        assert!(
+            !checks.is_empty(),
+            "binding `{}` TDMA replay report has empty checks object: {}",
+            binding.id,
+            path.display()
+        );
+        for (name, value) in checks {
+            assert_eq!(
+                value.as_bool(),
+                Some(true),
+                "binding `{}` TDMA replay check `{name}` is not true: {}",
+                binding.id,
+                path.display()
+            );
+        }
+        assert_eq!(
+            report.get("stages_completed").and_then(Value::as_u64),
+            report.get("stages_total").and_then(Value::as_u64),
+            "binding `{}` TDMA replay did not complete all stages: {}",
+            binding.id,
+            path.display()
+        );
+        return;
+    }
+
+    for key in [
+        "ledger_root_verified",
+        "system_signatures_verified",
+        "state_reconstructed",
+        "economic_state_reconstructed",
+        "cas_payloads_retrievable",
+        "agent_signatures_verified",
+        "proposal_telemetry_cas_retrievable",
+    ] {
+        assert!(
+            nested_bool(&report, &[key]),
+            "binding `{}` replay report `{key}` is not true: {}",
+            binding.id,
+            path.display()
+        );
+    }
+    assert!(
+        report
+            .get("replay_failure")
+            .map(Value::is_null)
+            .unwrap_or(true),
+        "binding `{}` replay report has replay_failure: {}",
+        binding.id,
+        path.display()
+    );
+}
+
 fn assert_artifact_reconstructable(binding: &EvidenceBinding, template: &str) {
     let lower = template.to_ascii_lowercase();
     assert!(
@@ -172,6 +257,9 @@ fn assert_artifact_reconstructable(binding: &EvidenceBinding, template: &str) {
         binding.id,
         path.display()
     );
+    if is_replay_report_path(&path) {
+        assert_replay_report_green(binding, &path);
+    }
     if path.is_dir() {
         assert!(
             fs::read_dir(&path)
@@ -641,6 +729,41 @@ fn no_or_short_market_side_detector_is_structural() {
     assert!(
         !value_has_no_or_short_market_side(&yes_only),
         "YES-only market activity must not satisfy the NO/short closure detector"
+    );
+}
+
+#[test]
+fn replay_report_artifacts_must_be_machine_green_not_just_present() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let path = tmp.path().join("restore_replay_report.json");
+    fs::write(
+        &path,
+        serde_json::json!({
+            "ledger_root_verified": false,
+            "system_signatures_verified": true,
+            "state_reconstructed": true,
+            "economic_state_reconstructed": true,
+            "cas_payloads_retrievable": true,
+            "agent_signatures_verified": true,
+            "proposal_telemetry_cas_retrievable": true,
+            "replay_failure": null
+        })
+        .to_string(),
+    )
+    .expect("write bad replay report");
+
+    let binding = EvidenceBinding {
+        id: "synthetic_bad_replay".into(),
+        evidence_run: "synthetic".into(),
+        evidence_subdir: "synthetic".into(),
+        blockers: Vec::new(),
+    };
+    let result = std::panic::catch_unwind(|| {
+        assert_artifact_reconstructable(&binding, path.to_str().expect("utf8 path"));
+    });
+    assert!(
+        result.is_err(),
+        "replay/restore artifacts with false verifier booleans must not pass by mere file existence"
     );
 }
 
