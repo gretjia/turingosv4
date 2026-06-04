@@ -15,7 +15,6 @@ const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liv
 const SCRIPT_MANIFEST: &str = "tests/fixtures/liveness/script_liveness_inventory.toml";
 const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
-const VERIFIED_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 
 fn read_text(path: &str) -> String {
@@ -120,14 +119,14 @@ fn historical_witness_file_exists_but_is_not_current_authority() {
 }
 
 #[test]
-fn production_and_script_manifests_reopen_final_closure() {
+fn all_current_liveness_manifests_reopen_final_closure() {
     let reconciliation = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         reconciliation
             .get("reconciliation_status")
             .and_then(toml::Value::as_str),
-        Some(VERIFIED_CLOSURE_STATUS),
-        "historical reconciliation_status remains {VERIFIED_CLOSURE_STATUS}"
+        Some(REAUDIT_STATUS),
+        "current reconciliation_status must reopen to {REAUDIT_STATUS}; the historical witness file remains immutable separately"
     );
 
     let production = parse_toml(PRODUCTION_MANIFEST);
@@ -153,15 +152,15 @@ fn production_and_script_manifests_reopen_final_closure() {
         realworld
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(VERIFIED_CLOSURE_STATUS),
-        "realworld manifest remains a historical verified receipt until its own re-audit atom"
+        Some(REAUDIT_STATUS),
+        "realworld manifest must not out-rank production/script liveness while OBL-005 is reopened"
     );
 
     let broad = parse_toml(BROAD_MANIFEST);
     assert_eq!(
         broad.get("closure_status").and_then(toml::Value::as_str),
-        Some(VERIFIED_CLOSURE_STATUS),
-        "broad manifest remains a historical verified receipt until its own re-audit atom"
+        Some(REAUDIT_STATUS),
+        "broad manifest must not out-rank production/script liveness while OBL-005 is reopened"
     );
 }
 
@@ -172,8 +171,8 @@ fn historical_reconciliation_claim_cannot_override_reaudit_status() {
         manifest
             .get("final_closure_claimed")
             .and_then(toml::Value::as_bool),
-        Some(true),
-        "final_closure_claimed must be true in reconciliation manifest"
+        Some(false),
+        "final_closure_claimed must be false while OBL-005 is reopened"
     );
     assert_eq!(
         manifest

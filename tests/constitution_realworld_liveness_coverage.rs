@@ -2,7 +2,9 @@
 //!
 //! `constitution_production_module_liveness` proves every production module
 //! group is accounted for. This gate is the next layer: every retained group
-//! must map to a true-problem suite, and has been verified as final closure.
+//! must map to a true-problem suite. It stays below final closure authority
+//! while OBL-005 is reopened for current-tree production/script liveness
+//! reconciliation.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -10,7 +12,7 @@ use std::path::Path;
 
 const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liveness.toml";
 const COVERAGE_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
-const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
+const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 const REQUIRED_DOMAINS: &[&str] = &[
     "market_economy",
     "generate_artifact",
@@ -270,8 +272,8 @@ fn realworld_coverage_policy_requires_fresh_current_evidence() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "the suite contract defines work, and has been verified as final closure"
+        Some(REAUDIT_STATUS),
+        "the suite contract defines fresh evidence requirements, but cannot claim final closure while OBL-005 is reopened"
     );
     assert_eq!(
         manifest

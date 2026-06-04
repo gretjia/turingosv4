@@ -17,7 +17,7 @@ const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_cov
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
 const TRUE_SUITE_ROOT: &str = "handover/evidence/true_suite";
 const FULL_SYSTEM_SCHEMA: &str = "turingosv4.true_suite.full_system_participation.v1";
-const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
+const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 
 #[derive(Debug)]
 struct ContractRow {
@@ -336,7 +336,7 @@ fn assert_bindings_cover_contract(
 }
 
 #[test]
-fn reconciliation_manifest_verifies_final_closure_no_evidence_rewrite() {
+fn reconciliation_manifest_is_reaudit_candidate_no_evidence_rewrite() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -346,14 +346,14 @@ fn reconciliation_manifest_verifies_final_closure_no_evidence_rewrite() {
         manifest
             .get("reconciliation_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS)
+        Some(REAUDIT_STATUS)
     );
     assert_eq!(
         manifest
             .get("final_closure_claimed")
             .and_then(toml::Value::as_bool),
-        Some(true),
-        "final closure has been claimed by the witness"
+        Some(false),
+        "current OBL-005 final closure must not be claimed while production/script liveness inventories remain in reaudit"
     );
     assert_eq!(
         manifest
@@ -367,8 +367,8 @@ fn reconciliation_manifest_verifies_final_closure_no_evidence_rewrite() {
     ] {
         assert_eq!(
             parse_toml(path).get(key).and_then(toml::Value::as_str),
-            Some(FINAL_CLOSURE_STATUS),
-            "{path} must have OBL005_FINAL_CLOSURE_VERIFIED status"
+            Some(REAUDIT_STATUS),
+            "{path} must stay in OBL005_REAUDIT_IN_PROGRESS until a fresh current-tree final closure witness exists"
         );
     }
 }
