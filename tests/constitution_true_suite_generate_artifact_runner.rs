@@ -230,6 +230,9 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
             "run_id": "constitution-true-suite-generate-artifact",
             "chain_run_id": chain_run_id,
             "artifact_bundle_cid": bundle_cid.clone(),
+            "closure_scope": "generate_artifact_chain_current_kernel",
+            "full_system_participation_required": true,
+            "final_closure_possible": true,
             "workspace": run_dir,
             "runtime_repo": run_dir.join("runtime_repo"),
             "cas": run_dir.join("cas")
@@ -314,14 +317,39 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         String::from_utf8_lossy(&verify.stdout),
         String::from_utf8_lossy(&verify.stderr)
     );
-    full_system::assert_full_system_lit(
+    let full_system_report = full_system::assert_full_system_lit(
         &run_dir,
         &chain_run_id,
-        "gaia_general_assistant",
+        "generate_artifact_chain",
         "tests/constitution_true_suite_generate_artifact_runner.rs",
         "artifact_bundle_cid.json",
         &replay_report,
         bin("full_system_participation_current_kernel"),
+    );
+    assert_eq!(
+        full_system_report.get("family_id").and_then(Value::as_str),
+        Some("generate_artifact_chain"),
+        "generate/artifact full-system receipt must not be misclassified as GAIA"
+    );
+    let domain = full_system_report
+        .get("domain_manifest")
+        .and_then(Value::as_object)
+        .expect("domain manifest object");
+    assert_eq!(
+        domain.get("closure_scope").and_then(Value::as_str),
+        Some("generate_artifact_chain_current_kernel")
+    );
+    assert_eq!(
+        domain
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        domain
+            .get("final_closure_possible")
+            .and_then(Value::as_bool),
+        Some(true)
     );
 
     let replay: Value = serde_json::from_str(
@@ -395,6 +423,19 @@ fn generate_artifact_runner_script_preserves_external_agent_boundary() {
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("handover/evidence/true_suite"));
     assert!(script.contains("rm -f \"$RUN_DIR/spec_transcript.jsonl\""));
+    assert!(script.contains("\"closure_scope\": \"generate_artifact_chain_current_kernel\""));
+    assert!(script.contains("\"full_system_participation_required\": true"));
+    assert!(script.contains("\"final_closure_possible\": true"));
+    assert!(script.contains("--family-id \"generate_artifact_chain\""));
+    assert!(!script.contains("--family-id \"gaia_general_assistant\""));
+    let broad_batch = std::fs::read_to_string("scripts/run_true_suite_broad_agi_batch.sh")
+        .expect("read broad batch runner script");
+    assert!(
+        broad_batch.contains(
+            "\"generate_artifact_chain_fresh\": {\n        \"entrypoint\": \"scripts/run_true_suite_generate_artifact_current_kernel.sh\",\n        \"family_ids\": [],\n    }"
+        ),
+        "generate/artifact is a coverage task, not a GAIA broad-family runner"
+    );
     for forbidden in [
         "TURINGOS_REAL7_SCRIPTED_TASK_OUTCOME_BUYS",
         "TURINGOS_REAL7_SCRIPTED_ATTEMPT_PREDICTION_FIXTURE",

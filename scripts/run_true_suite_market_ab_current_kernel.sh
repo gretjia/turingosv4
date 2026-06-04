@@ -218,7 +218,14 @@ if [[ ! -f "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.json" ]]; then
     exit 6
 fi
 jq --argjson exit_code "$REAL16_EXIT" \
-    '. + {real16_verifier_exit_code: $exit_code, liveness_claim_boundary: "candidate-only market performance report; VETO/CleanNegative does not fail full-system liveness"}' \
+    '. + {
+        real16_verifier_exit_code: $exit_code,
+        liveness_claim_boundary: "candidate-only market performance report; VETO/CleanNegative does not fail full-system liveness",
+        closure_scope: "market_ab_candidate_only_g0_core_conditions_1_2_3_6_7_8_9",
+        full_system_participation_required: true,
+        final_closure_possible: false,
+        final_closure_blocker: "c4_c5_priced_dag_and_c10_c11_reward_settlement_stage2"
+    }' \
     "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.json" > "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.with_exit.json"
 mv "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.with_exit.json" "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.json"
 
@@ -253,6 +260,10 @@ cat > "$RUN_DIR/market_ab_run_manifest.json" <<EOF
   "arm_d": "$RUN_DIR/arm_D",
   "real16_report": "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "real16_verifier_exit_code": $REAL16_EXIT,
+  "closure_scope": "market_ab_candidate_only_g0_core_conditions_1_2_3_6_7_8_9",
+  "full_system_participation_required": true,
+  "final_closure_possible": false,
+  "final_closure_blocker": "c4_c5_priced_dag_and_c10_c11_reward_settlement_stage2",
   "g0_market_activation_manifest": "$G0_DIR/g0_market_activation_manifest.json",
   "g0_replay_report": "$G0_DIR/replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
