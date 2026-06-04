@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_computer_use_run.v1",
+  "run_id": "obl005_fresh_osworld_20260604T171857Z",
+  "git_head": "1254212e10afe939b466d8404889106383d9bdb8",
+  "entrypoint": "scripts/run_true_suite_osworld_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/genesis_report.json",
+  "osworld_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/osworld_computer_use_manifest.json",
+  "fc_trace_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/fc_trace_report.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/osworld/full_system_participation.json",
+  "notes": [
+    "OSWorld task is represented as an offline sandbox snapshot derived from the public OSWorld computer-use task family",
+    "OSWORLD_SAMPLE_JSON can supply a pre-materialized OSWorld-style sample",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records structural sandbox action evidence only; it performs no host OS side effects"
+  ],
+  "closure_scope": "domain_adapter_smoke_only",
+  "final_closure_possible": false
+}

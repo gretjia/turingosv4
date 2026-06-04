@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh Cybench
-current-source evidence is being prepared after PR #255 merged the
-generate/artifact source receipt.
+**Session**: OBL-005 reopened re-audit on current main; fresh OSWorld
+current-source evidence is being prepared after PR #256 merged the Cybench
+source receipt.
 
-**Main tip**: `0f38026e` (PR #255 — fresh generate/artifact source evidence).
-Current working branch is `codex/obl005-fresh-cybench-source-evidence`, not
+**Main tip**: `1254212e` (PR #256 — fresh Cybench source evidence).
+Current working branch is `codex/obl005-fresh-osworld-source-evidence`, not
 yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -28,23 +28,24 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #255 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #256 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
-  source-receipt final-closure eligibility, plus fresh boot/replay, FC3, and
-  market/generate source evidence.
+  source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
+  market/generate, Cybench, and OSWorld source evidence.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 12 rows to older source receipts and 9
+- Current reconciliation fixture binds 10 rows to older source receipts and 11
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
   `obl005_fresh_market_20260604T153500Z` market evidence and
   `obl005_fresh_generate_20260604T171500Z` generate/artifact evidence, plus
-  `obl005_fresh_cybench_20260604T164533Z` Cybench evidence:
-  `source_receipt_final_closure_false=12`,
-  `source_tree_fingerprint_missing=12`,
+  `obl005_fresh_cybench_20260604T164533Z` Cybench evidence and
+  `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence:
+  `source_receipt_final_closure_false=10`,
+  `source_tree_fingerprint_missing=10`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -102,14 +103,30 @@ Current state:
   Clean-context Claude witness
   `handover/audits/OBL005_FRESH_CYBENCH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
+- Fresh OSWorld source evidence prepared and audited on the current branch:
+  `osworld_computer_use_fresh` and `osworld_computer_use` now point at
+  `handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z/`.
+  The receipt is `final_closure_possible=true` with source commit
+  `1254212e10afe939b466d8404889106383d9bdb8`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, admitted WorkTx, packaged evidence stores, and green
+  replay/restore indicators. The model result remains
+  `sandbox_action_mismatch`, so both OSWorld rows deliberately keep
+  `domain_receipt_final_closure_false`, `benchmark_capability_not_solved`, and
+  `fresh_final_closure_witness_missing`; no final closure is claimed.
+  Verification passed: real runner, focused OSWorld/reconciliation/
+  final-closure/matrix tests, local secret/raw-response scan, `git diff
+  --check`, constitution gates (`[k-1-5] total=164 failed=0`), and
+  `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_OSWORLD_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful Cybench evidence
-  `obl005_fresh_cybench_20260604T164533Z` is intended for this PR. Do not
+- Current worktree note: successful OSWorld evidence
+  `obl005_fresh_osworld_20260604T171857Z` is intended for this PR. Do not
   treat any local failed generate attempt as GREEN evidence.
 
 Recent verification:
@@ -119,6 +136,12 @@ bash scripts/run_constitution_gates.sh
 # [k-1-5] total=164 failed=0
 
 cargo test --workspace --no-fail-fast
+# exit 0
+
+cargo test --test constitution_true_suite_osworld_runner \
+  --test constitution_true_suite_evidence_reconciliation \
+  --test constitution_obl005_final_closure_witness \
+  --test constitution_matrix_drift -- --nocapture
 # exit 0
 
 cargo test --test constitution_true_suite_generate_artifact_runner \

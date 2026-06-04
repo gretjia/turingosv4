@@ -1,0 +1,10 @@
+{
+  "schema_version": "turingosv4.true_suite.osworld_sandbox_action_trace.v1",
+  "sample_id": "osworld:offline-rename-draft-note",
+  "task_capsule_cid": "b77a8da5343f02fac009f10849dfb1b686f5622f2ce74ecb79d8ddc59512646c",
+  "snapshot_capsule_cid": "30d01d7e531ca0fcbf1f8a8d991da1cc3891e518b8d2c439a31e3767de5a2fdb",
+  "os_action": "Execute 'mv /home/oai/share/notes/draft.txt /home/oai/share/notes/final.txt' in the terminal.",
+  "file_state_diff": "draft.txt removed, final.txt created in /home/oai/share/notes/.",
+  "sandbox_network_policy_hash": "dacef908ba7fb3996b2bef7a5ebfac95706fba3b452a4e69d2151be6c9cb5bef",
+  "file_state_diff_hash": "74791dbf789e598a2b936d459d8e001290c8b8a35353e1acbdae49876e61c63b"
+}
