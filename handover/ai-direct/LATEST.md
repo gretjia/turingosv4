@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #267 merged fresh
-GAIA current-source evidence after PR #266 updated the post-Mind2Web handover
-state.
+**Session**: OBL-005 reopened re-audit on current main; PR #272 merged
+generate/artifact and market A/B closure-status accounting after PR #271 bound
+fresh ToolBench/Mind2Web evidence.
 
-**Main tip**: `056cfa60` (PR #267 — fresh GAIA source evidence).
-Current working tree is on `main` after #267 merged.
+**Main tip**: `f09de424` (PR #272 — generate/market A-B closure status).
+Current `origin/main` includes #272.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,11 +27,13 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #267 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #272 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
-  market/generate, Cybench, and OSWorld source evidence.
+  market/generate, Cybench, OSWorld, GPQA, Math, SWE-bench, ToolBench,
+  WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
+  evidence.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -40,10 +42,12 @@ Current state:
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
   `obl005_fresh_market_20260604T153500Z` market evidence and
-  `obl005_fresh_generate_20260604T171500Z` generate/artifact evidence, plus
+  `obl005_fresh_generate_20260604T232500Z` generate/artifact closure-status
+  evidence, plus
   `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
   `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence, and
-  `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence, plus
+  `obl005_fresh_market_ab_20260604T232500Z` market A/B closure-status
+  evidence, plus
   `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
   `obl005_fresh_math_20260604T191000Z` Math evidence, plus
   `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
@@ -55,9 +59,9 @@ Current state:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
   `fresh_final_closure_witness_missing=21`,
-  `domain_receipt_final_closure_false=13`,
+  `domain_receipt_final_closure_false=16`,
   `benchmark_capability_not_solved=10`,
-  `domain_receipt_final_closure_missing=5`, and
+  `domain_receipt_final_closure_missing=0`, and
   `market_no_or_short_side_missing=2`.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
@@ -85,25 +89,25 @@ Current state:
   blockers. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
-- Fresh market A/B evidence prepared and audited on the current branch:
+- Fresh market A/B closure-status evidence merged by PR #272:
   `market_ab_performance_fresh` now points at
-  `handover/evidence/true_suite/obl005_fresh_market_ab_20260604T175932Z/`.
-  The source receipt is `final_closure_possible=true` with source commit
-  `4d11124f4c2e562d17d8790742988384c17d6151`, `FULL_SYSTEM_LIT`,
-  `missing=[]`, green replay indicators, audit_tape `PROCEED`, and 12 packaged
-  evidence stores. The deterministic G0 receipt is scoped to
-  `g0_core_market_price_discovery_conditions_1_2_3_6_7_8_9`: one WorkTx node,
-  one ChallengeTx short side, `buy_yes_count=1`, `buy_no_count=1`, price change,
-  and green ChainTape replay. It explicitly records c4/c5 priced-DAG branching
-  and c10/c11 reward-claim settlement closure as constrained/stage-2; no c1-11
-  closure is claimed. `market_ab_performance_fresh` still keeps
-  `domain_receipt_final_closure_missing` and `fresh_final_closure_witness_missing`.
-  Verification passed: focused market/reconciliation/flowchart package, direct
-  Trust-Root intact boot unit, touched-file `rustfmt --check`, shell syntax plus
-  `git diff --check`, constitution matrix drift, constitution gates
-  (`[k-1-5] total=165 failed=0`), and `cargo test --workspace --no-fail-fast`.
-  Clean-context Claude witness
-  `handover/audits/OBL005_FRESH_MARKET_AB_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  `handover/evidence/true_suite/obl005_fresh_market_ab_20260604T232500Z/`.
+  The full-system layer is `FULL_SYSTEM_LIT` with `missing=[]`, and the domain
+  receipt is scoped to
+  `market_ab_candidate_only_g0_core_conditions_1_2_3_6_7_8_9`. The G0 receipt
+  proves YES+NO trades (`buy_yes_count=1`, `buy_no_count=1`), one WorkTx node,
+  one ChallengeTx short side, price movement, structural shielding, stage-2
+  EventResolve observation, and green ChainTape replay. It explicitly records
+  c4/c5 priced-DAG branching and c10/c11 reward-claim settlement closure as
+  constrained/stage-2 under the current one-rewardable-WorkTx task escrow
+  kernel shape; no c1-11 final closure is claimed. The row now keeps
+  `domain_receipt_final_closure_false` and
+  `fresh_final_closure_witness_missing`, not a missing-domain-receipt blocker.
+  Verification passed: focused generate/market/reconciliation/package tests,
+  constitution matrix drift, constitution gates (`[k-1-5] total=165 failed=0`),
+  `cargo test --workspace --no-fail-fast`, strict secret scan, and GitHub checks
+  on PR #272. Clean-context AGY witness
+  `handover/audits/OBL005_GENERATE_MARKETAB_CLOSURE_STATUS_AGY_WITNESS_2026-06-04.md`
   returned `NO-VIOLATION`.
 - Fresh GPQA source evidence prepared on the current branch:
   `gpqa_science_reasoning` now points at
@@ -255,19 +259,20 @@ Current state:
   --no-fail-fast`. Clean-context Codex witness
   `handover/audits/OBL005_FRESH_GAIA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`. This does not claim final closure.
-- Fresh generate/artifact evidence added on main by PR #255:
+- Fresh generate/artifact closure-status evidence merged by PR #272:
   `generate_artifact_chain_fresh` now points at
-  `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
-  The production generate prompt now forbids remote fonts/CDNs/external runtime
-  URLs; the fresh run records `final_closure_possible=true`, source commit
-  `7dd5b3d80b0313520b01c9c0fc56bd7117ff8b63`, no remote dependency matches in
-  the generated artifact, admitted WorkTx + MarketSeed, packaged evidence
-  stores, and restore replay indicators green. The row still keeps
-  `domain_receipt_final_closure_missing` and
-  `fresh_final_closure_witness_missing`; no final closure is claimed.
-  Clean-context Claude witness
-  `handover/audits/OBL005_FRESH_GENERATE_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
-  returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
+  `handover/evidence/true_suite/obl005_fresh_generate_20260604T232500Z/`.
+  The provider-backed spec/generate run records
+  `closure_scope=generate_artifact_chain_current_kernel`,
+  `full_system_participation_required=true`, `final_closure_possible=true`,
+  `family_id=generate_artifact_chain`, `FULL_SYSTEM_LIT`, admitted WorkTx +
+  MarketSeed, packaged CAS/runtime/TDMA stores, and restore replay indicators
+  green. The row now keeps only `fresh_final_closure_witness_missing`; the old
+  `domain_receipt_final_closure_missing` blocker is removed. No final OBL-005
+  closure is claimed.
+  Clean-context AGY witness
+  `handover/audits/OBL005_GENERATE_MARKETAB_CLOSURE_STATUS_AGY_WITNESS_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - Fresh Cybench source evidence prepared and audited on the current branch:
   `cybench_security_sandbox_fresh` and `cybench_security_sandbox` now point at
   `handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/`.
