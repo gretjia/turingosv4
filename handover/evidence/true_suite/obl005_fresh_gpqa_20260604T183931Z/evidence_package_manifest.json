@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 63969,
+      "archive_path": "gpqa/cas.dotgit.tar.gz",
+      "archive_sha256": "7b9e3354e68b0d4499c4c30b2bf4b7d2f9371f88d93cfbf4ddc9c678bdbecbaa",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/cas",
+      "source_path": "gpqa/cas/.git"
+    },
+    {
+      "archive_bytes": 3536,
+      "archive_path": "gpqa/cas.worktree.tar.gz",
+      "archive_sha256": "5b8cf9b1c2630fd727a50d8b7cb96c9952155bfd19cf6e33edce293ab8d2928d",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "gpqa/cas",
+      "source_path": "gpqa/cas"
+    },
+    {
+      "archive_bytes": 24821,
+      "archive_path": "gpqa/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "30ba6cfd08cec195613232d4bb01d8534c9d43a393e6cdf38c9b45f2aeacd07d",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "gpqa/runtime_repo",
+      "source_path": "gpqa/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1402,
+      "archive_path": "gpqa/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "27ee437ddf06d691d049f6272bef0505dc28704358bbe05337698c08425d165d",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "gpqa/runtime_repo",
+      "source_path": "gpqa/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

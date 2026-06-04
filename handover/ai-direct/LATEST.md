@@ -44,9 +44,10 @@ Current state:
   `obl005_fresh_generate_20260604T171500Z` generate/artifact evidence, plus
   `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
   `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence, and
-  `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence:
-  `source_receipt_final_closure_false=9`,
-  `source_tree_fingerprint_missing=9`,
+  `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence, plus
+  `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence:
+  `source_receipt_final_closure_false=8`,
+  `source_tree_fingerprint_missing=8`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -98,6 +99,27 @@ Current state:
   Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MARKET_AB_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
+- Fresh GPQA source evidence prepared on the current branch:
+  `gpqa_science_reasoning` now points at
+  `handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/`.
+  The source receipt is `final_closure_possible=true` with source commit
+  `7b12e9f1fc6469682af6d5f4e8a2cba18ba0c0d2`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, green replay indicators, and 4 packaged evidence stores. The
+  model result is honestly recorded as `correct_with_rationale` with
+  `answer_correct=true`, but the domain manifest remains
+  `closure_scope=domain_adapter_smoke_only` and `final_closure_possible=false`.
+  The reconciliation manifest now points only the `gpqa_science_reasoning`
+  broad-family row at this fresh run, reducing
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 9 to 8 while deliberately keeping `domain_receipt_final_closure_false`
+  and `fresh_final_closure_witness_missing`. Verification passed: real current
+  runner through `scripts/run_true_suite_broad_agi_batch.sh --execute-installed
+  --run-id obl005_fresh_gpqa_20260604T183931Z --runners
+  gpqa_science_reasoning_fresh`, focused reconciliation/final-closure/
+  realworld/matrix tests, and AGY blocker-selection advisory `VALID`. This
+  does not claim final closure. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_GPQA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
@@ -146,8 +168,8 @@ Current state:
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful market A/B evidence
-  `obl005_fresh_market_ab_20260604T175932Z` is intended for this PR. Do not
+- Current worktree note: successful GPQA evidence
+  `obl005_fresh_gpqa_20260604T183931Z` is intended for the next PR. Do not
   treat local failed/intermediate evidence directories as GREEN evidence:
   `obl005_fresh_generate_20260604T160500Z`,
   `obl005_fresh_market_ab_20260604T174500Z`, and
@@ -156,6 +178,18 @@ Current state:
 Recent verification:
 
 ```text
+scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
+  --run-id obl005_fresh_gpqa_20260604T183931Z \
+  --runners gpqa_science_reasoning_fresh
+# exit 0
+
+cargo test -p turingosv4 \
+  --test constitution_true_suite_evidence_reconciliation \
+  --test constitution_obl005_final_closure_witness \
+  --test constitution_realworld_liveness_coverage \
+  --test constitution_matrix_drift -- --nocapture
+# exit 0
+
 cargo test -p turingosv4 \
   --test constitution_g0_market_activation_boundary \
   --test constitution_real16_market_performance \
