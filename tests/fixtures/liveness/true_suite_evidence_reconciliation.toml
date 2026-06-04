@@ -94,11 +94,9 @@ blockers = [
 
 [[coverage_task]]
 id = "fc3_governance_reinit_fresh"
-evidence_run = "fc3_full_system_evidence_20260526T174426Z"
+evidence_run = "obl005_fresh_fc3_20260604T150936Z"
 evidence_subdir = "fc3"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -239,10 +237,8 @@ blockers = [
 
 [[broad_family]]
 id = "memory_feedback_reinit"
-evidence_run = "fc3_full_system_evidence_20260526T174426Z"
+evidence_run = "obl005_fresh_fc3_20260604T150936Z"
 evidence_subdir = "fc3"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]
