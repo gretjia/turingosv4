@@ -22,13 +22,10 @@ blockers = [
 
 [[coverage_task]]
 id = "market_ab_performance_fresh"
-evidence_run = "market_ab_full_system_evidence_20260526T194445Z"
+evidence_run = "obl005_fresh_market_ab_20260604T175932Z"
 evidence_subdir = "market_ab"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
-  "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
 ]
 

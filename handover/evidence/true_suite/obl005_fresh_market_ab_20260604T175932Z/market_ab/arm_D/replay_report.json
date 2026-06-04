@@ -1,0 +1,21 @@
+{
+  "l4_entries": 19,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "obl005_fresh_market_ab_20260604T175932Z-arm-D",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "a84b03194fe8d710094778245083f999f75c6576faacdf9b2d2b9f5ae0c676de",
+    "final_ledger_root_hex": "fd191ea0753e8e8ddb89e522ba7a0635cf82f4fa35dd6610f484c049b7166a27",
+    "head_commit_oid_hex": "8c1623a0c2edc4050bbbd06ebb13c587b43c048e",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}
