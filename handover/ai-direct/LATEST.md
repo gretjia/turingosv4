@@ -12,12 +12,11 @@
 ## Current Snapshot (2026-06-04)
 
 **Session**: OBL-005 reopened re-audit on current main; fresh
-generate/artifact current-source evidence is being prepared after the remote
-font prompt guard fix.
+generate/artifact current-source evidence and clean-context witness are being
+prepared after the remote font prompt guard fix.
 
 **Main tip**: `51e9cd31` (PR #254 — fresh market source evidence). Current
-working branch tip is `7dd5b3d8` (`codex/obl005-generate-no-remote-fonts`),
-not yet merged.
+working branch is `codex/obl005-generate-no-remote-fonts`, not yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -85,6 +84,9 @@ Current state:
   stores, and restore replay indicators green. The row still keeps
   `domain_receipt_final_closure_missing` and
   `fresh_final_closure_witness_missing`; no final closure is claimed.
+  Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_GENERATE_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
@@ -104,10 +106,16 @@ bash scripts/run_constitution_gates.sh
 cargo test --workspace --no-fail-fast
 # exit 0
 
-cargo test --test constitution_true_suite_evidence_reconciliation \
-  --test constitution_true_suite_market_external_agent_runner \
+cargo test --test constitution_true_suite_generate_artifact_runner \
+  --test constitution_true_suite_evidence_reconciliation \
   --test constitution_obl005_final_closure_witness \
   --test constitution_matrix_drift -- --nocapture
+# exit 0
+
+cargo test --bin turingos blackbox_system_prompt -- --nocapture
+# exit 0
+
+cargo test --bin turingos blackbox_system_prompt_forbids_remote_font_dependencies -- --nocapture
 # exit 0
 
 git diff --check
