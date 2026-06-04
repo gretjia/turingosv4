@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh WebArena
-current-source evidence is being prepared after PR #262 merged the ToolBench
+**Session**: OBL-005 reopened re-audit on current main; fresh TDMA
+current-source evidence is being prepared after PR #263 merged the WebArena
 source receipt.
 
-**Main tip**: `e1ad26dc` (PR #262 — fresh ToolBench source evidence).
-Current working branch is `codex/obl005-fresh-webarena-source-evidence`, not
+**Main tip**: `d65e877b` (PR #263 — fresh WebArena source evidence).
+Current working branch is `codex/obl005-fresh-tdma-source-evidence`, not
 yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -36,7 +36,7 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 4 rows to older source receipts and 17
+- Current reconciliation fixture binds 3 rows to older source receipts and 18
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
@@ -48,10 +48,11 @@ Current state:
   `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
   `obl005_fresh_math_20260604T191000Z` Math evidence, plus
   `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
-  `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence, plus
-  `obl005_fresh_webarena_20260604T200738Z` WebArena evidence:
-  `source_receipt_final_closure_false=3`,
-  `source_tree_fingerprint_missing=3`,
+  `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence,
+  `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
+  `obl005_fresh_tdma_20260604T203708Z` TDMA evidence:
+  `source_receipt_final_closure_false=2`,
+  `source_tree_fingerprint_missing=2`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -202,6 +203,24 @@ Current state:
   `handover/audits/OBL005_FRESH_WEBARENA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`, including the WorkTx/escrow boundary check that no
   multi-node priced-DAG reward settlement is claimed.
+- Fresh TDMA source evidence prepared on the current branch:
+  `tdma_real_proof_fresh` now points at
+  `handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/`.
+  The TDMA child runner no longer pre-packages `tdma_tape.git`; the shared
+  true-suite packager owns tarball creation. The fresh receipt is
+  `final_closure_possible=true` with source commit
+  `bb0a29e166aa0db4c7635985a567e12b0a5830b9`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, `tdma_replay_report.ok=true`, `stages_completed=5/5`, packaged
+  TDMA/runtime/CAS stores, and green restore replay indicators. The TDMA domain
+  manifest remains `closure_scope=domain_adapter_smoke_only` and
+  `final_closure_possible=false`, so the reconciliation manifest reduces
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 3 to 2 while deliberately keeping `domain_receipt_final_closure_false`
+  and `fresh_final_closure_witness_missing`. Verification passed, including
+  `bash scripts/run_constitution_gates.sh` (`[k-1-5] total=165 failed=0`) and
+  `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_TDMA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`. This does not claim final closure.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
@@ -250,12 +269,14 @@ Current state:
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful WebArena evidence
-  `obl005_fresh_webarena_20260604T200738Z` is intended for the next PR. Do not
+- Current worktree note: successful TDMA evidence
+  `obl005_fresh_tdma_20260604T203708Z` is intended for the next PR. Do not
   treat local failed/intermediate or superseded evidence directories as GREEN
   evidence:
   `obl005_fresh_generate_20260604T160500Z`,
   `obl005_fresh_tdma_20260604T190500Z`,
+  `obl005_fresh_tdma_20260604T203106Z`,
+  `obl005_fresh_tdma_20260604T203504Z`,
   `obl005_fresh_market_ab_20260604T174500Z`, and
   `obl005_fresh_market_ab_20260604T175726Z`, plus the superseded local
   ToolBench run `obl005_fresh_toolbench_20260604T194504Z`.
@@ -263,6 +284,37 @@ Current state:
 Recent verification:
 
 ```text
+scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
+  --run-id obl005_fresh_tdma_20260604T203708Z \
+  --runners tdma_real_proof_fresh
+# exit 0
+
+cargo test -p turingosv4 \
+  --test constitution_true_suite_evidence_reconciliation \
+  --test constitution_production_module_liveness \
+  --test constitution_obl005_final_closure_witness \
+  --test constitution_realworld_liveness_coverage \
+  --test constitution_matrix_drift \
+  --test constitution_true_suite_tdma_runner -- --nocapture
+# exit 0
+
+git diff --check
+# exit 0
+
+Secret/raw-provider-payload scans over final TDMA evidence and edited
+docs/fixture
+# no real token hits; only expected mock/env-placeholder names
+
+bash scripts/run_constitution_gates.sh
+# exit 0; [k-1-5] total=165 failed=0
+
+cargo test --workspace --no-fail-fast
+# exit 0
+
+Clean-context Claude witness:
+handover/audits/OBL005_FRESH_TDMA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md
+# verdict: NO-VIOLATION
+
 scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
   --run-id obl005_fresh_webarena_20260604T200738Z \
   --runners webarena_web_agent_fresh

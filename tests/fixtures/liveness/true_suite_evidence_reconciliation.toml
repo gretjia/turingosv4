@@ -70,11 +70,9 @@ blockers = [
 
 [[coverage_task]]
 id = "tdma_real_proof_fresh"
-evidence_run = "tdma_full_system_evidence_20260526T160425Z"
+evidence_run = "obl005_fresh_tdma_20260604T203708Z"
 evidence_subdir = "tdma"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "fresh_final_closure_witness_missing",
 ]

@@ -139,8 +139,6 @@ if not report["ok"]:
     raise SystemExit(json.dumps(report, indent=2, sort_keys=True))
 PY
 
-tar -C "$RUN_DIR" -czf "$RUN_DIR/tdma_tape.git.tar.gz" tdma_tape.git
-
 echo "[bridge] TDMA proof-work evidence -> CAS summary -> signed WorkTx on canonical ChainTape"
 "$HELPER" \
     --runtime-repo "$RUN_DIR/runtime_repo" \

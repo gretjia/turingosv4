@@ -76,8 +76,8 @@ families = ["osworld", "computer_use", "current_kernel", "full_system_participat
 evidence = ["offline_osworld_style_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "tdma_full_system_evidence_20260526T160425Z"
-path = "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z"
+id = "obl005_fresh_tdma_20260604T203708Z"
+path = "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z"
 families = ["tdma", "proof", "current_kernel", "full_system_participation", "market", "fc3"]
 evidence = ["public_putnam_2025_b3_style_task", "local_openai_proxy", "TDMA GitTapeLedger", "ChainTape", "CAS", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
@@ -728,11 +728,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/manifest.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/tdma_replay_report.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/full_system_participation.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/restore_replay_report.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/tdma_replay_report.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/restore_replay_report.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/evidence_package_manifest.json",
 ]
 evidence_requires = ["real task attempts", "retry tape", "bounded prompt"]
 
@@ -798,8 +798,8 @@ real_world_evidence = [
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_run_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/replay_cas_run_manifest.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/tdma_run_manifest.json",
-  "handover/evidence/true_suite/tdma_full_system_evidence_20260526T160425Z/tdma/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/tdma_run_manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_cas_run_manifest.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]

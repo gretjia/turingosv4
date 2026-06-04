@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.tdma_proof_current_kernel.v1",
+  "run_id": "obl005_fresh_tdma_20260604T203708Z",
+  "problem_label": "turingos tdma --judge putnam_2025_b3",
+  "model_label": "deepseek-v4-flash",
+  "tdma_evidence_dir": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma",
+  "proof_capsule_cid": "1360262ee0f57856efa294db8b6e5dfbea1d9572b64e5978e225549f522beceb",
+  "evaluation_capsule_cid": "3f23d4c986057a2b5c61c1db8cc89b94ad400986fa989fb4df049c1c015bca8e",
+  "proposal_telemetry_cid": "d4364806b29c9b9df2bf185964bee25b0079a15b4afe8d3a26e5894ce5e1bb02",
+  "work_tx_id": "worktx-tdma:turingos-tdma---judge-putnam_2025_b3-true-suite-tdma",
+  "work_tx_landed": true,
+  "stages_completed_all": true,
+  "benchmark_verdict": "tdma_proof_completed",
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false,
+  "failure_taxonomy_path": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/failure_taxonomy.json",
+  "final_state_root_hex": "f2e387926dbc10f57493ae693f41e598416c293d637ea4db7b1cc0299ad857a2",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma/cas",
+  "notes": [
+    "TDMA proof-work tape remains a dedicated GitTapeLedger evidence source",
+    "This bridge writes only a compact CAS summary and signed WorkTx to canonical ChainTape",
+    "Raw provider prompt/response bytes are not written by this bridge",
+    "Full-system liveness still requires replay and participation helpers"
+  ]
+}
