@@ -221,8 +221,6 @@ paths = [
   "scripts/run_real8_market_ab_benchmark.sh",
   "scripts/run_stage_b3.sh",
   "scripts/run_tb8_smoke_2026-05-02.sh",
-  "scripts/run_tb9_smoke_2026-05-02.sh",
-  "scripts/run_tdma_rc1_real_evidence.py",
 ]
 covered_by = [
   "tests/constitution_real8_market_ab_benchmark.rs",
@@ -235,39 +233,12 @@ covered_by = [
 ]
 
 [[script_group]]
-id = "phase63_product_e2e_helpers"
-classification = "historical_smoke"
-status = "historical_smoke"
-counts_for_obl005_script_closure = false
-paths = [
-  "scripts/phase63_e2e_demo.sh",
-  "scripts/phase63_functional_play.js",
-  "scripts/phase63_verify_artifact.py",
-]
-covered_by = [
-  "tests/cli_phase63_cas_wire.rs",
-  "tests/constitution_script_liveness_inventory.rs",
-]
-
-[[script_group]]
 id = "stress_harness_scripts"
 classification = "stress_harness"
 status = "active_support_gate"
 counts_for_obl005_script_closure = true
 paths = [
   "scripts/stress",
-]
-covered_by = [
-  "tests/constitution_script_liveness_inventory.rs",
-]
-
-[[script_group]]
-id = "evidence_maintenance_historical"
-classification = "evidence_packaging"
-status = "historical_smoke"
-counts_for_obl005_script_closure = false
-paths = [
-  "scripts/regenerate_post_fix_evidence.sh",
 ]
 covered_by = [
   "tests/constitution_script_liveness_inventory.rs",
