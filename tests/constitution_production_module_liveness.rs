@@ -471,8 +471,20 @@ fn final_closure_cannot_be_claimed_while_non_closing_dev_groups_remain() {
 #[test]
 fn retired_lean_research_diagnostic_bins_do_not_reenter_production() {
     let groups = groups();
-    let retired_modules = ["bin::lean_emergence", "bin::lean_hayek_market"];
-    let retired_paths = ["src/bin/lean_emergence.rs", "src/bin/lean_hayek_market.rs"];
+    let retired_modules = [
+        "bin::lean_emergence",
+        "bin::lean_hayek_market",
+        "bin::lean_graded_diag",
+        "bin::lean_hetero_market",
+        "bin::lean_tree_market",
+    ];
+    let retired_paths = [
+        "src/bin/lean_emergence.rs",
+        "src/bin/lean_hayek_market.rs",
+        "src/bin/lean_graded_diag.rs",
+        "src/bin/lean_hetero_market.rs",
+        "src/bin/lean_tree_market.rs",
+    ];
 
     assert!(
         groups
