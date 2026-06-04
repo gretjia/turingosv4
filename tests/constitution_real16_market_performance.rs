@@ -416,6 +416,10 @@ fn g0_market_activation_declares_core_scope_not_c1_to_c11_closure() {
         source.contains("c10_c11_stage2_note"),
         "G0 manifest must record settlement c10/c11 as stage-2, not current closure"
     );
+    assert!(
+        source.contains("buy_no_count"),
+        "G0 manifest must expose an unambiguous machine-readable NO-side counter"
+    );
 
     for forbidden in [
         "conditions_1_to_11",
