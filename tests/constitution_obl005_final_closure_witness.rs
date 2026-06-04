@@ -15,6 +15,7 @@ const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liv
 const SCRIPT_MANIFEST: &str = "tests/fixtures/liveness/script_liveness_inventory.toml";
 const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
+const EXECUTION_MATRIX: &str = "handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md";
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 
 fn read_text(path: &str) -> String {
@@ -115,6 +116,23 @@ fn historical_witness_file_exists_but_is_not_current_authority() {
     assert!(
         lower.contains("src/"),
         "witness must state no runtime source under src/ was touched"
+    );
+}
+
+#[test]
+fn execution_matrix_does_not_claim_current_obl005_final_closure() {
+    let matrix = read_text(EXECUTION_MATRIX);
+    assert!(
+        matrix.contains(REAUDIT_STATUS),
+        "execution matrix must mirror current OBL-005 re-audit status"
+    );
+    assert!(
+        !matrix.contains("OBL-005 final closure verified"),
+        "execution matrix is a derived view and must not preserve stale final-closure status while OBL-005 is reopened"
+    );
+    assert!(
+        !matrix.contains("2026-05-27 final closure witness verified"),
+        "execution matrix must treat the 2026-05-27 witness as historical, not current closure authority"
     );
 }
 
