@@ -227,9 +227,11 @@ fn script_groups_have_valid_closure_semantics() {
         "constitution_gate",
         "dev_harness",
         "evidence_packaging",
+        "g_phase_orchestrator",
         "git_hygiene",
         "historical_smoke",
         "local_probe",
+        "market_benchmark_runner",
         "production_entrypoint",
         "stress_harness",
         "true_suite_orchestrator",
@@ -286,6 +288,75 @@ fn script_groups_have_valid_closure_semantics() {
             );
         }
     }
+}
+
+#[test]
+fn active_market_and_g_phase_runners_are_not_hidden_as_historical_smoke() {
+    let active_paths: BTreeSet<String> = [
+        "scripts/run_g_phase_batch.sh",
+        "scripts/run_market_autonomy_research_preflight.sh",
+        "scripts/run_real11_e2_micro_probe.sh",
+        "scripts/run_real11_router_positive_control.sh",
+        "scripts/run_real12_task_market_probe.sh",
+        "scripts/run_real13_market_pressure_probe.sh",
+        "scripts/run_real16_market_performance_benchmark.sh",
+        "scripts/run_real8_market_ab_benchmark.sh",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect();
+    let historical_paths: BTreeSet<String> = [
+        "scripts/run_stage_b3.sh",
+        "scripts/run_tb8_smoke_2026-05-02.sh",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect();
+
+    let mut seen_active = BTreeSet::new();
+    let mut seen_historical = BTreeSet::new();
+
+    for group in groups() {
+        for path in &group.paths {
+            if active_paths.contains(path.as_str()) {
+                seen_active.insert(path.clone());
+                assert!(
+                    group.counts_for_obl005_script_closure,
+                    "active runner `{path}` must count for script-liveness closure accounting"
+                );
+                assert_eq!(
+                    group.status, "active_support_gate",
+                    "active runner `{path}` cannot be classified as `{}`",
+                    group.status
+                );
+                assert_ne!(
+                    group.classification, "historical_smoke",
+                    "active runner `{path}` must not hide inside historical_smoke"
+                );
+            }
+            if historical_paths.contains(path.as_str()) {
+                seen_historical.insert(path.clone());
+                assert!(
+                    !group.counts_for_obl005_script_closure,
+                    "historical runner `{path}` must remain non-closing"
+                );
+                assert_eq!(
+                    group.status, "historical_smoke",
+                    "historical runner `{path}` must stay explicit, not `{}`",
+                    group.status
+                );
+            }
+        }
+    }
+
+    assert_eq!(
+        seen_active, active_paths,
+        "every current active G/REAL market runner must be explicitly accounted"
+    );
+    assert_eq!(
+        seen_historical, historical_paths,
+        "every retained historical smoke runner must be explicitly accounted"
+    );
 }
 
 #[test]

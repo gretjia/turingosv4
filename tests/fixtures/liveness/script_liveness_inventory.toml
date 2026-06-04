@@ -206,12 +206,26 @@ covered_by = [
 ]
 
 [[script_group]]
-id = "historical_market_and_g_phase_runners"
-classification = "historical_smoke"
-status = "historical_smoke"
-counts_for_obl005_script_closure = false
+id = "g_phase_active_support_runner"
+classification = "g_phase_orchestrator"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
 paths = [
   "scripts/run_g_phase_batch.sh",
+]
+covered_by = [
+  "tests/constitution_g4_multi_llm.rs",
+  "tests/constitution_real5_role_based_smoke.rs",
+  "tests/constitution_real6_task_outcome_market.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "market_autonomy_active_runners"
+classification = "market_benchmark_runner"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
   "scripts/run_market_autonomy_research_preflight.sh",
   "scripts/run_real11_e2_micro_probe.sh",
   "scripts/run_real11_router_positive_control.sh",
@@ -219,16 +233,35 @@ paths = [
   "scripts/run_real13_market_pressure_probe.sh",
   "scripts/run_real16_market_performance_benchmark.sh",
   "scripts/run_real8_market_ab_benchmark.sh",
+]
+covered_by = [
+  "tests/constitution_market_autonomy_research_envelope.rs",
+  "tests/constitution_real8_market_ab_benchmark.rs",
+  "tests/constitution_real11_e2_micro_probe.rs",
+  "tests/constitution_real11_matrix_update.rs",
+  "tests/constitution_real11_no_live_real6b.rs",
+  "tests/constitution_real11_router_positive_control.rs",
+  "tests/constitution_real12_bull_bear_positive_control.rs",
+  "tests/constitution_real12_live_micro_probe.rs",
+  "tests/constitution_real12_task_market_action.rs",
+  "tests/constitution_real13a_ev_decision_trace.rs",
+  "tests/constitution_real13h_market_pressure_probe.rs",
+  "tests/constitution_real16_market_performance.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
+id = "historical_stage_and_tb_smoke_runners"
+classification = "historical_smoke"
+status = "historical_smoke"
+counts_for_obl005_script_closure = false
+paths = [
   "scripts/run_stage_b3.sh",
   "scripts/run_tb8_smoke_2026-05-02.sh",
 ]
 covered_by = [
-  "tests/constitution_real8_market_ab_benchmark.rs",
-  "tests/constitution_real11_router_positive_control.rs",
-  "tests/constitution_real12_task_market_action.rs",
-  "tests/constitution_real13h_market_pressure_probe.rs",
-  "tests/constitution_real16_market_performance.rs",
-  "tests/constitution_market_autonomy_research_envelope.rs",
+  "handover/alignment/CONSTITUTION_LANDING_MANIFEST_2026-05-09.md",
+  "handover/evidence/tb_8_minimal_payout_smoke_2026-05-02/README.md",
   "tests/constitution_script_liveness_inventory.rs",
 ]
 
