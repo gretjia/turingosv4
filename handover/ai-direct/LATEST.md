@@ -11,12 +11,11 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh TDMA
-current-source evidence is being prepared after PR #263 merged the WebArena
-source receipt.
+**Session**: OBL-005 reopened re-audit on current main; fresh Mind2Web
+current-source evidence is added after PR #264 merged the TDMA source receipt.
 
-**Main tip**: `d65e877b` (PR #263 — fresh WebArena source evidence).
-Current working branch is `codex/obl005-fresh-tdma-source-evidence`, not
+**Main tip**: `cd4c9e83` (PR #264 — fresh TDMA source evidence).
+Current working branch is `codex/obl005-fresh-mind2web-source-evidence`, not
 yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -28,7 +27,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #256 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #264 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -50,9 +49,10 @@ Current state:
   `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
   `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence,
   `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
-  `obl005_fresh_tdma_20260604T203708Z` TDMA evidence:
-  `source_receipt_final_closure_false=2`,
-  `source_tree_fingerprint_missing=2`,
+  `obl005_fresh_tdma_20260604T203708Z` TDMA evidence, plus
+  `obl005_fresh_mind2web_20260604T210300Z` Mind2Web evidence:
+  `source_receipt_final_closure_false=1`,
+  `source_tree_fingerprint_missing=1`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -221,6 +221,19 @@ Current state:
   `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_TDMA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`. This does not claim final closure.
+- Fresh Mind2Web source evidence added on the current branch:
+  `mind2web_open_web` now points at
+  `handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/`.
+  The receipt is `final_closure_possible=true` with source commit
+  `cd4c9e832dd7d213fabc61dba1c8e57a1b6c6544`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, admitted WorkTx, packaged CAS/runtime stores, green
+  replay/restore indicators, and FC1/FC2/FC3 full-system rows. The model
+  result remains `browser_action_mismatch`, and the Mind2Web domain manifest
+  still omits `final_closure_possible`, so the reconciliation manifest reduces
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 2 to 1 while deliberately keeping
+  `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
+  and `fresh_final_closure_witness_missing`. This does not claim final closure.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.

@@ -46,10 +46,10 @@ families = ["toolbench", "api_tool_use", "current_kernel", "replay"]
 evidence = ["public_toolbench_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
 
 [[real_world_suite]]
-id = "broad_agi_mind2web_20260526T024247Z"
-path = "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z"
-families = ["mind2web", "browser_action", "current_kernel", "replay"]
-evidence = ["public_mind2web_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore"]
+id = "obl005_fresh_mind2web_20260604T210300Z"
+path = "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z"
+families = ["mind2web", "browser_action", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_mind2web_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "browser_action_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
 id = "broad_agi_math_20260526T042841Z"
@@ -372,9 +372,11 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/replay_report.json",
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/restore_replay_report.json",
-  "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
-  "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/replay_report.json",
-  "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/restore_replay_report.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/mind2web_browser_action_manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/replay_report.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/restore_replay_report.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/replay_report.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/restore_replay_report.json",
@@ -506,7 +508,8 @@ real_world_evidence = [
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_toolbench_20260526T013607Z/toolbench/toolbench_api_tool_use_manifest.json",
-  "handover/evidence/true_suite/broad_agi_mind2web_20260526T024247Z/mind2web/mind2web_browser_action_manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/mind2web_browser_action_manifest.json",
+  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/mind2web/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/cybench_security_sandbox_manifest.json",
