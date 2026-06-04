@@ -74,6 +74,9 @@ run_selected_runner() {
         market_external_agent_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_market_external_agent.sh" "$RUN_ID"
             ;;
+        market_ab_performance_fresh)
+            "$PROJECT_ROOT/scripts/run_true_suite_market_ab_current_kernel.sh" "$RUN_ID"
+            ;;
         generate_artifact_chain_fresh)
             "$PROJECT_ROOT/scripts/run_true_suite_generate_artifact_current_kernel.sh" "$RUN_ID"
             ;;
@@ -243,6 +246,10 @@ installed = {
     "market_external_agent_fresh": {
         "entrypoint": "scripts/run_true_suite_market_external_agent.sh",
         "family_ids": ["market_economy_polymarket"],
+    },
+    "market_ab_performance_fresh": {
+        "entrypoint": "scripts/run_true_suite_market_ab_current_kernel.sh",
+        "family_ids": [],
     },
     "generate_artifact_chain_fresh": {
         "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",

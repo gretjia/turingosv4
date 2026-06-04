@@ -41,11 +41,12 @@ if ! curl -sS --max-time 5 "$LLM_PROXY_URL/health" | grep -q '"status": "ok"'; t
     exit 4
 fi
 
-echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel --bin audit_tape --bin real14_e2_candidate_verifier --bin real16_market_performance_verifier"
+echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin market_external_agent_current_kernel --bin g0_market_activation_current_kernel --bin full_system_augment_current_kernel --bin full_system_participation_current_kernel --bin audit_tape --bin real14_e2_candidate_verifier --bin real16_market_performance_verifier"
 (cd "$PROJECT_ROOT" && cargo build --release \
     --bin turingos \
     --bin verify_chaintape \
     --bin market_external_agent_current_kernel \
+    --bin g0_market_activation_current_kernel \
     --bin full_system_augment_current_kernel \
     --bin full_system_participation_current_kernel \
     --bin audit_tape \
@@ -54,6 +55,7 @@ echo "[build] cargo build --release --bin turingos --bin verify_chaintape --bin 
 
 TURINGOS="$PROJECT_ROOT/target/release/turingos"
 MARKET_HELPER="$PROJECT_ROOT/target/release/market_external_agent_current_kernel"
+G0_MARKET="$PROJECT_ROOT/target/release/g0_market_activation_current_kernel"
 AUGMENT="$PROJECT_ROOT/target/release/full_system_augment_current_kernel"
 PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_kernel"
 AUDIT_TAPE="$PROJECT_ROOT/target/release/audit_tape"
@@ -185,6 +187,23 @@ run_arm() {
 run_arm A false "current-kernel baseline market-visible"
 run_arm D true "current-kernel market-pressure arm"
 
+G0_RUN_ID="${RUN_ID}-g0-market-activation"
+G0_DIR="$RUN_DIR/g0"
+echo "[g0] G0 market activation: deterministic YES+NO trades + ChallengeShort priced DAG"
+"$G0_MARKET" \
+    --runtime-repo "$G0_DIR/runtime_repo" \
+    --cas "$G0_DIR/cas" \
+    --run-id "$G0_RUN_ID" \
+    --constitution "$PROJECT_ROOT/constitution.md" \
+    --out "$G0_DIR/g0_market_activation_manifest.json"
+
+echo "[g0] verify ChainTape replay"
+TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
+    --repo "$G0_DIR/runtime_repo" \
+    --cas "$G0_DIR/cas" \
+    --run-id "$G0_RUN_ID" \
+    --out "$G0_DIR/replay_report.json"
+
 jq -s '{arms: .}' "$RUN_DIR/arm_config_manifests"/arm_*.json > "$RUN_DIR/REAL16_VERIFIER_INPUT.json"
 set +e
 "$REAL16_VERIFIER" \
@@ -233,10 +252,13 @@ cat > "$RUN_DIR/market_ab_run_manifest.json" <<EOF
   "arm_d": "$RUN_DIR/arm_D",
   "real16_report": "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "real16_verifier_exit_code": $REAL16_EXIT,
+  "g0_market_activation_manifest": "$G0_DIR/g0_market_activation_manifest.json",
+  "g0_replay_report": "$G0_DIR/replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "candidate-only market performance report; no E4 achieved claim",
     "both arms are fresh current-kernel ChainTape/CAS runs",
+    "G0 market activation is deterministic current-kernel evidence for YES+NO trades, ChallengeShort, price changes, and priced-DAG parent selection; it does not claim live-LLM E4",
     "root full_system_participation uses arm D as the market-pressure representative sample"
   ]
 }

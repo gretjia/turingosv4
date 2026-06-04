@@ -367,6 +367,32 @@ fn true_suite_market_ab_runner_uses_current_kernel_full_system_evidence() {
 }
 
 #[test]
+fn true_suite_market_ab_runner_declares_g0_market_activation_receipt() {
+    let script = std::fs::read_to_string("scripts/run_true_suite_market_ab_current_kernel.sh")
+        .expect("true-suite market A/B runner exists");
+    let manifest = std::fs::read_to_string("tests/fixtures/liveness/realworld_liveness_coverage.toml")
+        .expect("realworld liveness manifest exists");
+
+    for expected in [
+        "g0_market_activation_current_kernel",
+        "G0 market activation",
+        "g0_market_activation_manifest.json",
+    ] {
+        assert!(
+            script.contains(expected),
+            "true-suite market A/B runner must produce G0 market activation receipt marker: {expected}"
+        );
+    }
+
+    assert!(
+        manifest.contains(
+            "handover/evidence/true_suite/<run>/market_ab/g0/g0_market_activation_manifest.json"
+        ),
+        "market_ab_performance_fresh final artifacts must declare the G0 market activation receipt"
+    );
+}
+
+#[test]
 fn real16_load_bearing_files_are_trust_root_pinned() {
     let genesis =
         std::fs::read_to_string("genesis_payload.toml").expect("genesis_payload.toml exists");
