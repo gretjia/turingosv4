@@ -362,6 +362,15 @@ fn is_replay_receipt(path: &str) -> bool {
         || path.ends_with("/aggregate_verdict.json")
 }
 
+fn is_report_log_or_stdout_path(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.ends_with(".md")
+        || lower.ends_with(".txt")
+        || lower.ends_with(".log")
+        || lower.ends_with(".stdout")
+        || lower.ends_with(".stderr")
+}
+
 fn assert_unique_group_ids(groups: &[Group]) {
     let mut seen = BTreeSet::new();
     let mut duplicates = Vec::new();
@@ -810,6 +819,60 @@ fn fc_authority_groups_use_current_true_suite_json_receipts() {
 }
 
 #[test]
+fn product_workload_groups_use_current_true_suite_receipts() {
+    for group in groups()
+        .into_iter()
+        .filter(|group| group.classification == "product_workload")
+    {
+        if group.status != "historical_real_world_candidate" {
+            continue;
+        }
+
+        for path in &group.real_world_evidence {
+            assert!(
+                path.starts_with("handover/evidence/true_suite/"),
+                "product workload group `{}` must use current true-suite receipts/artifacts, not historical local evidence: {path}",
+                group.id
+            );
+            assert!(
+                !is_report_log_or_stdout_path(path),
+                "product workload group `{}` must not cite report/log/stdout/transcript evidence as current liveness evidence: {path}",
+                group.id
+            );
+        }
+
+        let full_system_paths: Vec<_> = group
+            .real_world_evidence
+            .iter()
+            .filter(|path| path.ends_with("/full_system_participation.json"))
+            .collect();
+        assert!(
+            !full_system_paths.is_empty(),
+            "product workload group `{}` must bind at least one current full_system_participation receipt",
+            group.id
+        );
+
+        for path in full_system_paths {
+            let receipt = read_json(path);
+            assert_eq!(
+                receipt
+                    .get("schema_version")
+                    .and_then(serde_json::Value::as_str),
+                Some("turingosv4.true_suite.full_system_participation.v1"),
+                "product workload group `{}` full-system receipt has an unexpected schema: {path}",
+                group.id
+            );
+            assert!(
+                json_bool_at(&receipt, &["verdict", "full_system_participation"])
+                    && json_bool_at(&receipt, &["replay", "all_indicators_pass"]),
+                "product workload group `{}` full-system receipt must prove full-system participation and green replay: {path}",
+                group.id
+            );
+        }
+    }
+}
+
+#[test]
 fn axiom_boot_trust_root_is_bound_to_current_boot_genesis_replay_receipts() {
     let groups = groups();
     let boot = group_by_id(&groups, "axiom_boot_trust_root");
@@ -1049,6 +1112,10 @@ fn registered_real_world_suites_exist_and_are_not_smoke_labels() {
         let families = as_str_array(table, "families");
         let evidence = as_str_array(table, "evidence");
         assert_existing_path(&path);
+        assert!(
+            path.starts_with("handover/evidence/true_suite/"),
+            "real-world suite `{id}` must index current true-suite roots; historical REAL/stage roots are archive context, not current liveness authority: {path}"
+        );
         assert!(
             !id.to_ascii_lowercase().contains("smoke"),
             "real-world suite `{id}` must not be smoke-only"
