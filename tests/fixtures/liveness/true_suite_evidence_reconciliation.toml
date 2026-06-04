@@ -16,6 +16,7 @@ evidence_run = "market_external_agent_full_system_20260526T163638Z"
 evidence_subdir = "market_action"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
@@ -27,6 +28,7 @@ evidence_run = "market_ab_full_system_evidence_20260526T194445Z"
 evidence_subdir = "market_ab"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
@@ -38,6 +40,7 @@ evidence_run = "generate_artifact_full_system_20260526T170808Z"
 evidence_subdir = "generate_artifact"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
@@ -48,6 +51,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "swebench"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -59,6 +63,7 @@ evidence_run = "broad_agi_osworld_20260527T035423Z"
 evidence_subdir = "osworld"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -70,6 +75,7 @@ evidence_run = "broad_agi_cybench_20260527T032017Z"
 evidence_subdir = "cybench"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -81,6 +87,7 @@ evidence_run = "tdma_full_system_evidence_20260526T160425Z"
 evidence_subdir = "tdma"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "fresh_final_closure_witness_missing",
 ]
@@ -91,6 +98,7 @@ evidence_run = "fc3_full_system_evidence_20260526T174426Z"
 evidence_subdir = "fc3"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -100,6 +108,7 @@ evidence_run = "replay_cas_full_system_evidence_20260526T190754Z"
 evidence_subdir = "replay_cas"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
@@ -110,6 +119,7 @@ evidence_run = "boot_cli_full_system_evidence_20260526T182219Z"
 evidence_subdir = "boot_cli"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -119,6 +129,7 @@ evidence_run = "broad_agi_gaia_20260527T042703Z"
 evidence_subdir = "gaia"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -130,6 +141,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "gpqa"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "fresh_final_closure_witness_missing",
 ]
@@ -140,6 +152,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "math"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "fresh_final_closure_witness_missing",
 ]
@@ -150,6 +163,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "swebench"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -161,6 +175,7 @@ evidence_run = "broad_agi_webarena_20260527T053225Z"
 evidence_subdir = "webarena"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -172,6 +187,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "mind2web"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -183,6 +199,7 @@ evidence_run = "broad_agi_osworld_20260527T035423Z"
 evidence_subdir = "osworld"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -194,6 +211,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "toolbench"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -205,6 +223,7 @@ evidence_run = "broad_agi_cybench_20260527T032017Z"
 evidence_subdir = "cybench"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -216,6 +235,7 @@ evidence_run = "market_external_agent_full_system_20260526T163638Z"
 evidence_subdir = "market_action"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
@@ -227,5 +247,6 @@ evidence_run = "fc3_full_system_evidence_20260526T174426Z"
 evidence_subdir = "fc3"
 blockers = [
   "source_receipt_final_closure_false",
+  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]

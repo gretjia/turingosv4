@@ -132,6 +132,34 @@ fn has_nonempty_string_at(value: &Value, pointer: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn is_git_commit_hex(text: &str) -> bool {
+    let text = text.trim();
+    text.len() == 40 && text.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn source_tree_fingerprint_present(report: &Value) -> bool {
+    [
+        "/source_tree/commit",
+        "/source_tree/head_commit",
+        "/source_tree/git_commit",
+        "/source_tree/source_commit",
+        "/source/source_commit",
+        "/source/turingos_commit",
+        "/source_commit",
+        "/turingos_commit",
+        "/workspace/source_commit",
+        "/workspace/git_commit",
+    ]
+    .iter()
+    .any(|pointer| {
+        report
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(is_git_commit_hex)
+            .unwrap_or(false)
+    })
+}
+
 fn packaged_git_store_for(path: &Path) -> Option<PathBuf> {
     let name = path.file_name()?.to_str()?;
     let parent = path.parent()?;
@@ -487,6 +515,7 @@ fn allowed_blocker_classes() -> BTreeSet<&'static str> {
         "domain_receipt_final_closure_missing",
         "benchmark_capability_not_solved",
         "market_no_or_short_side_missing",
+        "source_tree_fingerprint_missing",
         "fresh_final_closure_witness_missing",
     ])
 }
@@ -533,6 +562,7 @@ fn assert_blocker_classes_are_receipt_derived(
     let market_no_or_short_missing = is_market_binding(binding, row)
         && !binding_has_no_or_short_market_side(binding, row, report);
     let benchmark_capability_failed = value_has_benchmark_failure(report);
+    let source_tree_fingerprint_missing = !source_tree_fingerprint_present(report);
 
     if blockers.contains("source_receipt_final_closure_false") {
         assert!(
@@ -566,6 +596,13 @@ fn assert_blocker_classes_are_receipt_derived(
         assert!(
             benchmark_capability_failed,
             "{binding_key}:{} claims benchmark capability failure, but receipt has no failing capability marker",
+            binding.id
+        );
+    }
+    if blockers.contains("source_tree_fingerprint_missing") {
+        assert!(
+            source_tree_fingerprint_missing,
+            "{binding_key}:{} claims missing source-tree fingerprint, but the receipt already carries one",
             binding.id
         );
     }
@@ -609,6 +646,13 @@ fn assert_blocker_classes_are_receipt_derived(
         assert!(
             blockers.contains("benchmark_capability_not_solved"),
             "{binding_key}:{} has benchmark capability failure markers but does not declare them",
+            binding.id
+        );
+    }
+    if source_tree_fingerprint_missing {
+        assert!(
+            blockers.contains("source_tree_fingerprint_missing"),
+            "{binding_key}:{} has no current source-tree fingerprint but does not declare it",
             binding.id
         );
     }
@@ -817,6 +861,48 @@ fn domain_manifest_missing_closure_status_must_be_explicit_blocker() {
 }
 
 #[test]
+fn missing_source_tree_fingerprint_must_be_explicit_blocker() {
+    let binding = EvidenceBinding {
+        id: "synthetic_missing_source_tree_fingerprint".into(),
+        evidence_run: "synthetic".into(),
+        evidence_subdir: "synthetic".into(),
+        blockers: vec!["source_receipt_final_closure_false".into()],
+    };
+    let row = ContractRow {
+        id: binding.id.clone(),
+        final_evidence_artifacts: Vec::new(),
+    };
+    let report = serde_json::json!({
+        "verdict": {"final_closure_possible": false},
+        "replay": {"head_commit_oid_hex": "1111111111111111111111111111111111111111"}
+    });
+
+    let result = std::panic::catch_unwind(|| {
+        assert_blocker_classes_are_receipt_derived("synthetic", &binding, &row, &report, false);
+    });
+    assert!(
+        result.is_err(),
+        "full-system receipts without a source-tree fingerprint must not pass blocker reconciliation silently"
+    );
+}
+
+#[test]
+fn source_tree_fingerprint_detector_rejects_replay_head_as_source_proof() {
+    let replay_only = serde_json::json!({
+        "replay": {"head_commit_oid_hex": "1111111111111111111111111111111111111111"}
+    });
+    let source_commit = serde_json::json!({
+        "source_tree": {"commit": "2222222222222222222222222222222222222222"}
+    });
+
+    assert!(
+        !source_tree_fingerprint_present(&replay_only),
+        "runtime replay HEAD is not a source-tree fingerprint"
+    );
+    assert!(source_tree_fingerprint_present(&source_commit));
+}
+
+#[test]
 fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     let final_closure_claimed = manifest
@@ -825,6 +911,7 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
         .unwrap_or(false);
 
     let mut non_closing_receipts = Vec::new();
+    let mut closure_receipts_without_source_tree = Vec::new();
     for (binding_key, contract_path, contract_key) in [
         ("coverage_task", REALWORLD_MANIFEST, "task"),
         ("broad_family", BROAD_MANIFEST, "family"),
@@ -845,6 +932,12 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
                     binding.id,
                     full_system_report_path(&binding, row).display()
                 ));
+            } else if !source_tree_fingerprint_present(&report) {
+                closure_receipts_without_source_tree.push(format!(
+                    "{binding_key}:{}:{}",
+                    binding.id,
+                    full_system_report_path(&binding, row).display()
+                ));
             }
         }
     }
@@ -853,6 +946,10 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
         assert!(
             non_closing_receipts.is_empty(),
             "final_closure_claimed=true cannot cite non-closing receipts: {non_closing_receipts:?}"
+        );
+        assert!(
+            closure_receipts_without_source_tree.is_empty(),
+            "final_closure_claimed=true cannot cite receipts without source-tree fingerprints: {closure_receipts_without_source_tree:?}"
         );
     } else {
         assert!(
