@@ -484,6 +484,7 @@ fn allowed_blocker_classes() -> BTreeSet<&'static str> {
     BTreeSet::from([
         "source_receipt_final_closure_false",
         "domain_receipt_final_closure_false",
+        "domain_receipt_final_closure_missing",
         "benchmark_capability_not_solved",
         "market_no_or_short_side_missing",
         "fresh_final_closure_witness_missing",
@@ -521,6 +522,14 @@ fn assert_blocker_classes_are_receipt_derived(
         .pointer("/domain_manifest/final_closure_possible")
         .and_then(Value::as_bool)
         == Some(false);
+    let domain_final_missing = report
+        .get("domain_manifest")
+        .and_then(Value::as_object)
+        .is_some()
+        && report
+            .pointer("/domain_manifest/final_closure_possible")
+            .and_then(Value::as_bool)
+            .is_none();
     let market_no_or_short_missing = is_market_binding(binding, row)
         && !binding_has_no_or_short_market_side(binding, row, report);
     let benchmark_capability_failed = value_has_benchmark_failure(report);
@@ -536,6 +545,13 @@ fn assert_blocker_classes_are_receipt_derived(
         assert!(
             domain_final_false,
             "{binding_key}:{} claims domain manifest is non-closing, but report does not prove that",
+            binding.id
+        );
+    }
+    if blockers.contains("domain_receipt_final_closure_missing") {
+        assert!(
+            domain_final_missing,
+            "{binding_key}:{} claims domain manifest closure status is missing, but the receipt does not prove that",
             binding.id
         );
     }
@@ -572,6 +588,13 @@ fn assert_blocker_classes_are_receipt_derived(
         assert!(
             blockers.contains("domain_receipt_final_closure_false"),
             "{binding_key}:{} has a non-closing domain manifest but does not declare it",
+            binding.id
+        );
+    }
+    if domain_final_missing {
+        assert!(
+            blockers.contains("domain_receipt_final_closure_missing"),
+            "{binding_key}:{} has a domain manifest without final_closure_possible but does not declare it",
             binding.id
         );
     }
@@ -764,6 +787,32 @@ fn replay_report_artifacts_must_be_machine_green_not_just_present() {
     assert!(
         result.is_err(),
         "replay/restore artifacts with false verifier booleans must not pass by mere file existence"
+    );
+}
+
+#[test]
+fn domain_manifest_missing_closure_status_must_be_explicit_blocker() {
+    let binding = EvidenceBinding {
+        id: "synthetic_missing_domain_closure".into(),
+        evidence_run: "synthetic".into(),
+        evidence_subdir: "synthetic".into(),
+        blockers: vec!["source_receipt_final_closure_false".into()],
+    };
+    let row = ContractRow {
+        id: binding.id.clone(),
+        final_evidence_artifacts: Vec::new(),
+    };
+    let report = serde_json::json!({
+        "verdict": {"final_closure_possible": false},
+        "domain_manifest": {"benchmark_verdict": "correct_with_rationale"}
+    });
+
+    let result = std::panic::catch_unwind(|| {
+        assert_blocker_classes_are_receipt_derived("synthetic", &binding, &row, &report, false);
+    });
+    assert!(
+        result.is_err(),
+        "domain manifests without final_closure_possible must not pass blocker reconciliation silently"
     );
 }
 

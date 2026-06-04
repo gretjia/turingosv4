@@ -27,6 +27,7 @@ evidence_run = "market_ab_full_system_evidence_20260526T194445Z"
 evidence_subdir = "market_ab"
 blockers = [
   "source_receipt_final_closure_false",
+  "domain_receipt_final_closure_missing",
   "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
 ]
@@ -37,6 +38,7 @@ evidence_run = "generate_artifact_full_system_20260526T170808Z"
 evidence_subdir = "generate_artifact"
 blockers = [
   "source_receipt_final_closure_false",
+  "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -98,6 +100,7 @@ evidence_run = "replay_cas_full_system_evidence_20260526T190754Z"
 evidence_subdir = "replay_cas"
 blockers = [
   "source_receipt_final_closure_false",
+  "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -169,6 +172,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "mind2web"
 blockers = [
   "source_receipt_final_closure_false",
+  "domain_receipt_final_closure_missing",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
 ]
@@ -190,6 +194,7 @@ evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
 evidence_subdir = "toolbench"
 blockers = [
   "source_receipt_final_closure_false",
+  "domain_receipt_final_closure_missing",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
 ]
