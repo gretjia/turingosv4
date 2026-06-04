@@ -134,6 +134,36 @@ fn has_url_or_internal_source(source: &str) -> bool {
         || source.starts_with("internal_current_kernel_")
 }
 
+fn is_raw_observation_artifact(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    lower.contains("/browser_traces")
+        || lower.contains("/dom_log")
+        || lower.contains("/dom_logs")
+        || lower.contains("/screenshots")
+        || lower.contains("screenshot")
+        || lower.ends_with(".html")
+        || lower.ends_with(".htm")
+        || lower.ends_with(".png")
+        || lower.ends_with(".jpg")
+        || lower.ends_with(".jpeg")
+}
+
+fn declares_cas_bound_raw_observation(family: &Family) -> bool {
+    let has_capsule_cid = family.evidence_shape.iter().any(|item| {
+        let lower = item.to_ascii_lowercase();
+        lower.ends_with("_cid")
+            && (lower.contains("observation")
+                || lower.contains("browser_action_trace")
+                || lower.contains("snapshot")
+                || lower.contains("sandbox_trace"))
+    });
+    let has_cas_guard = family.anti_contamination_guards.iter().any(|guard| {
+        let lower = guard.to_ascii_lowercase();
+        lower.contains("cas-bound") || lower.contains("cas bound") || lower.contains("quarantined")
+    });
+    has_capsule_cid && has_cas_guard
+}
+
 #[test]
 fn broad_true_suite_manifest_is_reaudit_bound_and_constitution_bound() {
     let manifest = parse_manifest();
@@ -310,6 +340,17 @@ fn benchmark_families_are_broad_and_have_machine_checkable_contracts() {
                 .any(|path| path.ends_with("/full_system_participation.json")),
             "family `{}` must require per-sample full-system participation evidence",
             family.id
+        );
+        let raw_observation_artifacts: Vec<_> = family
+            .final_evidence_artifacts
+            .iter()
+            .filter(|path| is_raw_observation_artifact(path))
+            .collect();
+        assert!(
+            raw_observation_artifacts.is_empty() || declares_cas_bound_raw_observation(family),
+            "family `{}` cites raw observation artifacts in final evidence without declaring CAS CID binding and quarantine guards: {:?}",
+            family.id,
+            raw_observation_artifacts
         );
     }
 

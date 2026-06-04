@@ -108,6 +108,28 @@ fn materialize(template: &str, run_id: &str) -> PathBuf {
     ))
 }
 
+fn is_raw_observation_template(template: &str) -> bool {
+    let lower = template.to_ascii_lowercase();
+    lower.contains("/browser_traces")
+        || lower.contains("/dom_log")
+        || lower.contains("/dom_logs")
+        || lower.contains("/screenshots")
+        || lower.contains("screenshot")
+        || lower.ends_with(".html")
+        || lower.ends_with(".htm")
+        || lower.ends_with(".png")
+        || lower.ends_with(".jpg")
+        || lower.ends_with(".jpeg")
+}
+
+fn has_nonempty_string_at(value: &Value, pointer: &str) -> bool {
+    value
+        .pointer(pointer)
+        .and_then(Value::as_str)
+        .map(|text| !text.trim().is_empty())
+        .unwrap_or(false)
+}
+
 fn packaged_git_store_for(path: &Path) -> Option<PathBuf> {
     let name = path.file_name()?.to_str()?;
     let parent = path.parent()?;
@@ -159,6 +181,50 @@ fn assert_artifact_reconstructable(binding: &EvidenceBinding, template: &str) {
             path.display()
         );
     }
+}
+
+fn assert_raw_observation_templates_are_cas_bound(
+    binding: &EvidenceBinding,
+    row: &ContractRow,
+    report: &Value,
+) {
+    let raw_templates: Vec<_> = row
+        .final_evidence_artifacts
+        .iter()
+        .filter(|template| is_raw_observation_template(template))
+        .collect();
+    if raw_templates.is_empty() {
+        return;
+    }
+
+    assert!(
+        nested_bool(report, &["replay", "cas_payloads_retrievable"]),
+        "binding `{}` cites raw observation artifacts but replay does not prove CAS payload retrievability: {:?}",
+        binding.id,
+        raw_templates
+    );
+    assert!(
+        has_nonempty_string_at(report, "/evidence_paths/cas")
+            || has_nonempty_string_at(report, "/domain_manifest/cas"),
+        "binding `{}` cites raw observation artifacts but the full-system receipt does not bind a CAS evidence path: {:?}",
+        binding.id,
+        raw_templates
+    );
+
+    let cid_pointers = [
+        "/domain_manifest/observation_capsule_cid",
+        "/domain_manifest/browser_action_trace_cid",
+        "/domain_manifest/snapshot_capsule_cid",
+        "/domain_manifest/sandbox_trace_cid",
+    ];
+    assert!(
+        cid_pointers
+            .iter()
+            .any(|pointer| has_nonempty_string_at(report, pointer)),
+        "binding `{}` cites raw observation artifacts but the domain manifest has no observation/trace CAS CID: {:?}",
+        binding.id,
+        raw_templates
+    );
 }
 
 fn full_system_template(row: &ContractRow) -> &str {
@@ -322,6 +388,7 @@ fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
         "binding `{}` lacks required full-system rows: {missing:?}",
         binding.id
     );
+    assert_raw_observation_templates_are_cas_bound(binding, row, &report);
 }
 
 #[test]
