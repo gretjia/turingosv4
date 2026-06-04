@@ -3,6 +3,38 @@ use std::process::Command;
 
 use serde_json::Value;
 
+fn current_source_commit() -> String {
+    let repo = git2::Repository::discover(env!("CARGO_MANIFEST_DIR"))
+        .expect("discover source tree git repo");
+    let commit = repo
+        .head()
+        .expect("source tree HEAD")
+        .peel_to_commit()
+        .expect("source tree HEAD commit")
+        .id()
+        .to_string();
+    commit
+}
+
+pub fn assert_source_tree_fingerprint_current(report: &Value) {
+    let source_tree = report
+        .get("source_tree")
+        .and_then(Value::as_object)
+        .expect("full-system receipt must carry source_tree object");
+    assert_eq!(
+        source_tree.get("commit").and_then(Value::as_str),
+        Some(current_source_commit().as_str()),
+        "full-system receipt must bind to the current TuringOS source tree HEAD"
+    );
+    assert!(
+        matches!(
+            source_tree.get("status").and_then(Value::as_str),
+            Some("clean") | Some("dirty_allowed_recorded")
+        ),
+        "receipt must explicitly classify source tree cleanliness"
+    );
+}
+
 pub fn run_full_system_augment(run_dir: &Path, run_id: &str, augment_bin: &str) {
     let augment = Command::new(augment_bin)
         .args([
@@ -154,5 +186,6 @@ pub fn assert_full_system_lit(
             > 0,
         "full-system sample must write a submitted market decision trace"
     );
+    assert_source_tree_fingerprint_current(&report);
     report
 }

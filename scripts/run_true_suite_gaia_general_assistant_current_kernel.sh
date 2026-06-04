@@ -170,6 +170,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "gaia_general_assistant" \
     --entrypoint "scripts/run_true_suite_gaia_general_assistant_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

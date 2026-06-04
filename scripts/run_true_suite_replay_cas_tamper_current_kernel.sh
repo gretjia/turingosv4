@@ -92,6 +92,7 @@ TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
     --run-id "$RUN_ID" \
     --family-id "replay_cas_tamper_repair_current" \
     --entrypoint "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

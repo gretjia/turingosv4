@@ -10,6 +10,38 @@ use std::process::Command;
 use serde_json::Value;
 use tempfile::TempDir;
 
+fn current_source_commit() -> String {
+    let repo = git2::Repository::discover(env!("CARGO_MANIFEST_DIR"))
+        .expect("discover source tree git repo");
+    let commit = repo
+        .head()
+        .expect("source tree HEAD")
+        .peel_to_commit()
+        .expect("source tree HEAD commit")
+        .id()
+        .to_string();
+    commit
+}
+
+fn assert_source_tree_fingerprint_current(report: &Value) {
+    let source_tree = report
+        .get("source_tree")
+        .and_then(Value::as_object)
+        .expect("full-system receipt must carry source_tree object");
+    assert_eq!(
+        source_tree.get("commit").and_then(Value::as_str),
+        Some(current_source_commit().as_str()),
+        "full-system receipt must bind to the current TuringOS source tree HEAD"
+    );
+    assert!(
+        matches!(
+            source_tree.get("status").and_then(Value::as_str),
+            Some("clean") | Some("dirty_allowed_recorded")
+        ),
+        "receipt must explicitly classify source tree cleanliness"
+    );
+}
+
 fn bin(name: &str) -> &'static str {
     match name {
         "turingos" => env!("CARGO_BIN_EXE_turingos"),
@@ -203,6 +235,7 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
         missing.is_empty(),
         "full-system boot run missing rows: {missing:?}"
     );
+    assert_source_tree_fingerprint_current(&participation);
 
     let replay: Value = serde_json::from_str(
         &std::fs::read_to_string(&replay_report).expect("read replay_report.json"),

@@ -72,6 +72,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "memory_feedback_reinit" \
     --entrypoint "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/fc3_replay_report.json" \

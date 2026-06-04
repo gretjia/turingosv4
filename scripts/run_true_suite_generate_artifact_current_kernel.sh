@@ -105,6 +105,7 @@ GENERATE_OUTPUT="$(
         --workspace "$RUN_DIR" \
         --from-capsule \
         --entrypoint index.html \
+    --source-root "$PROJECT_ROOT" \
         --n-parallel-workers "$N_PARALLEL_WORKERS"
 )"
 printf '%s\n' "$GENERATE_OUTPUT" > "$RUN_DIR/generate_output.txt"
@@ -160,6 +161,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "gaia_general_assistant" \
     --entrypoint "scripts/run_true_suite_generate_artifact_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

@@ -835,6 +835,35 @@ fn replay_report_artifacts_must_be_machine_green_not_just_present() {
 }
 
 #[test]
+fn full_system_participation_runners_pass_source_root() {
+    let mut checked = 0usize;
+    for entry in fs::read_dir("scripts").expect("read scripts dir") {
+        let path = entry.expect("script entry").path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !name.starts_with("run_true_suite_") || !name.ends_with(".sh") {
+            continue;
+        }
+        let script = fs::read_to_string(&path)
+            .unwrap_or_else(|err| panic!("read {}: {err}", path.display()));
+        if !script.contains("full_system_participation_current_kernel") {
+            continue;
+        }
+        checked += 1;
+        assert!(
+            script.contains("--source-root \"$PROJECT_ROOT\""),
+            "{} must pass source-root explicitly so receipts bind the TuringOS source tree, not caller cwd",
+            path.display()
+        );
+    }
+    assert!(
+        checked > 0,
+        "source-root gate must inspect at least one true-suite participation runner"
+    );
+}
+
+#[test]
 fn domain_manifest_missing_closure_status_must_be_explicit_blocker() {
     let binding = EvidenceBinding {
         id: "synthetic_missing_domain_closure".into(),
