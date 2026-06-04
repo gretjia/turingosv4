@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh Mind2Web
-current-source evidence is added after PR #264 merged the TDMA source receipt.
+**Session**: OBL-005 reopened re-audit on current main; PR #265 merged the
+fresh Mind2Web current-source evidence after PR #264 merged the TDMA source
+receipt.
 
-**Main tip**: `cd4c9e83` (PR #264 — fresh TDMA source evidence).
-Current working branch is `codex/obl005-fresh-mind2web-source-evidence`, not
-yet merged.
+**Main tip**: `2e5515ea` (PR #265 — fresh Mind2Web source evidence).
+Current working tree is on `main` after #265 merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,7 +27,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #264 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #265 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -221,7 +221,7 @@ Current state:
   `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_TDMA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`. This does not claim final closure.
-- Fresh Mind2Web source evidence added on the current branch:
+- Fresh Mind2Web source evidence added on main by PR #265:
   `mind2web_open_web` now points at
   `handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/`.
   The receipt is `final_closure_possible=true` with source commit
