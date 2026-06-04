@@ -2,8 +2,9 @@
 # True-suite market/economy current-kernel evidence runner.
 #
 # Uses a real external LLM agent through the local OpenAI-compatible proxy.
-# The agent's parsed decision is converted into a signed BuyWithCoinRouterTx
-# by the runner helper and submitted through the current ChainTape sequencer.
+# Two role-separated agents' parsed decisions are converted into signed
+# BuyWithCoinRouterTxs by the runner helper and submitted through the current
+# ChainTape sequencer.
 
 set -euo pipefail
 
@@ -56,7 +57,7 @@ PARTICIPATION="$PROJECT_ROOT/target/release/full_system_participation_current_ke
 echo "[init] turingos init --project $RUN_DIR"
 "$TURINGOS" init --project "$RUN_DIR" --template proof --provider deepseek
 
-echo "[market] external LLM agent -> signed BuyWithCoinRouterTx"
+echo "[market] external LLM agents -> signed YES+NO BuyWithCoinRouterTxs"
 "$HELPER" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
@@ -115,8 +116,9 @@ cat > "$RUN_DIR/market_external_agent_run_manifest.json" <<EOF
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
-    "raw provider prompt and response are not written to evidence",
-    "market action is admitted only as signed typed tx on ChainTape"
+    "raw provider prompts and responses are not written to evidence",
+    "YES and NO market actions are admitted only as signed typed txs on ChainTape",
+    "the reward path remains a single WorkTx for the task escrow"
   ]
 }
 EOF

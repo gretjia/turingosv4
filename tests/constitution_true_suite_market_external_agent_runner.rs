@@ -38,80 +38,63 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("read json")).expect("parse json")
 }
 
-#[derive(Clone, Copy)]
-struct MarketCase {
-    direction: &'static str,
-    run_id: &'static str,
-    expected_pool_after_yes: u64,
-    expected_pool_after_no: u64,
-}
-
-fn start_mock_llm_proxy(expected_event_task_id: String, direction: &'static str) -> String {
+fn start_mock_llm_proxy(expected_event_task_id: String, directions: Vec<&'static str>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock proxy");
     let addr = listener.local_addr().expect("local addr");
     thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("accept request");
-        let mut buf = [0u8; 8192];
-        let n = stream.read(&mut buf).expect("read request");
-        let request = String::from_utf8_lossy(&buf[..n]);
-        assert!(
-            request.starts_with("POST /v1/chat/completions"),
-            "unexpected mock proxy request: {request}"
-        );
-        assert!(
-            request.contains(&expected_event_task_id),
-            "prompt should name the market event without using kernel fixtures: {request}"
-        );
-        let decision = serde_json::json!({
-            "direction": direction,
-            "amount_micro": 1000,
-        })
-        .to_string();
-        let body = serde_json::json!({
-            "model": "mock-market-agent",
-            "choices": [
-                {"message": {"content": decision}},
-            ],
-            "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
-        })
-        .to_string();
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-            body.len(),
-            body
-        );
-        stream
-            .write_all(response.as_bytes())
-            .expect("write response");
+        for direction in directions {
+            let (mut stream, _) = listener.accept().expect("accept request");
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).expect("read request");
+            let request = String::from_utf8_lossy(&buf[..n]);
+            assert!(
+                request.starts_with("POST /v1/chat/completions"),
+                "unexpected mock proxy request: {request}"
+            );
+            assert!(
+                request.contains(&expected_event_task_id),
+                "prompt should name the market event without using kernel fixtures: {request}"
+            );
+            assert!(
+                request.contains(&format!("direction = yes|no"))
+                    && request.contains(&format!("`{direction}`")),
+                "prompt should bind the role-required direction without kernel fixtures: {request}"
+            );
+            let decision = serde_json::json!({
+                "direction": direction,
+                "amount_micro": 1000,
+            })
+            .to_string();
+            let body = serde_json::json!({
+                "model": "mock-market-agent",
+                "choices": [
+                    {"message": {"content": decision}},
+                ],
+                "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+            })
+            .to_string();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream
+                .write_all(response.as_bytes())
+                .expect("write response");
+        }
     });
     format!("http://{addr}")
 }
 
 #[test]
 fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
-    for case in [
-        MarketCase {
-            direction: "yes",
-            run_id: "constitution-true-suite-market-agent-yes",
-            expected_pool_after_yes: 99_010,
-            expected_pool_after_no: 101_000,
-        },
-        MarketCase {
-            direction: "no",
-            run_id: "constitution-true-suite-market-agent-no",
-            expected_pool_after_yes: 101_000,
-            expected_pool_after_no: 99_010,
-        },
-    ] {
-        assert_market_external_agent_case(case);
-    }
+    assert_market_external_agent_case("constitution-true-suite-market-agent-yes-no");
 }
 
-fn assert_market_external_agent_case(case: MarketCase) {
+fn assert_market_external_agent_case(run_id: &str) {
     let tmp = TempDir::new().expect("tempdir");
-    let run_dir = tmp.path().join(format!("market_action_{}", case.direction));
-    let proxy_url =
-        start_mock_llm_proxy(format!("true-suite-market-{}", case.run_id), case.direction);
+    let run_dir = tmp.path().join("market_action_yes_no");
+    let proxy_url = start_mock_llm_proxy(format!("true-suite-market-{run_id}"), vec!["yes", "no"]);
 
     let init = Command::new(bin("turingos"))
         .args([
@@ -140,7 +123,7 @@ fn assert_market_external_agent_case(case: MarketCase) {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            case.run_id,
+            run_id,
             "--constitution",
             "constitution.md",
             "--llm-proxy-url",
@@ -166,7 +149,7 @@ fn assert_market_external_agent_case(case: MarketCase) {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            case.run_id,
+            run_id,
             "--constitution",
             "constitution.md",
             "--out-dir",
@@ -197,7 +180,7 @@ fn assert_market_external_agent_case(case: MarketCase) {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            case.run_id,
+            run_id,
             "--out",
             replay_report.to_str().expect("utf8 path"),
         ])
@@ -217,11 +200,50 @@ fn assert_market_external_agent_case(case: MarketCase) {
     );
     assert_eq!(
         manifest.get("direction").and_then(Value::as_str),
-        Some(case.direction)
+        Some("yes"),
+        "legacy scalar direction should mirror the first router trade"
     );
     assert_eq!(
         manifest.get("amount_micro").and_then(Value::as_i64),
         Some(1000)
+    );
+    assert_eq!(
+        manifest.get("buy_yes_count").and_then(Value::as_u64),
+        Some(1),
+        "market evidence must include a real YES router action"
+    );
+    assert_eq!(
+        manifest.get("buy_no_count").and_then(Value::as_u64),
+        Some(1),
+        "market evidence must include a real NO router action"
+    );
+    assert_eq!(
+        manifest
+            .get("no_side_market_action_txs")
+            .and_then(Value::as_u64),
+        Some(1),
+        "NO side must be visible to the receipt-derived closure detector"
+    );
+    assert_eq!(
+        manifest
+            .get("router_tx_ids")
+            .and_then(Value::as_array)
+            .map(Vec::len),
+        Some(2),
+        "same market evidence run must contain two router tx ids"
+    );
+    let trades = manifest
+        .get("router_trades")
+        .and_then(Value::as_array)
+        .expect("router_trades array");
+    assert_eq!(trades.len(), 2, "expected YES and NO router trades");
+    assert_eq!(
+        trades[0].get("direction").and_then(Value::as_str),
+        Some("yes")
+    );
+    assert_eq!(
+        trades[1].get("direction").and_then(Value::as_str),
+        Some("no")
     );
     assert_eq!(
         manifest.get("router_landed").and_then(Value::as_bool),
@@ -252,7 +274,8 @@ fn assert_market_external_agent_case(case: MarketCase) {
         manifest
             .get("final_closure_possible")
             .and_then(Value::as_bool),
-        Some(false)
+        Some(true),
+        "two-sided external market evidence should be domain-closure eligible"
     );
     for key in [
         "decision_capsule_cid",
@@ -282,9 +305,9 @@ fn assert_market_external_agent_case(case: MarketCase) {
         "runner evidence must not store raw prompt text"
     );
 
-    let economics = manifest
+    let economics = trades[0]
         .get("router_economics")
-        .expect("router_economics evidence");
+        .expect("first router_economics evidence");
     assert_eq!(
         economics.get("pay_coin_micro").and_then(Value::as_i64),
         Some(1000)
@@ -305,13 +328,13 @@ fn assert_market_external_agent_case(case: MarketCase) {
         economics
             .pointer("/pool_after/pool_yes_units")
             .and_then(Value::as_u64),
-        Some(case.expected_pool_after_yes)
+        Some(99_010)
     );
     assert_eq!(
         economics
             .pointer("/pool_after/pool_no_units")
             .and_then(Value::as_u64),
-        Some(case.expected_pool_after_no)
+        Some(101_000)
     );
     assert_eq!(
         economics
@@ -380,13 +403,86 @@ fn assert_market_external_agent_case(case: MarketCase) {
         Some(101_000)
     );
 
+    let no_economics = trades[1]
+        .get("router_economics")
+        .expect("second router_economics evidence");
+    assert_eq!(
+        no_economics
+            .pointer("/pool_before/pool_yes_units")
+            .and_then(Value::as_u64),
+        Some(99_010)
+    );
+    assert_eq!(
+        no_economics
+            .pointer("/pool_before/pool_no_units")
+            .and_then(Value::as_u64),
+        Some(101_000)
+    );
+    assert_eq!(
+        no_economics
+            .pointer("/pool_after/pool_yes_units")
+            .and_then(Value::as_u64),
+        Some(100_010)
+    );
+    assert_eq!(
+        no_economics
+            .pointer("/pool_after/pool_no_units")
+            .and_then(Value::as_u64),
+        Some(99_991)
+    );
+    assert_eq!(
+        no_economics
+            .get("quote_out_shares_units")
+            .and_then(Value::as_u64),
+        Some(1_009),
+        "second NO trade should quote against the post-YES pool"
+    );
+    assert_eq!(
+        no_economics
+            .get("quote_get_shares_units")
+            .and_then(Value::as_u64),
+        Some(2_009)
+    );
+    assert_eq!(
+        no_economics
+            .get("collateral_after_micro")
+            .and_then(Value::as_i64),
+        Some(102_000)
+    );
+    assert_eq!(
+        no_economics
+            .get("sum_yes_after_units")
+            .and_then(Value::as_u64),
+        Some(102_000)
+    );
+    assert_eq!(
+        no_economics
+            .get("sum_no_after_units")
+            .and_then(Value::as_u64),
+        Some(102_000)
+    );
+    for key in [
+        "k_non_decreasing",
+        "pool_delta_matches_quote",
+        "mint_and_swap_retained_plus_out_holds",
+        "buyer_coin_debited_exactly",
+        "total_coin_conserved",
+        "complete_set_balanced_after",
+    ] {
+        assert_eq!(
+            no_economics.get(key).and_then(Value::as_bool),
+            Some(true),
+            "NO router economics invariant `{key}` must hold: {no_economics}"
+        );
+    }
+
     let replay = read_json(&replay_report);
     assert!(
         replay
             .get("l4_entries")
             .and_then(Value::as_u64)
             .unwrap_or(0)
-            >= 18,
+            >= 19,
         "boot + market helper + full-system augment should produce a full typed chain: {replay}"
     );
     for key in [
@@ -409,7 +505,7 @@ fn assert_market_external_agent_case(case: MarketCase) {
     let participation = Command::new(bin("full_system_participation_current_kernel"))
         .args([
             "--run-id",
-            case.run_id,
+            run_id,
             "--family-id",
             "market_economy_polymarket",
             "--entrypoint",
@@ -472,8 +568,8 @@ fn assert_market_external_agent_case(case: MarketCase) {
             .and_then(|v| v.get("agent_market_action_txs"))
             .and_then(Value::as_u64)
             .unwrap_or(0)
-            > 0,
-        "market sample must include a typed agent market action"
+            >= 2,
+        "market sample must include typed YES and NO agent market actions"
     );
 
     let genesis_report = run_dir.join("runtime_repo").join("genesis_report.json");
