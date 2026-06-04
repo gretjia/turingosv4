@@ -67,11 +67,9 @@ blockers = [
 
 [[coverage_task]]
 id = "cybench_security_sandbox_fresh"
-evidence_run = "broad_agi_cybench_20260527T032017Z"
+evidence_run = "obl005_fresh_cybench_20260604T164533Z"
 evidence_subdir = "cybench"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -209,11 +207,9 @@ blockers = [
 
 [[broad_family]]
 id = "cybench_security_sandbox"
-evidence_run = "broad_agi_cybench_20260527T032017Z"
+evidence_run = "obl005_fresh_cybench_20260604T164533Z"
 evidence_subdir = "cybench"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
