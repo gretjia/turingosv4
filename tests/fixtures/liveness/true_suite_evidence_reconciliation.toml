@@ -34,11 +34,9 @@ blockers = [
 
 [[coverage_task]]
 id = "generate_artifact_chain_fresh"
-evidence_run = "generate_artifact_full_system_20260526T170808Z"
+evidence_run = "obl005_fresh_generate_20260604T171500Z"
 evidence_subdir = "generate_artifact"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]

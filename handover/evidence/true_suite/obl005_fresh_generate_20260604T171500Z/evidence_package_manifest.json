@@ -1,0 +1,59 @@
+{
+  "package_count": 5,
+  "packages": [
+    {
+      "archive_bytes": 95933,
+      "archive_path": "generate_artifact/cas.dotgit.tar.gz",
+      "archive_sha256": "f6cb8d2b2b4acde5c29c0715537cd608179233969eade766ff213e74873dc4d8",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/cas",
+      "source_path": "generate_artifact/cas/.git"
+    },
+    {
+      "archive_bytes": 4508,
+      "archive_path": "generate_artifact/cas.worktree.tar.gz",
+      "archive_sha256": "265f62f256c7bc37c3ac3376affd9829bf748135fa3678ba252c81d956be5a9b",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "generate_artifact/cas",
+      "source_path": "generate_artifact/cas"
+    },
+    {
+      "archive_bytes": 30999,
+      "archive_path": "generate_artifact/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "57aefdd4649ff9649123810088dc2c4362111966923185b4d9b6595354dc324c",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/runtime_repo",
+      "source_path": "generate_artifact/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1538,
+      "archive_path": "generate_artifact/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "abe3b44839b87c669f23714194060477a1f492390c96808225b20a1b0ce0c218",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "generate_artifact/runtime_repo",
+      "source_path": "generate_artifact/runtime_repo"
+    },
+    {
+      "archive_bytes": 10424,
+      "archive_path": "generate_artifact/tdma_tape.git.tar.gz",
+      "archive_sha256": "d41583b21a280a875f4574dd47cfa5f933ab9e72ee8fb3a84bd44b78213463fe",
+      "kind": "tdma_tape_git",
+      "removed_loose_store": true,
+      "restore_into": "generate_artifact/tdma_tape.git",
+      "source_path": "generate_artifact/tdma_tape.git"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

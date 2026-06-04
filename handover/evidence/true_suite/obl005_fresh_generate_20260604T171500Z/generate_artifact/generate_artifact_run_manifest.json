@@ -1,0 +1,26 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_current_kernel.v1",
+  "run_id": "obl005_fresh_generate_20260604T171500Z",
+  "chain_run_id": "polymarket-default-1780589528",
+  "git_head": "7dd5b3d80b0313520b01c9c0fc56bd7117ff8b63",
+  "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "llm_endpoint": "http://localhost:8080/v1/chat/completions",
+  "init_provider": "deepseek",
+  "n_parallel_workers": 1,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/genesis_report.json",
+  "artifact_bundle_cid": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/artifact_bundle_cid.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/full_system_participation.json",
+  "notes": [
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "full-system liveness wallets are added to genesis_payload.toml before the ChainTape opens; no post-init mint is used",
+    "spec synthesis is anchored as a CAS spec capsule",
+    "generate reads the spec from CAS via --from-capsule",
+    "accepted artifact work lands as typed ChainTape entries and replays through public verify"
+  ]
+}

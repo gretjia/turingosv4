@@ -1,0 +1,10 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_bundle_cid.v1",
+  "run_id": "obl005_fresh_generate_20260604T171500Z",
+  "chain_run_id": "polymarket-default-1780589528",
+  "spec_capsule_cid": "89db71334a6abbe3c7d060b8708dc9a100ec6f7013df67f5e2980e5eb9785258",
+  "artifact_bundle_cid": "34460d7d4a069e8d167cc53ef4492a452ce06c45c7f18363f836950ffe463ed3",
+  "workspace": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/cas"
+}

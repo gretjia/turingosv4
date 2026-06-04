@@ -1,0 +1,48 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/runtime_repo",
+  "cas_path": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/cas",
+  "system_pubkey_hash": "3d0cb0108aa13538b9a5f98a917c09701511b9bdba6d0091560cbb6e668f6b37",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "treasury",
+      100000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "MarketMakerBudget",
+      5000000
+    ],
+    [
+      "market-provider",
+      10000
+    ],
+    [
+      "verifier-alpha",
+      10000
+    ],
+    [
+      "worker-alpha",
+      10000
+    ],
+    [
+      "worker-beta",
+      10000
+    ],
+    [
+      "worker-gamma",
+      10000
+    ]
+  ],
+  "task_id": null,
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}
