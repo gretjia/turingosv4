@@ -22,19 +22,18 @@ blockers = [
 
 [[coverage_task]]
 id = "market_ab_performance_fresh"
-evidence_run = "obl005_fresh_market_ab_20260604T175932Z"
+evidence_run = "obl005_fresh_market_ab_20260604T232500Z"
 evidence_subdir = "market_ab"
 blockers = [
-  "domain_receipt_final_closure_missing",
+  "domain_receipt_final_closure_false",
   "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
 id = "generate_artifact_chain_fresh"
-evidence_run = "obl005_fresh_generate_20260604T171500Z"
+evidence_run = "obl005_fresh_generate_20260604T232500Z"
 evidence_subdir = "generate_artifact"
 blockers = [
-  "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
 

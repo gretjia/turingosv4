@@ -132,6 +132,9 @@ cat > "$RUN_DIR/artifact_bundle_cid.json" <<EOF
   "chain_run_id": "$CHAIN_RUN_ID",
   "spec_capsule_cid": "$SPEC_CAPSULE_CID",
   "artifact_bundle_cid": "$ARTIFACT_BUNDLE_CID",
+  "closure_scope": "generate_artifact_chain_current_kernel",
+  "full_system_participation_required": true,
+  "final_closure_possible": true,
   "workspace": "$RUN_DIR",
   "runtime_repo": "$RUN_DIR/runtime_repo",
   "cas": "$RUN_DIR/cas"
@@ -159,7 +162,7 @@ echo "[verify] turingos verify chaintape"
 
 "$PARTICIPATION" \
     --run-id "$RUN_ID" \
-    --family-id "gaia_general_assistant" \
+    --family-id "generate_artifact_chain" \
     --entrypoint "scripts/run_true_suite_generate_artifact_current_kernel.sh" \
     --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \

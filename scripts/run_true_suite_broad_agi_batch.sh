@@ -253,7 +253,7 @@ installed = {
     },
     "generate_artifact_chain_fresh": {
         "entrypoint": "scripts/run_true_suite_generate_artifact_current_kernel.sh",
-        "family_ids": ["gaia_general_assistant"],
+        "family_ids": [],
     },
     "gaia_general_assistant_fresh": {
         "entrypoint": "scripts/run_true_suite_gaia_general_assistant_current_kernel.sh",

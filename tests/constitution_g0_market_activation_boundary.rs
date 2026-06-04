@@ -12,12 +12,24 @@ fn true_suite_market_ab_runner_declares_g0_market_activation_receipt() {
         "g0_market_activation_manifest.json",
         "single WorkTx",
         "src/bin/g0_market_activation_current_kernel.rs",
+        "market_ab_candidate_only_g0_core_conditions_1_2_3_6_7_8_9",
+        "c4_c5_priced_dag_and_c10_c11_reward_settlement_stage2",
     ] {
         assert!(
             script.contains(expected),
             "true-suite market A/B runner must produce G0 market activation receipt marker: {expected}"
         );
     }
+    assert!(
+        script.contains("full_system_participation_required: true")
+            || script.contains("\"full_system_participation_required\": true"),
+        "market A/B root domain manifest must declare full-system participation requirement"
+    );
+    assert!(
+        script.contains("final_closure_possible: false")
+            || script.contains("\"final_closure_possible\": false"),
+        "market A/B root domain manifest must explicitly remain non-closing"
+    );
     assert!(
         !script.contains("priced-DAG parent selection"),
         "market A/B runner note must not overclaim c4/c5 priced-DAG parent selection closure"
