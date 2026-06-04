@@ -11,13 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh GAIA
-current-source evidence is added after PR #266 updated the post-Mind2Web
-handover state.
+**Session**: OBL-005 reopened re-audit on current main; PR #267 merged fresh
+GAIA current-source evidence after PR #266 updated the post-Mind2Web handover
+state.
 
-**Base main at branch start**: `90cec268` (PR #266 — post-Mind2Web handover).
-Current working branch is `codex/obl005-fresh-gaia-source-evidence`, not yet
-merged.
+**Main tip**: `056cfa60` (PR #267 — fresh GAIA source evidence).
+Current working tree is on `main` after #267 merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -28,7 +27,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #266 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #267 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -50,8 +49,8 @@ Current state:
   `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
   `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence,
   `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
-  `obl005_fresh_tdma_20260604T203708Z` TDMA evidence, plus
-  `obl005_fresh_mind2web_20260604T210300Z` Mind2Web evidence:
+  `obl005_fresh_tdma_20260604T203708Z` TDMA evidence,
+  `obl005_fresh_mind2web_20260604T210300Z` Mind2Web evidence, and
   `obl005_fresh_gaia_20260604T213500Z` GAIA evidence:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
@@ -236,7 +235,7 @@ Current state:
   from 2 to 1 while deliberately keeping
   `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
   and `fresh_final_closure_witness_missing`. This does not claim final closure.
-- Fresh GAIA source evidence added on the current branch:
+- Fresh GAIA source evidence added by PR #267:
   `gaia_general_assistant` now points at
   `handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/`.
   The receipt is `final_closure_possible=true` with source commit
