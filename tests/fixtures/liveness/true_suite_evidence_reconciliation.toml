@@ -104,22 +104,18 @@ blockers = [
 
 [[coverage_task]]
 id = "replay_cas_tamper_repair_current"
-evidence_run = "replay_cas_full_system_evidence_20260526T190754Z"
+evidence_run = "obl005_fresh_boot_replay_20260604T143328Z"
 evidence_subdir = "replay_cas"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
 id = "boot_cli_current_kernel_fresh"
-evidence_run = "boot_cli_full_system_evidence_20260526T182219Z"
+evidence_run = "obl005_fresh_boot_replay_20260604T143328Z"
 evidence_subdir = "boot_cli"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "fresh_final_closure_witness_missing",
 ]
 

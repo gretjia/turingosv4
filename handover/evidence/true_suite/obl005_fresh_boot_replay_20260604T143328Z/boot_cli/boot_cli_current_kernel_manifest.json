@@ -1,0 +1,17 @@
+{
+  "schema_version": "turingosv4.true_suite.boot_cli_current_kernel.v1",
+  "run_id": "obl005_fresh_boot_replay_20260604T143328Z",
+  "git_head": "024dfd2d75817f7c0e52004fd3fca8122e9981d9",
+  "entrypoint": "scripts/run_true_suite_boot_cli_current_kernel.sh",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/boot_cli/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/boot_cli/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/boot_cli/genesis_report.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/boot_cli/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/boot_cli/full_system_participation.json",
+  "notes": [
+    "turingos init is filesystem scaffold only",
+    "current runtime helper emits FC1 WorkTx, FC2 MapReduceTick, and FC3 typed governance/re-init rows",
+    "full_system_augment_current_kernel appends a tape-visible market action",
+    "verify chaintape is invoked through the public turingos CLI wrapper"
+  ]
+}

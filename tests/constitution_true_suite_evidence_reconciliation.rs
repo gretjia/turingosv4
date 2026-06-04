@@ -1000,7 +1000,8 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
             .and_then(toml::Value::as_bool)
             == Some(false);
 
-    let mut non_closing_bound_receipts = 0usize;
+    let mut source_non_closing_bound_receipts = 0usize;
+    let mut blocker_bearing_bindings = 0usize;
     for (binding_key, contract_path, contract_key) in [
         ("coverage_task", REALWORLD_MANIFEST, "task"),
         ("broad_family", BROAD_MANIFEST, "family"),
@@ -1015,21 +1016,27 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
                 .pointer("/verdict/final_closure_possible")
                 .and_then(Value::as_bool)
                 == Some(true);
-            if final_closure_possible {
+            if !final_closure_possible {
+                source_non_closing_bound_receipts += 1;
                 assert!(
-                    binding.blockers.is_empty(),
-                    "{binding_key}:{} is closing but still carries blockers: {:?}",
-                    binding.id,
-                    binding.blockers
+                    !binding.blockers.is_empty(),
+                    "{binding_key}:{} is source-non-closing but has no blocker inventory",
+                    binding.id
                 );
-                continue;
+            } else {
+                assert!(
+                    !binding
+                        .blockers
+                        .iter()
+                        .any(|b| b == "source_receipt_final_closure_false"),
+                    "{binding_key}:{} has a source-closing receipt but still declares source_receipt_final_closure_false",
+                    binding.id
+                );
             }
-            non_closing_bound_receipts += 1;
-            assert!(
-                !binding.blockers.is_empty(),
-                "{binding_key}:{} is non-closing but has no blocker inventory",
-                binding.id
-            );
+
+            if !binding.blockers.is_empty() {
+                blocker_bearing_bindings += 1;
+            }
             assert_blocker_classes_are_receipt_derived(
                 binding_key,
                 &binding,
@@ -1041,8 +1048,12 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
     }
 
     assert!(
-        non_closing_bound_receipts > 0,
-        "this reaudit gate must be able to observe at least one non-closing receipt"
+        source_non_closing_bound_receipts > 0,
+        "this reaudit gate must be able to observe at least one source-non-closing receipt"
+    );
+    assert!(
+        blocker_bearing_bindings > 0,
+        "this reaudit gate must be able to observe at least one explicit blocker-bearing binding"
     );
 }
 

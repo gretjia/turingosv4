@@ -1,0 +1,29 @@
+{
+  "all_detected": true,
+  "detected_count": 3,
+  "expected": 3,
+  "schema_version": "v1/audit_tape_tamper",
+  "tamper_results": [
+    {
+      "detail": "destructively truncated 267 bytes from largest L4-reachable loose object 5f8548e0436cbccb079daf80976418e6dab47653 (\"/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git/objects/5f/8548e0436cbccb079daf80976418e6dab47653\") — forces git2 zlib decode failure when audit_tape next reads",
+      "detected": true,
+      "label": "flip_l4_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "destructively truncated 692 bytes from largest CAS object \"/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/replay_cas/tamper_work/flip_cas_byte/cas/.git/objects/b4/3eeb303f69bfb8cd39cbf1b879cefc834728ca\"",
+      "detected": true,
+      "label": "flip_cas_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "zeroed last 4 hex chars in 2 chain ref(s): refs/chaintape/l4, refs/transitions/main",
+      "detected": true,
+      "label": "truncate_l4_ref",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    }
+  ]
+}
