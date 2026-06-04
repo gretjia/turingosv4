@@ -1,0 +1,1 @@
+turingos tdma run: completed 5/5 stages in 13.2s. Evidence at /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_tdma_20260604T203708Z/tdma
