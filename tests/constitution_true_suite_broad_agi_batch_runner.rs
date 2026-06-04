@@ -326,6 +326,8 @@ fn restore_true_suite_chain_evidence_script_verifies_from_packaged_tarballs() {
     assert!(script.contains("verify chaintape"));
     assert!(script.contains("domain_run_id"));
     assert!(script.contains("payload.get(\"run_id\")"));
+    assert!(script.contains("find \"$RUN_ROOT\" -type f -name runtime_repo.dotgit.tar.gz"));
+    assert!(script.contains("domain_dir=\"$(dirname \"$runtime_git\")\""));
     assert!(script.contains("restore_replay_report.json"));
     assert!(script.contains("fc3_restore_replay_report.json"));
     assert!(

@@ -26,7 +26,7 @@ while [[ $# -gt 0 ]]; do
 restore_true_suite_chain_evidence.sh --run-id <RUN_ID>
 restore_true_suite_chain_evidence.sh --run-root <PATH>
 
-For every direct child evidence domain containing packaged runtime_repo/cas
+For every evidence directory at any depth containing packaged runtime_repo/cas
 tarballs, restore them into a temp directory and write:
   <domain>/restore_replay_report.json
 
@@ -63,11 +63,14 @@ if [[ ! -x "$TURINGOS" ]]; then
 fi
 
 restored_count=0
-for domain_dir in "$RUN_ROOT"/*; do
-    [[ -d "$domain_dir" ]] || continue
-    [[ "$(basename "$domain_dir")" != "broad_batch" ]] || continue
+while IFS= read -r -d '' runtime_git; do
+    domain_dir="$(dirname "$runtime_git")"
+    case "$domain_dir" in
+        */broad_batch|*/broad_batch/*)
+            continue
+            ;;
+    esac
 
-    runtime_git="$domain_dir/runtime_repo.dotgit.tar.gz"
     cas_git="$domain_dir/cas.dotgit.tar.gz"
     [[ -f "$runtime_git" && -f "$cas_git" ]] || continue
     replay_report="$domain_dir/replay_report.json"
@@ -123,6 +126,6 @@ PY
     cleanup
     trap - EXIT
     restored_count=$((restored_count + 1))
-done
+done < <(find "$RUN_ROOT" -type f -name runtime_repo.dotgit.tar.gz -print0 | sort -z)
 
 echo "TRUE-SUITE restore replay reports written: $restored_count"
