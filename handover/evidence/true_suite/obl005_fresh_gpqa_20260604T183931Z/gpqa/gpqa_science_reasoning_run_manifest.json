@@ -1,0 +1,26 @@
+{
+  "schema_version": "turingosv4.true_suite.gpqa_science_reasoning_run.v1",
+  "run_id": "obl005_fresh_gpqa_20260604T183931Z",
+  "git_head": "7b12e9f1fc6469682af6d5f4e8a2cba18ba0c0d2",
+  "entrypoint": "scripts/run_true_suite_gpqa_science_reasoning_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "gpqa_dataset_url": "https://raw.githubusercontent.com/idavidrein/gpqa/main/dataset.zip",
+  "gpqa_dataset_split": "gpqa_diamond.csv",
+  "gpqa_sample_index": 0,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/genesis_report.json",
+  "gpqa_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/gpqa_science_reasoning_manifest.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z/gpqa/full_system_participation.json",
+  "notes": [
+    "GPQA data comes from the public idavidrein/gpqa source unless GPQA_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "benchmark accuracy is not treated as liveness closure"
+  ]
+}
