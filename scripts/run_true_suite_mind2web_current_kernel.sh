@@ -149,6 +149,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "mind2web_open_web" \
     --entrypoint "scripts/run_true_suite_mind2web_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

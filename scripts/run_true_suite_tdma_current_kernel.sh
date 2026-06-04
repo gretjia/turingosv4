@@ -171,6 +171,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "tdma_proof" \
     --entrypoint "scripts/run_true_suite_tdma_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

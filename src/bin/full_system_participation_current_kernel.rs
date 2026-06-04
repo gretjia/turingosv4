@@ -24,6 +24,7 @@ struct Args {
     run_id: String,
     family_id: String,
     entrypoint: String,
+    source_root: Option<PathBuf>,
     runtime_repo: PathBuf,
     cas: PathBuf,
     replay_report: PathBuf,
@@ -38,7 +39,7 @@ fn usage() -> &'static str {
     "usage: full_system_participation_current_kernel \
      --run-id <ID> --family-id <ID> --entrypoint <PATH> \
      --runtime-repo <PATH> --cas <PATH> --replay-report <PATH> --out <PATH> \
-     [--genesis-report <PATH>] [--domain-manifest <PATH>] [--fc3-index <PATH>] \
+     [--source-root <PATH>] [--genesis-report <PATH>] [--domain-manifest <PATH>] [--fc3-index <PATH>] \
      [--require-full-system]"
 }
 
@@ -46,6 +47,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut run_id = None;
     let mut family_id = None;
     let mut entrypoint = None;
+    let mut source_root = None;
     let mut runtime_repo = None;
     let mut cas = None;
     let mut replay_report = None;
@@ -69,6 +71,10 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--entrypoint" => {
                 i += 1;
                 entrypoint = Some(argv.get(i).ok_or("--entrypoint requires value")?.clone());
+            }
+            "--source-root" => {
+                i += 1;
+                source_root = Some(argv.get(i).ok_or("--source-root requires value")?.into());
             }
             "--runtime-repo" => {
                 i += 1;
@@ -113,6 +119,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         run_id: run_id.ok_or("--run-id required")?,
         family_id: family_id.ok_or("--family-id required")?,
         entrypoint: entrypoint.ok_or("--entrypoint required")?,
+        source_root,
         runtime_repo: runtime_repo.ok_or("--runtime-repo required")?,
         cas: cas.ok_or("--cas required")?,
         replay_report: replay_report.ok_or("--replay-report required")?,
@@ -150,6 +157,14 @@ struct ReplaySummary {
     final_state_root_hex: Option<String>,
     final_ledger_root_hex: Option<String>,
     head_commit_oid_hex: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct SourceTreeIdentity {
+    commit: String,
+    head_ref: Option<String>,
+    status: String,
+    changed_paths_count: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -220,6 +235,7 @@ struct FullSystemParticipationReport {
     entrypoint: String,
     authority: &'static str,
     evidence_paths: EvidencePaths,
+    source_tree: SourceTreeIdentity,
     replay: ReplaySummary,
     tx_kind_counts: TxKindCounts,
     tx_kind_counts_source: &'static str,
@@ -277,6 +293,50 @@ fn tx_entries(
     Ok((entries, sequence))
 }
 
+fn source_tree_identity(source_root: Option<&PathBuf>) -> Result<SourceTreeIdentity, String> {
+    let start = match source_root {
+        Some(path) => path.clone(),
+        None => std::env::current_dir().map_err(|e| format!("current dir: {e}"))?,
+    };
+    let repo = git2::Repository::discover(&start)
+        .map_err(|e| format!("discover source git repo from {}: {e}", start.display()))?;
+    let head = repo.head().map_err(|e| format!("source HEAD: {e}"))?;
+    let commit = head
+        .peel_to_commit()
+        .map_err(|e| format!("source HEAD commit: {e}"))?
+        .id()
+        .to_string();
+    let head_ref = head.shorthand().map(str::to_string);
+    drop(head);
+
+    let mut status_options = git2::StatusOptions::new();
+    status_options
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .renames_head_to_index(true)
+        .renames_index_to_workdir(true);
+    let statuses = repo
+        .statuses(Some(&mut status_options))
+        .map_err(|e| format!("source status: {e}"))?;
+    let changed_paths_count = statuses
+        .iter()
+        .filter(|entry| entry.status() != git2::Status::CURRENT)
+        .count();
+    let status = if changed_paths_count == 0 {
+        "clean"
+    } else {
+        "dirty_allowed_recorded"
+    }
+    .to_string();
+
+    Ok(SourceTreeIdentity {
+        commit,
+        head_ref,
+        status,
+        changed_paths_count,
+    })
+}
+
 fn l4_market_tx_count(c: &TxKindCounts) -> u64 {
     c.market_seed
         + c.complete_set_mint
@@ -297,6 +357,7 @@ fn declined_count(summary: &MarketDecisionTraceSummary) -> u64 {
 }
 
 fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), String> {
+    let source_tree = source_tree_identity(args.source_root.as_ref())?;
     let replay: ReplayReport = read_json(&args.replay_report)?;
     let replay_green = replay.all_indicators_pass();
     let domain_manifest = optional_json(&args.domain_manifest)?;
@@ -428,6 +489,7 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
                 .map(|p| p.display().to_string()),
             fc3_index: args.fc3_index.as_ref().map(|p| p.display().to_string()),
         },
+        source_tree,
         replay: ReplaySummary {
             l4_entries: replay.l4_entries,
             l4e_entries: replay.l4e_entries,

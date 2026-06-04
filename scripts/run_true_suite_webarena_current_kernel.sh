@@ -184,6 +184,7 @@ echo "[verify] turingos verify chaintape"
     --run-id "$RUN_ID" \
     --family-id "webarena_web_agent" \
     --entrypoint "scripts/run_true_suite_webarena_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/runtime_repo" \
     --cas "$RUN_DIR/cas" \
     --replay-report "$RUN_DIR/replay_report.json" \

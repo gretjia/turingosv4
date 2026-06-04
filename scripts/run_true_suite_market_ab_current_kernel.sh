@@ -206,6 +206,7 @@ mv "$RUN_DIR/REAL16_MARKET_PERFORMANCE_REPORT.with_exit.json" "$RUN_DIR/REAL16_M
     --run-id "$RUN_ID" \
     --family-id "market_ab_performance_current_kernel" \
     --entrypoint "scripts/run_true_suite_market_ab_current_kernel.sh" \
+    --source-root "$PROJECT_ROOT" \
     --runtime-repo "$RUN_DIR/arm_D/runtime_repo" \
     --cas "$RUN_DIR/arm_D/cas" \
     --replay-report "$RUN_DIR/arm_D/replay_report.json" \
