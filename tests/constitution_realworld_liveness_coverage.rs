@@ -194,6 +194,7 @@ fn has_tdma_domain_artifact(paths: &[String]) -> bool {
 
 fn has_raw_provider_or_score_path(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
+    let file = lower.rsplit('/').next().unwrap_or(&lower);
     lower.ends_with(".stdout")
         || lower.ends_with(".stderr")
         || lower.ends_with("_output.txt")
@@ -207,6 +208,9 @@ fn has_raw_provider_or_score_path(path: &str) -> bool {
         || lower.contains("real8x")
         || lower.contains("stage_phase7_real_e2e")
         || lower.contains("tdma_zero_gain_demo")
+        || file.contains("candidate_report")
+        || file.contains("performance_report")
+        || (file.ends_with(".json") && file.starts_with("real") && file.contains("_report"))
 }
 
 fn assert_allowed_tape_kind(task: &CoverageTask) {
