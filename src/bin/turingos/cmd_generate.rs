@@ -1452,8 +1452,10 @@ the language tag (e.g. ```html, ```python, ```javascript, ```css).
    ONE `index.html` with `<style>` and `<script>` embedded — so the user can
    open the file in a browser with zero install. For a script, output ONE
    Python 3 file named `main.py`.
-2. No external runtime dependencies unless the spec explicitly demands them
-   (no `npm install`, no `pip install`, no CDN scripts unless unavoidable).
+2. No external runtime dependencies unless the spec explicitly demands a
+   specific live network integration. For self-contained artifacts: no
+   `npm install`, no `pip install`, and no CDN scripts. No remote fonts,
+   no external CSS/JS/image URLs, and no `<link href="https://...">`.
 3. The code must actually run as-emitted. If the spec is vague, choose a
    sensible default and add a brief comment marking the assumption.
 4. NO surrounding prose. No "Here's the code:" preamble. No closing remarks.
@@ -1465,11 +1467,14 @@ the language tag (e.g. ```html, ```python, ```javascript, ```css).
    do NOT add features it forbids.
 7. VISUAL FORMAT for HTML outputs (TuringOS aesthetic — applies when your
    output is `index.html`). Apply these design tokens as inline CSS — do
-   NOT pull in Tailwind CDN, Bootstrap CDN, or any other framework:
-   - Headings: font-family 'Fraunces', Georgia, serif (load via Google
-     Fonts <link> in <head> is OK: family=Fraunces:opsz,wght@9..144,400;9..144,600).
-   - Body: font-family 'IBM Plex Sans', system-ui, sans-serif (Google Fonts OK).
-   - Code/mono: font-family 'JetBrains Mono', ui-monospace, monospace (Google Fonts OK).
+   NOT pull in Tailwind CDN, Bootstrap CDN, Google Fonts, or any other
+   external stylesheet/script/font URL:
+   - Headings: font-family 'Fraunces', Georgia, serif. Do not load remote
+     fonts; fall back to Georgia when Fraunces is unavailable.
+   - Body: font-family 'IBM Plex Sans', system-ui, sans-serif. Do not load
+     remote fonts; fall back to system-ui when IBM Plex Sans is unavailable.
+   - Code/mono: font-family 'JetBrains Mono', ui-monospace, monospace. Do not
+     load remote fonts; fall back to ui-monospace when JetBrains Mono is unavailable.
    - Accent color: define `--accent: #4e8b7a` (oxidized teal). Use for links,
      buttons, borders, focus rings, key highlights.
    - Background: `#f8f6f1` (warm off-white). Text: `#1a1a1a`. Muted: `#6b6b6b`.
@@ -3094,6 +3099,32 @@ mod tests {
              state_update JSON BEFORE the artifact/code body; \
              context around 'state_update': {:?}",
             context_window
+        );
+    }
+
+    #[test]
+    fn blackbox_system_prompt_forbids_remote_font_dependencies() {
+        let prompt = blackbox_system_prompt();
+
+        for forbidden in &[
+            "Google Fonts OK",
+            "Fonts <link> in <head> is OK",
+            "load via Google",
+        ] {
+            assert!(
+                !prompt.contains(forbidden),
+                "blackbox_system_prompt() must not permit remote font dependencies: {:?}",
+                forbidden
+            );
+        }
+
+        assert!(
+            prompt.contains("No external runtime dependencies"),
+            "blackbox_system_prompt() must preserve the self-contained artifact rule"
+        );
+        assert!(
+            prompt.contains("No remote fonts"),
+            "blackbox_system_prompt() must explicitly forbid remote fonts"
         );
     }
 }
