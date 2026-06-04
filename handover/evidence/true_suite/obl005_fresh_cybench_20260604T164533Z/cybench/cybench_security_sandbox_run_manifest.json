@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.cybench_security_sandbox_run.v1",
+  "run_id": "obl005_fresh_cybench_20260604T164533Z",
+  "git_head": "0f38026e4d03177ad4b6641086e9f1e98f751e8b",
+  "entrypoint": "scripts/run_true_suite_cybench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/genesis_report.json",
+  "cybench_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/cybench_security_sandbox_manifest.json",
+  "fc_trace_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/fc_trace_report.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z/cybench/full_system_participation.json",
+  "notes": [
+    "Cybench task is represented as an offline disposable challenge snapshot derived from the public Cybench security-sandbox task family",
+    "CYBENCH_SAMPLE_JSON can supply a pre-materialized Cybench-style sample",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records safe structural sandbox triage evidence only; it performs no live target access or exploit execution"
+  ],
+  "closure_scope": "domain_adapter_smoke_only",
+  "final_closure_possible": false
+}
