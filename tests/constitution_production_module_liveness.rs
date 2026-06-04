@@ -415,7 +415,7 @@ fn liveness_manifest_policy_is_real_world_first() {
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
         Some(REAUDIT_STATUS),
-        "OBL-005 must stay in reaudit while retained research diagnostics lack ChainTape/CAS replay evidence"
+        "OBL-005 stays in reaudit until a fresh final closure witness verifies every retained group"
     );
 }
 
@@ -469,59 +469,33 @@ fn final_closure_cannot_be_claimed_while_non_closing_dev_groups_remain() {
 }
 
 #[test]
-fn lean_research_diagnostic_bins_are_dev_only_and_non_closing() {
+fn retired_lean_research_diagnostic_bins_do_not_reenter_production() {
     let groups = groups();
-    let diagnostic_modules = ["bin::lean_emergence", "bin::lean_hayek_market"];
+    let retired_modules = ["bin::lean_emergence", "bin::lean_hayek_market"];
+    let retired_paths = ["src/bin/lean_emergence.rs", "src/bin/lean_hayek_market.rs"];
 
-    let diagnostics = group_by_id(&groups, "lean_research_diagnostic_bins");
-    assert_eq!(diagnostics.classification, "dev_only");
-    assert_eq!(diagnostics.status, "smoke_only");
     assert!(
-        !diagnostics.allowed_as_fc_authority,
-        "Lean diagnostic bins cannot be flowchart authority"
-    );
-    assert!(
-        diagnostics.real_world_evidence.is_empty(),
-        "diagnostic bins must not borrow historical ChainTape/CAS evidence until they write production replay evidence themselves"
-    );
-    assert!(
-        diagnostics
-            .closure_action
-            .as_deref()
-            .unwrap_or_default()
-            .contains("ChainTape/CAS replay"),
-        "diagnostic bin exclusion must explain the missing ChainTape/CAS replay evidence"
+        groups
+            .iter()
+            .all(|group| group.id != "lean_research_diagnostic_bins"),
+        "retired Lean diagnostic bins must not remain as a non-closing liveness group"
     );
 
-    for module in diagnostic_modules {
+    for module in retired_modules {
         assert!(
-            diagnostics.module_ids.iter().any(|id| id == module),
-            "diagnostic group must own `{module}`"
+            groups
+                .iter()
+                .all(|group| !group.module_ids.iter().any(|id| id == module)),
+            "retired diagnostic module `{module}` must not be retained in production liveness accounting"
         );
-        for group in groups.iter().filter(|group| group.id != diagnostics.id) {
-            assert!(
-                !group.module_ids.iter().any(|id| id == module),
-                "`{module}` must not be co-owned by `{}` after dev-only split",
-                group.id
-            );
-        }
     }
 
-    let lean_emergence =
-        fs::read_to_string("src/bin/lean_emergence.rs").expect("read src/bin/lean_emergence.rs");
-    assert!(
-        lean_emergence.contains("Class 1-2 diagnostic bin")
-            && lean_emergence.contains("/tmp/emergence.json"),
-        "lean_emergence is a local diagnostic JSON writer, not ChainTape/CAS production evidence"
-    );
-
-    let lean_hayek = fs::read_to_string("src/bin/lean_hayek_market.rs")
-        .expect("read src/bin/lean_hayek_market.rs");
-    assert!(
-        lean_hayek.contains("MarketTape")
-            && !lean_hayek.contains("build_chaintape_sequencer_with_initial_q"),
-        "lean_hayek_market uses local MarketTape diagnostics, not the production ChainTape sequencer"
-    );
+    for path in retired_paths {
+        assert!(
+            !std::path::Path::new(path).exists(),
+            "retired diagnostic bin `{path}` must not re-enter src/bin without real ChainTape/CAS replay evidence"
+        );
+    }
 }
 
 #[test]
