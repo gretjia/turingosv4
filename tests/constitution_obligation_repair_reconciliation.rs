@@ -117,3 +117,51 @@ fn obl005_no_longer_names_obl004_placeholders_as_blockers() {
         "OBL-005 blocker paragraph must cite the OBL-004 reconciliation audit"
     );
 }
+
+#[test]
+fn obl010_obl011_market_activation_closure_has_no_live_stale_blockers() {
+    let ledger = fs::read_to_string(LEDGER).expect("read OBLIGATIONS.md");
+    let obl010 = section(&ledger, "## OBL-010:", "## OBL-011:");
+    let obl011 = section(&ledger, "## OBL-011:", "## OBL-012:");
+
+    assert!(
+        obl010.contains("- Status: satisfied"),
+        "OBL-010 must remain closed after g0run5 real-run/replay evidence"
+    );
+    assert!(
+        obl010.contains("per-task node model")
+            && obl010.contains("g0run5")
+            && obl010.contains("archival negative evidence"),
+        "OBL-010 must state the current c4/c5 resolution and demote the old §8 packet to archival negative evidence"
+    );
+    for stale in [
+        "BLOCKED on Class-4 architect decision",
+        "Pending: c4/c5 architect Class-4 design decision",
+        "needs fresh §8 + architect design intent",
+        "Cannot be done autonomously",
+    ] {
+        assert!(
+            !obl010.contains(stale),
+            "OBL-010 satisfied section must not keep stale live blocker wording: {stale}"
+        );
+    }
+
+    assert!(
+        obl011.contains("- Status: satisfied"),
+        "OBL-011 must remain closed after G1/G2 replay-verified evidence"
+    );
+    assert!(
+        obl011.contains("Historical plan (superseded by closure above)"),
+        "OBL-011 may keep plan history only when it is explicitly superseded by the closure receipt"
+    );
+    for stale in [
+        "Next action: 实现 G1 live-agent 市场 runner",
+        "Next action: architect picks A/B/C",
+        "Build-spec workflow `wpej645ts` 测绘中",
+    ] {
+        assert!(
+            !obl011.contains(stale),
+            "OBL-011 satisfied section must not retain stale next-action text: {stale}"
+        );
+    }
+}
