@@ -1,0 +1,24 @@
+{
+  "schema_version": "turingosv4.true_suite.replay_cas_tamper_current.v1",
+  "run_id": "obl005_fresh_boot_replay_20260604T231500Z",
+  "git_head": "3912dd1b5e9393fa7d5f82abdc8f5da523b646c7",
+  "entrypoint": "scripts/run_true_suite_replay_cas_tamper_current_kernel.sh",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/genesis_report.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/replay_report.json",
+  "tamper_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/tamper_report.json",
+  "post_tamper_replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/post_tamper_replay_report.json",
+  "restore_replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/restore_replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z/replay_cas/full_system_participation.json",
+  "notes": [
+    "fresh evidence is generated through public turingos init",
+    "fc3_governance_reinit_current_kernel emits typed FC1 WorkTx, FC2 MapReduceTick, and FC3 governance/reinit rows",
+    "full_system_augment_current_kernel appends a tape-visible agent market action",
+    "public turingos verify chaintape reconstructs the original tape before and after tamper forks",
+    "audit_tape_tamper corrupts only temporary forks and must detect 3/3 corruptions",
+    "full_system_participation_current_kernel requires FULL_SYSTEM_LIT for replay/CAS tamper evidence"
+  ]
+}
