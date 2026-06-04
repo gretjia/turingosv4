@@ -477,6 +477,10 @@ fn tdma_runner_script_preserves_external_boundary_and_tdma_tape_semantics() {
     assert!(script.contains("--tape-backend git"));
     assert!(script.contains("tdma_tape.git"));
     assert!(script.contains("tdma_tape.git.tar.gz"));
+    assert!(
+        !script.contains("tar -C \"$RUN_DIR\" -czf \"$RUN_DIR/tdma_tape.git.tar.gz\""),
+        "TDMA child runner must not pre-package tdma_tape.git; the broad true-suite packager owns tarball creation"
+    );
     assert!(script.contains("tdma_replay_report.json"));
     assert!(script.contains("replay_report.json"));
     assert!(script.contains("handover/evidence/true_suite"));
