@@ -223,7 +223,12 @@ impl MathStepJudge for SwebenchTestJudge {
             // full env) before the loop — image builds need network this env lacks.
             env: {
                 let mut env = env_allowlist_from_current(&[
-                    "PATH", "HOME", "USER", "LANG", "DOCKER_HOST", "TMPDIR",
+                    "PATH",
+                    "HOME",
+                    "USER",
+                    "LANG",
+                    "DOCKER_HOST",
+                    "TMPDIR",
                 ]);
                 env.insert("HF_HUB_OFFLINE".to_string(), "1".to_string());
                 env.insert("HF_DATASETS_OFFLINE".to_string(), "1".to_string());
@@ -318,7 +323,11 @@ impl MathStepJudge for SwebenchTestJudge {
 /// the harness produced no `report.json` (it errored the instance). Prefers the
 /// patch-apply failure from `run_instance.log` (about the model's own patch, so
 /// no gold/test leakage); falls back to the raw stderr tail.
-fn harness_failure_reason(log_path: &std::path::Path, stderr: &[u8], exit_code: Option<i32>) -> String {
+fn harness_failure_reason(
+    log_path: &std::path::Path,
+    stderr: &[u8],
+    exit_code: Option<i32>,
+) -> String {
     if let Ok(log) = std::fs::read_to_string(log_path) {
         if log.contains("Patch Apply Failed") || log.contains("malformed patch") {
             // Extract the most specific `patch:`/`malformed` line for the model.
@@ -335,7 +344,10 @@ fn harness_failure_reason(log_path: &std::path::Path, stderr: &[u8], exit_code: 
         }
     }
     let tail = tail_chars(&String::from_utf8_lossy(stderr), 400);
-    format!("swebench harness error (exit {:?}); stderr tail: {}", exit_code, tail)
+    format!(
+        "swebench harness error (exit {:?}); stderr tail: {}",
+        exit_code, tail
+    )
 }
 
 /// TRACE_MATRIX FC1a-output_edge: char-safe truncation to at most `max` chars.

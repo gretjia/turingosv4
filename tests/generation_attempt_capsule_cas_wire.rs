@@ -1,7 +1,7 @@
-use turingosv4::runtime::generation_attempt::{
-    write_generation_attempt_capsule, GenerationAttemptCapsule, AttemptOutcome
-};
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::generation_attempt::{
+    write_generation_attempt_capsule, AttemptOutcome, GenerationAttemptCapsule,
+};
 
 fn parse_cid_hex(s: &str) -> turingosv4::bottom_white::cas::schema::Cid {
     let mut out = [0u8; 32];
@@ -39,6 +39,7 @@ fn test_generation_attempt_capsule_cas_wire_round_trip() {
     let store = CasStore::open(&cas_dir).expect("open store");
     let cid_obj = parse_cid_hex(&cid);
     let bytes = store.get(&cid_obj).expect("get bytes");
-    let read_capsule: GenerationAttemptCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+    let read_capsule: GenerationAttemptCapsule =
+        serde_json::from_slice(&bytes).expect("deserialize");
     assert_eq!(read_capsule, capsule);
 }

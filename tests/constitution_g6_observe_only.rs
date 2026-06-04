@@ -244,4 +244,3 @@ fn sg_6d_3_and_6d_4_scheduler_does_not_touch_admission_or_predicates() {
         "SG-6D.1 dashboard must surface persisted SchedulerDecisionTrace CAS anchors"
     );
 }
-

@@ -9,16 +9,14 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome,
-    GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
-};
-use turingosv4::runtime::rejection_capsule::{
-    GenerateRejectionCapsule, RejectClass,
-    GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
-};
 use turingosv4::runtime::artifact_bundle::{
     ArtifactBundleManifest, ArtifactFileEntry, ArtifactFileRole, ARTIFACT_BUNDLE_SCHEMA_ID,
+};
+use turingosv4::runtime::generation_attempt::{
+    AttemptOutcome, GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
+use turingosv4::runtime::rejection_capsule::{
+    GenerateRejectionCapsule, RejectClass, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::replay::{reconstruct_session, ReplayStep};
 use turingosv4::runtime::spec_capsule::cas_path;
@@ -60,23 +58,21 @@ fn test_offline_replay_reconstructs_session_from_cas() {
         logical_t: t,
     };
     let attempt_bytes = serde_json::to_vec(&attempt).expect("serialize");
-    let attempt_cid = store.put(
-        &attempt_bytes,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
-    ).expect("put attempt");
+    let attempt_cid = store
+        .put(
+            &attempt_bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .expect("put attempt");
 
     // Write a file blob (for ArtifactBundleManifest file entry)
     let file_content = b"<html><body>Hello</body></html>";
-    let file_cid = store.put(
-        file_content,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        None,
-    ).expect("put file blob");
+    let file_cid = store
+        .put(file_content, ObjectType::EvidenceCapsule, "test", t, None)
+        .expect("put file blob");
 
     // Write an ArtifactBundleManifest referencing the attempt
     let manifest = ArtifactBundleManifest {
@@ -98,22 +94,38 @@ fn test_offline_replay_reconstructs_session_from_cas() {
         created_at_logical_t: t + 1,
     };
     let manifest_bytes = serde_json::to_vec(&manifest).expect("serialize");
-    let _bundle_cid = store.put(
-        &manifest_bytes,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t + 1,
-        Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
-    ).expect("put bundle");
+    let _bundle_cid = store
+        .put(
+            &manifest_bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t + 1,
+            Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
+        )
+        .expect("put bundle");
 
     // Reconstruct session
     let result = reconstruct_session(workspace, session_id).expect("reconstruct");
 
     // Should have at least a GenerationAttempt and ArtifactBundle step
-    let has_attempt = result.steps.iter().any(|s| matches!(s, ReplayStep::GenerationAttempt { .. }));
-    let has_bundle = result.steps.iter().any(|s| matches!(s, ReplayStep::ArtifactBundle { .. }));
-    assert!(has_attempt, "expected GenerationAttempt step: {:?}", result.steps);
-    assert!(has_bundle, "expected ArtifactBundle step: {:?}", result.steps);
+    let has_attempt = result
+        .steps
+        .iter()
+        .any(|s| matches!(s, ReplayStep::GenerationAttempt { .. }));
+    let has_bundle = result
+        .steps
+        .iter()
+        .any(|s| matches!(s, ReplayStep::ArtifactBundle { .. }));
+    assert!(
+        has_attempt,
+        "expected GenerationAttempt step: {:?}",
+        result.steps
+    );
+    assert!(
+        has_bundle,
+        "expected ArtifactBundle step: {:?}",
+        result.steps
+    );
 
     // No dangling references
     assert!(
@@ -137,13 +149,9 @@ fn test_replay_detects_dangling_cid_reference() {
 
     // Write an ArtifactBundleManifest with a dangling generation_attempt_cid
     let fake_attempt_cid = "a".repeat(64); // valid hex format but doesn't exist in CAS
-    let file_cid = store.put(
-        b"content",
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        None,
-    ).expect("put file blob");
+    let file_cid = store
+        .put(b"content", ObjectType::EvidenceCapsule, "test", t, None)
+        .expect("put file blob");
 
     let manifest = ArtifactBundleManifest {
         schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
@@ -164,13 +172,15 @@ fn test_replay_detects_dangling_cid_reference() {
         created_at_logical_t: t,
     };
     let manifest_bytes = serde_json::to_vec(&manifest).expect("serialize");
-    let _bundle_cid = store.put(
-        &manifest_bytes,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
-    ).expect("put bundle");
+    let _bundle_cid = store
+        .put(
+            &manifest_bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
+        )
+        .expect("put bundle");
 
     // Reconstruct — should detect the dangling reference
     let result = reconstruct_session(workspace, session_id).expect("reconstruct");
@@ -219,13 +229,15 @@ fn test_replay_stable_after_cache_delete() {
         logical_t: t,
     };
     let bytes = serde_json::to_vec(&attempt).expect("serialize");
-    let _cid = store.put(
-        &bytes,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
-    ).expect("put");
+    let _cid = store
+        .put(
+            &bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .expect("put");
 
     // Delete the sidecar index file
     let sidecar = cas_dir.join(".turingos_cas_index.jsonl");
@@ -234,10 +246,18 @@ fn test_replay_stable_after_cache_delete() {
     }
 
     // Reconstruct should still work (reload from content files)
-    let result = reconstruct_session(workspace, session_id).expect("reconstruct after cache delete");
+    let result =
+        reconstruct_session(workspace, session_id).expect("reconstruct after cache delete");
 
-    let has_attempt = result.steps.iter().any(|s| matches!(s, ReplayStep::GenerationAttempt { .. }));
-    assert!(has_attempt, "should find GenerationAttempt after cache delete: {:?}", result.steps);
+    let has_attempt = result
+        .steps
+        .iter()
+        .any(|s| matches!(s, ReplayStep::GenerationAttempt { .. }));
+    assert!(
+        has_attempt,
+        "should find GenerationAttempt after cache delete: {:?}",
+        result.steps
+    );
 }
 
 #[test]
@@ -253,13 +273,15 @@ fn test_rejection_capsule_in_replay_excludes_private_diag() {
     let t = now_t();
 
     // Write a private diagnostic blob
-    let private_cid = store.put(
-        b"PRIVATE STACK TRACE",
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        None,
-    ).expect("put private diag");
+    let private_cid = store
+        .put(
+            b"PRIVATE STACK TRACE",
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            None,
+        )
+        .expect("put private diag");
 
     // Write rejection capsule referencing it
     let rejection = GenerateRejectionCapsule {
@@ -277,18 +299,23 @@ fn test_rejection_capsule_in_replay_excludes_private_diag() {
         logical_t: t,
     };
     let bytes = serde_json::to_vec(&rejection).expect("serialize");
-    let _rej_cid = store.put(
-        &bytes,
-        ObjectType::EvidenceCapsule,
-        "test",
-        t,
-        Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string()),
-    ).expect("put rejection");
+    let _rej_cid = store
+        .put(
+            &bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .expect("put rejection");
 
     let result = reconstruct_session(workspace, session_id).expect("reconstruct");
 
     // There should be a GenerateRejection step
-    let has_rejection = result.steps.iter().any(|s| matches!(s, ReplayStep::GenerateRejection { .. }));
+    let has_rejection = result
+        .steps
+        .iter()
+        .any(|s| matches!(s, ReplayStep::GenerateRejection { .. }));
     assert!(has_rejection, "expected GenerateRejection step");
 
     // Serialize the replay result to verify private_diagnostic_cid doesn't appear
@@ -300,8 +327,16 @@ fn test_rejection_capsule_in_replay_excludes_private_diag() {
     // But it should NOT appear in the steps JSON as a private_diagnostic_cid field
     // The ReplayStep::GenerateRejection only exposes the rejection capsule's own CID
     // not the private_diagnostic_cid — verify by checking the structure
-    if let Some(ReplayStep::GenerateRejection { cid, reject_class, retryable }) = result.steps.last() {
-        assert!(!cid.contains(&private_cid.hex()), "rejection step CID should be its own CID, not the private diag CID");
+    if let Some(ReplayStep::GenerateRejection {
+        cid,
+        reject_class,
+        retryable,
+    }) = result.steps.last()
+    {
+        assert!(
+            !cid.contains(&private_cid.hex()),
+            "rejection step CID should be its own CID, not the private diag CID"
+        );
         let _ = (reject_class, retryable); // fields exist but not the private field
     }
 

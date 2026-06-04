@@ -21,7 +21,13 @@ fn write_fixture_chaintape(dir: &std::path::Path, lines: usize) -> PathBuf {
     let path = dir.join("chaintape.jsonl");
     let mut body = String::new();
     for i in 0..lines {
-        let kind = if i == 0 { "AgentProposal" } else if i % 3 == 0 { "RetryBeliefState" } else { "AgentProposal" };
+        let kind = if i == 0 {
+            "AgentProposal"
+        } else if i % 3 == 0 {
+            "RetryBeliefState"
+        } else {
+            "AgentProposal"
+        };
         let line = serde_json::json!({
             "hash": format!("h-{}", i),
             "kind": kind,
@@ -90,5 +96,9 @@ fn kill_migrate_1_dump_count_matches_source_lines() {
 
     let ledger = GitTapeLedger::open(&target_path).expect("open migrated");
     let dump = ledger.dump_all_nodes();
-    assert_eq!(dump.len(), 5, "dump_all_nodes should match source line count");
+    assert_eq!(
+        dump.len(),
+        5,
+        "dump_all_nodes should match source line count"
+    );
 }

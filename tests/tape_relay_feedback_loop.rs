@@ -25,7 +25,9 @@ use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::rejection_capsule::{
     GenerateRejectionCapsule, RejectClass, GENERATE_REJECTION_CAPSULE_SCHEMA_ID,
 };
-use turingosv4::runtime::test_run::{TestRunCapsule, TestScenarioResult, TEST_RUN_CAPSULE_SCHEMA_ID};
+use turingosv4::runtime::test_run::{
+    TestRunCapsule, TestScenarioResult, TEST_RUN_CAPSULE_SCHEMA_ID,
+};
 use turingosv4::runtime::test_scenario::TestScenario;
 
 // ---------------------------------------------------------------------------
@@ -115,10 +117,7 @@ fn write_heuristic_rejection(
 
 /// Replicate read_prior_rejection_feedback logic using only public library types.
 /// This tests the same read path without needing to expose the private fn.
-fn read_prior_rejection_feedback_via_lib(
-    workspace: &Path,
-    session_id: &str,
-) -> Option<String> {
+fn read_prior_rejection_feedback_via_lib(workspace: &Path, session_id: &str) -> Option<String> {
     let cas_dir = workspace.join("cas");
     let store = CasStore::open(&cas_dir).ok()?;
 
@@ -128,9 +127,7 @@ fn read_prior_rejection_feedback_via_lib(
         let meta = store.metadata(&cid)?;
         if meta.schema_id.as_deref() == Some(GENERATE_REJECTION_CAPSULE_SCHEMA_ID) {
             if let Ok(bytes) = store.get(&cid) {
-                if let Ok(cap) =
-                    serde_json::from_slice::<GenerateRejectionCapsule>(&bytes)
-                {
+                if let Ok(cap) = serde_json::from_slice::<GenerateRejectionCapsule>(&bytes) {
                     if cap.session_id == session_id {
                         candidates.push((cap.logical_t, cap));
                     }
@@ -141,8 +138,7 @@ fn read_prior_rejection_feedback_via_lib(
     candidates.sort_by_key(|x| x.0);
     let latest = candidates.into_iter().last()?.1;
 
-    let mut feedback =
-        String::from("=== PRIOR ATTEMPT FEEDBACK (relayed from CAS tape) ===\n\n");
+    let mut feedback = String::from("=== PRIOR ATTEMPT FEEDBACK (relayed from CAS tape) ===\n\n");
     feedback.push_str(&format!(
         "Your previous attempt for this same session FAILED.\n\
          Failure class: {:?}\n\
@@ -161,15 +157,16 @@ fn read_prior_rejection_feedback_via_lib(
                     for i in 0..32 {
                         match u8::from_str_radix(&cid_hex[i * 2..i * 2 + 2], 16) {
                             Ok(b) => bytes[i] = b,
-                            Err(_) => { ok = false; break; }
+                            Err(_) => {
+                                ok = false;
+                                break;
+                            }
                         }
                     }
                     if ok {
                         let cid = Cid(bytes);
                         if let Ok(raw) = store.get(&cid) {
-                            if let Ok(run_cap) =
-                                serde_json::from_slice::<TestRunCapsule>(&raw)
-                            {
+                            if let Ok(run_cap) = serde_json::from_slice::<TestRunCapsule>(&raw) {
                                 let mut failed: Vec<(String, String)> = Vec::new();
                                 for r in run_cap.results {
                                     if !r.pass {
@@ -177,9 +174,7 @@ fn read_prior_rejection_feedback_via_lib(
                                             TestScenario::EntrypointExists => {
                                                 "EntrypointExists".to_string()
                                             }
-                                            TestScenario::HtmlParses => {
-                                                "HtmlParses".to_string()
-                                            }
+                                            TestScenario::HtmlParses => "HtmlParses".to_string(),
                                             TestScenario::SandboxPolicyPreserved { .. } => {
                                                 "SandboxPolicyPreserved".to_string()
                                             }
@@ -188,13 +183,9 @@ fn read_prior_rejection_feedback_via_lib(
                                     }
                                 }
                                 if !failed.is_empty() {
-                                    feedback
-                                        .push_str("Specific failed test scenarios:\n");
+                                    feedback.push_str("Specific failed test scenarios:\n");
                                     for (name, detail) in failed {
-                                        feedback.push_str(&format!(
-                                            "  - {}: {}\n",
-                                            name, detail
-                                        ));
+                                        feedback.push_str(&format!("  - {}: {}\n", name, detail));
                                     }
                                     feedback.push('\n');
                                 }
@@ -368,7 +359,10 @@ fn tape_relay_picks_latest_rejection_by_logical_t() {
     );
 
     let result = read_prior_rejection_feedback_via_lib(ws, session_id);
-    assert!(result.is_some(), "Expected Some feedback for session with rejections");
+    assert!(
+        result.is_some(),
+        "Expected Some feedback for session with rejections"
+    );
     let feedback = result.unwrap();
 
     // Must pick the NEWER rejection (LlmApiError), not the older (NoFilesParsed).

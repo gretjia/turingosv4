@@ -19,17 +19,17 @@ use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
     genesis_with_balances, make_real_cpmm_pool_signed_by, make_real_escrow_lock_signed_by,
     make_real_market_seed_signed_by, make_real_task_open_signed_by, make_real_worktx_signed_by,
-    tb_real6a_invest_task_outcome_to_router_tx, tb8_await_state_root_advance,
+    tb8_await_state_root_advance, tb_real6a_invest_task_outcome_to_router_tx,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::proposal_telemetry::{
-    ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
+    write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
-use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
+use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, CpmmPool, EconomicState, Hash, TaskId, TxId};
-use turingosv4::state::router_quote::{QuoteDirection, quote_buy_with_coin_router};
+use turingosv4::state::router_quote::{quote_buy_with_coin_router, QuoteDirection};
 use turingosv4::state::typed_tx::{BuyDirection, EventId, TypedTx};
 
 const SPONSOR_AGENT: &str = "Agent_user_0";

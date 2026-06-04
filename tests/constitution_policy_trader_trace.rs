@@ -35,7 +35,6 @@ fn constitution_real13_policy_trader_trace() {
     }
 }
 
-
 #[test]
 fn constitution_real13_policy_trader_integer_only() {
     let src = policy_source();

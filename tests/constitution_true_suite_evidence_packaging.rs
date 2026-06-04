@@ -119,7 +119,10 @@ fn true_suite_packager_archives_nested_git_stores_and_removes_loose_dirs() {
             "package missing sha256: {package:?}"
         );
         assert!(
-            package.get("removed_loose_store").and_then(Value::as_bool).is_some(),
+            package
+                .get("removed_loose_store")
+                .and_then(Value::as_bool)
+                .is_some(),
             "package missing removed_loose_store: {package:?}"
         );
     }

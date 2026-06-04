@@ -57,7 +57,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, Option<String>)
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    
+
     let mut content_type = None;
     for line in head.lines() {
         if line.to_ascii_lowercase().starts_with("content-type:") {
@@ -78,7 +78,8 @@ async fn test_artifact_bundle_file_serve_reads_cas() {
     // Setup CAS store and write file bytes into CAS
     let cas_dir = turingosv4::runtime::spec_capsule::cas_path(&workspace);
     std::fs::create_dir_all(&cas_dir).expect("create cas dir");
-    let mut store = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
 
     let file_content = b"<html><body>Hello from CAS!</body></html>";
     let file_cid = store
@@ -100,22 +101,21 @@ async fn test_artifact_bundle_file_serve_reads_cas() {
         spec_capsule_cid: Some("aa".repeat(32)),
         generation_attempt_cid: "bb".repeat(32),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: expected_file_cid_hex.clone(),
-                mime: "text/html".to_string(),
-                sha256: expected_sha256.clone(),
-                size_bytes: file_content.len() as u64,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: expected_file_cid_hex.clone(),
+            mime: "text/html".to_string(),
+            sha256: expected_sha256.clone(),
+            size_bytes: file_content.len() as u64,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: file_content.len() as u64,
         created_at_logical_t: 100,
     };
 
-    let actual_written_bundle_cid_hex = write_artifact_bundle(&workspace, &manifest).expect("write manifest");
+    let actual_written_bundle_cid_hex =
+        write_artifact_bundle(&workspace, &manifest).expect("write manifest");
 
     let workspace_str = workspace.to_string_lossy().into_owned();
 

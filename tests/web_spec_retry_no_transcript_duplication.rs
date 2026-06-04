@@ -280,7 +280,10 @@ async fn retry_after_llm_complete_flake_does_not_duplicate_user_turn() {
 
     // ── Set env vars and start server ──────────────────────────────────
     std::env::set_var("TURINGOS_BACKEND_OVERRIDE", &stub_path);
-    std::env::set_var("TURINGOS_WEB_WORKSPACE", workspace_path.to_string_lossy().as_ref());
+    std::env::set_var(
+        "TURINGOS_WEB_WORKSPACE",
+        workspace_path.to_string_lossy().as_ref(),
+    );
 
     let addr = start_server().await;
 
@@ -289,16 +292,12 @@ async fn retry_after_llm_complete_flake_does_not_duplicate_user_turn() {
     // ── Step 1: bootstrap (null user_answer) ───────────────────────────
     let body = format!(r#"{{"session_id":"{session_id}","user_answer":null,"lang":"en"}}"#);
     let (status, resp) = http_post_json(addr, "/api/spec/turn", &body).await;
-    assert_eq!(
-        status, 200,
-        "bootstrap call must return 200; resp={resp}"
-    );
+    assert_eq!(status, 200, "bootstrap call must return 200; resp={resp}");
 
     // ── Step 2: turn-2 first attempt (will fail with ok=false) ─────────
     let user_answer = "I want a tracker for my grocery list";
-    let body = format!(
-        r#"{{"session_id":"{session_id}","user_answer":"{user_answer}","lang":"en"}}"#
-    );
+    let body =
+        format!(r#"{{"session_id":"{session_id}","user_answer":"{user_answer}","lang":"en"}}"#);
     let (status, resp) = http_post_json(addr, "/api/spec/turn", &body).await;
     assert_eq!(
         status, 500,
@@ -310,9 +309,8 @@ async fn retry_after_llm_complete_flake_does_not_duplicate_user_turn() {
     );
 
     // ── Step 3: turn-2 retry (same user_answer) — must succeed ─────────
-    let body = format!(
-        r#"{{"session_id":"{session_id}","user_answer":"{user_answer}","lang":"en"}}"#
-    );
+    let body =
+        format!(r#"{{"session_id":"{session_id}","user_answer":"{user_answer}","lang":"en"}}"#);
     let (status, resp) = http_post_json(addr, "/api/spec/turn", &body).await;
     assert_eq!(
         status, 200,
@@ -329,8 +327,7 @@ async fn retry_after_llm_complete_flake_does_not_duplicate_user_turn() {
         "turn-2-prompt.json must exist at {}",
         prompt_path.display()
     );
-    let prompt_json_str =
-        std::fs::read_to_string(&prompt_path).expect("read turn-2-prompt.json");
+    let prompt_json_str = std::fs::read_to_string(&prompt_path).expect("read turn-2-prompt.json");
     let prompt_json: serde_json::Value =
         serde_json::from_str(&prompt_json_str).expect("parse turn-2-prompt.json");
     let messages = prompt_json
@@ -356,7 +353,8 @@ async fn retry_after_llm_complete_flake_does_not_duplicate_user_turn() {
         .count();
 
     assert_eq!(
-        user_answer_occurrences, 1,
+        user_answer_occurrences,
+        1,
         "user_answer must appear EXACTLY ONCE in turn-2-prompt.json messages[] \
          (pre-F9 it duplicated on retry). Got {user_answer_occurrences} occurrences. \
          Full messages array:\n{}",

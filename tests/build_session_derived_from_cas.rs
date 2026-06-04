@@ -12,17 +12,15 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody, GrillAttemptTally};
+use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
 use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
-};
-use turingosv4::runtime::artifact_bundle::{
-    ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID,
+    AttemptOutcome, GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::preview_run::{
     PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID,
 };
-use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
+use turingosv4::runtime::spec_capsule::{cas_path, GrillAttemptTally, GrillSessionCapsuleBody};
 
 static ENV_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
 
@@ -97,7 +95,8 @@ async fn build_session_derived_from_cas() {
     assert!(view.generation_attempts.is_empty());
 
     // 2. Add GrillSessionCapsule (contains spec) -> BuildStatus::SpecDone
-    let spec_cid_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
+    let spec_cid_hex =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
     let grill_body = GrillSessionCapsuleBody {
         session_id: session_id.to_string(),
         turn_cids: vec![],
@@ -110,19 +109,24 @@ async fn build_session_derived_from_cas() {
         logical_t: 10,
     };
     let grill_bytes = serde_json::to_vec(&grill_body).unwrap();
-    let grill_cid = store.put(
-        &grill_bytes,
-        ObjectType::EvidenceCapsule,
-        "test_user",
-        10,
-        Some("turingos-spec-grill-session-v1".to_string()),
-    ).expect("put grill session");
+    let grill_cid = store
+        .put(
+            &grill_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            10,
+            Some("turingos-spec-grill-session-v1".to_string()),
+        )
+        .expect("put grill session");
 
     let (status, body) = http_get(addr, &format!("/api/build/session/{session_id}")).await;
     assert_eq!(status, 200);
     let view: BuildSessionView = serde_json::from_str(&body).expect("parse view");
     assert_eq!(view.current_status, BuildStatus::SpecDone);
-    assert_eq!(view.spec_capsule_cid.as_deref(), Some(spec_cid_hex.as_str()));
+    assert_eq!(
+        view.spec_capsule_cid.as_deref(),
+        Some(spec_cid_hex.as_str())
+    );
 
     // 3. Add GenerationAttempt -> BuildStatus::Generating
     let attempt_body = GenerationAttemptCapsule {
@@ -142,13 +146,15 @@ async fn build_session_derived_from_cas() {
         logical_t: 20,
     };
     let attempt_bytes = serde_json::to_vec(&attempt_body).unwrap();
-    let attempt_cid = store.put(
-        &attempt_bytes,
-        ObjectType::EvidenceCapsule,
-        "test_user",
-        20,
-        Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
-    ).expect("put attempt");
+    let attempt_cid = store
+        .put(
+            &attempt_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            20,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .expect("put attempt");
 
     let (status, body) = http_get(addr, &format!("/api/build/session/{session_id}")).await;
     assert_eq!(status, 200);
@@ -161,7 +167,8 @@ async fn build_session_derived_from_cas() {
         schema_id: ARTIFACT_BUNDLE_SCHEMA_ID.to_string(),
         session_id: session_id.to_string(),
         spec_capsule_cid: Some(spec_cid_hex.clone()),
-        generation_attempt_cid: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        generation_attempt_cid: "0000000000000000000000000000000000000000000000000000000000000000"
+            .to_string(),
         previous_bundle_cid: None,
         files: vec![],
         bundle_size_bytes_total: 0,
@@ -169,13 +176,15 @@ async fn build_session_derived_from_cas() {
         created_at_logical_t: 30,
     };
     let bundle_bytes = serde_json::to_vec(&bundle_body).unwrap();
-    let bundle_cid = store.put(
-        &bundle_bytes,
-        ObjectType::EvidenceCapsule,
-        "test_user",
-        30,
-        Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
-    ).expect("put bundle");
+    let bundle_cid = store
+        .put(
+            &bundle_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            30,
+            Some(ARTIFACT_BUNDLE_SCHEMA_ID.to_string()),
+        )
+        .expect("put bundle");
 
     let (status, body) = http_get(addr, &format!("/api/build/session/{session_id}")).await;
     assert_eq!(status, 200);

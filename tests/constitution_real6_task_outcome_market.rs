@@ -101,7 +101,12 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest"));
+    let preds = Arc::new(
+        PredicateRegistry::from_boot_manifest(
+            turingosv4::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest"),
+    );
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
     let mut pinned = PinnedSystemPubkeys::new();
@@ -685,7 +690,6 @@ fn sg_6a_event_resolve_compatibility_is_exact_dual_reader_not_error_string() {
     );
 }
 
-
 #[test]
 fn sg_6a_2_trader_view_contains_task_outcome_market_signal() {
     let event = task_outcome_event_for_task(
@@ -740,7 +744,6 @@ fn sg_6a_2_trader_view_contains_task_outcome_market_signal() {
     }
 }
 
-
 #[test]
 fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
     let script =
@@ -760,7 +763,6 @@ fn sg_6a_smoke_runner_build_failure_is_fail_closed() {
         "REAL-6A smoke evidence must fail closed on cargo build failure, not continue with stale release binaries"
     );
 }
-
 
 #[test]
 fn sg_6a_runner_clears_only_stale_cas_lock_before_post_run_audit() {

@@ -58,10 +58,7 @@ fn gate_1_token_invariance_under_50_retries() {
 
     for i in 0..50 {
         // Each retry has a 10KB raw_stderr payload.
-        let raw_stderr = format!(
-            "{}\n",
-            "x".repeat(10_000) + &format!(" line_{}", i)
-        );
+        let raw_stderr = format!("{}\n", "x".repeat(10_000) + &format!(" line_{}", i));
         let env = EnvironmentResult {
             raw_output: retry_header("gate1", "x.y", "schema-fail"),
             raw_stderr,
@@ -119,7 +116,10 @@ fn gate_2_valid_header_survives_truncated_body() {
     // Header + small body, then we'd simulate truncation by cutting the body.
     let header = retry_header("gate2", "p", "r");
     // Build: header, then ---BODY---, then a body that gets cut.
-    let raw_output = format!("{}\n--- cut here ---", header.split("---BODY---").next().unwrap());
+    let raw_output = format!(
+        "{}\n--- cut here ---",
+        header.split("---BODY---").next().unwrap()
+    );
     let env = EnvironmentResult {
         raw_output,
         raw_stderr: "stderr".into(),
@@ -172,7 +172,11 @@ fn gate_3_bbs_retains_three_orthogonal_constraints_under_budget() {
         None,
         Some(&scope),
     );
-    assert!(bbs_count >= 3, "gate 3: expected >= 3 BBS nodes, got {}", bbs_count);
+    assert!(
+        bbs_count >= 3,
+        "gate 3: expected >= 3 BBS nodes, got {}",
+        bbs_count
+    );
 }
 
 // ── GATE 4 ───────────────────────────────────────────────────────
@@ -213,7 +217,11 @@ fn gate_4_scope_metadata_persisted_and_countable() {
     // Note: when retry_count reaches MAX_RETRIES, the kernel escalates
     // (the 5th attempt's proposal is committed first, THEN escalation).
     // So we expect exactly 5 proposals.
-    assert_eq!(proposals, 5, "gate 4: expected exactly 5 proposals, got {}", proposals);
+    assert_eq!(
+        proposals, 5,
+        "gate 4: expected exactly 5 proposals, got {}",
+        proposals
+    );
     // Verify each tape node has scope + ordinal set.
     let nodes_by_scope = &k.tape.indexes.nodes_by_scope;
     let scope_nodes = nodes_by_scope.get(&scope).expect("scope must be indexed");
@@ -329,7 +337,11 @@ fn gate_7_header_malformation_routes_safely() {
 
     // Case 3: malformed JSON
     assert!(matches!(
-        parse_prefix_json(r#"{"schema_version":"tdma-state-update/v1",}"#, B_HEADER_SCAN, B_HEADER),
+        parse_prefix_json(
+            r#"{"schema_version":"tdma-state-update/v1",}"#,
+            B_HEADER_SCAN,
+            B_HEADER
+        ),
         Err(HeaderParseError::MalformedJson(_))
     ));
 
@@ -393,7 +405,10 @@ fn gate_8_charter_core_invalidates_on_constitution_sha_drift() {
     // Drifted
     let bytes_v2 = b"# Constitution\nArt. 0.4\nArt. 0.5 NEW\n";
     let err = validate_charter_core_freshness(&charter, bytes_v2).unwrap_err();
-    assert!(matches!(err, CharterDriftError::ConstitutionShaMismatch { .. }));
+    assert!(matches!(
+        err,
+        CharterDriftError::ConstitutionShaMismatch { .. }
+    ));
 }
 
 // ── GATE 9 ───────────────────────────────────────────────────────
@@ -419,18 +434,25 @@ fn gate_9_verified_head_static_under_hard_failures() {
     }
 
     // verified_head unchanged
-    assert_eq!(k.tape.get_verified_head(), h0, "gate 9: verified_head moved");
+    assert_eq!(
+        k.tape.get_verified_head(),
+        h0,
+        "gate 9: verified_head moved"
+    );
     // ledger_tail advanced
-    assert_ne!(k.tape.indexes.ledger_tail, initial_tail, "gate 9: ledger_tail did not advance");
+    assert_ne!(
+        k.tape.indexes.ledger_tail, initial_tail,
+        "gate 9: ledger_tail did not advance"
+    );
 
     // No StateAccepted under H0
-    let accepted_under_h0 = k.tape.count_nodes(
-        Some(NodeKind::StateAccepted),
-        None,
-        Some(&h0),
-        None,
+    let accepted_under_h0 =
+        k.tape
+            .count_nodes(Some(NodeKind::StateAccepted), None, Some(&h0), None);
+    assert_eq!(
+        accepted_under_h0, 0,
+        "gate 9: no StateAccepted should exist under H0 on failure-only run"
     );
-    assert_eq!(accepted_under_h0, 0, "gate 9: no StateAccepted should exist under H0 on failure-only run");
 
     // raw_stderr substring never appears in any committed prompt assembly
     // (we don't materialize PromptAssembly nodes in RC1 — verified via Gate 6 sentinel).

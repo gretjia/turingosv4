@@ -88,7 +88,6 @@ fn unannotated_legacy_append_sites(source: &str) -> Vec<(usize, String)> {
     violations
 }
 
-
 /// Positive control: confirm the scanner CAN flag a synthetic violation,
 /// so the gate isn't silently passing on a broken scanner.
 #[test]

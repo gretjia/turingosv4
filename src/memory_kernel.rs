@@ -68,9 +68,16 @@ pub enum KernelStep {
     /// verified_head advanced; the worker should move to the next task.
     Proceed { evidence_hash: String },
     /// Retry with the rebuilt O(1) prompt (directive §11).
-    Retry { prompt: String, bbs_hash: String, evidence_hash: String },
+    Retry {
+        prompt: String,
+        bbs_hash: String,
+        evidence_hash: String,
+    },
     /// Terminal escalation; commit chain frozen at verified_head.
-    Escalate { reason: String, evidence_hash: String },
+    Escalate {
+        reason: String,
+        evidence_hash: String,
+    },
 }
 
 // ── Kernel ───────────────────────────────────────────────────────
@@ -118,10 +125,7 @@ impl<L: ImmutableTapeLedger> ImmutableTapeLedger for MemoryKernelTape<L> {
     fn latest_node(&self, _: NodeKind, _: &AttemptScope) -> Option<crate::ledger::TapeNode> {
         None
     }
-    fn derive_latest_belief_state_from_tape(
-        &self,
-        _: &AttemptScope,
-    ) -> Option<RetryBeliefState> {
+    fn derive_latest_belief_state_from_tape(&self, _: &AttemptScope) -> Option<RetryBeliefState> {
         None
     }
     fn dump_all_nodes(&self) -> Vec<(String, crate::ledger::TapeNode)> {
@@ -135,7 +139,8 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
     /// freshness via `validate_charter_core_freshness` by the caller.
     pub fn new(tape: L, run_id: impl Into<String>, charter: CharterCore) -> Self {
         let tokenizer = Arc::new(Tokenizer::new());
-        let adapter: Arc<MemoryKernelTape<L>> = Arc::new(MemoryKernelTape(std::marker::PhantomData));
+        let adapter: Arc<MemoryKernelTape<L>> =
+            Arc::new(MemoryKernelTape(std::marker::PhantomData));
         let rtool = Rtool::new(adapter, tokenizer.clone());
         Self {
             tape,
@@ -148,11 +153,7 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
 
     /// FC1 runtime loop entry-point (directive §5.1).
     /// TRACE_MATRIX FC1a-rtool + FC1a-output_edge + FC1b-wtool.
-    pub fn step_forward(
-        &mut self,
-        task: &Task,
-        env_result: EnvironmentResult,
-    ) -> KernelStep {
+    pub fn step_forward(&mut self, task: &Task, env_result: EnvironmentResult) -> KernelStep {
         self.step_forward_with_workspace(task, env_result, &WorkspaceView::default())
     }
 
@@ -267,7 +268,9 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         );
 
         // Step 4: derive prev BBS PURELY from tape (no sidecar).
-        let prev_bbs = self.tape.derive_latest_belief_state_from_tape(&attempt_scope);
+        let prev_bbs = self
+            .tape
+            .derive_latest_belief_state_from_tape(&attempt_scope);
 
         // Step 5: compress_belief_state — produce a new BBS that fits B_D.
         //
@@ -336,7 +339,13 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             Some(&attempt_scope),
         );
         if retry_count >= MAX_RETRIES as usize {
-            return self.escalate(task, &verified_head, &attempt_scope, &new_bbs, "MAX_RETRIES");
+            return self.escalate(
+                task,
+                &verified_head,
+                &attempt_scope,
+                &new_bbs,
+                "MAX_RETRIES",
+            );
         }
         if new_bbs.zero_gain_streak >= ZERO_GAIN_K {
             return self.escalate(task, &verified_head, &attempt_scope, &new_bbs, "ZERO_GAIN");

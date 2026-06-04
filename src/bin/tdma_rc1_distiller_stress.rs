@@ -69,7 +69,11 @@ fn header(status: &str, task_id: &str, reject_class: &str, failed_pred: &str) ->
         r#"{{"schema_version":"tdma-state-update/v1","status":"{}","task_id":"{}","action":"{}","failed_predicate":"{}","reject_class":"{}"}}"#,
         status,
         task_id,
-        if status == "Proceed" { "PROCEED" } else { "RETRY" },
+        if status == "Proceed" {
+            "PROCEED"
+        } else {
+            "RETRY"
+        },
         failed_pred,
         reject_class,
     )
@@ -168,10 +172,18 @@ fn run_s1(probes: &mut Vec<StepProbe>) -> (usize, bool) {
     ];
 
     let verdicts = vec![
-        JudgeVerdict::Fail { reason: "v1".into() },
-        JudgeVerdict::Fail { reason: "v2".into() },
-        JudgeVerdict::Fail { reason: "v3".into() },
-        JudgeVerdict::Fail { reason: "v4".into() },
+        JudgeVerdict::Fail {
+            reason: "v1".into(),
+        },
+        JudgeVerdict::Fail {
+            reason: "v2".into(),
+        },
+        JudgeVerdict::Fail {
+            reason: "v3".into(),
+        },
+        JudgeVerdict::Fail {
+            reason: "v4".into(),
+        },
         JudgeVerdict::Pass,
     ];
     let judge = InjectedJudge::new(verdicts, JudgeVerdict::Pass);
@@ -288,9 +300,7 @@ fn run_s2(probes: &mut Vec<StepProbe>) -> (bool, u32) {
         };
         let step = k.step_forward(&task, env);
         let (kind, prompt_tokens) = match step {
-            KernelStep::Retry { prompt, .. } => {
-                ("Retry".to_string(), tk.count_text(&prompt))
-            }
+            KernelStep::Retry { prompt, .. } => ("Retry".to_string(), tk.count_text(&prompt)),
             KernelStep::Escalate { reason, .. } => {
                 if escalated_at.is_none() {
                     escalated_at = Some((i + 1) as u32);
@@ -538,9 +548,7 @@ fn run_s4(probes: &mut Vec<StepProbe>) -> S4Stats {
         };
         let step = k.step_forward(&task, env);
         let (kind, ptok) = match step {
-            KernelStep::Retry { prompt, .. } => {
-                ("Retry".to_string(), tk.count_text(&prompt))
-            }
+            KernelStep::Retry { prompt, .. } => ("Retry".to_string(), tk.count_text(&prompt)),
             KernelStep::Escalate { reason, .. } => {
                 escalated = true;
                 (format!("Escalate({})", reason), 0)
@@ -679,7 +687,10 @@ fn main() -> ExitCode {
     let s4 = run_s4(&mut probes);
     println!(
         "  S4: max_zero_gain_streak={} resets={} final_constraints={} escalated={}",
-        s4.max_zero_gain_streak, s4.zero_gain_resets, s4.final_constraint_count, s4.escalated_via_max_retries
+        s4.max_zero_gain_streak,
+        s4.zero_gain_resets,
+        s4.final_constraint_count,
+        s4.escalated_via_max_retries
     );
 
     // ── Write evidence ────────────────────────────────────────────
@@ -738,7 +749,9 @@ fn main() -> ExitCode {
     let mut r = String::new();
     r.push_str("# TDMA-Bounded-RC1 Atom 9 — Distiller Compression Stress Report\n\n");
     r.push_str("Synthetic stress test of the distiller / BBS / zero_gain / eviction stack.\n");
-    r.push_str("Verdicts are scripted via `InjectedJudge` so failure patterns are deterministic.\n\n");
+    r.push_str(
+        "Verdicts are scripted via `InjectedJudge` so failure patterns are deterministic.\n\n",
+    );
 
     r.push_str("## S1 — info retention (4 distinct-signature failures + 1 success)\n\n");
     r.push_str(&format!(
@@ -756,7 +769,10 @@ fn main() -> ExitCode {
 
     r.push_str("## S2 — zero_gain triggering (same-signature repeat)\n\n");
     r.push_str(&format!("- Escalated: **{}**\n", s2_escalated));
-    r.push_str(&format!("- Escalated at attempt: **{}**\n", s2_escalated_at));
+    r.push_str(&format!(
+        "- Escalated at attempt: **{}**\n",
+        s2_escalated_at
+    ));
     r.push_str(&format!(
         "- ZERO_GAIN_K threshold: **{}** (escalation expected at attempt {} or via MAX_RETRIES)\n\n",
         ZERO_GAIN_K,
@@ -818,10 +834,7 @@ fn main() -> ExitCode {
     ));
 
     r.push_str("## Evidence integrity\n\n");
-    r.push_str(&format!(
-        "- per_step_probes.jsonl sha256: {}\n",
-        probes_sha
-    ));
+    r.push_str(&format!("- per_step_probes.jsonl sha256: {}\n", probes_sha));
     fs::write(evidence_dir.join("CompressionReport.md"), r).ok();
 
     ExitCode::SUCCESS

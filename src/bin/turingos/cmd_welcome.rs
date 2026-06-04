@@ -174,7 +174,11 @@ fn render_status(ws: &Path, s: &WorkspaceStatus) {
         None => "turingos spec (task decomposition)".to_string(),
     };
     mark(spec_step_n, &spec_label, s.spec_done);
-    mark(gen_step_n, "turingos generate (deliverable)", s.artifacts_done);
+    mark(
+        gen_step_n,
+        "turingos generate (deliverable)",
+        s.artifacts_done,
+    );
     println!();
 
     // Phase 6.3 flow (non-developer end-user demo): init → llm → spec →

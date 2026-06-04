@@ -24,8 +24,12 @@ fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let debug = PathBuf::from(format!("{manifest_dir}/target/debug/turingos"));
     let release = PathBuf::from(format!("{manifest_dir}/target/release/turingos"));
-    if debug.exists() { return debug; }
-    if release.exists() { return release; }
+    if debug.exists() {
+        return debug;
+    }
+    if release.exists() {
+        return release;
+    }
     panic!(
         "turingos binary not found at debug or release paths; \
          run `cargo build --bin turingos` first"
@@ -41,7 +45,11 @@ fn workspace_with_stub_endpoint(dir: &std::path::Path) -> std::path::PathBuf {
     let config = "llm.blackbox.model = \"test-model\"\n\
                   llm.blackbox.api_key_env = \"FAKE_BLACKBOX_KEY\"\n";
     fs::write(ws.join("turingos.toml"), config).expect("write turingos.toml");
-    fs::write(ws.join("spec.md"), "# Test spec\nBuild a hello world app.\n").expect("write spec.md");
+    fs::write(
+        ws.join("spec.md"),
+        "# Test spec\nBuild a hello world app.\n",
+    )
+    .expect("write spec.md");
     ws
 }
 
@@ -58,8 +66,8 @@ impl MockServer {
     fn start_400() -> Self {
         use std::io::{Read, Write};
         use std::net::TcpListener;
-        use std::sync::Arc;
         use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
 
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
         let port = listener.local_addr().expect("local addr").port();
@@ -73,10 +81,12 @@ impl MockServer {
                     Ok((mut stream, _)) => {
                         // Read the request (drain it).
                         let mut buf = [0u8; 4096];
-                        let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(100)));
+                        let _ =
+                            stream.set_read_timeout(Some(std::time::Duration::from_millis(100)));
                         let _ = stream.read(&mut buf);
                         // Return a 400 with a generic error body.
-                        let body = r#"{"error":{"message":"bad request","type":"invalid_request"}}"#;
+                        let body =
+                            r#"{"error":{"message":"bad request","type":"invalid_request"}}"#;
                         let response = format!(
                             "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                             body.len(),
@@ -92,13 +102,18 @@ impl MockServer {
             }
         });
 
-        MockServer { port, _handle: handle, shutdown }
+        MockServer {
+            port,
+            _handle: handle,
+            shutdown,
+        }
     }
 }
 
 impl Drop for MockServer {
     fn drop(&mut self) {
-        self.shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.shutdown
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -115,7 +130,10 @@ fn failed_generate_cids_on_stderr_with_prefix() {
         .arg("--workspace")
         .arg(&ws)
         .env("FAKE_BLACKBOX_KEY", "fake-key-for-test")
-        .env("TURINGOS_SILICONFLOW_ENDPOINT", format!("http://127.0.0.1:{}/v1/chat/completions", server.port))
+        .env(
+            "TURINGOS_SILICONFLOW_ENDPOINT",
+            format!("http://127.0.0.1:{}/v1/chat/completions", server.port),
+        )
         .output()
         .expect("spawn turingos generate");
 
@@ -150,8 +168,11 @@ fn failed_generate_cids_on_stderr_with_prefix() {
     // Ordering: error message BEFORE the [failed run] CID lines (X1 fix).
     // Non-experts reading top-to-bottom must see the error first.
     if let (Some(error_pos), Some(cid_pos)) = (
-        stderr.find("HTTP 400").or_else(|| stderr.find("turingos generate:")),
-        stderr.find("[failed run] generation_attempt_cid=")
+        stderr
+            .find("HTTP 400")
+            .or_else(|| stderr.find("turingos generate:")),
+        stderr
+            .find("[failed run] generation_attempt_cid=")
             .or_else(|| stderr.find("[failed run] rejection_cid=")),
     ) {
         assert!(
@@ -177,7 +198,10 @@ fn failed_generate_stdout_has_no_bundle_cid_on_early_4xx() {
         .arg("--workspace")
         .arg(&ws)
         .env("FAKE_BLACKBOX_KEY", "fake-key-for-test")
-        .env("TURINGOS_SILICONFLOW_ENDPOINT", format!("http://127.0.0.1:{}/v1/chat/completions", server.port))
+        .env(
+            "TURINGOS_SILICONFLOW_ENDPOINT",
+            format!("http://127.0.0.1:{}/v1/chat/completions", server.port),
+        )
         .output()
         .expect("spawn turingos generate");
 

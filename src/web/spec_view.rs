@@ -69,7 +69,8 @@ pub async fn spec_view_handler(
 fn is_safe_session_id(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 128
-        && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Split spec.md into `(section_title, section_body)` ordered pairs.
@@ -134,7 +135,9 @@ fn pick<'a>(map: &'a BTreeMap<String, String>, keys: &[&str]) -> Option<&'a Stri
 /// "（用户未在本轮访谈中提供该信息）" if it's the only content.
 fn clean(s: &str) -> String {
     let t = s.trim();
-    if t == "（用户未在本轮访谈中提供该信息）" || t == "(user did not provide this information in the interview)" {
+    if t == "（用户未在本轮访谈中提供该信息）"
+        || t == "(user did not provide this information in the interview)"
+    {
         String::new()
     } else {
         t.to_string()
@@ -180,7 +183,8 @@ fn render_section_body(raw: &str) -> String {
                     let second = chars.next();
                     let third = chars.next();
                     if first.is_some_and(|c| c.is_ascii_digit())
-                        && (second == Some('.') || (second.is_some_and(|c| c.is_ascii_digit()) && third == Some('.')))
+                        && (second == Some('.')
+                            || (second.is_some_and(|c| c.is_ascii_digit()) && third == Some('.')))
                     {
                         if let Some(idx) = t.find(". ") {
                             out.push_str("<li>");
@@ -208,10 +212,7 @@ fn render_section_body(raw: &str) -> String {
             while i < lines.len() {
                 let nxt = lines[i];
                 let nxt_t = nxt.trim_start();
-                if nxt.trim().is_empty()
-                    || nxt_t.starts_with("- ")
-                    || nxt_t.starts_with("* ")
-                {
+                if nxt.trim().is_empty() || nxt_t.starts_with("- ") || nxt_t.starts_with("* ") {
                     break;
                 }
                 buf.push(nxt.to_string());

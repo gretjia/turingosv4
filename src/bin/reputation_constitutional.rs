@@ -24,6 +24,8 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use turingosv4::bottom_white::cas::schema::Cid;
+use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
     genesis_with_balances, make_real_escrow_lock_signed_by, make_real_task_open_signed_by,
@@ -32,11 +34,9 @@ use turingosv4::runtime::adapter::{
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
 use turingosv4::runtime::proposal_telemetry::{
-    ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
+    write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
-use turingosv4::runtime::{RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q};
-use turingosv4::bottom_white::cas::schema::Cid;
-use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
 use turingosv4::state::price_index::compute_price_index;
 use turingosv4::state::q_state::{AgentId, Hash, TaskId, TxId};
 use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
@@ -63,29 +63,68 @@ struct Args {
 
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
-    let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
+    let get = |k: &str| {
+        a.iter()
+            .position(|x| x == k)
+            .and_then(|i| a.get(i + 1).cloned())
+    };
     Ok(Args {
-        runtime_repo: get("--runtime-repo").ok_or("--runtime-repo required")?.into(),
+        runtime_repo: get("--runtime-repo")
+            .ok_or("--runtime-repo required")?
+            .into(),
         cas: get("--cas").ok_or("--cas required")?.into(),
         run_id: get("--run-id").ok_or("--run-id required")?,
-        out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/repcon.json".into()),
+        out: get("--out")
+            .map(Into::into)
+            .unwrap_or_else(|| "/tmp/repcon.json".into()),
         n_tasks: get("--n-tasks").and_then(|s| s.parse().ok()).unwrap_or(12),
         n_sybils: get("--n-sybils").and_then(|s| s.parse().ok()).unwrap_or(3),
         seed: get("--seed").and_then(|s| s.parse().ok()).unwrap_or(1),
     })
 }
 
-async fn submit_await(seq: &Sequencer, tx: TypedTx, pre: Hash, label: &str) -> Result<Hash, String> {
-    seq.submit_agent_tx(tx).await.map_err(|e| format!("submit {label}: {e:?}"))?;
-    tb8_await_state_root_advance(seq, pre, 5_000).await.map_err(|_| format!("{label} did not advance"))
+async fn submit_await(
+    seq: &Sequencer,
+    tx: TypedTx,
+    pre: Hash,
+    label: &str,
+) -> Result<Hash, String> {
+    seq.submit_agent_tx(tx)
+        .await
+        .map_err(|e| format!("submit {label}: {e:?}"))?;
+    tb8_await_state_root_advance(seq, pre, 5_000)
+        .await
+        .map_err(|_| format!("{label} did not advance"))
 }
 
-fn put_proposal(cas_path: &PathBuf, run_id: &str, agent: &str, idx: u64, body: &str, lt: u64) -> Result<Cid, String> {
+fn put_proposal(
+    cas_path: &PathBuf,
+    run_id: &str,
+    agent: &str,
+    idx: u64,
+    body: &str,
+    lt: u64,
+) -> Result<Cid, String> {
     let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
     let tel = ProposalTelemetry::build_for_evaluator_append_with_parent(
-        &mut cas, run_id, agent, idx, body.as_bytes(), "rep_task", TokenCounts { prompt_tokens: 1, completion_tokens: 1, tool_tokens: 0 }, "rep-agent", lt, None,
-    ).map_err(|e| format!("ProposalTelemetry: {e}"))?;
-    write_proposal_telemetry_to_cas(&mut cas, &tel, "rep-proposal-telemetry", lt + 1).map_err(|e| format!("write telemetry: {e}"))
+        &mut cas,
+        run_id,
+        agent,
+        idx,
+        body.as_bytes(),
+        "rep_task",
+        TokenCounts {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            tool_tokens: 0,
+        },
+        "rep-agent",
+        lt,
+        None,
+    )
+    .map_err(|e| format!("ProposalTelemetry: {e}"))?;
+    write_proposal_telemetry_to_cas(&mut cas, &tel, "rep-proposal-telemetry", lt + 1)
+        .map_err(|e| format!("write telemetry: {e}"))
 }
 
 /// stake scaled by an agent's CURRENT on-chain wallet balance (so a defunded Sybil bids ~min).
@@ -102,46 +141,85 @@ async fn main() -> Result<(), String> {
     // roster: 4 honest specialists + N sybils. Build a deterministic task stream over the 4 families.
     let n_honest = FAMILIES.len();
     let na = n_honest + args.n_sybils;
-    let agent_names: Vec<String> = (0..na).map(|i| if i < n_honest { format!("Agent_spec_{}", FAMILIES[i]) } else { format!("Agent_sybil_{}", i - n_honest) }).collect();
+    let agent_names: Vec<String> = (0..na)
+        .map(|i| {
+            if i < n_honest {
+                format!("Agent_spec_{}", FAMILIES[i])
+            } else {
+                format!("Agent_sybil_{}", i - n_honest)
+            }
+        })
+        .collect();
     // task stream: each task is a family index; agent i (honest) closes family i only.
-    let mut s = args.seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-    let mut next = || { s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407); (s >> 33) as usize };
+    let mut s = args
+        .seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
+    let mut next = || {
+        s = s
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (s >> 33) as usize
+    };
     let stream: Vec<usize> = (0..args.n_tasks).map(|_| next() % FAMILIES.len()).collect();
 
     // ── Genesis: preseed every agent + the sponsor with real on-chain wallets ──
     let mut balances = default_pput_preseed_pairs();
     if !balances.iter().any(|(a, _)| a.0 == SPONSOR_AGENT) {
-        balances.push((AgentId(SPONSOR_AGENT.into()), MicroCoin::from_micro_units(50_000_000)));
+        balances.push((
+            AgentId(SPONSOR_AGENT.into()),
+            MicroCoin::from_micro_units(50_000_000),
+        ));
     }
     for name in &agent_names {
         if !balances.iter().any(|(x, _)| &x.0 == name) {
-            balances.push((AgentId(name.clone()), MicroCoin::from_micro_units(1_000_000)));
+            balances.push((
+                AgentId(name.clone()),
+                MicroCoin::from_micro_units(1_000_000),
+            ));
         }
     }
     let initial_q = genesis_with_balances(&balances);
     let cfg = RuntimeChaintapeConfig {
-        runtime_repo_path: args.runtime_repo.clone(), cas_path: args.cas.clone(),
-        run_id: args.run_id.clone(), queue_capacity: 64, resume_existing_chain: false,
+        runtime_repo_path: args.runtime_repo.clone(),
+        cas_path: args.cas.clone(),
+        run_id: args.run_id.clone(),
+        queue_capacity: 64,
+        resume_existing_chain: false,
     };
-    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q).map_err(|e| format!("boot: {e}"))?;
+    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
+        .map_err(|e| format!("boot: {e}"))?;
     let seq = bundle.sequencer.clone();
     let mut kp = AgentKeypairRegistry::open(&cfg.runtime_repo_path).map_err(|e| format!("{e}"))?;
     let mut all = vec![SPONSOR_AGENT.to_string()];
     all.extend(agent_names.iter().cloned());
-    for id in &all { kp.get_or_create(&AgentId(id.clone())).map_err(|e| format!("keypair {id}: {e}"))?; }
-    seq.set_agent_pubkeys(std::sync::Arc::new(kp.manifest())).map_err(|_| "pubkeys set".to_string())?;
+    for id in &all {
+        kp.get_or_create(&AgentId(id.clone()))
+            .map_err(|e| format!("keypair {id}: {e}"))?;
+    }
+    seq.set_agent_pubkeys(std::sync::Arc::new(kp.manifest()))
+        .map_err(|_| "pubkeys set".to_string())?;
 
     let mut root = seq.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
     let mut lt = 10u64;
 
     // wealth bookkeeping (read from chain after each node; used only for routing decisions).
     let balance_of = |seq: &Sequencer, name: &str| -> i64 {
-        seq.q_snapshot().ok()
-            .and_then(|q| q.economic_state_t.balances_t.0.get(&AgentId(name.to_string())).map(|c| c.micro_units()))
+        seq.q_snapshot()
+            .ok()
+            .and_then(|q| {
+                q.economic_state_t
+                    .balances_t
+                    .0
+                    .get(&AgentId(name.to_string()))
+                    .map(|c| c.micro_units())
+            })
             .unwrap_or(0)
     };
 
-    let mut closed = 0usize; let mut nodes = 0usize; let mut sybil_attempts = 0usize;
+    let mut closed = 0usize;
+    let mut nodes = 0usize;
+    let mut sybil_attempts = 0usize;
     // on-chain REPUTATION = cumulative ACCEPTED WorkTx per agent (a tape-reconstructable success count
     // that GROWS with wins — unlike raw balance, which DROPS on stake-lock). This is the correct
     // constitutional reputation signal: an agent's standing is its history of admitted (predicate-passing)
@@ -149,7 +227,15 @@ async fn main() -> Result<(), String> {
     let mut reputation = vec![0i64; na];
     let mut omega_task: Option<String> = None;
     let market_task = format!("rep-market-{}", args.run_id);
-    root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "rep", lt).map_err(|e| format!("TaskOpen mkt: {e}"))?, root, "TaskOpen(mkt)").await?; lt += 1;
+    root = submit_await(
+        &seq,
+        make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "rep", lt)
+            .map_err(|e| format!("TaskOpen mkt: {e}"))?,
+        root,
+        "TaskOpen(mkt)",
+    )
+    .await?;
+    lt += 1;
 
     // ── PRICE-ROUTED ALLOCATION over a real on-chain market ──
     for (ti, &fam) in stream.iter().enumerate() {
@@ -165,46 +251,113 @@ async fn main() -> Result<(), String> {
         // the MAX bid; ties broken toward the LOWER index (honest specialists are 0..n_honest), so a genuine
         // specialist wins its family over a Sybil at equal wealth — and once it accrues winnings its wealth
         // strictly dominates. max_by_key returns the LAST max, so negate index in the key to prefer low idx.
-        let routed = (0..na).max_by_key(|&a| {
-            let believes = if a < n_honest { a == fam } else { true };
-            // bid by REPUTATION (accepted-work history) × wealth-ability; a Sybil never accrues reputation
-            // (its WorkTx always rejects) so after the first round it is out-bid by the proven specialist.
-            let score = if believes { reputation[a] as i128 * 1_000_000 + balance_of(&seq, &agent_names[a]) as i128 } else { -1 };
-            (score, -(a as i128))
-        }).unwrap_or(0);
+        let routed = (0..na)
+            .max_by_key(|&a| {
+                let believes = if a < n_honest { a == fam } else { true };
+                // bid by REPUTATION (accepted-work history) × wealth-ability; a Sybil never accrues reputation
+                // (its WorkTx always rejects) so after the first round it is out-bid by the proven specialist.
+                let score = if believes {
+                    reputation[a] as i128 * 1_000_000 + balance_of(&seq, &agent_names[a]) as i128
+                } else {
+                    -1
+                };
+                (score, -(a as i128))
+            })
+            .unwrap_or(0);
         let agent = agent_names[routed].clone();
         let can_close = routed < n_honest && routed == fam; // TRUE competence (strict specialist)
-        if routed >= n_honest { sybil_attempts += 1; }
+        if routed >= n_honest {
+            sybil_attempts += 1;
+        }
 
         // real on-chain node: TaskOpen + Escrow + WorkTx (capital staked). predicate_passes encodes the
         // REAL outcome (only a true on-family specialist closes it). A failed WorkTx loses its escrow/stake.
         let bal = balance_of(&seq, &agent);
         let stake = stake_from_balance(bal);
         let node_task = format!("rep-node{ti}-{}", args.run_id);
-        root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &node_task, SPONSOR_AGENT, root, "rep", lt).map_err(|e| format!("TaskOpen node: {e}"))?, root, "TaskOpen(node)").await?; lt += 1;
-        root = submit_await(&seq, make_real_escrow_lock_signed_by(&mut kp, &node_task, SPONSOR_AGENT, TASK_ESCROW_MICRO, root, "rep", lt).map_err(|e| format!("Escrow: {e}"))?, root, "Escrow").await?; lt += 1;
-        let pcid = put_proposal(&args.cas, &args.run_id, &agent, ti as u64, &format!("close {} via {}", FAMILIES[fam], agent), lt)?; lt += 2;
-        let work = make_real_worktx_signed_by(&mut kp, &node_task, &agent, root, stake, "rep", pcid, can_close, lt).map_err(|e| format!("WorkTx: {e}"))?;
+        root = submit_await(
+            &seq,
+            make_real_task_open_signed_by(&mut kp, &node_task, SPONSOR_AGENT, root, "rep", lt)
+                .map_err(|e| format!("TaskOpen node: {e}"))?,
+            root,
+            "TaskOpen(node)",
+        )
+        .await?;
+        lt += 1;
+        root = submit_await(
+            &seq,
+            make_real_escrow_lock_signed_by(
+                &mut kp,
+                &node_task,
+                SPONSOR_AGENT,
+                TASK_ESCROW_MICRO,
+                root,
+                "rep",
+                lt,
+            )
+            .map_err(|e| format!("Escrow: {e}"))?,
+            root,
+            "Escrow",
+        )
+        .await?;
+        lt += 1;
+        let pcid = put_proposal(
+            &args.cas,
+            &args.run_id,
+            &agent,
+            ti as u64,
+            &format!("close {} via {}", FAMILIES[fam], agent),
+            lt,
+        )?;
+        lt += 2;
+        let work = make_real_worktx_signed_by(
+            &mut kp, &node_task, &agent, root, stake, "rep", pcid, can_close, lt,
+        )
+        .map_err(|e| format!("WorkTx: {e}"))?;
         match submit_await(&seq, work, root, "WorkTx").await {
             Ok(r) => {
-                root = r; lt += 1; nodes += 1;
+                root = r;
+                lt += 1;
+                nodes += 1;
                 // reputation accrues ONLY on a genuine close (can_close), reconstructable from the tape as
                 // the WorkTx whose predicate_passes=true AND whose node later settles YES. A Sybil's WorkTx
                 // may be admitted but predicate_passes=false → it gains NO reputation → out-bid next round.
-                if can_close { closed += 1; reputation[routed] += 1; if omega_task.is_none() && closed >= args.n_tasks.min(stream.len()) { omega_task = Some(node_task.clone()); } }
+                if can_close {
+                    closed += 1;
+                    reputation[routed] += 1;
+                    if omega_task.is_none() && closed >= args.n_tasks.min(stream.len()) {
+                        omega_task = Some(node_task.clone());
+                    }
+                }
             }
             Err(_) => { /* WorkTx rejected: no node */ }
         }
-        let _price = compute_price_index(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t);
+        let _price = compute_price_index(
+            &seq.q_snapshot()
+                .map_err(|e| format!("{e:?}"))?
+                .economic_state_t,
+        );
     }
 
     // ── SETTLE the overall market ──
-    let outcome = if closed > 0 { OutcomeSide::Yes } else { OutcomeSide::No };
-    let _ = seq.emit_system_tx(SystemEmitCommand::EventResolve { task_id: TaskId(market_task.clone()), outcome }).await;
+    let outcome = if closed > 0 {
+        OutcomeSide::Yes
+    } else {
+        OutcomeSide::No
+    };
+    let _ = seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(market_task.clone()),
+            outcome,
+        })
+        .await;
     let final_root = seq.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
 
     // final wealth (from chain) — Sybils should be at/below floor, honest specialists elevated.
-    let final_wealth: Vec<(String, i64)> = agent_names.iter().map(|n| (n.clone(), balance_of(&seq, n))).collect();
+    let final_wealth: Vec<(String, i64)> = agent_names
+        .iter()
+        .map(|n| (n.clone(), balance_of(&seq, n)))
+        .collect();
     let wall = t0.elapsed().as_secs_f64();
     let manifest = serde_json::json!({
         "schema": "reputation_constitutional.v1", "run_id": args.run_id, "seed": args.seed,
@@ -221,4 +374,6 @@ async fn main() -> Result<(), String> {
     Ok(())
 }
 
-fn hex_hash(h: &Hash) -> String { h.0.iter().map(|b| format!("{b:02x}")).collect() }
+fn hex_hash(h: &Hash) -> String {
+    h.0.iter().map(|b| format!("{b:02x}")).collect()
+}

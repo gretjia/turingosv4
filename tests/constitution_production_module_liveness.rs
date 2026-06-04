@@ -12,7 +12,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
-const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
+const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
+const VERIFIED_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 
 #[derive(Debug, Clone)]
 struct Group {
@@ -413,8 +414,8 @@ fn liveness_manifest_policy_is_real_world_first() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "only the explicit final closure status is allowed until full-system true runs close every retained group"
+        Some(REAUDIT_STATUS),
+        "OBL-005 must stay in reaudit while retained research diagnostics lack ChainTape/CAS replay evidence"
     );
 }
 
@@ -431,7 +432,7 @@ fn final_closure_cannot_be_claimed_while_quarantine_remains() {
             manifest
                 .get("final_closure_status")
                 .and_then(toml::Value::as_str),
-            Some("OBL005_FINAL_CLOSURE_VERIFIED"),
+            Some(VERIFIED_CLOSURE_STATUS),
             "OBL-005 final closure cannot be claimed while any legacy_quarantined group remains as production blockers"
         );
     }
@@ -446,6 +447,81 @@ fn final_closure_cannot_be_claimed_while_quarantine_remains() {
             );
         }
     }
+}
+
+#[test]
+fn final_closure_cannot_be_claimed_while_non_closing_dev_groups_remain() {
+    let manifest = manifest();
+    let groups = groups();
+    let has_non_closing_dev = groups
+        .iter()
+        .any(|group| group.classification == "dev_only" || group.status == "smoke_only");
+
+    if has_non_closing_dev {
+        assert_ne!(
+            manifest
+                .get("final_closure_status")
+                .and_then(toml::Value::as_str),
+            Some(VERIFIED_CLOSURE_STATUS),
+            "OBL-005 final closure cannot be claimed while retained dev-only/smoke-only groups remain non-closing"
+        );
+    }
+}
+
+#[test]
+fn lean_research_diagnostic_bins_are_dev_only_and_non_closing() {
+    let groups = groups();
+    let diagnostic_modules = ["bin::lean_emergence", "bin::lean_hayek_market"];
+
+    let diagnostics = group_by_id(&groups, "lean_research_diagnostic_bins");
+    assert_eq!(diagnostics.classification, "dev_only");
+    assert_eq!(diagnostics.status, "smoke_only");
+    assert!(
+        !diagnostics.allowed_as_fc_authority,
+        "Lean diagnostic bins cannot be flowchart authority"
+    );
+    assert!(
+        diagnostics.real_world_evidence.is_empty(),
+        "diagnostic bins must not borrow historical ChainTape/CAS evidence until they write production replay evidence themselves"
+    );
+    assert!(
+        diagnostics
+            .closure_action
+            .as_deref()
+            .unwrap_or_default()
+            .contains("ChainTape/CAS replay"),
+        "diagnostic bin exclusion must explain the missing ChainTape/CAS replay evidence"
+    );
+
+    for module in diagnostic_modules {
+        assert!(
+            diagnostics.module_ids.iter().any(|id| id == module),
+            "diagnostic group must own `{module}`"
+        );
+        for group in groups.iter().filter(|group| group.id != diagnostics.id) {
+            assert!(
+                !group.module_ids.iter().any(|id| id == module),
+                "`{module}` must not be co-owned by `{}` after dev-only split",
+                group.id
+            );
+        }
+    }
+
+    let lean_emergence =
+        fs::read_to_string("src/bin/lean_emergence.rs").expect("read src/bin/lean_emergence.rs");
+    assert!(
+        lean_emergence.contains("Class 1-2 diagnostic bin")
+            && lean_emergence.contains("/tmp/emergence.json"),
+        "lean_emergence is a local diagnostic JSON writer, not ChainTape/CAS production evidence"
+    );
+
+    let lean_hayek = fs::read_to_string("src/bin/lean_hayek_market.rs")
+        .expect("read src/bin/lean_hayek_market.rs");
+    assert!(
+        lean_hayek.contains("MarketTape")
+            && !lean_hayek.contains("build_chaintape_sequencer_with_initial_q"),
+        "lean_hayek_market uses local MarketTape diagnostics, not the production ChainTape sequencer"
+    );
 }
 
 #[test]

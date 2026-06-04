@@ -168,7 +168,10 @@ impl<L: ImmutableTapeLedger> Rtool<L> {
     // ── Cascade levels ────────────────────────────────────────
 
     fn level_1(&self, verified_head: &str, task: &Task, ws: &WorkspaceView) -> String {
-        let mut s = format!("[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n", verified_head, task.prompt);
+        let mut s = format!(
+            "[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n",
+            verified_head, task.prompt
+        );
         if let Some(diff) = &ws.relevant_diff {
             s.push_str("\n[RELEVANT DIFF]\n");
             s.push_str(diff);
@@ -181,7 +184,10 @@ impl<L: ImmutableTapeLedger> Rtool<L> {
     }
 
     fn level_2(&self, verified_head: &str, task: &Task, ws: &WorkspaceView) -> String {
-        let mut s = format!("[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n", verified_head, task.prompt);
+        let mut s = format!(
+            "[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n",
+            verified_head, task.prompt
+        );
         if let Some(fn_src) = &ws.failing_function_src {
             s.push_str("\n[FAILING FUNCTION]\n");
             s.push_str(fn_src);
@@ -194,7 +200,10 @@ impl<L: ImmutableTapeLedger> Rtool<L> {
     }
 
     fn level_3(&self, verified_head: &str, task: &Task, ws: &WorkspaceView) -> String {
-        let mut s = format!("[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n", verified_head, task.prompt);
+        let mut s = format!(
+            "[VERIFIED_HEAD]\n{}\n\n[TASK]\n{}\n",
+            verified_head, task.prompt
+        );
         if !ws.touched_paths.is_empty() {
             s.push_str("\n[TOUCHED PATHS]\n");
             s.push_str(&ws.touched_paths.join("\n"));

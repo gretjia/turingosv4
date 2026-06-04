@@ -20,29 +20,30 @@ use sha2::{Digest, Sha256};
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    LedgerEntry, TxKind, canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
-    constitution_source_hash,
+    canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
+    constitution_source_hash, LedgerEntry, TxKind,
 };
 use turingosv4::runtime::adapter::{
-    NodeMarketEmitOutcome, tb_n3_emit_node_market_after_work_accept, tb_n3_invest_to_router_tx,
+    tb_n3_emit_node_market_after_work_accept, tb_n3_invest_to_router_tx, NodeMarketEmitOutcome,
 };
 use turingosv4::runtime::agent_keypairs::{AgentKeypairRegistry, AgentPubkeyManifest};
-use turingosv4::runtime::evidence_capsule::{ExhaustionCounts, write_evidence_capsule};
+use turingosv4::runtime::evidence_capsule::{write_evidence_capsule, ExhaustionCounts};
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::market_decision_trace::{
-    MarketDecisionTrace, write_market_decision_trace_to_cas,
+    write_market_decision_trace_to_cas, MarketDecisionTrace,
 };
 use turingosv4::runtime::{
-    ChaintapeBundle, RuntimeChaintapeConfig, build_chaintape_sequencer_with_initial_q,
+    build_chaintape_sequencer_with_initial_q, ChaintapeBundle, RuntimeChaintapeConfig,
 };
 use turingosv4::state::q_state::{AgentId, QState, TaskId, TxId};
 use turingosv4::state::sequencer::SystemEmitCommand;
 use turingosv4::state::typed_tx::{
-    ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
     ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
     BootProfileId, BuyDirection, CapsulePrivacyPolicy, ExhaustionReason, LogFeedbackArchiveTx,
-    REINIT_REASON_SCHEMA_ID, ReinitReason, ReinitReasonCapsule, RunId, RunOutcome, TypedTx,
-    VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode, VetoVerdict,
+    ReinitReason, ReinitReasonCapsule, RunId, RunOutcome, TypedTx, VetoDecisionCapsule,
+    VetoDecisionTx, VetoReasonCode, VetoVerdict, ARCHITECT_COMMIT_SCHEMA_ID,
+    ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID, REINIT_REASON_SCHEMA_ID,
+    VETO_DECISION_SCHEMA_ID,
 };
 
 const MARKET_MAKER_AGENT: &str = "MarketMakerBudget";
@@ -313,7 +314,7 @@ async fn append_market_action(
     };
 
     Ok(MarketRows {
-        event_id: event_id.0.0,
+        event_id: event_id.0 .0,
         router_tx_id: router_tx_id.0,
         market_decision_trace_cid: trace_cid.hex(),
     })

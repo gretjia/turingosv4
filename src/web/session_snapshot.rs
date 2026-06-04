@@ -38,8 +38,7 @@ use super::ws::{GrillSession, SlotState};
 /// canonical CAS schema_ids belong to `src/runtime/*`. This snapshot is a
 /// web-layer derived view, NOT a registered runtime schema, so we keep the
 /// tag module-private (no `pub`/`pub(crate)`) to satisfy the invariant.
-const GRILL_SESSION_SNAPSHOT_SCHEMA_ID: &str =
-    "turingos-web-grill-session-snapshot-v1";
+const GRILL_SESSION_SNAPSHOT_SCHEMA_ID: &str = "turingos-web-grill-session-snapshot-v1";
 
 /// TRACE_MATRIX FC1-N12: serialized snapshot of a GrillSession.
 ///
@@ -97,8 +96,7 @@ impl GrillSessionSnapshot {
         for (k, v) in &session.coverage_state {
             coverage_state.insert(k.clone(), slot_state_to_str(v).to_string());
         }
-        let last_3_turns: Vec<(String, String)> =
-            session.last_3_turns.iter().cloned().collect();
+        let last_3_turns: Vec<(String, String)> = session.last_3_turns.iter().cloned().collect();
         Self {
             session_id: session.session_id.clone(),
             turn_count: session.turn_count,
@@ -167,8 +165,7 @@ pub(crate) fn write_snapshot(
     logical_t: u64,
 ) -> Result<String, String> {
     let snapshot = GrillSessionSnapshot::from_session(session, logical_t);
-    let bytes = serde_json::to_vec(&snapshot)
-        .map_err(|e| format!("snapshot serde: {e}"))?;
+    let bytes = serde_json::to_vec(&snapshot).map_err(|e| format!("snapshot serde: {e}"))?;
     let cas_dir = workspace
         .join("sessions")
         .join(&session.session_id)
@@ -275,13 +272,23 @@ mod tests {
         assert_eq!(rebuilt.parent_turn_cid, original.parent_turn_cid);
         assert_eq!(rebuilt.turn_cids, original.turn_cids);
         assert_eq!(rebuilt.meta_turns_accepted, original.meta_turns_accepted);
-        assert_eq!(rebuilt.triage_calls_relevant, original.triage_calls_relevant);
-        assert_eq!(rebuilt.last_question_emitted, original.last_question_emitted);
+        assert_eq!(
+            rebuilt.triage_calls_relevant,
+            original.triage_calls_relevant
+        );
+        assert_eq!(
+            rebuilt.last_question_emitted,
+            original.last_question_emitted
+        );
         assert_eq!(rebuilt.all_user_answers, original.all_user_answers);
         assert_eq!(rebuilt.slot_evidence, original.slot_evidence);
         assert_eq!(rebuilt.last_prev_covered, original.last_prev_covered);
         assert_eq!(rebuilt.last_3_turns.len(), original.last_3_turns.len());
-        for (a, b) in rebuilt.last_3_turns.iter().zip(original.last_3_turns.iter()) {
+        for (a, b) in rebuilt
+            .last_3_turns
+            .iter()
+            .zip(original.last_3_turns.iter())
+        {
             assert_eq!(a, b);
         }
         assert_eq!(rebuilt.coverage_state.len(), original.coverage_state.len());

@@ -19,8 +19,8 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{
-    Arc,
     atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 fn turingos_bin() -> PathBuf {
@@ -60,8 +60,8 @@ impl MockServerEmptyContent {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
                         let mut buf = [0u8; 4096];
-                        let _ = stream
-                            .set_read_timeout(Some(std::time::Duration::from_millis(200)));
+                        let _ =
+                            stream.set_read_timeout(Some(std::time::Duration::from_millis(200)));
                         let _ = stream.read(&mut buf);
                         // Valid OpenAI-compat 200 with empty content — triggers NoFilesParsed.
                         let body = r#"{"choices":[{"message":{"role":"assistant","content":""},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":0,"total_tokens":10}}"#;
@@ -80,7 +80,11 @@ impl MockServerEmptyContent {
             }
         });
 
-        MockServerEmptyContent { port, shutdown, _handle: handle }
+        MockServerEmptyContent {
+            port,
+            shutdown,
+            _handle: handle,
+        }
     }
 }
 
@@ -97,8 +101,11 @@ fn workspace_with_valid_key(dir: &std::path::Path) -> PathBuf {
     let config = "llm.blackbox.model = \"test-model\"\n\
                   llm.blackbox.api_key_env = \"MOCK_API_KEY\"\n";
     fs::write(ws.join("turingos.toml"), config).expect("write turingos.toml");
-    fs::write(ws.join("spec.md"), "# Test spec\nBuild a hello world app.\n")
-        .expect("write spec.md");
+    fs::write(
+        ws.join("spec.md"),
+        "# Test spec\nBuild a hello world app.\n",
+    )
+    .expect("write spec.md");
     ws
 }
 

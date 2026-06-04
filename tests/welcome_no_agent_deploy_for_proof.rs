@@ -106,7 +106,10 @@ fn welcome_does_not_show_agent_deploy_when_genesis_absent() {
         .output()
         .expect("spawn turingos welcome");
 
-    assert!(output.status.success(), "welcome must exit 0 even on empty dir");
+    assert!(
+        output.status.success(),
+        "welcome must exit 0 even on empty dir"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     assert!(

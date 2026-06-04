@@ -17,9 +17,9 @@
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md
 
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use sha2::{Digest, Sha256};
 
 use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, TapeNode,
@@ -262,7 +262,9 @@ fn reconstruct_node_from_commit(
     let verified_bytes = read_blob_bytes(repo, &tree, "2_verified")?
         .ok_or_else(|| GitTapeLedgerError::MalformedNode("missing 2_verified".into()))?;
     if verified_bytes.len() != 1 {
-        return Err(GitTapeLedgerError::MalformedNode("verified blob len".into()));
+        return Err(GitTapeLedgerError::MalformedNode(
+            "verified blob len".into(),
+        ));
     }
     let verified = verified_bytes[0] != 0;
 
@@ -276,17 +278,21 @@ fn reconstruct_node_from_commit(
 
     let attempt_ordinal: Option<u32> = match read_blob_bytes(repo, &tree, "4_attempt_ordinal")? {
         Some(b) if b.len() == 4 => Some(u32::from_be_bytes([b[0], b[1], b[2], b[3]])),
-        Some(_) => return Err(GitTapeLedgerError::MalformedNode("attempt_ordinal len".into())),
+        Some(_) => {
+            return Err(GitTapeLedgerError::MalformedNode(
+                "attempt_ordinal len".into(),
+            ))
+        }
         None => None,
     };
 
-    let reject_class: Option<String> = match read_blob_bytes(repo, &tree, "5_reject_class")? {
-        Some(b) => Some(
-            String::from_utf8(b)
-                .map_err(|e| GitTapeLedgerError::MalformedNode(format!("reject_class utf8: {e}")))?,
-        ),
-        None => None,
-    };
+    let reject_class: Option<String> =
+        match read_blob_bytes(repo, &tree, "5_reject_class")? {
+            Some(b) => Some(String::from_utf8(b).map_err(|e| {
+                GitTapeLedgerError::MalformedNode(format!("reject_class utf8: {e}"))
+            })?),
+            None => None,
+        };
 
     let token_count: Option<usize> = match read_blob_bytes(repo, &tree, "6_token_count")? {
         Some(b) if b.len() == 8 => {
@@ -301,7 +307,9 @@ fn reconstruct_node_from_commit(
     let created_at_unix_ms_bytes = read_blob_bytes(repo, &tree, "7_created_at_ms")?
         .ok_or_else(|| GitTapeLedgerError::MalformedNode("missing 7_created_at_ms".into()))?;
     if created_at_unix_ms_bytes.len() != 8 {
-        return Err(GitTapeLedgerError::MalformedNode("created_at_ms len".into()));
+        return Err(GitTapeLedgerError::MalformedNode(
+            "created_at_ms len".into(),
+        ));
     }
     let mut arr = [0u8; 8];
     arr.copy_from_slice(&created_at_unix_ms_bytes);
@@ -472,7 +480,14 @@ impl ImmutableTapeLedger for GitTapeLedger {
 
         let commit_oid = self
             .repo
-            .commit(None, &signature, &signature, &canonical_msg, &tree, &parent_refs)
+            .commit(
+                None,
+                &signature,
+                &signature,
+                &canonical_msg,
+                &tree,
+                &parent_refs,
+            )
             .expect("Atom 21: git commit failed");
 
         // Update refs: per-scope (if scope.is_some) + ledger_tail (always).

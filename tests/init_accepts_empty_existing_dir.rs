@@ -58,7 +58,8 @@ fn init_accepts_empty_existing_dir_without_force() {
     let genesis = empty_dir.join("genesis_payload.toml");
     assert!(
         genesis.exists(),
-        "genesis_payload.toml must be created after init; dir={}", empty_dir.display()
+        "genesis_payload.toml must be created after init; dir={}",
+        empty_dir.display()
     );
 }
 

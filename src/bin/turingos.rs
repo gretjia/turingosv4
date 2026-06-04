@@ -72,26 +72,26 @@ mod cmd_report_run;
 mod cmd_report_wallet;
 #[path = "turingos/cmd_spec.rs"]
 mod cmd_spec;
+#[path = "turingos/cmd_spec_audit.rs"]
+mod cmd_spec_audit;
+#[path = "turingos/cmd_tape_migrate.rs"]
+mod cmd_tape_migrate;
 #[path = "turingos/cmd_task_open.rs"]
 mod cmd_task_open;
 #[path = "turingos/cmd_task_tick.rs"]
 mod cmd_task_tick;
 #[path = "turingos/cmd_task_view.rs"]
 mod cmd_task_view;
+#[path = "turingos/cmd_tdma.rs"]
+mod cmd_tdma;
 #[path = "turingos/cmd_verify_chaintape.rs"]
 mod cmd_verify_chaintape;
 #[path = "turingos/cmd_verify_e2_candidate.rs"]
 mod cmd_verify_e2_candidate;
 #[path = "turingos/cmd_welcome.rs"]
 mod cmd_welcome;
-#[path = "turingos/cmd_spec_audit.rs"]
-mod cmd_spec_audit;
 #[path = "turingos/cmd_wizard.rs"]
 mod cmd_wizard;
-#[path = "turingos/cmd_tdma.rs"]
-mod cmd_tdma;
-#[path = "turingos/cmd_tape_migrate.rs"]
-mod cmd_tape_migrate;
 // MODULES-REGISTRY-END
 
 const VERSION_STR: &str = concat!("turingos ", env!("CARGO_PKG_VERSION"));

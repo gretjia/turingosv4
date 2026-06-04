@@ -30,14 +30,14 @@ use super::math_step_judge::{JudgeVerdict, MathStepJudge};
 /// TRACE_MATRIX FC1a-judge_pi: Sequential proof state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PutnamA1Stage {
-    Stage1WitnessN1,    // verify (1,2,2) works for n=1: 2+6=8=4·2
-    Stage2WlogGcd,      // assume gcd(a,b,c)=1 WLOG
-    Stage3N2Mod3,       // for n=2, derive a²+c² ≡ 0 (mod 3) ⇒ 3|a, 3|c
-    Stage4N2ContradictB,// show 3|b too, contradicting gcd=1
-    Stage5N3DescentB,   // for n≥3, from 3b^n = 4c^n − 2a^n derive b even
-    Stage6N3DescentA,   // derive a even
-    Stage7N3DescentC,   // derive c even
-    Stage8Conclude,     // all-even contradicts gcd=1; therefore n=1 only
+    Stage1WitnessN1,     // verify (1,2,2) works for n=1: 2+6=8=4·2
+    Stage2WlogGcd,       // assume gcd(a,b,c)=1 WLOG
+    Stage3N2Mod3,        // for n=2, derive a²+c² ≡ 0 (mod 3) ⇒ 3|a, 3|c
+    Stage4N2ContradictB, // show 3|b too, contradicting gcd=1
+    Stage5N3DescentB,    // for n≥3, from 3b^n = 4c^n − 2a^n derive b even
+    Stage6N3DescentA,    // derive a even
+    Stage7N3DescentC,    // derive c even
+    Stage8Conclude,      // all-even contradicts gcd=1; therefore n=1 only
 }
 
 impl PutnamA1Stage {
@@ -76,14 +76,14 @@ impl PutnamA1Stage {
 /// TRACE_MATRIX FC1a-judge_pi: Orthogonal failure signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PutnamA1RejectClass {
-    MissingWitness,        // Stage 1: didn't verify (1,2,2) works numerically
-    MissingGcdAssumption,  // Stage 2: didn't reduce by gcd
-    WrongMod,              // Stage 3: didn't use mod 3 / wrong residues
-    MissingDescentStep,    // Stage 5/6/7: skipped the "b/a/c is even" derivation
-    HandWave,              // Step text too short / lacks reasoning
-    WrongFinalAnswer,      // Stage 8: concluded wrong n
-    OffStage,              // Doesn't match any expected stage marker
-    LogicalGap,            // Jumped ahead without prior stages
+    MissingWitness,       // Stage 1: didn't verify (1,2,2) works numerically
+    MissingGcdAssumption, // Stage 2: didn't reduce by gcd
+    WrongMod,             // Stage 3: didn't use mod 3 / wrong residues
+    MissingDescentStep,   // Stage 5/6/7: skipped the "b/a/c is even" derivation
+    HandWave,             // Step text too short / lacks reasoning
+    WrongFinalAnswer,     // Stage 8: concluded wrong n
+    OffStage,             // Doesn't match any expected stage marker
+    LogicalGap,           // Jumped ahead without prior stages
 }
 
 impl PutnamA1RejectClass {
@@ -204,8 +204,10 @@ impl PutnamA1Judge {
             Stage1WitnessN1 => {
                 // Must mention n=1 AND a numeric witness AND verify the equation.
                 let has_n1 = c.contains("n = 1") || c.contains("n=1");
-                let has_witness =
-                    c.contains("(1, 2, 2)") || c.contains("(1,2,2)") || c.contains("a=1") || c.contains("a = 1");
+                let has_witness = c.contains("(1, 2, 2)")
+                    || c.contains("(1,2,2)")
+                    || c.contains("a=1")
+                    || c.contains("a = 1");
                 let verifies = c.contains("2 + 6 = 8")
                     || c.contains("2+6=8")
                     || c.contains("8 = 4")
@@ -222,7 +224,9 @@ impl PutnamA1Judge {
                 }
             }
             Stage2WlogGcd => {
-                let has_gcd = c.contains("gcd") || c.contains("greatest common") || c.contains("common divisor");
+                let has_gcd = c.contains("gcd")
+                    || c.contains("greatest common")
+                    || c.contains("common divisor");
                 let has_wlog = c.contains("wlog")
                     || c.contains("without loss")
                     || c.contains("assume")
@@ -240,9 +244,13 @@ impl PutnamA1Judge {
             Stage3N2Mod3 => {
                 let has_n2 = c.contains("n = 2") || c.contains("n=2");
                 let has_mod3 = c.contains("mod 3") || c.contains("mod3") || c.contains("modulo 3");
-                let has_squares =
-                    c.contains("square") || c.contains("a²") || c.contains("a^2") || c.contains("c²") || c.contains("c^2");
-                let has_residue = c.contains("0 or 1") || c.contains("0,1") || c.contains("0 and 1");
+                let has_squares = c.contains("square")
+                    || c.contains("a²")
+                    || c.contains("a^2")
+                    || c.contains("c²")
+                    || c.contains("c^2");
+                let has_residue =
+                    c.contains("0 or 1") || c.contains("0,1") || c.contains("0 and 1");
                 if !(has_n2 && has_mod3 && has_squares && has_residue) {
                     return (
                         JudgeVerdict::Fail {
@@ -254,7 +262,10 @@ impl PutnamA1Judge {
             }
             Stage4N2ContradictB => {
                 let mentions_b = c.contains("b") || c.contains("b²") || c.contains("b^2");
-                let mentions_3 = c.contains("multiple of 3") || c.contains("divisible by 3") || c.contains("3 | b") || c.contains("3|b");
+                let mentions_3 = c.contains("multiple of 3")
+                    || c.contains("divisible by 3")
+                    || c.contains("3 | b")
+                    || c.contains("3|b");
                 let contradicts = c.contains("contradict") || c.contains("contradiction");
                 if !(mentions_b && mentions_3 && contradicts) {
                     return (
@@ -266,12 +277,17 @@ impl PutnamA1Judge {
                 }
             }
             Stage5N3DescentB => {
-                let has_n3 = c.contains("n ≥ 3") || c.contains("n >= 3") || c.contains("n>=3") || c.contains("n>3") || c.contains("n ≥3");
+                let has_n3 = c.contains("n ≥ 3")
+                    || c.contains("n >= 3")
+                    || c.contains("n>=3")
+                    || c.contains("n>3")
+                    || c.contains("n ≥3");
                 let mentions_b_even = c.contains("b is even")
                     || c.contains("b must be even")
                     || c.contains("b even")
                     || c.contains("b = 2");
-                let mentions_eq = c.contains("3b") || c.contains("3·b") || c.contains("4c") || c.contains("4·c");
+                let mentions_eq =
+                    c.contains("3b") || c.contains("3·b") || c.contains("4c") || c.contains("4·c");
                 if !(has_n3 && mentions_b_even && mentions_eq) {
                     return (
                         JudgeVerdict::Fail {
@@ -282,7 +298,8 @@ impl PutnamA1Judge {
                 }
             }
             Stage6N3DescentA => {
-                let mentions_a_even = c.contains("a is even") || c.contains("a must be even") || c.contains("a even");
+                let mentions_a_even =
+                    c.contains("a is even") || c.contains("a must be even") || c.contains("a even");
                 if !mentions_a_even {
                     return (
                         JudgeVerdict::Fail {
@@ -293,11 +310,13 @@ impl PutnamA1Judge {
                 }
             }
             Stage7N3DescentC => {
-                let mentions_c_even = c.contains("c is even") || c.contains("c must be even") || c.contains("c even");
+                let mentions_c_even =
+                    c.contains("c is even") || c.contains("c must be even") || c.contains("c even");
                 if !mentions_c_even {
                     return (
                         JudgeVerdict::Fail {
-                            reason: "Stage 7 must derive that c is even (closing the descent)".into(),
+                            reason: "Stage 7 must derive that c is even (closing the descent)"
+                                .into(),
                         },
                         Some(MissingDescentStep),
                     );

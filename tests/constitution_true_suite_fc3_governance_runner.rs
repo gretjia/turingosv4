@@ -199,30 +199,24 @@ fn fc3_governance_runner_executes_typed_meta_roles_and_replays() {
         );
     }
 
-    assert!(
-        run_dir
-            .join("runtime_repo")
-            .join("genesis_report.json")
-            .is_file()
-    );
+    assert!(run_dir
+        .join("runtime_repo")
+        .join("genesis_report.json")
+        .is_file());
     let copied_genesis = run_dir.join("genesis_report.json");
     std::fs::copy(
         run_dir.join("runtime_repo").join("genesis_report.json"),
         &copied_genesis,
     )
     .expect("copy genesis report");
-    assert!(
-        run_dir
-            .join("runtime_repo")
-            .join("pinned_pubkeys.json")
-            .is_file()
-    );
-    assert!(
-        run_dir
-            .join("runtime_repo")
-            .join("initial_q_state.json")
-            .is_file()
-    );
+    assert!(run_dir
+        .join("runtime_repo")
+        .join("pinned_pubkeys.json")
+        .is_file());
+    assert!(run_dir
+        .join("runtime_repo")
+        .join("initial_q_state.json")
+        .is_file());
 
     let participation_report = run_dir.join("full_system_participation.json");
     let participation = Command::new(bin("full_system_participation_current_kernel"))

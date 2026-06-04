@@ -343,7 +343,7 @@ async fn test_rejection_4_tuple_present() {
         triage_attempted: true,
         reject_class: RejectClass::NoFilesParsed,
         public_error_summary: "LLM emitted no parseable files".to_string(), // user-safe summary
-        reason: "no_files_parsed".to_string(),                               // machine-readable reason
+        reason: "no_files_parsed".to_string(), // machine-readable reason
         private_diagnostic_cid: None,
         retryable: true,
         world_head_unchanged: true,
@@ -362,10 +362,19 @@ async fn test_rejection_4_tuple_present() {
     let rejection_cid_hex = rejection_cid.hex();
 
     // Verify 4-tuple fields on the capsule
-    assert!(!capsule.public_error_summary.is_empty(), "public_error_summary must not be empty (v5-4tuple)");
-    assert!(!capsule.reason.is_empty(), "reason must not be empty (v5-4tuple)");
+    assert!(
+        !capsule.public_error_summary.is_empty(),
+        "public_error_summary must not be empty (v5-4tuple)"
+    );
+    assert!(
+        !capsule.reason.is_empty(),
+        "reason must not be empty (v5-4tuple)"
+    );
     // world_head_unchanged must be true (v5 contract)
-    assert!(capsule.world_head_unchanged, "world_head_unchanged must be true");
+    assert!(
+        capsule.world_head_unchanged,
+        "world_head_unchanged must be true"
+    );
     // reject_class must be set (v5-4tuple)
     assert_eq!(capsule.reject_class, RejectClass::NoFilesParsed);
 
@@ -391,9 +400,16 @@ async fn test_rejection_4_tuple_present() {
     let (status, body) = http_post_json(addr, "/api/generate", &request_body).await;
 
     // Should return 4xx with the 4-tuple fields in the body
-    assert!(status >= 400 && status < 600, "expected error status: {}", status);
+    assert!(
+        status >= 400 && status < 600,
+        "expected error status: {}",
+        status
+    );
     // rejection_cid in body
-    assert!(body.contains(&rejection_cid_hex), "rejection_cid missing from 4-tuple response");
+    assert!(
+        body.contains(&rejection_cid_hex),
+        "rejection_cid missing from 4-tuple response"
+    );
     // public_error_summary in body
     assert!(
         body.contains("no parseable files") || body.contains("LLM emitted"),

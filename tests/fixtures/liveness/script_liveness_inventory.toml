@@ -1,7 +1,7 @@
 schema_version = "turingosv4.script_liveness_inventory.v1"
 authority = "constitution.md + script inventory + ChainTape/CAS evidence"
 policy = "all_retained_scripts_classified"
-final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
+final_closure_status = "OBL005_REAUDIT_IN_PROGRESS"
 notes = [
   "This is a derived inventory over retained automation files in scripts/, tools/, rules/, .claude/hooks/, and .github/workflows/.",
   "It closes automation accounting, not OBL-005 final closure.",

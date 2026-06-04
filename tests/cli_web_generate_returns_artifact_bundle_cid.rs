@@ -66,9 +66,7 @@ async fn http_post_json(addr: SocketAddr, path: &str, body: &str) -> (u16, Strin
 
 fn write_stub_script(dir: &tempfile::TempDir, exit_code: i32) -> String {
     let script_path = dir.path().join("turingos");
-    let script_content = format!(
-        "#!/bin/sh\nexit {exit_code}\n",
-    );
+    let script_content = format!("#!/bin/sh\nexit {exit_code}\n",);
     std::fs::write(&script_path, script_content).expect("write stub");
     use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(&script_path).unwrap().permissions();
@@ -134,16 +132,14 @@ async fn test_generate_returns_artifact_bundle_cid() {
         spec_capsule_cid: Some("aa".repeat(32)),
         generation_attempt_cid: "bb".repeat(32),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: expected_file_cid.clone(),
-                mime: "text/html".to_string(),
-                sha256: expected_sha256.clone(),
-                size_bytes: 120,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: expected_file_cid.clone(),
+            mime: "text/html".to_string(),
+            sha256: expected_sha256.clone(),
+            size_bytes: 120,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: 120,
         created_at_logical_t: 100,
@@ -169,28 +165,29 @@ async fn test_generate_returns_artifact_bundle_cid() {
     assert_eq!(status, 200, "POST must return 200; body={resp_body}");
 
     let parsed: serde_json::Value = serde_json::from_str(&resp_body).expect("valid JSON");
-    
+
     // Assert GenerateResponse level fields
     let resp_bundle_cid = parsed["artifact_bundle_cid"]
         .as_str()
         .expect("must contain artifact_bundle_cid");
     assert_eq!(resp_bundle_cid, actual_written_cid.as_str());
 
-    let resp_status = parsed["status"]
-        .as_str()
-        .expect("must contain status");
+    let resp_status = parsed["status"].as_str().expect("must contain status");
     assert_eq!(resp_status, "success");
 
     // Assert ArtifactEntry level fields
     let artifacts = parsed["artifacts"]
         .as_array()
         .expect("must contain artifacts array");
-    
+
     let html_entry = artifacts
         .iter()
         .find(|e| e["path"].as_str() == Some("index.html"))
         .expect("must contain index.html");
 
     assert_eq!(html_entry["cid"].as_str(), Some(expected_file_cid.as_str()));
-    assert_eq!(html_entry["sha256"].as_str(), Some(expected_sha256.as_str()));
+    assert_eq!(
+        html_entry["sha256"].as_str(),
+        Some(expected_sha256.as_str())
+    );
 }

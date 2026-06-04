@@ -27,9 +27,7 @@ fn turingos_bin() -> PathBuf {
     if release.exists() {
         return release;
     }
-    panic!(
-        "turingos binary not found; run `cargo build --bin turingos` first"
-    );
+    panic!("turingos binary not found; run `cargo build --bin turingos` first");
 }
 
 /// `turingos wizard --help` must exit 0 and print wizard help text.

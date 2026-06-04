@@ -102,7 +102,11 @@ impl fmt::Display for MaterializeError {
                 write!(f, "SEARCH block not found in file {}", path)
             }
             MaterializeError::AmbiguousMatch { path, count } => {
-                write!(f, "SEARCH block matched {} times in file {} (ambiguous)", count, path)
+                write!(
+                    f,
+                    "SEARCH block matched {} times in file {} (ambiguous)",
+                    count, path
+                )
             }
             MaterializeError::DiffSynthesis(e) => write!(f, "diff synthesis failed: {}", e),
         }
@@ -295,7 +299,8 @@ mod tests {
 
     #[test]
     fn test_parse_search_replace_blocks() {
-        let body = "src/foo.py\n<<<<<<< SEARCH\n    return 1\n=======\n    return 2\n>>>>>>> REPLACE\n";
+        let body =
+            "src/foo.py\n<<<<<<< SEARCH\n    return 1\n=======\n    return 2\n>>>>>>> REPLACE\n";
         let blocks = parse_search_replace_blocks(body);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].path, "src/foo.py");
@@ -347,7 +352,10 @@ mod tests {
             replace: "y".into(),
         }];
         let err = apply_blocks(original, &blocks).unwrap_err();
-        assert!(matches!(err, MaterializeError::AmbiguousMatch { count: 2, .. }));
+        assert!(matches!(
+            err,
+            MaterializeError::AmbiguousMatch { count: 2, .. }
+        ));
     }
 
     #[test]
@@ -361,7 +369,11 @@ mod tests {
         let original = "line1\nline2\nline3\n";
         let edited = "line1\nCHANGED\nline3\n";
         let diff = synthesize_unified_diff("src/foo.py", original, edited).expect("diff ok");
-        assert!(diff.contains("@@"), "diff must have a hunk header: {}", diff);
+        assert!(
+            diff.contains("@@"),
+            "diff must have a hunk header: {}",
+            diff
+        );
         assert!(diff.contains("-line2"), "diff must remove line2: {}", diff);
         assert!(diff.contains("+CHANGED"), "diff must add CHANGED: {}", diff);
         // git-apply -p1 compatibility: a/ and b/ path prefixes.

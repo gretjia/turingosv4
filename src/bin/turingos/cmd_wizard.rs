@@ -104,7 +104,11 @@ fn run_wizard() -> Result<(), String> {
             "DeepSeek (api.deepseek.com)      — 快速、便宜",
         ],
     )?;
-    let provider = if provider_idx == 0 { "siliconflow" } else { "deepseek" };
+    let provider = if provider_idx == 0 {
+        "siliconflow"
+    } else {
+        "deepseek"
+    };
 
     // Step 2/3 — Meta API key (stty -echo masking on POSIX)
     let key_label = if provider == "deepseek" {
@@ -155,11 +159,8 @@ fn run_wizard() -> Result<(), String> {
         .unwrap_or(0);
     let workspace = format!("/tmp/turingos-{timestamp}");
     let workspace_path = PathBuf::from(&workspace);
-    std::fs::create_dir_all(&workspace_path)
-        .map_err(|e| format!("create workspace: {e}"))?;
-    println!(
-        "\n{C_DIM}工作区 / Workspace: {workspace}{C_RESET}"
-    );
+    std::fs::create_dir_all(&workspace_path).map_err(|e| format!("create workspace: {e}"))?;
+    println!("\n{C_DIM}工作区 / Workspace: {workspace}{C_RESET}");
 
     // Initialize workspace (in-process; cmd_init::run expects only flags).
     println!("{C_DIM}Initializing...{C_RESET}");
@@ -177,34 +178,21 @@ fn run_wizard() -> Result<(), String> {
 
     // ── The single intent prompt — Meta AI does the rest ────────────────────
     println!("\n{C_BOLD}用一两句话告诉我你想做什么。{C_RESET}");
-    println!(
-        "{C_DIM}Tell me what you want to build, in 1-2 sentences.{C_RESET}"
-    );
-    println!(
-        "{C_DIM}任何想法都行 — 游戏、工具页、调研页、教学 demo……{C_RESET}"
-    );
-    println!(
-        "{C_DIM}Meta AI 会理解你的意图并扩展成完整 spec。{C_RESET}"
-    );
+    println!("{C_DIM}Tell me what you want to build, in 1-2 sentences.{C_RESET}");
+    println!("{C_DIM}任何想法都行 — 游戏、工具页、调研页、教学 demo……{C_RESET}");
+    println!("{C_DIM}Meta AI 会理解你的意图并扩展成完整 spec。{C_RESET}");
     let intent = prompt(">")?;
     if intent.trim().is_empty() {
         return Err("no intent provided".to_string());
     }
 
     // Meta AI expansion: 1 sentence → 8 structured spec answers.
-    println!(
-        "\n{C_DIM}Meta AI 正在理解你的意图（约 15-30 秒）...{C_RESET}"
-    );
-    let answers = expand_intent_to_answers(provider, &meta_key, &intent)
-        .unwrap_or_else(|err| {
-            eprintln!(
-                "{C_YELLOW}Meta AI 扩展失败：{err}{C_RESET}"
-            );
-            eprintln!(
-                "{C_DIM}回退：把意图填入所有 8 个槽位（cmd_spec 仍可处理）。{C_RESET}"
-            );
-            vec![intent.clone(); 8]
-        });
+    println!("\n{C_DIM}Meta AI 正在理解你的意图（约 15-30 秒）...{C_RESET}");
+    let answers = expand_intent_to_answers(provider, &meta_key, &intent).unwrap_or_else(|err| {
+        eprintln!("{C_YELLOW}Meta AI 扩展失败：{err}{C_RESET}");
+        eprintln!("{C_DIM}回退：把意图填入所有 8 个槽位（cmd_spec 仍可处理）。{C_RESET}");
+        vec![intent.clone(); 8]
+    });
 
     // Show user what Meta AI inferred (Software 3.0 transparency).
     println!("\n{C_CYAN}Meta AI 理解的 spec：{C_RESET}");
@@ -227,15 +215,13 @@ fn run_wizard() -> Result<(), String> {
 
     // Write answers.json for cmd_spec --answers-file
     let answers_path = workspace_path.join("wizard_answers.json");
-    let answers_json = serde_json::to_string_pretty(&answers)
-        .map_err(|e| format!("serialize answers: {e}"))?;
+    let answers_json =
+        serde_json::to_string_pretty(&answers).map_err(|e| format!("serialize answers: {e}"))?;
     std::fs::write(&answers_path, &answers_json)
         .map_err(|e| format!("write wizard_answers.json: {e}"))?;
 
     // Step 8: Spec (in-process)
-    println!(
-        "{C_DIM}正在生成 spec.md（调用 Meta LLM，约 10-30 秒）...{C_RESET}"
-    );
+    println!("{C_DIM}正在生成 spec.md（调用 Meta LLM，约 10-30 秒）...{C_RESET}");
     // NOTE: cmd_spec::run expects only flags (no leading subcommand name).
     let spec_args = vec![
         String::from("--workspace"),
@@ -253,19 +239,12 @@ fn run_wizard() -> Result<(), String> {
     }
 
     // Step 9: Generate (in-process)
-    println!(
-        "\n{C_DIM}正在生成游戏代码（约 30-60 秒）...{C_RESET}"
-    );
+    println!("\n{C_DIM}正在生成游戏代码（约 30-60 秒）...{C_RESET}");
     // NOTE: cmd_generate::run expects only flags (no leading subcommand name).
-    let gen_args = vec![
-        String::from("--workspace"),
-        workspace.clone(),
-    ];
+    let gen_args = vec![String::from("--workspace"), workspace.clone()];
     let gen_rc = crate::cmd_generate::run(&gen_args);
     if gen_rc != ExitCode::SUCCESS {
-        eprintln!(
-            "\n{C_YELLOW}generate 这次没能交付。{C_RESET}"
-        );
+        eprintln!("\n{C_YELLOW}generate 这次没能交付。{C_RESET}");
         eprintln!("{C_DIM}你可以稍后重试：{C_RESET}");
         eprintln!("  cd {} && turingos generate", workspace);
         return Err(String::from("generate exited non-zero"));
@@ -341,9 +320,7 @@ fn expand_intent_to_answers(
 - 如果用户意图不是游戏，也要产出一个 HTML 可交付物的 spec（例如交互式调研页、教学 demo、工具 UI）；\n\
 - 只输出 JSON 数组，不要 markdown 代码围栏，不要前后解释。";
 
-    let user_msg = format!(
-        "用户意图：{intent}\n\n现在输出 8 个回答的 JSON 数组。"
-    );
+    let user_msg = format!("用户意图：{intent}\n\n现在输出 8 个回答的 JSON 数组。");
 
     let result = chat_complete_blocking(
         api_key,

@@ -57,7 +57,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String) {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    
+
     (status_code, resp_body)
 }
 
@@ -73,12 +73,15 @@ async fn test_preview_run_does_not_advance_chaintape_cas_ref() {
     // Configure basic git author for the repository
     let mut config = repo.config().expect("git config");
     config.set_str("user.name", "test").expect("user.name");
-    config.set_str("user.email", "test@test.com").expect("user.email");
+    config
+        .set_str("user.email", "test@test.com")
+        .expect("user.email");
 
     // Setup CAS store and write file bytes into CAS
     let cas_dir = turingosv4::runtime::spec_capsule::cas_path(&workspace);
     std::fs::create_dir_all(&cas_dir).expect("create cas dir");
-    let mut store = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
 
     let file_content = b"<html><body>Hello from CAS!</body></html>";
     let file_cid = store
@@ -100,22 +103,21 @@ async fn test_preview_run_does_not_advance_chaintape_cas_ref() {
         spec_capsule_cid: Some("aa".repeat(32)),
         generation_attempt_cid: "bb".repeat(32),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: expected_file_cid_hex.clone(),
-                mime: "text/html".to_string(),
-                sha256: expected_sha256.clone(),
-                size_bytes: file_content.len() as u64,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: expected_file_cid_hex.clone(),
+            mime: "text/html".to_string(),
+            sha256: expected_sha256.clone(),
+            size_bytes: file_content.len() as u64,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: file_content.len() as u64,
         created_at_logical_t: 100,
     };
 
-    let actual_written_bundle_cid_hex = write_artifact_bundle(&workspace, &manifest).expect("write manifest");
+    let actual_written_bundle_cid_hex =
+        write_artifact_bundle(&workspace, &manifest).expect("write manifest");
 
     // Check git ref OIDs before preview
     let cas_ref_name = "refs/chaintape/cas";
@@ -123,12 +125,27 @@ async fn test_preview_run_does_not_advance_chaintape_cas_ref() {
     let l4_ref_name = "refs/chaintape/l4";
     let l4e_ref_name = "refs/chaintape/l4e";
 
-    let cas_oid_before = repo.find_reference(cas_ref_name).ok().map(|r| r.target().unwrap());
-    let trans_oid_before = repo.find_reference(trans_ref_name).ok().map(|r| r.target().unwrap());
-    let l4_oid_before = repo.find_reference(l4_ref_name).ok().map(|r| r.target().unwrap());
-    let l4e_oid_before = repo.find_reference(l4e_ref_name).ok().map(|r| r.target().unwrap());
+    let cas_oid_before = repo
+        .find_reference(cas_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let trans_oid_before = repo
+        .find_reference(trans_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let l4_oid_before = repo
+        .find_reference(l4_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let l4e_oid_before = repo
+        .find_reference(l4e_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
 
-    assert!(cas_oid_before.is_some(), "refs/chaintape/cas must exist before preview");
+    assert!(
+        cas_oid_before.is_some(),
+        "refs/chaintape/cas must exist before preview"
+    );
 
     let workspace_str = workspace.to_string_lossy().into_owned();
 
@@ -150,10 +167,22 @@ async fn test_preview_run_does_not_advance_chaintape_cas_ref() {
 
     // Check OIDs after preview
     let repo_after = git2::Repository::open(&workspace).expect("git open");
-    let cas_oid_after = repo_after.find_reference(cas_ref_name).ok().map(|r| r.target().unwrap());
-    let trans_oid_after = repo_after.find_reference(trans_ref_name).ok().map(|r| r.target().unwrap());
-    let l4_oid_after = repo_after.find_reference(l4_ref_name).ok().map(|r| r.target().unwrap());
-    let l4e_oid_after = repo_after.find_reference(l4e_ref_name).ok().map(|r| r.target().unwrap());
+    let cas_oid_after = repo_after
+        .find_reference(cas_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let trans_oid_after = repo_after
+        .find_reference(trans_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let l4_oid_after = repo_after
+        .find_reference(l4_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
+    let l4e_oid_after = repo_after
+        .find_reference(l4e_ref_name)
+        .ok()
+        .map(|r| r.target().unwrap());
 
     // State refs must remain identical/untouched
     assert_eq!(trans_oid_before, trans_oid_after);
@@ -168,5 +197,9 @@ async fn test_preview_run_does_not_advance_chaintape_cas_ref() {
     let new_commit = repo_after.find_commit(new_cas_oid).expect("new CAS commit");
     assert_eq!(new_commit.parent_count(), 1);
     let parent_oid = new_commit.parent_id(0).expect("parent commit ID");
-    assert_eq!(parent_oid, cas_oid_before.unwrap(), "must advance by exactly one commit");
+    assert_eq!(
+        parent_oid,
+        cas_oid_before.unwrap(),
+        "must advance by exactly one commit"
+    );
 }

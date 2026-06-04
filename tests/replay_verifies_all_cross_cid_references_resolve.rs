@@ -27,8 +27,7 @@ fn now_t() -> u64 {
         .unwrap_or(1000)
 }
 
-const FAKE_DANGLING_CID: &str =
-    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+const FAKE_DANGLING_CID: &str = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 #[test]
 fn test_replay_clean_chain_has_no_dangling_refs() {

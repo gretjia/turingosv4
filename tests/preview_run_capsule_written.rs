@@ -11,7 +11,9 @@ use tokio::sync::Mutex;
 use turingosv4::runtime::artifact_bundle::{
     write_artifact_bundle, ArtifactBundleManifest, ArtifactFileEntry, ArtifactFileRole,
 };
-use turingosv4::runtime::preview_run::{PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
+use turingosv4::runtime::preview_run::{
+    PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID,
+};
 
 static ENV_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
 
@@ -58,7 +60,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String) {
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    
+
     (status_code, resp_body)
 }
 
@@ -71,7 +73,8 @@ async fn test_preview_run_capsule_written() {
     // Setup CAS store and write file bytes into CAS
     let cas_dir = turingosv4::runtime::spec_capsule::cas_path(&workspace);
     std::fs::create_dir_all(&cas_dir).expect("create cas dir");
-    let mut store = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
 
     let file_content = b"<html><body>Hello from CAS!</body></html>";
     let file_cid = store
@@ -93,22 +96,21 @@ async fn test_preview_run_capsule_written() {
         spec_capsule_cid: Some("aa".repeat(32)),
         generation_attempt_cid: "bb".repeat(32),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: expected_file_cid_hex.clone(),
-                mime: "text/html".to_string(),
-                sha256: expected_sha256.clone(),
-                size_bytes: file_content.len() as u64,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: expected_file_cid_hex.clone(),
+            mime: "text/html".to_string(),
+            sha256: expected_sha256.clone(),
+            size_bytes: file_content.len() as u64,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: file_content.len() as u64,
         created_at_logical_t: 100,
     };
 
-    let actual_written_bundle_cid_hex = write_artifact_bundle(&workspace, &manifest).expect("write manifest");
+    let actual_written_bundle_cid_hex =
+        write_artifact_bundle(&workspace, &manifest).expect("write manifest");
 
     let workspace_str = workspace.to_string_lossy().into_owned();
 
@@ -126,7 +128,8 @@ async fn test_preview_run_capsule_written() {
     assert_eq!(status, 200);
 
     // Let's inspect the CAS store to find the PreviewRunCapsule
-    let mut store2 = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store2 =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
     let mut found_success_capsule = false;
     let mut found_fail_capsule = false;
 
@@ -135,18 +138,24 @@ async fn test_preview_run_capsule_written() {
         if entry.schema_id.as_deref() == Some(PREVIEW_RUN_CAPSULE_SCHEMA_ID) {
             let bytes = store2.get(&entry.cid).expect("get capsule bytes");
             let capsule: PreviewRunCapsule = serde_json::from_slice(&bytes).expect("parse capsule");
-            
+
             if capsule.serve_success {
                 assert_eq!(capsule.artifact_bundle_cid, actual_written_bundle_cid_hex);
                 assert_eq!(capsule.session_id, session_id);
                 assert_eq!(capsule.entrypoint_path, "index.html");
-                assert_eq!(capsule.sandbox_policy, SandboxPolicy::AllowScriptsAllowSameOrigin);
+                assert_eq!(
+                    capsule.sandbox_policy,
+                    SandboxPolicy::AllowScriptsAllowSameOrigin
+                );
                 assert!(capsule.logical_t > 0);
                 found_success_capsule = true;
             }
         }
     }
-    assert!(found_success_capsule, "expected to find a serve_success=true preview capsule in CAS");
+    assert!(
+        found_success_capsule,
+        "expected to find a serve_success=true preview capsule in CAS"
+    );
 
     // 2. Trigger unsuccessful preview request
     let path_uri_fail = format!(
@@ -157,12 +166,13 @@ async fn test_preview_run_capsule_written() {
     assert_eq!(status_fail, 404);
 
     // Re-list and verify fail capsule is written
-    let mut store3 = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store3 =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
     for entry in store3.list().expect("list CAS") {
         if entry.schema_id.as_deref() == Some(PREVIEW_RUN_CAPSULE_SCHEMA_ID) {
             let bytes = store3.get(&entry.cid).expect("get capsule bytes");
             let capsule: PreviewRunCapsule = serde_json::from_slice(&bytes).expect("parse capsule");
-            
+
             if !capsule.serve_success {
                 assert_eq!(capsule.artifact_bundle_cid, actual_written_bundle_cid_hex);
                 assert_eq!(capsule.session_id, session_id);
@@ -173,7 +183,10 @@ async fn test_preview_run_capsule_written() {
             }
         }
     }
-    assert!(found_fail_capsule, "expected to find a serve_success=false preview capsule in CAS");
+    assert!(
+        found_fail_capsule,
+        "expected to find a serve_success=false preview capsule in CAS"
+    );
 
     std::env::remove_var("TURINGOS_WEB_WORKSPACE");
     drop(_guard);

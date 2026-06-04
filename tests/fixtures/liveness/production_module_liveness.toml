@@ -1,7 +1,7 @@
 schema_version = "turingosv4.production_module_liveness.v1"
 authority = "constitution.md + ChainTape/CAS evidence"
 policy = "real_world_required_for_final"
-final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
+final_closure_status = "OBL005_REAUDIT_IN_PROGRESS"
 smoke_is_not_final_evidence = true
 constitution_blocks = [
   "constitution.md:455-509",
@@ -311,9 +311,7 @@ module_ids = [
   "bin::gen_run_summary",
   "bin::g0_market_activation_current_kernel",
   "bin::g1_market_live_agent",
-  "bin::lean_emergence",
   "bin::lean_graded_diag",
-  "bin::lean_hayek_market",
   "bin::lean_hetero_market",
   "bin::lean_market_agent",
   "bin::lean_tree_market",
@@ -449,6 +447,31 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/evidence_package_manifest.json",
 ]
 evidence_requires = ["ChainTapeLease", "resume", "CAS", "audit verdict"]
+
+[[group]]
+id = "lean_research_diagnostic_bins"
+classification = "dev_only"
+status = "smoke_only"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::lean_emergence",
+  "bin::lean_hayek_market",
+]
+paths = [
+  "src/bin/lean_emergence.rs",
+  "src/bin/lean_hayek_market.rs",
+]
+constitutional_anchors = ["Art.0.2", "FC1:predicates"]
+necessity = "Lean research diagnostics are retained as capability probes and pricing experiments, not production ChainTape/CAS authority."
+smoke_gates = [
+  "tests/constitution_production_module_liveness.rs::lean_research_diagnostic_bins_are_dev_only_and_non_closing",
+  "src/bin/lean_hayek_market.rs::parse_and_allowlist_semantics",
+]
+real_world_evidence = []
+evidence_requires = ["real Lean diagnostic only", "not ChainTape/CAS final evidence"]
+closure_action = "Excluded from OBL-005 final closure evidence until a future production path records these studies through ChainTape/CAS replay instead of local JSON/MarketTape reports."
 
 [[group]]
 id = "fc3_runtime_meta_roles"

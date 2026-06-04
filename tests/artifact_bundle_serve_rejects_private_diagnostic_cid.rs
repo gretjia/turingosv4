@@ -54,7 +54,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, Option<String>)
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    
+
     let mut content_type = None;
     for line in head.lines() {
         if line.to_ascii_lowercase().starts_with("content-type:") {
@@ -74,7 +74,8 @@ async fn test_artifact_bundle_serve_rejects_private_diagnostic_cid() {
     // Setup CAS store and write a private diagnostic capsule (e.g. AutopsyPrivateDetail) into CAS
     let cas_dir = turingosv4::runtime::spec_capsule::cas_path(&workspace);
     std::fs::create_dir_all(&cas_dir).expect("create cas dir");
-    let mut store = turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
+    let mut store =
+        turingosv4::bottom_white::cas::store::CasStore::open(&cas_dir).expect("open cas");
 
     let private_detail = b"{\"private_logs\":\"confidential_information\"}";
     let private_cid = store
@@ -96,14 +97,14 @@ async fn test_artifact_bundle_serve_rejects_private_diagnostic_cid() {
     let addr = start_server().await;
 
     // Request this CID, expecting a 404
-    let path_uri = format!(
-        "/api/bundle/{}/file?path=index.html",
-        private_cid_hex
-    );
+    let path_uri = format!("/api/bundle/{}/file?path=index.html", private_cid_hex);
     let (status, resp_body, _) = http_get(addr, &path_uri).await;
 
     std::env::remove_var("TURINGOS_WEB_WORKSPACE");
     drop(_guard);
 
-    assert_eq!(status, 404, "GET for private diagnostic CID must return 404; body={resp_body}");
+    assert_eq!(
+        status, 404,
+        "GET for private diagnostic CID must return 404; body={resp_body}"
+    );
 }
