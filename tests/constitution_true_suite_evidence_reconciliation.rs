@@ -30,6 +30,7 @@ struct EvidenceBinding {
     id: String,
     evidence_run: String,
     evidence_subdir: String,
+    blockers: Vec<String>,
 }
 
 fn parse_toml(path: &str) -> toml::Value {
@@ -96,6 +97,7 @@ fn reconciliation_rows(key: &str) -> Vec<EvidenceBinding> {
                 id: as_string(table, "id"),
                 evidence_run: as_string(table, "evidence_run"),
                 evidence_subdir: as_string(table, "evidence_subdir"),
+                blockers: as_str_array(table, "blockers"),
             }
         })
         .collect()
@@ -359,6 +361,155 @@ fn is_market_binding(binding: &EvidenceBinding, row: &ContractRow) -> bool {
             .any(|template| template.contains("/market"))
 }
 
+fn value_has_benchmark_failure(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            let key = key.to_ascii_lowercase();
+            if matches!(
+                key.as_str(),
+                "answer_correct"
+                    | "exact_match"
+                    | "action_match"
+                    | "safe_action_match"
+                    | "selected_candidate_available"
+            ) && child.as_bool() == Some(false)
+            {
+                return true;
+            }
+            if key == "benchmark_verdict" {
+                let verdict = child.as_str().unwrap_or_default().to_ascii_lowercase();
+                if verdict.contains("mismatch")
+                    || verdict.contains("incorrect")
+                    || verdict.contains("plausible")
+                {
+                    return true;
+                }
+            }
+            value_has_benchmark_failure(child)
+        }),
+        Value::Array(items) => items.iter().any(value_has_benchmark_failure),
+        _ => false,
+    }
+}
+
+fn allowed_blocker_classes() -> BTreeSet<&'static str> {
+    BTreeSet::from([
+        "source_receipt_final_closure_false",
+        "domain_receipt_final_closure_false",
+        "benchmark_capability_not_solved",
+        "market_no_or_short_side_missing",
+        "fresh_final_closure_witness_missing",
+    ])
+}
+
+fn assert_blocker_classes_are_receipt_derived(
+    binding_key: &str,
+    binding: &EvidenceBinding,
+    row: &ContractRow,
+    report: &Value,
+    closure_witness_missing: bool,
+) {
+    let allowed = allowed_blocker_classes();
+    let blockers: BTreeSet<_> = binding.blockers.iter().map(String::as_str).collect();
+    assert_eq!(
+        blockers.len(),
+        binding.blockers.len(),
+        "{binding_key}:{} has duplicate closure blocker classes",
+        binding.id
+    );
+    for blocker in &blockers {
+        assert!(
+            allowed.contains(blocker),
+            "{binding_key}:{} declares unknown closure blocker `{blocker}`",
+            binding.id
+        );
+    }
+
+    let source_final_false = report
+        .pointer("/verdict/final_closure_possible")
+        .and_then(Value::as_bool)
+        == Some(false);
+    let domain_final_false = report
+        .pointer("/domain_manifest/final_closure_possible")
+        .and_then(Value::as_bool)
+        == Some(false);
+    let market_no_or_short_missing = is_market_binding(binding, row)
+        && !binding_has_no_or_short_market_side(binding, row, report);
+    let benchmark_capability_failed = value_has_benchmark_failure(report);
+
+    if blockers.contains("source_receipt_final_closure_false") {
+        assert!(
+            source_final_false,
+            "{binding_key}:{} claims source receipt is non-closing, but report is not false",
+            binding.id
+        );
+    }
+    if blockers.contains("domain_receipt_final_closure_false") {
+        assert!(
+            domain_final_false,
+            "{binding_key}:{} claims domain manifest is non-closing, but report does not prove that",
+            binding.id
+        );
+    }
+    if blockers.contains("market_no_or_short_side_missing") {
+        assert!(
+            market_no_or_short_missing,
+            "{binding_key}:{} claims missing NO/short market side, but evidence already contains one or is not a market binding",
+            binding.id
+        );
+    }
+    if blockers.contains("benchmark_capability_not_solved") {
+        assert!(
+            benchmark_capability_failed,
+            "{binding_key}:{} claims benchmark capability failure, but receipt has no failing capability marker",
+            binding.id
+        );
+    }
+    if blockers.contains("fresh_final_closure_witness_missing") {
+        assert!(
+            closure_witness_missing,
+            "{binding_key}:{} claims fresh final closure witness is missing after closure was claimed",
+            binding.id
+        );
+    }
+
+    if source_final_false {
+        assert!(
+            blockers.contains("source_receipt_final_closure_false"),
+            "{binding_key}:{} is non-closing but does not declare source_receipt_final_closure_false",
+            binding.id
+        );
+    }
+    if domain_final_false {
+        assert!(
+            blockers.contains("domain_receipt_final_closure_false"),
+            "{binding_key}:{} has a non-closing domain manifest but does not declare it",
+            binding.id
+        );
+    }
+    if market_no_or_short_missing {
+        assert!(
+            blockers.contains("market_no_or_short_side_missing"),
+            "{binding_key}:{} lacks NO/short-side market evidence but does not declare it",
+            binding.id
+        );
+    }
+    if benchmark_capability_failed {
+        assert!(
+            blockers.contains("benchmark_capability_not_solved"),
+            "{binding_key}:{} has benchmark capability failure markers but does not declare them",
+            binding.id
+        );
+    }
+    if closure_witness_missing && source_final_false {
+        assert!(
+            blockers.contains("fresh_final_closure_witness_missing"),
+            "{binding_key}:{} is non-closing during reaudit but does not declare missing final witness",
+            binding.id
+        );
+    }
+}
+
 fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
     assert!(
         !binding.evidence_run.contains('/') && !binding.evidence_run.contains(".."),
@@ -537,6 +688,64 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
             "REAUDIT manifests must keep final_closure_claimed=false until closure-capable receipts replace the non-closing bindings"
         );
     }
+}
+
+#[test]
+fn non_closing_bound_receipts_have_receipt_derived_blockers() {
+    let manifest = parse_toml(RECONCILIATION_MANIFEST);
+    let closure_witness_missing = manifest
+        .get("reconciliation_status")
+        .and_then(toml::Value::as_str)
+        == Some(REAUDIT_STATUS)
+        && manifest
+            .get("final_closure_claimed")
+            .and_then(toml::Value::as_bool)
+            == Some(false);
+
+    let mut non_closing_bound_receipts = 0usize;
+    for (binding_key, contract_path, contract_key) in [
+        ("coverage_task", REALWORLD_MANIFEST, "task"),
+        ("broad_family", BROAD_MANIFEST, "family"),
+    ] {
+        let contracts = contract_rows(contract_path, contract_key);
+        for binding in reconciliation_rows(binding_key) {
+            let row = contracts
+                .get(&binding.id)
+                .unwrap_or_else(|| panic!("binding `{}` missing contract row", binding.id));
+            let report = read_full_system_report(&binding, row);
+            let final_closure_possible = report
+                .pointer("/verdict/final_closure_possible")
+                .and_then(Value::as_bool)
+                == Some(true);
+            if final_closure_possible {
+                assert!(
+                    binding.blockers.is_empty(),
+                    "{binding_key}:{} is closing but still carries blockers: {:?}",
+                    binding.id,
+                    binding.blockers
+                );
+                continue;
+            }
+            non_closing_bound_receipts += 1;
+            assert!(
+                !binding.blockers.is_empty(),
+                "{binding_key}:{} is non-closing but has no blocker inventory",
+                binding.id
+            );
+            assert_blocker_classes_are_receipt_derived(
+                binding_key,
+                &binding,
+                row,
+                &report,
+                closure_witness_missing,
+            );
+        }
+    }
+
+    assert!(
+        non_closing_bound_receipts > 0,
+        "this reaudit gate must be able to observe at least one non-closing receipt"
+    );
 }
 
 #[test]
