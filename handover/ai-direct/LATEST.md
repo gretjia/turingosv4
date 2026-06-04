@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh market A/B
-current-source evidence is being prepared after PR #257 merged the OSWorld
-source receipt.
+**Session**: OBL-005 reopened re-audit on current main; fresh Math
+current-source evidence is being prepared after PR #259 merged the GPQA source
+receipt.
 
-**Main tip**: `1643005f` (PR #257 — fresh OSWorld source evidence).
-Current working branch is `codex/obl005-market-ab-g0-activation`, not yet
+**Main tip**: `70330599` (PR #259 — fresh GPQA source evidence).
+Current working branch is `codex/obl005-fresh-math-source-evidence`, not yet
 merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -36,7 +36,7 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 9 rows to older source receipts and 12
+- Current reconciliation fixture binds 8 rows to older source receipts and 13
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
@@ -45,9 +45,10 @@ Current state:
   `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
   `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence, and
   `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence, plus
-  `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence:
-  `source_receipt_final_closure_false=8`,
-  `source_tree_fingerprint_missing=8`,
+  `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
+  `obl005_fresh_math_20260604T191000Z` Math evidence:
+  `source_receipt_final_closure_false=7`,
+  `source_tree_fingerprint_missing=7`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -120,6 +121,25 @@ Current state:
   does not claim final closure. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_GPQA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
+- Fresh Math source evidence prepared on the current branch:
+  `math_formal_proof` now points at
+  `handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/`.
+  The source receipt is `final_closure_possible=true` with source commit
+  `70330599725b779c4e6e8479d5e8db9e05d83069`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, green replay indicators, and 4 packaged evidence stores. The
+  model result is honestly recorded as `correct_with_rationale` with
+  `answer_correct=true`, but the domain manifest remains
+  `closure_scope=domain_adapter_smoke_only` and `final_closure_possible=false`.
+  The reconciliation manifest now points only the `math_formal_proof`
+  broad-family row at this fresh run, reducing
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 8 to 7 while deliberately keeping `domain_receipt_final_closure_false`
+  and `fresh_final_closure_witness_missing`. The prior
+  `obl005_fresh_tdma_20260604T190500Z` attempt failed at 2/5 TDMA stages and
+  is not GREEN evidence. This does not claim final closure. Clean-context
+  Claude witness
+  `handover/audits/OBL005_FRESH_MATH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
@@ -168,16 +188,22 @@ Current state:
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful GPQA evidence
-  `obl005_fresh_gpqa_20260604T183931Z` is intended for the next PR. Do not
+- Current worktree note: successful Math evidence
+  `obl005_fresh_math_20260604T191000Z` is intended for the next PR. Do not
   treat local failed/intermediate evidence directories as GREEN evidence:
   `obl005_fresh_generate_20260604T160500Z`,
+  `obl005_fresh_tdma_20260604T190500Z`,
   `obl005_fresh_market_ab_20260604T174500Z`, and
   `obl005_fresh_market_ab_20260604T175726Z`.
 
 Recent verification:
 
 ```text
+scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
+  --run-id obl005_fresh_math_20260604T191000Z \
+  --runners math_competition_reasoning_fresh
+# exit 0
+
 scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
   --run-id obl005_fresh_gpqa_20260604T183931Z \
   --runners gpqa_science_reasoning_fresh
