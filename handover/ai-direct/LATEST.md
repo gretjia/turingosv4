@@ -11,13 +11,13 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh OSWorld
-current-source evidence is being prepared after PR #256 merged the Cybench
+**Session**: OBL-005 reopened re-audit on current main; fresh market A/B
+current-source evidence is being prepared after PR #257 merged the OSWorld
 source receipt.
 
-**Main tip**: `1254212e` (PR #256 — fresh Cybench source evidence).
-Current working branch is `codex/obl005-fresh-osworld-source-evidence`, not
-yet merged.
+**Main tip**: `1643005f` (PR #257 — fresh OSWorld source evidence).
+Current working branch is `codex/obl005-market-ab-g0-activation`, not yet
+merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -36,21 +36,22 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 10 rows to older source receipts and 11
+- Current reconciliation fixture binds 9 rows to older source receipts and 12
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
   `obl005_fresh_market_20260604T153500Z` market evidence and
   `obl005_fresh_generate_20260604T171500Z` generate/artifact evidence, plus
-  `obl005_fresh_cybench_20260604T164533Z` Cybench evidence and
-  `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence:
-  `source_receipt_final_closure_false=10`,
-  `source_tree_fingerprint_missing=10`,
+  `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
+  `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence, and
+  `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence:
+  `source_receipt_final_closure_false=9`,
+  `source_tree_fingerprint_missing=9`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
   `domain_receipt_final_closure_missing=5`, and
-  `market_no_or_short_side_missing=3`.
+  `market_no_or_short_side_missing=2`.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -76,6 +77,26 @@ Current state:
   deliberately remains; both market rows also keep domain/fresh-witness
   blockers. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
+- Fresh market A/B evidence prepared and audited on the current branch:
+  `market_ab_performance_fresh` now points at
+  `handover/evidence/true_suite/obl005_fresh_market_ab_20260604T175932Z/`.
+  The source receipt is `final_closure_possible=true` with source commit
+  `4d11124f4c2e562d17d8790742988384c17d6151`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, green replay indicators, audit_tape `PROCEED`, and 12 packaged
+  evidence stores. The deterministic G0 receipt is scoped to
+  `g0_core_market_price_discovery_conditions_1_2_3_6_7_8_9`: one WorkTx node,
+  one ChallengeTx short side, `buy_yes_count=1`, `buy_no_count=1`, price change,
+  and green ChainTape replay. It explicitly records c4/c5 priced-DAG branching
+  and c10/c11 reward-claim settlement closure as constrained/stage-2; no c1-11
+  closure is claimed. `market_ab_performance_fresh` still keeps
+  `domain_receipt_final_closure_missing` and `fresh_final_closure_witness_missing`.
+  Verification passed: focused market/reconciliation/flowchart package, direct
+  Trust-Root intact boot unit, touched-file `rustfmt --check`, shell syntax plus
+  `git diff --check`, constitution matrix drift, constitution gates
+  (`[k-1-5] total=165 failed=0`), and `cargo test --workspace --no-fail-fast`.
+  Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_MARKET_AB_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
@@ -125,15 +146,47 @@ Current state:
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful OSWorld evidence
-  `obl005_fresh_osworld_20260604T171857Z` is intended for this PR. Do not
-  treat any local failed generate attempt as GREEN evidence.
+- Current worktree note: successful market A/B evidence
+  `obl005_fresh_market_ab_20260604T175932Z` is intended for this PR. Do not
+  treat local failed/intermediate evidence directories as GREEN evidence:
+  `obl005_fresh_generate_20260604T160500Z`,
+  `obl005_fresh_market_ab_20260604T174500Z`, and
+  `obl005_fresh_market_ab_20260604T175726Z`.
 
 Recent verification:
 
 ```text
+cargo test -p turingosv4 \
+  --test constitution_g0_market_activation_boundary \
+  --test constitution_real16_market_performance \
+  --test constitution_true_suite_broad_agi_batch_runner \
+  --test constitution_realworld_liveness_coverage \
+  --test constitution_script_liveness_inventory \
+  --test constitution_true_suite_evidence_reconciliation \
+  --test constitution_obl005_final_closure_witness \
+  --test constitution_matrix_drift \
+  --test fc_alignment_conformance -- --nocapture
+# exit 0
+
+cargo test -p turingosv4 --lib \
+  boot::tests::verify_trust_root_passes_on_intact_repo -- --nocapture
+# exit 0
+
+rustfmt --edition 2021 --check \
+  src/bin/g0_market_activation_current_kernel.rs \
+  tests/constitution_g0_market_activation_boundary.rs \
+  tests/constitution_real16_market_performance.rs
+# exit 0
+
+bash -n scripts/run_true_suite_market_ab_current_kernel.sh \
+  scripts/run_true_suite_broad_agi_batch.sh && git diff --check
+# exit 0
+
+cargo test -p turingosv4 --test constitution_matrix_drift -- --nocapture
+# exit 0
+
 bash scripts/run_constitution_gates.sh
-# [k-1-5] total=164 failed=0
+# [k-1-5] total=165 failed=0
 
 cargo test --workspace --no-fail-fast
 # exit 0

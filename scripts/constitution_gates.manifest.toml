@@ -596,6 +596,11 @@ authority = "forward-bound REAL-13+ directive"
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_g0_market_activation_boundary"
+authority = "OBL-005 market A/B fresh source evidence boundary"
+added = "2026-06-04"
+
+[[gate]]
 name = "constitution_real17_evaluator_prompt_provenance_wire"
 authority = "forward-bound REAL-13+ directive"
 added = "2026-05-20"
