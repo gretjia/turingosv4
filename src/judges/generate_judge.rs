@@ -123,7 +123,8 @@ fn path_unsafe(path: &str) -> bool {
     if path.starts_with('/') {
         return true;
     }
-    path.split(['/', '\\']).any(|seg| seg == ".." || seg.is_empty())
+    path.split(['/', '\\'])
+        .any(|seg| seg == ".." || seg.is_empty())
 }
 
 impl GenerateJudge {

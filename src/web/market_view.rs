@@ -554,7 +554,9 @@ pub(crate) fn read_initial_q_state(runtime_repo_path: &std::path::Path) -> Resul
 }
 
 /// TRACE_MATRIX FC2-N16: market read view — load pinned system pubkeys for replay.
-pub(crate) fn read_pinned_pubkeys(runtime_repo_path: &std::path::Path) -> Result<PinnedSystemPubkeys, String> {
+pub(crate) fn read_pinned_pubkeys(
+    runtime_repo_path: &std::path::Path,
+) -> Result<PinnedSystemPubkeys, String> {
     let path = runtime_repo_path.join("pinned_pubkeys.json");
     let json =
         std::fs::read_to_string(&path).map_err(|e| format!("read pinned_pubkeys.json: {e}"))?;

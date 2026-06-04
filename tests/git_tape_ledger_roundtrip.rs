@@ -41,7 +41,10 @@ fn req_with_kind(kind: NodeKind, suffix: &str) -> CommitRequest {
     }
 }
 
-fn assert_node_fields_equal_modulo_id_hash(a: &turingosv4::ledger::TapeNode, b: &turingosv4::ledger::TapeNode) {
+fn assert_node_fields_equal_modulo_id_hash(
+    a: &turingosv4::ledger::TapeNode,
+    b: &turingosv4::ledger::TapeNode,
+) {
     assert_eq!(a.kind, b.kind, "kind");
     assert_eq!(a.verified, b.verified, "verified");
     assert_eq!(a.parent, b.parent, "parent");
@@ -50,7 +53,10 @@ fn assert_node_fields_equal_modulo_id_hash(a: &turingosv4::ledger::TapeNode, b: 
     assert_eq!(a.reject_class, b.reject_class, "reject_class");
     assert_eq!(a.token_count, b.token_count, "token_count");
     assert_eq!(a.payload, b.payload, "payload");
-    assert_eq!(a.created_at_unix_ms, b.created_at_unix_ms, "created_at_unix_ms");
+    assert_eq!(
+        a.created_at_unix_ms, b.created_at_unix_ms,
+        "created_at_unix_ms"
+    );
 }
 
 fn roundtrip_one_kind(kind: NodeKind, suffix: &str) {

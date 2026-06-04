@@ -51,7 +51,9 @@ fn test_build_session_view_accepted_delivery_is_bool_not_cid() {
     let json = serde_json::to_string(&view).expect("serialize");
     let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
 
-    let ad = parsed.get("accepted_delivery").expect("accepted_delivery must exist");
+    let ad = parsed
+        .get("accepted_delivery")
+        .expect("accepted_delivery must exist");
     assert!(ad.is_boolean(), "accepted_delivery must be a bool: {}", ad);
     assert_eq!(ad.as_bool(), Some(true));
     assert_eq!(parsed["current_status"], "accepted");
@@ -72,16 +74,16 @@ fn test_static_sequencer_has_no_accepted_status_reference() {
         return;
     }
 
-    let content = std::fs::read_to_string(&sequencer_path)
-        .expect("cannot read src/state/sequencer.rs");
+    let content =
+        std::fs::read_to_string(&sequencer_path).expect("cannot read src/state/sequencer.rs");
 
     // Only check for C11-specific symbols that would indicate wiring of
     // BuildStatus::Accepted into sequencer admission:
     let forbidden = [
-        "BuildStatus",      // C11 enum lives in runtime::build_session_view — not sequencer
-        "accepted_delivery", // C11 field — not a sequencer concept
-        "TestRunCapsule",   // C11 test run — not a sequencer concept
-        "overall_pass",     // C11 test run field — not a sequencer concept
+        "BuildStatus",          // C11 enum lives in runtime::build_session_view — not sequencer
+        "accepted_delivery",    // C11 field — not a sequencer concept
+        "TestRunCapsule",       // C11 test run — not a sequencer concept
+        "overall_pass",         // C11 test run field — not a sequencer concept
         "turingos-test-run-v1", // C11 schema ID
     ];
 

@@ -195,7 +195,6 @@ fn historical_attempt_telemetry_v1_bytes_still_decode() {
     );
 }
 
-
 #[test]
 fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
     let src = std::fs::read_to_string(
@@ -212,4 +211,3 @@ fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
         "run_all_assertions must push hidden-switch assertion so audit_tape blocks mismatch"
     );
 }
-

@@ -82,7 +82,11 @@ fn slice_section(text: &str, start_header: &str) -> String {
             out.push('\n');
         }
     }
-    assert!(in_section, "section header not found in AGENTS.md: {}", start_header);
+    assert!(
+        in_section,
+        "section header not found in AGENTS.md: {}",
+        start_header
+    );
     out
 }
 
@@ -200,7 +204,10 @@ fn denylist_flags_invented_rules_surface() {
     v.sort();
     assert_eq!(
         v,
-        vec!["rules/active/*.yaml".to_string(), "rules/engine.py".to_string()],
+        vec![
+            "rules/active/*.yaml".to_string(),
+            "rules/engine.py".to_string()
+        ],
         "deny-list must flag invented rules/ surfaces (proves the gate can fail)"
     );
 }

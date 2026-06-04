@@ -128,18 +128,14 @@ fn boot_cli_runner_executes_current_kernel_and_replays_via_cli() {
     assert!(genesis_report.is_file(), "genesis_report.json missing");
     let copied_genesis = run_dir.join("genesis_report.json");
     std::fs::copy(&genesis_report, &copied_genesis).expect("copy genesis report");
-    assert!(
-        run_dir
-            .join("runtime_repo")
-            .join("initial_q_state.json")
-            .is_file()
-    );
-    assert!(
-        run_dir
-            .join("runtime_repo")
-            .join("pinned_pubkeys.json")
-            .is_file()
-    );
+    assert!(run_dir
+        .join("runtime_repo")
+        .join("initial_q_state.json")
+        .is_file());
+    assert!(run_dir
+        .join("runtime_repo")
+        .join("pinned_pubkeys.json")
+        .is_file());
     assert!(run_dir.join("cas").is_dir());
 
     let participation_report = run_dir.join("full_system_participation.json");

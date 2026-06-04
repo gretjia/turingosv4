@@ -400,9 +400,7 @@ fn run_run(args: &[String]) -> ExitCode {
         let path = match &swebench_sample {
             Some(p) => p.clone(),
             None => {
-                eprintln!(
-                    "turingos tdma run: --judge swebench requires --swebench-sample <PATH>"
-                );
+                eprintln!("turingos tdma run: --judge swebench requires --swebench-sample <PATH>");
                 return ExitCode::from(2);
             }
         };

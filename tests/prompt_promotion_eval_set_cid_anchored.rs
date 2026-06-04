@@ -3,13 +3,13 @@
 //! FC-trace: FC3 (eval evidence binding — audit Agent 3 C.5)
 //! Risk class: Class 3
 
-use turingosv4::runtime::prompt_promotion::{
-    write_promotion_receipt, PromptPromotionReceipt, PromotionDecision,
-    PROMPT_PROMOTION_RECEIPT_SCHEMA_ID, sha256_hex_of_prompt,
-};
-use turingosv4::runtime::spec_capsule::cas_path;
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::prompt_promotion::{
+    sha256_hex_of_prompt, write_promotion_receipt, PromotionDecision, PromptPromotionReceipt,
+    PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
+};
+use turingosv4::runtime::spec_capsule::cas_path;
 
 #[test]
 fn test_eval_set_cid_required_on_write() {
@@ -29,7 +29,10 @@ fn test_eval_set_cid_required_on_write() {
     };
 
     let result = write_promotion_receipt(dir.path(), &receipt, 1000);
-    assert!(result.is_err(), "empty eval_set_cid must be rejected by write");
+    assert!(
+        result.is_err(),
+        "empty eval_set_cid must be rejected by write"
+    );
 }
 
 #[test]
@@ -62,12 +65,23 @@ fn test_eval_set_cid_anchored_in_cas_receipt() {
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
     let mut found = false;
     for cid in cids {
-        let meta = match store.metadata(&cid) { Some(m) => m, None => continue };
-        if meta.schema_id.as_deref() != Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID) { continue; }
+        let meta = match store.metadata(&cid) {
+            Some(m) => m,
+            None => continue,
+        };
+        if meta.schema_id.as_deref() != Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID) {
+            continue;
+        }
         let bytes = store.get(&cid).expect("read");
         let r: PromptPromotionReceipt = serde_json::from_slice(&bytes).expect("deserialize");
-        assert_eq!(r.eval_set_cid, eval_set, "eval_set_cid must be preserved in CAS");
-        assert!(!r.eval_set_cid.is_empty(), "eval_set_cid in CAS must never be empty");
+        assert_eq!(
+            r.eval_set_cid, eval_set,
+            "eval_set_cid must be preserved in CAS"
+        );
+        assert!(
+            !r.eval_set_cid.is_empty(),
+            "eval_set_cid in CAS must never be empty"
+        );
         found = true;
     }
     assert!(found, "receipt not found in CAS");

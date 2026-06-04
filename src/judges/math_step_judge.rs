@@ -89,10 +89,10 @@ impl MathStepJudge for OfflineHeuristicJudge {
 
         // Step 1 expectations
         if prior_steps.is_empty() {
-            let has_regularizer =
-                (step.contains("m·exp(-m/N)") || step.contains("m * exp(-m/N)") ||
-                 step.contains("m*exp(-m/N)"))
-                    && step.contains("cos(m/N)");
+            let has_regularizer = (step.contains("m·exp(-m/N)")
+                || step.contains("m * exp(-m/N)")
+                || step.contains("m*exp(-m/N)"))
+                && step.contains("cos(m/N)");
             if has_regularizer {
                 return JudgeVerdict::Pass;
             }
@@ -189,10 +189,7 @@ mod tests {
     #[test]
     fn offline_judge_rejects_complete_without_minus_1_over_12() {
         let j = OfflineHeuristicJudge::new();
-        let v = j.verdict(
-            &["s1".into()],
-            "[COMPLETE] The sum equals 0.",
-        );
+        let v = j.verdict(&["s1".into()], "[COMPLETE] The sum equals 0.");
         assert!(matches!(v, JudgeVerdict::Fail { .. }));
     }
 }

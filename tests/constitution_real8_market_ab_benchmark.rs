@@ -40,7 +40,12 @@ fn fresh_harness(initial_q: QState) -> Harness {
     let keypair = Arc::new(Ed25519Keypair::generate_with_secure_entropy().expect("keypair"));
     let writer: Arc<RwLock<dyn LedgerWriter>> = Arc::new(RwLock::new(InMemoryLedgerWriter::new()));
     let rejection_writer = Arc::new(RwLock::new(RejectionEvidenceWriter::default()));
-    let preds = Arc::new(PredicateRegistry::from_boot_manifest(turingosv4::top_white::predicates::registry::BootPredicateManifest::empty()).expect("empty predicate manifest"));
+    let preds = Arc::new(
+        PredicateRegistry::from_boot_manifest(
+            turingosv4::top_white::predicates::registry::BootPredicateManifest::empty(),
+        )
+        .expect("empty predicate manifest"),
+    );
     let tools = Arc::new(ToolRegistry::new());
     let epoch = SystemEpoch::new(1);
     let mut pinned = PinnedSystemPubkeys::new();
@@ -325,7 +330,6 @@ fn real8_runner_preserves_forbidden_ship_claims() {
         );
     }
 }
-
 
 #[tokio::test]
 async fn real8_task_outcome_arm_refreshes_verify_parent_behaviorally() {

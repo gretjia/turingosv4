@@ -15,9 +15,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use turingosv4::git_tape_ledger::GitTapeLedger;
-use turingosv4::ledger::{
-    AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind,
-};
+use turingosv4::ledger::{AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind};
 
 /// TRACE_MATRIX FC2-N16: `tape-migrate` short-help (registry display).
 pub(crate) const SHORT_HELP: &str =
@@ -104,7 +102,11 @@ fn run_export(args: &[String]) -> Result<(), MigrateError> {
                 println!("{FULL_HELP}");
                 return Ok(());
             }
-            other => return Err(MigrateError::MissingFlag(Box::leak(other.to_string().into_boxed_str()))),
+            other => {
+                return Err(MigrateError::MissingFlag(Box::leak(
+                    other.to_string().into_boxed_str(),
+                )))
+            }
         }
     }
 
@@ -182,10 +184,7 @@ fn run_export(args: &[String]) -> Result<(), MigrateError> {
                 .get("reject_class")
                 .and_then(|x| x.as_str().map(|s| s.to_string())),
             token_count: None,
-            payload: v
-                .get("payload")
-                .cloned()
-                .unwrap_or(serde_json::Value::Null),
+            payload: v.get("payload").cloned().unwrap_or(serde_json::Value::Null),
         };
         ledger.commit(req);
         committed += 1;

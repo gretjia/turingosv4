@@ -12,17 +12,15 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody, GrillAttemptTally};
+use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
 use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
-};
-use turingosv4::runtime::artifact_bundle::{
-    ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID,
+    AttemptOutcome, GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::preview_run::{
     PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID,
 };
-use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
+use turingosv4::runtime::spec_capsule::{cas_path, GrillAttemptTally, GrillSessionCapsuleBody};
 
 static ENV_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
 
@@ -89,7 +87,8 @@ async fn build_session_mutation_does_not_affect_chain() {
     let session_id = "test-session-c7";
 
     // Setup initial state
-    let spec_cid_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
+    let spec_cid_hex =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
     let grill_body = GrillSessionCapsuleBody {
         session_id: session_id.to_string(),
         turn_cids: vec![],
@@ -102,13 +101,15 @@ async fn build_session_mutation_does_not_affect_chain() {
         logical_t: 10,
     };
     let grill_bytes = serde_json::to_vec(&grill_body).unwrap();
-    let grill_cid = store.put(
-        &grill_bytes,
-        ObjectType::EvidenceCapsule,
-        "test_user",
-        10,
-        Some("turingos-spec-grill-session-v1".to_string()),
-    ).expect("put grill session");
+    let grill_cid = store
+        .put(
+            &grill_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            10,
+            Some("turingos-spec-grill-session-v1".to_string()),
+        )
+        .expect("put grill session");
 
     let (status, body) = http_get(addr, &format!("/api/build/session/{session_id}")).await;
     assert_eq!(status, 200);

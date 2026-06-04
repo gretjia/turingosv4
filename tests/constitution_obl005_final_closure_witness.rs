@@ -1,22 +1,22 @@
-//! OBL-005 final closure witness.
+//! OBL-005 liveness re-audit witness.
 //!
-//! Verifies the complete final closure state of OBL-005 (三 Flowchart 全链路覆盖测试集设计与落地).
-//! This gate is the authoritative closure witness for OBL-005. The OBL-005 witness itself
-//! did not close OBL-001; global completion is validated via the separate completeness witness.
+//! The 2026-05-27 final-closure witness remains an immutable historical receipt.
+//! Current OBL-005 status is reopened while production/script liveness accounting
+//! is re-audited against retained diagnostic bins that lack ChainTape/CAS final
+//! evidence.
 
 use std::fs;
 
 const OBLIGATIONS_PATH: &str = "OBLIGATIONS.md";
 const WITNESS_PATH: &str = "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-05-27.md";
-const COMPLETENESS_WITNESS_PATH: &str =
-    "handover/audits/OBL001_OBLIGATION_COMPLETENESS_WITNESS_2026-05-27.md";
 const RECONCILIATION_MANIFEST: &str =
     "tests/fixtures/liveness/true_suite_evidence_reconciliation.toml";
 const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liveness.toml";
 const SCRIPT_MANIFEST: &str = "tests/fixtures/liveness/script_liveness_inventory.toml";
 const REALWORLD_MANIFEST: &str = "tests/fixtures/liveness/realworld_liveness_coverage.toml";
 const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
-const FINAL_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
+const VERIFIED_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
+const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 
 fn read_text(path: &str) -> String {
     fs::read_to_string(path).unwrap_or_else(|err| panic!("read {path}: {err}"))
@@ -44,23 +44,31 @@ fn extract_obl_block(text: &str, obl_id: &str) -> String {
 }
 
 #[test]
-fn obl005_is_satisfied_and_obl001_is_satisfied() {
+fn obl005_is_reopened_for_liveness_reaudit() {
     let text = read_text(OBLIGATIONS_PATH);
+
+    let headline: String = text.lines().take(15).collect::<Vec<_>>().join("\n");
+    assert!(
+        headline.contains("REOPENED / REAUDIT IN PROGRESS"),
+        "OBLIGATIONS.md headline must state the current re-audit status; headline:\n{headline}"
+    );
+    assert!(
+        !headline.contains("**COMPLETE**"),
+        "OBLIGATIONS.md headline must not claim global all-closed completion while OBL-005 is reopened; headline:\n{headline}"
+    );
 
     let obl005_block = extract_obl_block(&text, "OBL-005");
     assert!(
-        obl005_block.contains("Status: **satisfied**")
-            || obl005_block.contains("Status: satisfied"),
-        "OBL-005 must be Status: satisfied in OBLIGATIONS.md; found block:\n{obl005_block}"
+        obl005_block.contains("Status: in_progress") && obl005_block.contains("reopened"),
+        "OBL-005 must be reopened/in_progress in OBLIGATIONS.md; found block:\n{obl005_block}"
+    );
+    assert!(
+        obl005_block.contains("OBL005_REAUDIT_IN_PROGRESS")
+            && obl005_block.contains("historical, not current closure authority"),
+        "OBL-005 block must state why the historical final witness is not current closure authority; found block:\n{obl005_block}"
     );
 
     let obl001_block = extract_obl_block(&text, "OBL-001");
-    assert!(
-        obl001_block.contains("Status: satisfied")
-            || obl001_block.contains("Status: **satisfied**"),
-        "OBL-001 must be Status: satisfied in OBLIGATIONS.md; found block:\n{obl001_block}"
-    );
-
     assert!(
         obl001_block.contains("metrics.json"),
         "OBL-001 evidence must reference final metrics; found block:\n{obl001_block}"
@@ -76,12 +84,20 @@ fn obl005_is_satisfied_and_obl001_is_satisfied() {
 }
 
 #[test]
-fn witness_file_exists_and_contains_required_verdict() {
+fn historical_witness_file_exists_but_is_not_current_authority() {
     let text = read_text(WITNESS_PATH);
 
     assert!(
         text.contains("VERDICT: OBL005-FINAL-CLOSURE-VERIFIED"),
         "witness file must contain 'VERDICT: OBL005-FINAL-CLOSURE-VERIFIED'"
+    );
+
+    let ledger = read_text(OBLIGATIONS_PATH);
+    let obl005_block = extract_obl_block(&ledger, "OBL-005");
+    assert!(
+        obl005_block.contains("Historical final closure witness")
+            && obl005_block.contains("not current closure authority"),
+        "ledger must preserve the historical witness while denying current closure authority; found block:\n{obl005_block}"
     );
 
     let lower = text.to_lowercase();
@@ -104,14 +120,14 @@ fn witness_file_exists_and_contains_required_verdict() {
 }
 
 #[test]
-fn all_five_manifest_fields_are_final_closure_verified() {
+fn production_and_script_manifests_reopen_final_closure() {
     let reconciliation = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         reconciliation
             .get("reconciliation_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "reconciliation_status must be {FINAL_CLOSURE_STATUS}"
+        Some(VERIFIED_CLOSURE_STATUS),
+        "historical reconciliation_status remains {VERIFIED_CLOSURE_STATUS}"
     );
 
     let production = parse_toml(PRODUCTION_MANIFEST);
@@ -119,8 +135,8 @@ fn all_five_manifest_fields_are_final_closure_verified() {
         production
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "production final_closure_status must be {FINAL_CLOSURE_STATUS}"
+        Some(REAUDIT_STATUS),
+        "production final_closure_status must reopen to {REAUDIT_STATUS}"
     );
 
     let script = parse_toml(SCRIPT_MANIFEST);
@@ -128,8 +144,8 @@ fn all_five_manifest_fields_are_final_closure_verified() {
         script
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "script final_closure_status must be {FINAL_CLOSURE_STATUS}"
+        Some(REAUDIT_STATUS),
+        "script final_closure_status must reopen to {REAUDIT_STATUS}"
     );
 
     let realworld = parse_toml(REALWORLD_MANIFEST);
@@ -137,20 +153,20 @@ fn all_five_manifest_fields_are_final_closure_verified() {
         realworld
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "realworld final_closure_status must be {FINAL_CLOSURE_STATUS}"
+        Some(VERIFIED_CLOSURE_STATUS),
+        "realworld manifest remains a historical verified receipt until its own re-audit atom"
     );
 
     let broad = parse_toml(BROAD_MANIFEST);
     assert_eq!(
         broad.get("closure_status").and_then(toml::Value::as_str),
-        Some(FINAL_CLOSURE_STATUS),
-        "broad closure_status must be {FINAL_CLOSURE_STATUS}"
+        Some(VERIFIED_CLOSURE_STATUS),
+        "broad manifest remains a historical verified receipt until its own re-audit atom"
     );
 }
 
 #[test]
-fn reconciliation_manifest_has_final_closure_claimed_and_no_evidence_rewrite() {
+fn historical_reconciliation_claim_cannot_override_reaudit_status() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         manifest
@@ -165,6 +181,23 @@ fn reconciliation_manifest_has_final_closure_claimed_and_no_evidence_rewrite() {
             .and_then(toml::Value::as_bool),
         Some(false),
         "rewrites_historical_evidence must be false: no old evidence may be rewritten for closure"
+    );
+
+    let production = parse_toml(PRODUCTION_MANIFEST);
+    let script = parse_toml(SCRIPT_MANIFEST);
+    assert_eq!(
+        production
+            .get("final_closure_status")
+            .and_then(toml::Value::as_str),
+        Some(REAUDIT_STATUS),
+        "current production liveness status outranks historical reconciliation closure"
+    );
+    assert_eq!(
+        script
+            .get("final_closure_status")
+            .and_then(toml::Value::as_str),
+        Some(REAUDIT_STATUS),
+        "current script liveness status outranks historical reconciliation closure"
     );
 }
 
@@ -182,9 +215,8 @@ fn no_legacy_quarantined_group_may_coexist_with_final_closure() {
             .and_then(toml::Value::as_str)
             .unwrap_or("");
         assert_ne!(
-            status,
-            "legacy_quarantined",
-            "no group may have status legacy_quarantined when final_closure_status is {FINAL_CLOSURE_STATUS}"
+            status, "legacy_quarantined",
+            "legacy_quarantined groups remain incompatible with OBL-005 closure"
         );
     }
 }
@@ -223,19 +255,17 @@ fn dev_only_and_historical_script_groups_do_not_count_for_closure() {
 }
 
 #[test]
-fn global_obligation_completion_is_validly_claimed() {
+fn global_obligation_completion_is_not_currently_claimed() {
     let text = read_text(OBLIGATIONS_PATH);
     let headline: String = text.lines().take(15).collect::<Vec<_>>().join("\n");
 
     assert!(
-        headline.to_lowercase().contains("complete"),
-        "OBLIGATIONS.md headline must state COMPLETE; headline:\n{headline}"
+        headline.contains("REOPENED / REAUDIT IN PROGRESS"),
+        "OBLIGATIONS.md headline must state current re-audit, not all-closed completion; headline:\n{headline}"
     );
-
-    let completeness = read_text(COMPLETENESS_WITNESS_PATH);
     assert!(
-        completeness.contains("OBL-ALL-CLOSED"),
-        "obligation completeness witness must contain OBL-ALL-CLOSED"
+        !headline.contains("OBL-ALL-CLOSED"),
+        "headline:\n{headline}"
     );
 
     let witness_text = read_text(WITNESS_PATH);

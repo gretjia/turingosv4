@@ -138,8 +138,7 @@ fn init_provider_flag_is_case_insensitive() {
         output.status
     );
 
-    let content =
-        fs::read_to_string(ws.join("turingos.toml")).expect("read turingos.toml");
+    let content = fs::read_to_string(ws.join("turingos.toml")).expect("read turingos.toml");
     assert!(
         content.contains(r#"llm.meta.api_key_env = "DEEPSEEK_API_KEY""#),
         "case-insensitive parse must produce deepseek toml;\ncontent={content}"

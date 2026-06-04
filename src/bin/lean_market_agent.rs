@@ -1,4 +1,6 @@
 //! lean_market_agent — price-routed Lean proof-search market (P0-A/C/G).
+//! TRACE_MATRIX TB-N3 market-activation successor: consumes TB-13 collateral
+//! substrate as a later Lean-market runner surface, not TB-13 CompleteSet authoring.
 //!
 //! The capability experiment for the Hard Lean Market Go/No-Go. N live DeepSeek
 //! agents (via the local provider proxy) collaboratively search for a Lean proof of
@@ -44,16 +46,17 @@ use turingosv4::judges::lean_theorem_bank::{
 };
 use turingosv4::runtime::adapter::{
     genesis_with_balances, make_real_challengetx_signed_by, make_real_cpmm_pool_signed_by,
-    make_real_escrow_lock_signed_by, make_real_market_seed_signed_by, make_real_task_open_signed_by,
-    make_real_verifytx_signed_by, make_real_worktx_signed_by, tb8_await_state_root_advance,
-};
-use turingosv4::runtime::verification_result::{
-    write_to_cas as write_verification_result_to_cas, VerificationResult,
+    make_real_escrow_lock_signed_by, make_real_market_seed_signed_by,
+    make_real_task_open_signed_by, make_real_verifytx_signed_by, make_real_worktx_signed_by,
+    tb8_await_state_root_advance,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::bootstrap::default_pput_preseed_pairs;
 use turingosv4::runtime::proposal_telemetry::{
     write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
+};
+use turingosv4::runtime::verification_result::{
+    write_to_cas as write_verification_result_to_cas, VerificationResult,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
 use turingosv4::sdk::actor::boltzmann_softmax_select_parent;
@@ -123,7 +126,14 @@ impl Policy {
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
     /// non-market baselines are Bulls-only (no short, no price game).
     fn emits_challenges(self) -> bool {
-        matches!(self, Policy::Market | Policy::RandomBear | Policy::FixedBear | Policy::ShuffledPrice | Policy::NoPrice)
+        matches!(
+            self,
+            Policy::Market
+                | Policy::RandomBear
+                | Policy::FixedBear
+                | Policy::ShuffledPrice
+                | Policy::NoPrice
+        )
     }
 }
 
@@ -201,7 +211,10 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     while i < argv.len() {
         let k = &argv[i];
         if let Some(stripped) = k.strip_prefix("--") {
-            let v = argv.get(i + 1).cloned().ok_or(format!("missing value after {k}"))?;
+            let v = argv
+                .get(i + 1)
+                .cloned()
+                .ok_or(format!("missing value after {k}"))?;
             m.insert(stripped.to_string(), v);
             i += 2;
         } else {
@@ -211,21 +224,29 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let get = |k: &str| m.get(k).cloned();
     let runtime_repo: PathBuf = get("runtime-repo").ok_or("--runtime-repo required")?.into();
     Ok(Args {
-        out: get("out").map(Into::into).unwrap_or_else(|| runtime_repo.join("lean_market_manifest.json")),
+        out: get("out")
+            .map(Into::into)
+            .unwrap_or_else(|| runtime_repo.join("lean_market_manifest.json")),
         runtime_repo,
         cas: get("cas").ok_or("--cas required")?.into(),
         run_id: get("run-id").ok_or("--run-id required")?,
         proxy_url: get("proxy-url").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("model").unwrap_or_else(|| "deepseek-chat".into()),
-        bank: get("bank").map(Into::into).unwrap_or_else(|| "tests/fixtures/lean_theorems.jsonl".into()),
+        bank: get("bank")
+            .map(Into::into)
+            .unwrap_or_else(|| "tests/fixtures/lean_theorems.jsonl".into()),
         problem: get("problem").ok_or("--problem <theorem id> required")?,
         mathlib_dir: get("mathlib-dir").map(Into::into),
         policy: Policy::parse(&get("policy").unwrap_or_else(|| "market".into()))?,
         n_agents: get("n-agents").and_then(|s| s.parse().ok()).unwrap_or(8),
         n_rounds: get("n-rounds").and_then(|s| s.parse().ok()).unwrap_or(6),
         seed: get("seed").and_then(|s| s.parse().ok()).unwrap_or(0xB01),
-        boltzmann_temp: get("boltzmann-temp").and_then(|s| s.parse().ok()).unwrap_or(0.15),
-        continue_past_omega: get("continue-past-omega").map(|s| s == "true").unwrap_or(false),
+        boltzmann_temp: get("boltzmann-temp")
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(0.15),
+        continue_past_omega: get("continue-past-omega")
+            .map(|s| s == "true")
+            .unwrap_or(false),
     })
 }
 
@@ -239,7 +260,12 @@ fn stake_from_confidence(confidence_pct: u64) -> i64 {
 }
 
 fn extract_json_object(content: &str) -> Option<serde_json::Value> {
-    let t = content.trim().trim_start_matches("```json").trim_start_matches("```").trim_end_matches("```").trim();
+    let t = content
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
     if let Ok(v) = serde_json::from_str(t) {
         return Some(v);
     }
@@ -278,8 +304,10 @@ fn select_parent(
     match policy {
         // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
         // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
-        Policy::Market | Policy::RandomBear | Policy::FixedBear => boltzmann_softmax_select_parent(pi, &BTreeSet::new(), temp, rng)
-            .or_else(|| all_nodes.last().cloned()),
+        Policy::Market | Policy::RandomBear | Policy::FixedBear => {
+            boltzmann_softmax_select_parent(pi, &BTreeSet::new(), temp, rng)
+                .or_else(|| all_nodes.last().cloned())
+        }
         Policy::ShuffledPrice => {
             let shuffled = shuffle_prices(pi, rng);
             boltzmann_softmax_select_parent(&shuffled, &BTreeSet::new(), temp, rng)
@@ -309,30 +337,71 @@ fn select_parent(
     }
 }
 
-async fn submit_await(seq: &Sequencer, tx: TypedTx, pre: Hash, label: &str) -> Result<Hash, String> {
-    seq.submit_agent_tx(tx).await.map_err(|e| format!("submit {label}: {e:?}"))?;
-    tb8_await_state_root_advance(seq, pre, 5_000).await.map_err(|_| format!("{label} did not advance"))
+async fn submit_await(
+    seq: &Sequencer,
+    tx: TypedTx,
+    pre: Hash,
+    label: &str,
+) -> Result<Hash, String> {
+    seq.submit_agent_tx(tx)
+        .await
+        .map_err(|e| format!("submit {label}: {e:?}"))?;
+    tb8_await_state_root_advance(seq, pre, 5_000)
+        .await
+        .map_err(|_| format!("{label} did not advance"))
 }
 
-fn put_proposal(cas_path: &PathBuf, run_id: &str, agent: &str, idx: u64, parent: Option<TxId>, body: &str, tokens: TokenCounts, lt: u64) -> Result<Cid, String> {
+fn put_proposal(
+    cas_path: &PathBuf,
+    run_id: &str,
+    agent: &str,
+    idx: u64,
+    parent: Option<TxId>,
+    body: &str,
+    tokens: TokenCounts,
+    lt: u64,
+) -> Result<Cid, String> {
     let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
     let tel = ProposalTelemetry::build_for_evaluator_append_with_parent(
-        &mut cas, run_id, agent, idx, body.as_bytes(), "lm_proof", tokens, "lm-agent", lt, parent,
-    ).map_err(|e| format!("ProposalTelemetry: {e}"))?;
-    write_proposal_telemetry_to_cas(&mut cas, &tel, "lm-proposal-telemetry", lt + 1).map_err(|e| format!("write telemetry: {e}"))
+        &mut cas,
+        run_id,
+        agent,
+        idx,
+        body.as_bytes(),
+        "lm_proof",
+        tokens,
+        "lm-agent",
+        lt,
+        parent,
+    )
+    .map_err(|e| format!("ProposalTelemetry: {e}"))?;
+    write_proposal_telemetry_to_cas(&mut cas, &tel, "lm-proposal-telemetry", lt + 1)
+        .map_err(|e| format!("write telemetry: {e}"))
 }
 
 fn put_counterexample(cas_path: &PathBuf, work_tx: &str, lt: u64) -> Result<Cid, String> {
     let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
     let blob = serde_json::json!({"schema":"lm.counterexample.v1","target":work_tx});
-    cas.put(serde_json::to_vec(&blob).unwrap().as_slice(), ObjectType::EvidenceCapsule, "lm-challenger", lt, Some("lm.counterexample.v1".into()))
-        .map_err(|e| format!("put counterexample: {e}"))
+    cas.put(
+        serde_json::to_vec(&blob).unwrap().as_slice(),
+        ObjectType::EvidenceCapsule,
+        "lm-challenger",
+        lt,
+        Some("lm.counterexample.v1".into()),
+    )
+    .map_err(|e| format!("put counterexample: {e}"))
 }
 
 fn put_proof_artifact(cas_path: &PathBuf, source: &str, lt: u64) -> Result<Cid, String> {
     let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
-    cas.put(source.as_bytes(), ObjectType::Generic, "lm-verifier", lt, Some("lm.proof_artifact.v1".into()))
-        .map_err(|e| format!("put proof artifact: {e}"))
+    cas.put(
+        source.as_bytes(),
+        ObjectType::Generic,
+        "lm-verifier",
+        lt,
+        Some("lm.proof_artifact.v1".into()),
+    )
+    .map_err(|e| format!("put proof artifact: {e}"))
 }
 
 /// GCD for reducing price fractions so equal ratios (e.g. 4000/4000 == 250/250 == 1/1)
@@ -346,7 +415,11 @@ fn gcd_u128(mut a: u128, mut b: u128) -> u128 {
     a
 }
 
-fn build_prompt(theorem: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>) -> String {
+fn build_prompt(
+    theorem: &LeanTheorem,
+    parent_body: Option<&str>,
+    parent_feedback: Option<&str>,
+) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (Mathlib is available). Output ONLY a JSON object.\n\n");
     p.push_str("=== Target (prove the goal after `:= by`) ===\n");
@@ -389,7 +462,10 @@ async fn bear_doubt_short(
     match llm
         .generate(&GenerateRequest {
             model: model.into(),
-            messages: vec![Message { role: "user".into(), content: prompt }],
+            messages: vec![Message {
+                role: "user".into(),
+                content: prompt,
+            }],
             temperature: Some(0.3),
             max_tokens: Some(60),
         })
@@ -436,18 +512,34 @@ async fn run(args: Args) -> Result<(), String> {
     let theorem = bank
         .iter()
         .find(|t| t.id == args.problem)
-        .ok_or_else(|| format!("problem `{}` not in bank {}", args.problem, args.bank.display()))?
+        .ok_or_else(|| {
+            format!(
+                "problem `{}` not in bank {}",
+                args.problem,
+                args.bank.display()
+            )
+        })?
         .clone();
     let lean_bin = default_lean_bin();
     let mathlib_lp = if theorem.needs_mathlib {
-        let dir = args.mathlib_dir.clone().ok_or("theorem needs Mathlib but --mathlib-dir not given")?;
-        Some(mathlib_lean_path(&dir, &default_lake_bin()).ok_or("could not resolve Mathlib LEAN_PATH (lake env failed)")?)
+        let dir = args
+            .mathlib_dir
+            .clone()
+            .ok_or("theorem needs Mathlib but --mathlib-dir not given")?;
+        Some(
+            mathlib_lean_path(&dir, &default_lake_bin())
+                .ok_or("could not resolve Mathlib LEAN_PATH (lake env failed)")?,
+        )
     } else {
         None
     };
     let judge = theorem.judge(lean_bin, mathlib_lp.as_deref());
 
-    let n_agents = if args.policy == Policy::Single { 1 } else { args.n_agents };
+    let n_agents = if args.policy == Policy::Single {
+        1
+    } else {
+        args.n_agents
+    };
     let market_task = format!("lm-market-{}", args.run_id);
     let agents: Vec<String> = (0..n_agents).map(|i| format!("Agent_{i}")).collect();
     let challengers: Vec<String> = (0..n_agents).map(|i| format!("Chal_{i}")).collect();
@@ -456,7 +548,10 @@ async fn run(args: Args) -> Result<(), String> {
     let mut balances = default_pput_preseed_pairs();
     for extra in [SPONSOR_AGENT, PROVIDER_AGENT, VERIFIER_AGENT] {
         if !balances.iter().any(|(a, _)| a.0 == extra) {
-            balances.push((AgentId(extra.into()), MicroCoin::from_micro_units(5_000_000)));
+            balances.push((
+                AgentId(extra.into()),
+                MicroCoin::from_micro_units(5_000_000),
+            ));
         }
     }
     for a in agents.iter().chain(challengers.iter()) {
@@ -472,25 +567,64 @@ async fn run(args: Args) -> Result<(), String> {
         queue_capacity: 64,
         resume_existing_chain: false,
     };
-    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q).map_err(|e| format!("boot: {e}"))?;
+    let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
+        .map_err(|e| format!("boot: {e}"))?;
     let seq = bundle.sequencer.clone();
     let mut kp = AgentKeypairRegistry::open(&cfg.runtime_repo_path).map_err(|e| format!("{e}"))?;
     let mut all: Vec<&str> = vec![SPONSOR_AGENT, PROVIDER_AGENT, VERIFIER_AGENT];
     all.extend(agents.iter().map(|s| s.as_str()));
     all.extend(challengers.iter().map(|s| s.as_str()));
     for id in &all {
-        kp.get_or_create(&AgentId(id.to_string())).map_err(|e| format!("keypair {id}: {e}"))?;
+        kp.get_or_create(&AgentId(id.to_string()))
+            .map_err(|e| format!("keypair {id}: {e}"))?;
     }
-    seq.set_agent_pubkeys(std::sync::Arc::new(kp.manifest())).map_err(|_| "pubkeys set".to_string())?;
+    seq.set_agent_pubkeys(std::sync::Arc::new(kp.manifest()))
+        .map_err(|_| "pubkeys set".to_string())?;
 
     // ── Market task scaffold ─────────────────────────────────────────
     let mut root = seq.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
     let mut lt = 10u64;
-    root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "lm", lt).map_err(|e| format!("TaskOpen: {e}"))?, root, "TaskOpen").await?;
+    root = submit_await(
+        &seq,
+        make_real_task_open_signed_by(&mut kp, &market_task, SPONSOR_AGENT, root, "lm", lt)
+            .map_err(|e| format!("TaskOpen: {e}"))?,
+        root,
+        "TaskOpen",
+    )
+    .await?;
     lt += 1;
-    root = submit_await(&seq, make_real_market_seed_signed_by(&mut kp, root, &market_task, PROVIDER_AGENT, MARKET_SEED_MICRO, "lm", lt).map_err(|e| format!("Seed: {e}"))?, root, "MarketSeed").await?;
+    root = submit_await(
+        &seq,
+        make_real_market_seed_signed_by(
+            &mut kp,
+            root,
+            &market_task,
+            PROVIDER_AGENT,
+            MARKET_SEED_MICRO,
+            "lm",
+            lt,
+        )
+        .map_err(|e| format!("Seed: {e}"))?,
+        root,
+        "MarketSeed",
+    )
+    .await?;
     lt += 1;
-    root = submit_await(&seq, make_real_cpmm_pool_signed_by(&mut kp, root, &market_task, PROVIDER_AGENT, MARKET_SEED_MICRO as u128, "lm").map_err(|e| format!("Pool: {e}"))?, root, "CpmmPool").await?;
+    root = submit_await(
+        &seq,
+        make_real_cpmm_pool_signed_by(
+            &mut kp,
+            root,
+            &market_task,
+            PROVIDER_AGENT,
+            MARKET_SEED_MICRO as u128,
+            "lm",
+        )
+        .map_err(|e| format!("Pool: {e}"))?,
+        root,
+        "CpmmPool",
+    )
+    .await?;
     lt += 1;
 
     let llm = ResilientLLMClient::new(&args.proxy_url, 180, 3);
@@ -508,7 +642,8 @@ async fn run(args: Args) -> Result<(), String> {
     let mut node_doubt: BTreeMap<String, i64> = BTreeMap::new();
     let mut verified_agents: BTreeSet<String> = BTreeSet::new();
     let majority_threshold = agents.len() / 2 + 1;
-    let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) = (0usize, 0usize, 0usize, 0usize);
+    let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) =
+        (0usize, 0usize, 0usize, 0usize);
     let (mut bear_calls, mut bear_tokens_total) = (0usize, 0u64);
     let mut omega_node: Option<String> = None;
     let mut time_to_first_proof_s: Option<f64> = None;
@@ -523,9 +658,21 @@ async fn run(args: Args) -> Result<(), String> {
 
             // Parent selection (policy-governed).
             let mut rng = StdRng::seed_from_u64(args.seed + round as u64 * 131 + ai as u64);
-            let parent_tx = select_parent(args.policy, &pi, &node_tx_ids, own_last.get(&agent), &node_conf, &node_doubt, args.boltzmann_temp, &mut rng);
+            let parent_tx = select_parent(
+                args.policy,
+                &pi,
+                &node_tx_ids,
+                own_last.get(&agent),
+                &node_conf,
+                &node_doubt,
+                args.boltzmann_temp,
+                &mut rng,
+            );
             let (parent_body, parent_feedback) = match &parent_tx {
-                Some(t) => (node_body.get(&t.0).cloned(), node_feedback.get(&t.0).cloned()),
+                Some(t) => (
+                    node_body.get(&t.0).cloned(),
+                    node_feedback.get(&t.0).cloned(),
+                ),
                 None => (None, None),
             };
 
@@ -533,7 +680,13 @@ async fn run(args: Args) -> Result<(), String> {
             let resp = match llm
                 .generate(&GenerateRequest {
                     model: args.model.clone(),
-                    messages: vec![sys.clone(), Message { role: "user".into(), content: prompt }],
+                    messages: vec![
+                        sys.clone(),
+                        Message {
+                            role: "user".into(),
+                            content: prompt,
+                        },
+                    ],
                     temperature: Some(0.7),
                     max_tokens: Some(900),
                 })
@@ -558,12 +711,21 @@ async fn run(args: Args) -> Result<(), String> {
                     continue;
                 }
             };
-            let body = v.get("proof_body").and_then(|x| x.as_str()).unwrap_or("").to_string();
+            let body = v
+                .get("proof_body")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string();
             if body.trim().is_empty() {
                 parse_fails += 1;
                 continue;
             }
-            let confidence_pct = (v.get("confidence").and_then(|x| x.as_f64()).unwrap_or(0.6).clamp(0.0, 1.0) * 100.0) as u64;
+            let confidence_pct = (v
+                .get("confidence")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.6)
+                .clamp(0.0, 1.0)
+                * 100.0) as u64;
 
             // ── Real Lean kernel verdict ─────────────────────────────
             let outcome = judge.verify(&body);
@@ -577,13 +739,47 @@ async fn run(args: Args) -> Result<(), String> {
             // ── Per-task node (EVERY attempt — Verified or Failed) ────
             let work_stake = stake_from_confidence(confidence_pct);
             let node_task = format!("lm-node{step_idx}-{}", args.run_id);
-            root = submit_await(&seq, make_real_task_open_signed_by(&mut kp, &node_task, SPONSOR_AGENT, root, "lm", lt).map_err(|e| format!("TaskOpen node: {e}"))?, root, "TaskOpen(node)").await?;
+            root = submit_await(
+                &seq,
+                make_real_task_open_signed_by(&mut kp, &node_task, SPONSOR_AGENT, root, "lm", lt)
+                    .map_err(|e| format!("TaskOpen node: {e}"))?,
+                root,
+                "TaskOpen(node)",
+            )
+            .await?;
             lt += 1;
-            root = submit_await(&seq, make_real_escrow_lock_signed_by(&mut kp, &node_task, SPONSOR_AGENT, TASK_ESCROW_MICRO, root, "lm", lt).map_err(|e| format!("Escrow node: {e}"))?, root, "Escrow(node)").await?;
+            root = submit_await(
+                &seq,
+                make_real_escrow_lock_signed_by(
+                    &mut kp,
+                    &node_task,
+                    SPONSOR_AGENT,
+                    TASK_ESCROW_MICRO,
+                    root,
+                    "lm",
+                    lt,
+                )
+                .map_err(|e| format!("Escrow node: {e}"))?,
+                root,
+                "Escrow(node)",
+            )
+            .await?;
             lt += 1;
-            let pcid = put_proposal(&args.cas, &args.run_id, &agent, step_idx, parent_tx.clone(), &body, tokens, lt)?;
+            let pcid = put_proposal(
+                &args.cas,
+                &args.run_id,
+                &agent,
+                step_idx,
+                parent_tx.clone(),
+                &body,
+                tokens,
+                lt,
+            )?;
             lt += 2;
-            let work = make_real_worktx_signed_by(&mut kp, &node_task, &agent, root, work_stake, "lm", pcid, true, lt).map_err(|e| format!("WorkTx: {e}"))?;
+            let work = make_real_worktx_signed_by(
+                &mut kp, &node_task, &agent, root, work_stake, "lm", pcid, true, lt,
+            )
+            .map_err(|e| format!("WorkTx: {e}"))?;
             let work_tx_id = match &work {
                 TypedTx::Work(w) => w.tx_id.0.clone(),
                 _ => return Err("not WorkTx".into()),
@@ -605,7 +801,10 @@ async fn run(args: Args) -> Result<(), String> {
                 let (short_micro, bear_tok) = match args.policy {
                     Policy::RandomBear => {
                         let doubt_pct = rng.gen_range(0..=100) as i64;
-                        (MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100, 0u64)
+                        (
+                            MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100,
+                            0u64,
+                        )
                     }
                     Policy::FixedBear => (CHALLENGE_STAKE_MICRO, 0u64),
                     _ => bear_doubt_short(&llm, &args.model, &theorem, &body).await,
@@ -615,7 +814,16 @@ async fn run(args: Args) -> Result<(), String> {
                 let challenger = challengers[ai % challengers.len()].clone();
                 if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
                     lt += 1;
-                    match make_real_challengetx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), &challenger, short_micro, ce, &format!("lm{step_idx}"), lt) {
+                    match make_real_challengetx_signed_by(
+                        &mut kp,
+                        root,
+                        TxId(work_tx_id.clone()),
+                        &challenger,
+                        short_micro,
+                        ce,
+                        &format!("lm{step_idx}"),
+                        lt,
+                    ) {
                         Ok(chal) => match submit_await(&seq, chal, root, "ChallengeTx").await {
                             Ok(r) => {
                                 root = r;
@@ -632,7 +840,8 @@ async fn run(args: Args) -> Result<(), String> {
             // drive argmin-doubt selection — NOT a market short. Isolates "a critic helped" from
             // "the market helped" (prereg v2 rule 7). Bear tokens count toward budget.
             if args.policy == Policy::SkepticRerank {
-                let (doubt_micro, bear_tok) = bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                let (doubt_micro, bear_tok) =
+                    bear_doubt_short(&llm, &args.model, &theorem, &body).await;
                 bear_calls += 1;
                 bear_tokens_total += bear_tok;
                 node_doubt.insert(work_tx_id.clone(), doubt_micro);
@@ -657,7 +866,16 @@ async fn run(args: Args) -> Result<(), String> {
                     let _ = write_verification_result_to_cas(&mut cas, &vr, "lm-verifier", lt);
                 }
                 lt += 1;
-                match make_real_verifytx_signed_by(&mut kp, root, TxId(work_tx_id.clone()), VERIFIER_AGENT, VERIFY_BOND_MICRO, &format!("lmv{step_idx}"), is_verified, lt) {
+                match make_real_verifytx_signed_by(
+                    &mut kp,
+                    root,
+                    TxId(work_tx_id.clone()),
+                    VERIFIER_AGENT,
+                    VERIFY_BOND_MICRO,
+                    &format!("lmv{step_idx}"),
+                    is_verified,
+                    lt,
+                ) {
                     Ok(vtx) => match submit_await(&seq, vtx, root, "VerifyTx").await {
                         Ok(r) => {
                             root = r;
@@ -669,7 +887,11 @@ async fn run(args: Args) -> Result<(), String> {
                 }
             }
 
-            let price = compute_price_index(&seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t);
+            let price = compute_price_index(
+                &seq.q_snapshot()
+                    .map_err(|e| format!("{e:?}"))?
+                    .economic_state_t,
+            );
             let pe = price.get(&TxId(work_tx_id.clone()));
             nodes.push(AttemptNode {
                 node_tx: work_tx_id.clone(),
@@ -706,19 +928,49 @@ async fn run(args: Args) -> Result<(), String> {
     }
 
     // ── Settlement ───────────────────────────────────────────────────
-    let outcome_side = if omega_node.is_some() { OutcomeSide::Yes } else { OutcomeSide::No };
-    if seq.emit_system_tx(SystemEmitCommand::EventResolve { task_id: TaskId(market_task.clone()), outcome: outcome_side }).await.is_ok() {
+    let outcome_side = if omega_node.is_some() {
+        OutcomeSide::Yes
+    } else {
+        OutcomeSide::No
+    };
+    if seq
+        .emit_system_tx(SystemEmitCommand::EventResolve {
+            task_id: TaskId(market_task.clone()),
+            outcome: outcome_side,
+        })
+        .await
+        .is_ok()
+    {
         let _ = tb8_await_state_root_advance(&seq, root, 5_000).await;
     }
-    let _ = seq.q_snapshot().map_err(|e| format!("{e:?}"))?.economic_state_t.task_markets_t.0.get(&TaskId(market_task.clone())).map(|m| m.state != TaskMarketState::Open);
+    let _ = seq
+        .q_snapshot()
+        .map_err(|e| format!("{e:?}"))?
+        .economic_state_t
+        .task_markets_t
+        .0
+        .get(&TaskId(market_task.clone()))
+        .map(|m| m.state != TaskMarketState::Open);
 
     let seq_handle = seq.clone();
-    bundle.shutdown().await.map_err(|e| format!("shutdown: {e}"))?;
-    let final_root = seq_handle.q_snapshot().map_err(|e| format!("{e:?}"))?.state_root_t;
+    bundle
+        .shutdown()
+        .await
+        .map_err(|e| format!("shutdown: {e}"))?;
+    let final_root = seq_handle
+        .q_snapshot()
+        .map_err(|e| format!("{e:?}"))?
+        .state_root_t;
 
     // ── Golden path (ancestor chain of OMEGA) + PPUT ─────────────────
-    let parent_of: BTreeMap<String, Option<String>> = nodes.iter().map(|n| (n.node_tx.clone(), n.parent_tx.clone())).collect();
-    let tokens_of: BTreeMap<String, u64> = nodes.iter().map(|n| (n.node_tx.clone(), n.tokens)).collect();
+    let parent_of: BTreeMap<String, Option<String>> = nodes
+        .iter()
+        .map(|n| (n.node_tx.clone(), n.parent_tx.clone()))
+        .collect();
+    let tokens_of: BTreeMap<String, u64> = nodes
+        .iter()
+        .map(|n| (n.node_tx.clone(), n.tokens))
+        .collect();
     let mut golden_path: Vec<String> = Vec::new();
     let mut golden_path_tokens = 0u64;
     if let Some(o) = &omega_node {
@@ -732,7 +984,11 @@ async fn run(args: Args) -> Result<(), String> {
     }
     let total_tokens: u64 = nodes.iter().map(|n| n.tokens).sum::<u64>() + bear_tokens_total;
     let wall_clock_s = t0.elapsed().as_secs_f64();
-    let pput = if omega_node.is_none() || wall_clock_s <= 0.0 { 0.0 } else { golden_path_tokens as f64 / wall_clock_s };
+    let pput = if omega_node.is_none() || wall_clock_s <= 0.0 {
+        0.0
+    } else {
+        golden_path_tokens as f64 / wall_clock_s
+    };
 
     let mut ratios: BTreeSet<(u128, u128)> = BTreeSet::new();
     for n in &nodes {
@@ -777,7 +1033,11 @@ async fn run(args: Args) -> Result<(), String> {
     if let Some(p) = args.out.parent() {
         std::fs::create_dir_all(p).ok();
     }
-    std::fs::write(&args.out, serde_json::to_string_pretty(&manifest).map_err(|e| format!("ser: {e}"))?).map_err(|e| format!("write: {e}"))?;
+    std::fs::write(
+        &args.out,
+        serde_json::to_string_pretty(&manifest).map_err(|e| format!("ser: {e}"))?,
+    )
+    .map_err(|e| format!("write: {e}"))?;
     println!(
         "lean_market[{}] problem={} agents={} rounds={} llm={} bear={} parse_fail={} verified={} failed={} nodes={} distinct_prices={} omega={} ttfp={:?}s gp_tokens={} total_tokens={} wall={:.1}s pput={:.2} manifest={}",
         args.policy.label(), args.problem, n_agents, args.n_rounds, llm_calls, bear_calls, parse_fails, verified_count, failed_count,
@@ -799,8 +1059,21 @@ mod tests {
         let own = TxId("n_mine".into());
         let mut rng = StdRng::seed_from_u64(7);
         for p in [Policy::Single, Policy::Parallel, Policy::Majority] {
-            let got = select_parent(p, &pi, &nodes, Some(&own), &conf, &BTreeMap::new(), 0.15, &mut rng);
-            assert_eq!(got, Some(TxId("n_mine".into())), "{p:?} must refine own_last");
+            let got = select_parent(
+                p,
+                &pi,
+                &nodes,
+                Some(&own),
+                &conf,
+                &BTreeMap::new(),
+                0.15,
+                &mut rng,
+            );
+            assert_eq!(
+                got,
+                Some(TxId("n_mine".into())),
+                "{p:?} must refine own_last"
+            );
         }
     }
 
@@ -811,7 +1084,19 @@ mod tests {
         let nodes = vec![TxId("someone_elses".into())];
         let mut rng = StdRng::seed_from_u64(7);
         // No shared tape: a parallel agent never adopts another agent's node.
-        assert_eq!(select_parent(Policy::Parallel, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng), None);
+        assert_eq!(
+            select_parent(
+                Policy::Parallel,
+                &pi,
+                &nodes,
+                None,
+                &conf,
+                &BTreeMap::new(),
+                0.15,
+                &mut rng
+            ),
+            None
+        );
     }
 
     #[test]
@@ -824,24 +1109,56 @@ mod tests {
         let nodes = vec![TxId("lo".into()), TxId("hi".into()), TxId("mid".into())];
         let mut rng = StdRng::seed_from_u64(7);
         assert_eq!(
-            select_parent(Policy::BestFirst, &pi, &nodes, None, &conf, &BTreeMap::new(), 0.15, &mut rng),
+            select_parent(
+                Policy::BestFirst,
+                &pi,
+                &nodes,
+                None,
+                &conf,
+                &BTreeMap::new(),
+                0.15,
+                &mut rng
+            ),
             Some(TxId("hi".into()))
         );
     }
 
     #[test]
     fn only_price_family_emits_bear_shorts() {
-        for p in [Policy::Market, Policy::RandomBear, Policy::FixedBear, Policy::ShuffledPrice, Policy::NoPrice] {
+        for p in [
+            Policy::Market,
+            Policy::RandomBear,
+            Policy::FixedBear,
+            Policy::ShuffledPrice,
+            Policy::NoPrice,
+        ] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
-        for p in [Policy::Single, Policy::Parallel, Policy::Majority, Policy::BestFirst, Policy::SkepticRerank] {
+        for p in [
+            Policy::Single,
+            Policy::Parallel,
+            Policy::Majority,
+            Policy::BestFirst,
+            Policy::SkepticRerank,
+        ] {
             assert!(!p.emits_challenges(), "{p:?} is Bulls-only");
         }
     }
 
     #[test]
     fn policy_parse_roundtrips_all_arms() {
-        for s in ["market", "random_bear", "fixed_bear", "shuffled_price", "no_price", "single", "parallel", "majority", "best_first", "skeptic_rerank"] {
+        for s in [
+            "market",
+            "random_bear",
+            "fixed_bear",
+            "shuffled_price",
+            "no_price",
+            "single",
+            "parallel",
+            "majority",
+            "best_first",
+            "skeptic_rerank",
+        ] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());

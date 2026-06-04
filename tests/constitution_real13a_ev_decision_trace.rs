@@ -213,7 +213,6 @@ fn ev_decision_trace_rejects_private_or_raw_material() {
         .contains("private/raw"));
 }
 
-
 #[test]
 fn public_positive_ev_constraints_pass_requires_edge_over_threshold() {
     let trace = trace(EVAction::Abstain, EVReason::NegativeEV);
@@ -319,7 +318,6 @@ fn positive_ev_abstain_classifier_does_not_take_declared_ev_sign() {
     ));
 }
 
-
 #[test]
 fn real13_runner_enables_public_ev_scaffold_by_default() {
     let runner = std::fs::read_to_string("scripts/run_real13_market_pressure_probe.sh").unwrap();
@@ -392,7 +390,6 @@ fn real13_runner_records_replay_config_hashes() {
         );
     }
 }
-
 
 #[test]
 fn ev_reason_taxonomy_is_exhaustive_in_summary_and_dashboard() {

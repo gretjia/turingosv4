@@ -129,7 +129,11 @@ pub fn boltzmann_softmax_select_parent<R: Rng>(
     if cands.is_empty() {
         return None;
     }
-    let t = if temperature <= 0.0 { 1e-6 } else { temperature };
+    let t = if temperature <= 0.0 {
+        1e-6
+    } else {
+        temperature
+    };
     // softmax with max-subtraction for numerical stability
     let maxp = cands.iter().map(|(_, p)| *p).fold(f64::MIN, f64::max);
     let weights: Vec<f64> = cands.iter().map(|(_, p)| ((p - maxp) / t).exp()).collect();

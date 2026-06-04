@@ -38,7 +38,6 @@ fn real13_probe_runner_enables_ev_review_without_live_real6b_or_scripted_buys() 
     );
 }
 
-
 #[test]
 fn dashboard_counts_e2_candidate_router_actions_by_exact_submitted_trace_join() {
     let dashboard =

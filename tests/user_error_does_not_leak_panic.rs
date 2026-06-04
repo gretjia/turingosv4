@@ -38,17 +38,25 @@ fn test_public_summary_does_not_contain_panic_patterns() {
         generation_attempt_cid: None,
         triage_attempted: false,
         reject_class: RejectClass::InternalIo,
-        public_error_summary: "Internal generate error. See diagnostic CID for details.".to_string(),
+        public_error_summary: "Internal generate error. See diagnostic CID for details."
+            .to_string(),
         reason: "internal_io".to_string(),
         // Raw panic text would be stored here under the writer's
         // discipline — NOT in public_error_summary.
-        private_diagnostic_cid: Some("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()),
+        private_diagnostic_cid: Some(
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
+        ),
         retryable: false,
         world_head_unchanged: true,
         logical_t: now_t(),
     };
 
-    let panic_patterns = ["panicked at", "stack backtrace", "thread main", "RUST_BACKTRACE"];
+    let panic_patterns = [
+        "panicked at",
+        "stack backtrace",
+        "thread main",
+        "RUST_BACKTRACE",
+    ];
     for pat in &panic_patterns {
         assert!(
             !rej.public_error_summary.contains(pat),

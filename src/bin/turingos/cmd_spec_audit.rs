@@ -53,14 +53,10 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     while let Some(a) = iter.next() {
         match a.as_str() {
             "--workspace" => {
-                workspace = Some(PathBuf::from(
-                    iter.next().cloned().unwrap_or_default(),
-                ));
+                workspace = Some(PathBuf::from(iter.next().cloned().unwrap_or_default()));
             }
             "--session" => {
-                session_id = Some(
-                    iter.next().cloned().unwrap_or_default(),
-                );
+                session_id = Some(iter.next().cloned().unwrap_or_default());
             }
             _ => {}
         }

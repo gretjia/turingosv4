@@ -55,4 +55,3 @@ fn real12_live_micro_probe_records_required_bull_bear_metrics() {
         );
     }
 }
-

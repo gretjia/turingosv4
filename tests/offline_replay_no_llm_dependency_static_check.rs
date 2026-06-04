@@ -15,8 +15,8 @@ fn workspace_root() -> PathBuf {
 }
 
 fn assert_no_llm_imports(path: &std::path::Path) {
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("could not read {:?}: {e}", path));
+    let content =
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("could not read {:?}: {e}", path));
 
     let forbidden_patterns = [
         "chat_client",
@@ -47,7 +47,10 @@ fn test_offline_replay_no_llm_dependency_static_check() {
     assert_no_llm_imports(&replay_rs);
 
     let cmd_spec_audit_rs = root.join("src/bin/turingos/cmd_spec_audit.rs");
-    assert!(cmd_spec_audit_rs.exists(), "src/bin/turingos/cmd_spec_audit.rs must exist");
+    assert!(
+        cmd_spec_audit_rs.exists(),
+        "src/bin/turingos/cmd_spec_audit.rs must exist"
+    );
     assert_no_llm_imports(&cmd_spec_audit_rs);
 
     println!("STATIC-CHECK PASS: no LLM/network imports in offline replay modules");

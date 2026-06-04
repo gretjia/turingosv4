@@ -51,7 +51,13 @@ fn test_rejection_write_advances_chain_by_at_most_2() {
     let mut store = CasStore::open(&cas_dir).expect("open cas");
     let diag_bytes = b"raw diagnostic text from a failing LLM call";
     let diag_cid = store
-        .put(diag_bytes, ObjectType::EvidenceCapsule, "test", now_t(), None)
+        .put(
+            diag_bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            now_t(),
+            None,
+        )
         .expect("put diag");
 
     // Now write the rejection capsule that references the diagnostic.

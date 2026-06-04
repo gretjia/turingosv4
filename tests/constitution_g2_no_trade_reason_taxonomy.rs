@@ -253,4 +253,3 @@ fn sg_g2_6_trace_or_tx_invariant_every_variant_buildable() {
         assert!(trace.reason_summary_public.len() <= 120);
     }
 }
-

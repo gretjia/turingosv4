@@ -40,7 +40,10 @@ const KEEP_ANCHORS: &[(&str, &[&str])] = &[
     ),
     ("Integer-only money math", &["integer math"]),
     ("Obligation ledger", &["OBLIGATIONS.md"]),
-    ("No retroactive evidence rewrite", &["retroactively rewrite"]),
+    (
+        "No retroactive evidence rewrite",
+        &["retroactively rewrite"],
+    ),
     (
         "Class-4 per-atom §8 ratification",
         &["Class 4 requires explicit per-atom"],

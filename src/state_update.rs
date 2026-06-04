@@ -165,8 +165,8 @@ pub fn parse_prefix_json(
     let scan_budget_chars = scan_budget_tokens.saturating_mul(4);
     let prefix: String = raw_output.chars().take(scan_budget_chars).collect();
 
-    let first_obj = streaming_extract_first_json_object(&prefix)
-        .ok_or(HeaderParseError::MissingJsonObject)?;
+    let first_obj =
+        streaming_extract_first_json_object(&prefix).ok_or(HeaderParseError::MissingJsonObject)?;
 
     let header: StateUpdate = serde_json::from_str(&first_obj)
         .map_err(|e| HeaderParseError::MalformedJson(e.to_string()))?;
@@ -262,8 +262,9 @@ mod tests {
 
     #[test]
     fn header_malformation_case4_schema_invalid() {
-        let raw = r#"{"schema_version":"WRONG/v9","status":"Retry","task_id":"t","action":"RETRY"}"#
-            .to_string();
+        let raw =
+            r#"{"schema_version":"WRONG/v9","status":"Retry","task_id":"t","action":"RETRY"}"#
+                .to_string();
         let err = parse_prefix_json(&raw, 512, 256).unwrap_err();
         assert!(matches!(err, HeaderParseError::SchemaInvalid(_)));
     }

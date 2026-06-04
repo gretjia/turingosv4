@@ -54,10 +54,7 @@ pub struct CharterCore {
 /// from the stale-constitution case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CharterDriftError {
-    ConstitutionShaMismatch {
-        expected: String,
-        actual: String,
-    },
+    ConstitutionShaMismatch { expected: String, actual: String },
 }
 
 impl std::fmt::Display for CharterDriftError {
@@ -287,7 +284,10 @@ mod tests {
         assert!(charter.content.contains("Art. 0.4"));
         assert!(charter.content.contains("FC1a") || charter.content.contains("FC1b"));
         assert!(charter.content.contains("KILL") || charter.content.contains("FORBIDDEN"));
-        assert!(charter.retrieval_handles.iter().any(|h| h.starts_with("Art.")));
+        assert!(charter
+            .retrieval_handles
+            .iter()
+            .any(|h| h.starts_with("Art.")));
     }
 
     #[test]
@@ -299,7 +299,10 @@ mod tests {
         }
         let charter = compile_charter_core(big.as_bytes(), "v1.0", &tk());
         assert!(charter.token_count <= B_G, "must clip oversize");
-        assert!(!charter.omitted_sections.is_empty(), "omitted set populated");
+        assert!(
+            !charter.omitted_sections.is_empty(),
+            "omitted set populated"
+        );
     }
 
     // ── charter_core_drift ──────────────────────────────────────
@@ -335,6 +338,9 @@ mod tests {
         // After recompilation against the new bytes, drift goes away.
         let charter_v2 = compile_charter_core(bytes_v2.as_bytes(), "v1.0", &tk());
         assert!(validate_charter_core_freshness(&charter_v2, bytes_v2.as_bytes()).is_ok());
-        assert_ne!(charter_v1.constitution_sha256, charter_v2.constitution_sha256);
+        assert_ne!(
+            charter_v1.constitution_sha256,
+            charter_v2.constitution_sha256
+        );
     }
 }

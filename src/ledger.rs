@@ -459,7 +459,11 @@ impl TapeNode {
             hasher.update(tc.to_le_bytes());
         }
         // payload is canonical-serialized JSON
-        hasher.update(serde_json::to_string(payload).unwrap_or_default().as_bytes());
+        hasher.update(
+            serde_json::to_string(payload)
+                .unwrap_or_default()
+                .as_bytes(),
+        );
         hasher.update(created_at_unix_ms.to_le_bytes());
         format!("{:x}", hasher.finalize())
     }
@@ -699,7 +703,11 @@ impl ImmutableTapeLedger for MemoryTapeLedger {
             .values()
             .filter(|n| kind.as_ref().map(|k| &n.kind == k).unwrap_or(true))
             .filter(|n| verified.map(|v| n.verified == v).unwrap_or(true))
-            .filter(|n| parent.map(|p| n.parent.as_deref() == Some(p)).unwrap_or(true))
+            .filter(|n| {
+                parent
+                    .map(|p| n.parent.as_deref() == Some(p))
+                    .unwrap_or(true)
+            })
             .filter(|n| scope.map(|s| n.scope.as_ref() == Some(s)).unwrap_or(true))
             .count()
     }
@@ -1009,8 +1017,9 @@ mod tests {
         let scope = mk_scope("run-B", "task-1", "H0");
 
         // Commit 3 RetryBeliefState nodes, last one with gain=0.5/streak=2
-        for (i, (gain, streak)) in
-            [(0.9_f64, 0_u32), (0.3, 1), (0.5, 2)].into_iter().enumerate()
+        for (i, (gain, streak)) in [(0.9_f64, 0_u32), (0.3, 1), (0.5, 2)]
+            .into_iter()
+            .enumerate()
         {
             tape.commit(CommitRequest {
                 kind: NodeKind::RetryBeliefState,
@@ -1072,12 +1081,7 @@ mod tests {
         assert!(!tape.indexes.ledger_tail.is_empty());
 
         // No StateAccepted under H0
-        let accepted = tape.count_nodes(
-            Some(NodeKind::StateAccepted),
-            None,
-            Some(&h0),
-            None,
-        );
+        let accepted = tape.count_nodes(Some(NodeKind::StateAccepted), None, Some(&h0), None);
         assert_eq!(accepted, 0);
 
         // 10 AgentProposal verified=false under scope

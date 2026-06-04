@@ -277,8 +277,8 @@ fn contains_word(hay: &str, needle: &str) -> bool {
         let at = start + rel;
         let before_ok = at == 0 || !hay[..at].chars().next_back().map(is_ident).unwrap_or(false);
         let after = at + needle.len();
-        let after_ok = after >= hay.len()
-            || !hay[after..].chars().next().map(is_ident).unwrap_or(false);
+        let after_ok =
+            after >= hay.len() || !hay[after..].chars().next().map(is_ident).unwrap_or(false);
         if before_ok && after_ok {
             return true;
         }
@@ -325,7 +325,10 @@ mod tests {
     fn bypass_tokens_detected_in_code() {
         assert_eq!(first_bypass_token("exact sorry"), Some("sorry"));
         assert_eq!(first_bypass_token("by admit"), Some("admit"));
-        assert_eq!(first_bypass_token("by native_decide"), Some("native_decide"));
+        assert_eq!(
+            first_bypass_token("by native_decide"),
+            Some("native_decide")
+        );
     }
 
     #[test]
@@ -375,7 +378,9 @@ mod tests {
 
     #[test]
     fn real_lean_verifies_valid_core_proof() {
-        let Some(bin) = toolchain_or_skip() else { return };
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
         let mut j = LeanJudge::new("theorem t (n : Nat) : n + 0 = n := by");
         j.lean_bin = bin;
         let o = j.verify("simp");
@@ -384,7 +389,9 @@ mod tests {
 
     #[test]
     fn real_lean_rejects_wrong_core_proof() {
-        let Some(bin) = toolchain_or_skip() else { return };
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
         let mut j = LeanJudge::new("theorem t : (2 : Nat) + 2 = 5 := by");
         j.lean_bin = bin;
         let o = j.verify("rfl");

@@ -246,4 +246,3 @@ fn economic_judgment_summary_is_derived_from_cas_objects_not_stdout() {
         1
     );
 }
-

@@ -54,8 +54,8 @@ fn corrupt_cas_returns_open_error() {
     let cas_path_pb = cas_path(ws);
     std::fs::write(&cas_path_pb, b"not a directory").expect("plant file");
 
-    let err = derive_build_session_view(ws, "sess_corrupt")
-        .expect_err("file-at-cas-path must error");
+    let err =
+        derive_build_session_view(ws, "sess_corrupt").expect_err("file-at-cas-path must error");
 
     match err {
         BuildSessionViewError::Open(_) => {} // expected
@@ -86,8 +86,7 @@ fn bad_capsule_returns_decode_error() {
         )
         .expect("put bogus capsule");
 
-    let err = derive_build_session_view(ws, session_id)
-        .expect_err("bad capsule must error");
+    let err = derive_build_session_view(ws, session_id).expect_err("bad capsule must error");
 
     match err {
         BuildSessionViewError::Decode(_) => {} // expected
