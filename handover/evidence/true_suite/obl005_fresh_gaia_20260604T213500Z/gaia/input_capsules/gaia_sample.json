@@ -1,0 +1,17 @@
+{
+  "allowed_tools": [
+    "web_browsing",
+    "file_inspection",
+    "python_scratchpad"
+  ],
+  "canary_string": null,
+  "expected_answer": "egalitarian",
+  "file_name": null,
+  "level": "2",
+  "public_source": "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+  "sample_id": "c61d22de-5f6c-4958-a7f6-5e9707bd3466",
+  "schema_version": "turingosv4.true_suite.gaia_sample.v1",
+  "source_family": "GAIA",
+  "source_file": "2023/validation/metadata.parquet",
+  "task": "A paper about AI regulation that was originally submitted to arXiv.org in June 2022 shows a figure with three axes, where each axis has a label word at both ends. Which of these words is used to describe a type of society in a Physics and Society article submitted to arXiv.org on August 11, 2016?"
+}

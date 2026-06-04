@@ -11,12 +11,13 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #265 merged the
-fresh Mind2Web current-source evidence after PR #264 merged the TDMA source
-receipt.
+**Session**: OBL-005 reopened re-audit on current main; fresh GAIA
+current-source evidence is added after PR #266 updated the post-Mind2Web
+handover state.
 
-**Main tip**: `2e5515ea` (PR #265 — fresh Mind2Web source evidence).
-Current working tree is on `main` after #265 merged.
+**Base main at branch start**: `90cec268` (PR #266 — post-Mind2Web handover).
+Current working branch is `codex/obl005-fresh-gaia-source-evidence`, not yet
+merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,7 +28,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #265 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #266 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -35,8 +36,8 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 3 rows to older source receipts and 18
-  rows to fresh current-source receipts from
+- Current reconciliation fixture binds all 21 rows to fresh current-source
+  receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
   `obl005_fresh_market_20260604T153500Z` market evidence and
@@ -51,8 +52,9 @@ Current state:
   `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
   `obl005_fresh_tdma_20260604T203708Z` TDMA evidence, plus
   `obl005_fresh_mind2web_20260604T210300Z` Mind2Web evidence:
-  `source_receipt_final_closure_false=1`,
-  `source_tree_fingerprint_missing=1`,
+  `obl005_fresh_gaia_20260604T213500Z` GAIA evidence:
+  `source_receipt_final_closure_false=0`,
+  `source_tree_fingerprint_missing=0`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -234,6 +236,26 @@ Current state:
   from 2 to 1 while deliberately keeping
   `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
   and `fresh_final_closure_witness_missing`. This does not claim final closure.
+- Fresh GAIA source evidence added on the current branch:
+  `gaia_general_assistant` now points at
+  `handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/`.
+  The receipt is `final_closure_possible=true` with source commit
+  `90cec268a908f39a93eceb888af453e07f328b24`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, admitted WorkTx, packaged CAS/runtime stores, green
+  replay/restore indicators, and FC1/FC2/FC3 full-system rows. The model
+  result remains `incorrect_with_rationale`, and the GAIA domain manifest
+  remains `closure_scope=domain_adapter_smoke_only` with
+  `final_closure_possible=false`, so the reconciliation manifest reduces
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 1 to 0 while deliberately keeping
+  `domain_receipt_final_closure_false`, `benchmark_capability_not_solved`, and
+  `fresh_final_closure_witness_missing`. Verification passed: real runner,
+  focused GAIA/reconciliation/production-liveness/final-closure/matrix tests,
+  local secret scan, `git diff --check`, constitution gates
+  (`[k-1-5] total=165 failed=0`), and `cargo test --workspace
+  --no-fail-fast`. Clean-context Codex witness
+  `handover/audits/OBL005_FRESH_GAIA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`. This does not claim final closure.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.

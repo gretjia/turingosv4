@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingosv4.true_suite.gaia_general_assistant_run.v1",
+  "run_id": "obl005_fresh_gaia_20260604T213500Z",
+  "git_head": "90cec268a908f39a93eceb888af453e07f328b24",
+  "entrypoint": "scripts/run_true_suite_gaia_general_assistant_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "gaia_dataset_url": "https://huggingface.co/datasets/gaia-benchmark/GAIA/resolve/main/2023/validation/metadata.parquet",
+  "gaia_source_file": "2023/validation/metadata.parquet",
+  "gaia_sample_index": 0,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/genesis_report.json",
+  "gaia_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/gaia_general_assistant_manifest.json",
+  "fc_trace_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/fc_trace_report.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/gaia/full_system_participation.json",
+  "notes": [
+    "GAIA data comes from the official gaia-benchmark/GAIA validation metadata unless GAIA_SAMPLE_JSON is explicitly supplied",
+    "GAIA_HF_TOKEN may be required by Hugging Face access controls after accepting the dataset terms",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "benchmark accuracy is not treated as liveness closure"
+  ]
+}

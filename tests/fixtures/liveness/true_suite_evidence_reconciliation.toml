@@ -104,11 +104,9 @@ blockers = [
 
 [[broad_family]]
 id = "gaia_general_assistant"
-evidence_run = "broad_agi_gaia_20260527T042703Z"
+evidence_run = "obl005_fresh_gaia_20260604T213500Z"
 evidence_subdir = "gaia"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
