@@ -941,6 +941,7 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
 
     let mut non_closing_receipts = Vec::new();
     let mut closure_receipts_without_source_tree = Vec::new();
+    let mut blocker_bearing_bindings = Vec::new();
     for (binding_key, contract_path, contract_key) in [
         ("coverage_task", REALWORLD_MANIFEST, "task"),
         ("broad_family", BROAD_MANIFEST, "family"),
@@ -955,6 +956,12 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
                 .pointer("/verdict/final_closure_possible")
                 .and_then(Value::as_bool)
                 == Some(true);
+            if !binding.blockers.is_empty() {
+                blocker_bearing_bindings.push(format!(
+                    "{binding_key}:{}:{:?}",
+                    binding.id, binding.blockers
+                ));
+            }
             if !closure_possible {
                 non_closing_receipts.push(format!(
                     "{binding_key}:{}:{}",
@@ -980,10 +987,14 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
             closure_receipts_without_source_tree.is_empty(),
             "final_closure_claimed=true cannot cite receipts without source-tree fingerprints: {closure_receipts_without_source_tree:?}"
         );
+        assert!(
+            blocker_bearing_bindings.is_empty(),
+            "final_closure_claimed=true cannot cite bindings with unresolved blockers: {blocker_bearing_bindings:?}"
+        );
     } else {
         assert!(
-            !non_closing_receipts.is_empty(),
-            "REAUDIT manifests must keep final_closure_claimed=false until closure-capable receipts replace the non-closing bindings"
+            !non_closing_receipts.is_empty() || !blocker_bearing_bindings.is_empty(),
+            "REAUDIT manifests must keep final_closure_claimed=false until source receipts are closure-capable and blocker inventories are empty"
         );
     }
 }
@@ -1000,7 +1011,7 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
             .and_then(toml::Value::as_bool)
             == Some(false);
 
-    let mut source_non_closing_bound_receipts = 0usize;
+    let mut source_closing_bound_receipts = 0usize;
     let mut blocker_bearing_bindings = 0usize;
     for (binding_key, contract_path, contract_key) in [
         ("coverage_task", REALWORLD_MANIFEST, "task"),
@@ -1017,13 +1028,13 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
                 .and_then(Value::as_bool)
                 == Some(true);
             if !final_closure_possible {
-                source_non_closing_bound_receipts += 1;
                 assert!(
                     !binding.blockers.is_empty(),
                     "{binding_key}:{} is source-non-closing but has no blocker inventory",
                     binding.id
                 );
             } else {
+                source_closing_bound_receipts += 1;
                 assert!(
                     !binding
                         .blockers
@@ -1048,8 +1059,8 @@ fn non_closing_bound_receipts_have_receipt_derived_blockers() {
     }
 
     assert!(
-        source_non_closing_bound_receipts > 0,
-        "this reaudit gate must be able to observe at least one source-non-closing receipt"
+        source_closing_bound_receipts > 0,
+        "this reaudit gate must inspect at least one source-closing receipt"
     );
     assert!(
         blocker_bearing_bindings > 0,
