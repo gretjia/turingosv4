@@ -40,11 +40,9 @@ blockers = [
 
 [[coverage_task]]
 id = "swebench_live_coding_repair_fresh"
-evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_run = "obl005_fresh_swebench_20260604T192100Z"
 evidence_subdir = "swebench"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
@@ -138,11 +136,9 @@ blockers = [
 
 [[broad_family]]
 id = "swebench_live_coding_repair"
-evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_run = "obl005_fresh_swebench_20260604T192100Z"
 evidence_subdir = "swebench"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
