@@ -354,8 +354,8 @@ fn cybench_runner_calls_proxy_records_safe_sandbox_trace_and_replays_worktx() {
             .get("verdict")
             .and_then(|v| v.get("final_closure_possible"))
             .and_then(Value::as_bool),
-        Some(false),
-        "Cybench can light full-system participation for this sample while OBL-005 remains open at suite level"
+        Some(true),
+        "Cybench source receipt can be closure-eligible when source identity and replay are green; OBL-005 remains open via suite/domain blockers"
     );
 }
 
