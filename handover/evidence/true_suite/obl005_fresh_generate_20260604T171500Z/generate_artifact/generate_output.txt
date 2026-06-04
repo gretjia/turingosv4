@@ -1,0 +1,7 @@
+artifact_bundle_cid=34460d7d4a069e8d167cc53ef4492a452ce06c45c7f18363f836950ffe463ed3
+
+Generated 1 file(s) under /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/artifacts/
+  index.html
+
+Open the entry file in your browser or run the entry script:
+  xdg-open /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/artifacts/index.html

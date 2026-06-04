@@ -11,13 +11,12 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main after source-receipt
-identity and closure-eligibility hardening.
+**Session**: OBL-005 reopened re-audit on current main; fresh
+generate/artifact current-source evidence and clean-context witness are being
+prepared after the remote font prompt guard fix.
 
-**Main tip**: `33d88be8` (PR #253 — fresh FC3 source evidence).
-Local
-branch snapshots older than this should be treated as stale until rebased onto
-`origin/main`.
+**Main tip**: `51e9cd31` (PR #254 — fresh market source evidence). Current
+working branch is `codex/obl005-generate-no-remote-fonts`, not yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -28,20 +27,22 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #250 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #254 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
-  source-receipt final-closure eligibility.
+  source-receipt final-closure eligibility, plus fresh boot/replay, FC3, and
+  market source evidence.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 15 rows to older source receipts and 6
+- Current reconciliation fixture binds 14 rows to older source receipts and 7
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
-  `obl005_fresh_market_20260604T153500Z` market evidence:
-  `source_receipt_final_closure_false=15`,
-  `source_tree_fingerprint_missing=15`,
+  `obl005_fresh_market_20260604T153500Z` market evidence and
+  `obl005_fresh_generate_20260604T171500Z` generate/artifact evidence:
+  `source_receipt_final_closure_false=14`,
+  `source_tree_fingerprint_missing=14`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -73,16 +74,28 @@ Current state:
   blockers. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
+- Fresh generate/artifact evidence prepared on the current branch:
+  `generate_artifact_chain_fresh` now points at
+  `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
+  The production generate prompt now forbids remote fonts/CDNs/external runtime
+  URLs; the fresh run records `final_closure_possible=true`, source commit
+  `7dd5b3d80b0313520b01c9c0fc56bd7117ff8b63`, no remote dependency matches in
+  the generated artifact, admitted WorkTx + MarketSeed, packaged evidence
+  stores, and restore replay indicators green. The row still keeps
+  `domain_receipt_final_closure_missing` and
+  `fresh_final_closure_witness_missing`; no final closure is claimed.
+  Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_GENERATE_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: a local untracked `cache/` directory may make
-  evidence-runner preflight fail in this checkout. Use a clean worktree for new
-  `handover/evidence/true_suite/*` runner evidence, or explicitly account for
-  the cache without staging it.
+- Current worktree note: successful generate evidence
+  `obl005_fresh_generate_20260604T171500Z` is intended for this PR. Do not
+  treat any local failed generate attempt as GREEN evidence.
 
 Recent verification:
 
@@ -93,10 +106,16 @@ bash scripts/run_constitution_gates.sh
 cargo test --workspace --no-fail-fast
 # exit 0
 
-cargo test --test constitution_true_suite_evidence_reconciliation \
-  --test constitution_true_suite_market_external_agent_runner \
+cargo test --test constitution_true_suite_generate_artifact_runner \
+  --test constitution_true_suite_evidence_reconciliation \
   --test constitution_obl005_final_closure_witness \
   --test constitution_matrix_drift -- --nocapture
+# exit 0
+
+cargo test --bin turingos blackbox_system_prompt -- --nocapture
+# exit 0
+
+cargo test --bin turingos blackbox_system_prompt_forbids_remote_font_dependencies -- --nocapture
 # exit 0
 
 git diff --check
@@ -111,7 +130,7 @@ PR #250 checks
 
 Next steps:
 
-- Continue generating fresh current-source true-suite evidence for the 17
+- Continue generating fresh current-source true-suite evidence for the 14
   remaining source-blocked rows, without mutating historical evidence.
 - Attack remaining domain/benchmark blockers honestly: a row may close only
   when its domain manifest, benchmark result, market NO/short side, replay/CAS

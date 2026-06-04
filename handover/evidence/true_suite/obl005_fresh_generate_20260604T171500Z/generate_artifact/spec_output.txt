@@ -1,0 +1,9 @@
+
+Spec interview complete.
+  spec.md            -> /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/spec.md
+  spec_transcript    -> /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact/spec_transcript.jsonl
+  CAS capsule CID    -> 89db71334a6abbe3c7d060b8708dc9a100ec6f7013df67f5e2980e5eb9785258
+                       (schema: turingos-spec-capsule-v1)
+  LLM total tokens   -> 3994
+
+Next step: turingos generate --workspace /home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/generate_artifact

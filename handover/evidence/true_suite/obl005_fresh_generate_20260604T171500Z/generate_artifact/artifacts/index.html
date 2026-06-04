@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launch Plan Decision Matrix</title>
+<style>
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6bb09c;
+    --bg: #f8f6f1;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #d6d2cb;
+    --card-bg: #ffffff;
+    --highlight: #e8f5e9;
+    --danger: #c0392b;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --text: #f0eee8;
+      --muted: #a8a49c;
+      --border: #3a3a3a;
+      --card-bg: #2a2a2a;
+      --highlight: #1e3a2f;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 1.5rem;
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h1 { font-size: 2.2rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.5rem; margin-bottom: 0.75rem; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .subtitle { color: var(--muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
+
+  /* Matrix table */
+  .matrix-wrapper { overflow-x: auto; margin-bottom: 2rem; }
+  table.matrix {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  table.matrix th, table.matrix td {
+    padding: 0.6rem 0.75rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.matrix thead th {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.matrix thead th:first-child {
+    background: transparent;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 500;
+  }
+  table.matrix tbody tr:last-child td { border-bottom: none; }
+  table.matrix tbody tr:hover { background: rgba(78,139,122,0.04); }
+
+  /* Editable cells */
+  .editable-name {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    text-align: center;
+    width: 100%;
+    min-width: 80px;
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+    cursor: text;
+  }
+  .editable-name:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    background: rgba(78,139,122,0.06);
+  }
+  .editable-score {
+    background: transparent;
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 1rem;
+    color: var(--text);
+    text-align: center;
+    width: 3.5rem;
+    padding: 0.3rem 0.2rem;
+    border-radius: 4px;
+    transition: border-color 0.15s;
+  }
+  .editable-score:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+  .editable-score.invalid {
+    border-color: var(--danger);
+  }
+  .weight-input {
+    background: transparent;
+    border: 1px solid var(--border);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+    text-align: center;
+    width: 3rem;
+    padding: 0.2rem;
+    border-radius: 4px;
+  }
+  .weight-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+
+  /* Totals row */
+  .total-row td {
+    font-weight: 700;
+    font-size: 1.05rem;
+    border-top: 2px solid var(--accent);
+  }
+  .total-row td:first-child {
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+  }
+  .winner {
+    background: var(--highlight) !important;
+    color: var(--accent);
+  }
+  .winner .editable-name { font-weight: 700; }
+  .winner-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.4rem;
+  }
+  .tie-badge {
+    display: inline-block;
+    background: var(--muted);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.4rem;
+  }
+
+  /* Criteria controls */
+  .criteria-section { margin-bottom: 1.5rem; }
+  .criteria-list { list-style: none; margin-bottom: 0.75rem; }
+  .criteria-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 0.4rem;
+  }
+  .criteria-list li .criterion-name {
+    flex: 1;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text);
+    padding: 0.2rem;
+    border-radius: 4px;
+  }
+  .criteria-list li .criterion-name:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .criteria-list li label {
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .criteria-list li .remove-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.2rem;
+    line-height: 1;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+  }
+  .criteria-list li .remove-btn:hover { opacity: 1; }
+  .add-criterion {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .add-criterion input {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 0.95rem;
+    color: var(--text);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius);
+  }
+  .add-criterion input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+  .add-criterion input[type="number"] { width: 4rem; }
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn:hover { background: var(--accent-light); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+  .btn-outline:hover { background: rgba(78,139,122,0.08); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover { background: rgba(192,57,43,0.08); }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.6rem; }
+    table.matrix th, table.matrix td { padding: 0.4rem 0.4rem; font-size: 0.85rem; }
+    .editable-score { width: 2.8rem; font-size: 0.9rem; }
+    .editable-name { min-width: 60px; font-size: 0.85rem; }
+    .add-criterion { flex-direction: column; align-items: stretch; }
+    .add-criterion input { width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Launch Plan Decision Matrix</h1>
+  <p class="subtitle">Compare three plans side-by-side. Add criteria, assign weights, score 1–5. The best plan is highlighted automatically.</p>
+
+  <div class="matrix-wrapper">
+    <table class="matrix" id="matrix">
+      <thead>
+        <tr>
+          <th style="min-width:120px;">Criteria</th>
+          <th id="plan0-header"><input class="editable-name" type="text" value="Plan 1" data-plan="0" aria-label="Plan 1 name"></th>
+          <th id="plan1-header"><input class="editable-name" type="text" value="Plan 2" data-plan="1" aria-label="Plan 2 name"></th>
+          <th id="plan2-header"><input class="editable-name" type="text" value="Plan 3" data-plan="2" aria-label="Plan 3 name"></th>
+        </tr>
+      </thead>
+      <tbody id="matrix-body">
+        <!-- Rows inserted by JS -->
+      </tbody>
+      <tfoot>
+        <tr class="total-row" id="total-row">
+          <td>Total</td>
+          <td id="total0">0</td>
+          <td id="total1">0</td>
+          <td id="total2">0</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="criteria-section">
+    <h2>Criteria &amp; Weights</h2>
+    <ul class="criteria-list" id="criteria-list">
+      <!-- Inserted by JS -->
+    </ul>
+    <div class="add-criterion">
+      <input type="text" id="new-criterion-name" placeholder="Criterion name" aria-label="New criterion name">
+      <label for="new-criterion-weight" style="font-size:0.85rem;color:var(--muted);">Weight:</label>
+      <input type="number" id="new-criterion-weight" value="1" min="1" max="10" step="1" aria-label="Weight">
+      <button class="btn" id="add-criterion-btn">Add Criterion</button>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem; font-size:0.85rem; color:var(--muted);">
+    <p>Score each plan per criterion from <strong>1</strong> (worst) to <strong>5</strong> (best). Leave blank for 0. Invalid input is ignored.</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    planNames: ['Plan 1', 'Plan 2', 'Plan 3'],
+    criteria: [
+      { name: 'Risk', weight: 3 },
+      { name: 'Cost', weight: 2 },
+      { name: 'Speed', weight: 2 },
+    ],
+    // scores[planIndex][criterionIndex] = number (0-5) or null (blank)
+    scores: [
+      [null, null, null],
+      [null, null, null],
+      [null, null, null],
+    ]
+  };
+
+  // ---------- DOM refs ----------
+  const tbody = document.getElementById('matrix-body');
+  const criteriaListEl = document.getElementById('criteria-list');
+  const totalEls = [
+    document.getElementById('total0'),
+    document.getElementById('total1'),
+    document.getElementById('total2'),
+  ];
+  const planNameInputs = [
+    document.querySelector('[data-plan="0"]'),
+    document.querySelector('[data-plan="1"]'),
+    document.querySelector('[data-plan="2"]'),
+  ];
+
+  // ---------- Helpers ----------
+  function clampScore(val) {
+    if (val === null || val === undefined || val === '') return null;
+    const n = Number(val);
+    if (isNaN(n)) return undefined; // signal invalid
+    return Math.max(0, Math.min(5, Math.round(n)));
+  }
+
+  function clampWeight(val) {
+    const n = Number(val);
+    if (isNaN(n) || n < 1) return 1;
+    return Math.min(10, Math.round(n));
+  }
+
+  // ---------- Render ----------
+  function render() {
+    // Build criteria list (left panel)
+    let criteriaHtml = '';
+    state.criteria.forEach((c, idx) => {
+      criteriaHtml += `<li>
+        <input class="criterion-name" type="text" value="${escapeHtml(c.name)}" data-criterion-index="${idx}" aria-label="Criterion name">
+        <label>Weight:</label>
+        <input class="weight-input" type="number" value="${c.weight}" min="1" max="10" data-weight-index="${idx}" aria-label="Weight for ${c.name}">
+        <button class="remove-btn" data-remove-index="${idx}" aria-label="Remove criterion">&times;</button>
+      </li>`;
+    });
+    criteriaListEl.innerHTML = criteriaHtml;
+
+    // Build matrix body
+    let bodyHtml = '';
+    state.criteria.forEach((c, critIdx) => {
+      bodyHtml += '<tr>';
+      bodyHtml += `<td style="text-align:left;font-weight:500;">${escapeHtml(c.name)} <span style="color:var(--muted);font-size:0.8rem;">(w: ${c.weight})</span></td>`;
+      for (let p = 0; p < 3; p++) {
+        const val = state.scores[p][critIdx];
+        const displayVal = (val === null || val === undefined) ? '' : val;
+        bodyHtml += `<td><input class="editable-score" type="text" inputmode="numeric" value="${displayVal}" data-plan="${p}" data-criterion="${critIdx}" aria-label="Score for ${state.planNames[p]} on ${c.name}"></td>`;
+      }
+      bodyHtml += '</tr>';
+    });
+    tbody.innerHTML = bodyHtml;
+
+    // Update totals
+    updateTotals();
+
+    // Update plan name inputs
+    planNameInputs.forEach((inp, idx) => {
+      if (inp) inp.value = state.planNames[idx];
+    });
+
+    // Attach event listeners (delegation handles most)
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function updateTotals() {
+    const totals = [0, 0, 0];
+    for (let p = 0; p < 3; p++) {
+      let sum = 0;
+      for (let c = 0; c < state.criteria.length; c++) {
+        const score = state.scores[p][c];
+        if (score !== null && score !== undefined) {
+          sum += score * state.criteria[c].weight;
+        }
+      }
+      totals[p] = sum;
+    }
+
+    // Find max
+    const maxVal = Math.max(...totals);
+    const winners = totals.map((v, i) => v === maxVal ? i : -1).filter(i => i >= 0);
+
+    // Update total cells and winner highlighting
+    for (let p = 0; p < 3; p++) {
+      totalEls[p].textContent = totals[p];
+      // Remove winner/tie classes from header and total row
+      const headerCell = document.getElementById(`plan${p}-header`);
+      headerCell.classList.remove('winner');
+      // Remove old badges
+      const oldBadge = headerCell.querySelector('.winner-badge, .tie-badge');
+      if (oldBadge) oldBadge.remove();
+
+      // Also remove winner from total cell
+      totalEls[p].parentElement.classList.remove('winner');
+    }
+
+    // Apply winner highlighting
+    if (winners.length > 0 && state.criteria.length > 0) {
+      const badgeText = winners.length === 1 ? '★ Best' : 'Tie';
+      const badgeClass = winners.length === 1 ? 'winner-badge' : 'tie-badge';
+      for (const p of winners) {
+        const headerCell = document.getElementById(`plan${p}-header`);
+        headerCell.classList.add('winner');
+        const badge = document.createElement('span');
+        badge.className = badgeClass;
+        badge.textContent = badgeText;
+        headerCell.appendChild(badge);
+        totalEls[p].parentElement.classList.add('winner');
+      }
+    }
+  }
+
+  // ---------- Event handling (delegated) ----------
+  // Score inputs
+  tbody.addEventListener('input', function(e) {
+    const target = e.target;
+    if (target.classList.contains('editable-score')) {
+      const plan = parseInt(target.dataset.plan, 10);
+      const criterion = parseInt(target.dataset.criterion, 10);
+      const raw = target.value.trim();
+      const clamped = clampScore(raw);
+      if (clamped === undefined) {
+        // Invalid input: revert to previous valid value
+        const prev = state.scores[plan][criterion];
+        target.value = (prev === null || prev === undefined) ? '' : prev;
+        target.classList.add('invalid');
+        setTimeout(() => target.classList.remove('invalid'), 300);
+        return;
+      }
+      target.classList.remove('invalid');
+      state.scores[plan][criterion] = clamped;
+      updateTotals();
+    }
+  });
+
+  // Criterion name edits
+  criteriaListEl.addEventListener('input', function(e) {
+    const target = e.target;
+    if (target.classList.contains('criterion-name')) {
+      const idx = parseInt(target.dataset.criterionIndex, 10);
+      state.criteria[idx].name = target.value;
+      render(); // re-render to sync matrix labels
+    }
+    if (target.classList.contains('weight-input')) {
+      const idx = parseInt(target.dataset.weightIndex, 10);
+      const w = clampWeight(target.value);
+      state.criteria[idx].weight = w;
+      target.value = w;
+      updateTotals();
+    }
+  });
+
+  // Remove criterion
+  criteriaListEl.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-btn')) {
+      const idx = parseInt(e.target.dataset.removeIndex, 10);
+      if (state.criteria.length <= 1) return; // keep at least one
+      state.criteria.splice(idx, 1);
+      // Remove scores for that criterion
+      for (let p = 0; p < 3; p++) {
+        state.scores[p].splice(idx, 1);
+      }
+      render();
+    }
+  });
+
+  // Add criterion
+  document.getElementById('add-criterion-btn').addEventListener('click', function() {
+    const nameInput = document.getElementById('new-criterion-name');
+    const weightInput = document.getElementById('new-criterion-weight');
+    const name = nameInput.value.trim();
+    if (!name) {
+      nameInput.focus();
+      return;
+    }
+    const weight = clampWeight(weightInput.value);
+    state.criteria.push({ name, weight });
+    // Extend scores array
+    for (let p = 0; p < 3; p++) {
+      state.scores[p].push(null);
+    }
+    nameInput.value = '';
+    weightInput.value = '1';
+    render();
+    nameInput.focus();
+  });
+
+  // Plan name edits
+  document.querySelectorAll('.editable-name[data-plan]').forEach(inp => {
+    inp.addEventListener('input', function() {
+      const idx = parseInt(this.dataset.plan, 10);
+      state.planNames[idx] = this.value;
+      // No re-render needed; just update header
+    });
+  });
+
+  // Allow Enter to add criterion
+  document.getElementById('new-criterion-name').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('add-criterion-btn').click();
+    }
+  });
+  document.getElementById('new-criterion-weight').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('add-criterion-btn').click();
+    }
+  });
+
+  // ---------- Init ----------
+  render();
+})();
+</script>
+</body>
+</html>
