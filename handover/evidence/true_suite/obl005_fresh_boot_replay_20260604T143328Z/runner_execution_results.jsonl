@@ -1,0 +1,2 @@
+{"ended_at": "2026-06-04T14:37:15Z", "exit_code": 0, "runner_id": "boot_cli_current_kernel_fresh", "started_at": "2026-06-04T14:33:29Z", "status": "passed"}
+{"ended_at": "2026-06-04T14:37:20Z", "exit_code": 0, "runner_id": "replay_cas_tamper_repair_current", "started_at": "2026-06-04T14:37:15Z", "status": "passed"}

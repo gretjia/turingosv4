@@ -35,14 +35,22 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture still binds 21 historical evidence rows with
-  old receipts: `source_receipt_final_closure_false=21`,
-  `source_tree_fingerprint_missing=21`,
+- Current reconciliation fixture binds 19 rows to older source receipts and 2
+  rows to fresh current-source receipts from
+  `obl005_fresh_boot_replay_20260604T143328Z`: `source_receipt_final_closure_false=19`,
+  `source_tree_fingerprint_missing=19`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
   `domain_receipt_final_closure_missing=5`, and
   `market_no_or_short_side_missing=3`.
+- Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
+  and `replay_cas_tamper_repair_current` now point at
+  `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
+  Both receipts are `final_closure_possible=true` with source commit
+  `024dfd2d75817f7c0e52004fd3fca8122e9981d9`; replay/CAS still keeps its
+  domain-closure-missing blocker and all rows still require a fresh final
+  closure witness.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
@@ -76,9 +84,8 @@ PR #250 checks
 
 Next steps:
 
-- Generate fresh current-source true-suite evidence in a clean worktree so
-  source-tree and source-receipt blockers can be removed from new receipts
-  without mutating historical evidence.
+- Continue generating fresh current-source true-suite evidence for the 19
+  remaining source-blocked rows, without mutating historical evidence.
 - Attack remaining domain/benchmark blockers honestly: a row may close only
   when its domain manifest, benchmark result, market NO/short side, replay/CAS
   evidence, and fresh witness all agree.
