@@ -11,13 +11,13 @@
 
 ## Current Snapshot (2026-06-04)
 
-**Session**: OBL-005 reopened re-audit on current main; fresh SWE-bench
-current-source evidence is being prepared after PR #260 merged the Math source
-receipt.
+**Session**: OBL-005 reopened re-audit on current main; fresh ToolBench
+current-source evidence is being prepared after PR #261 merged the SWE-bench
+source receipt.
 
-**Main tip**: `9ed91421` (PR #260 — fresh Math source evidence).
-Current working branch is `codex/obl005-fresh-swebench-source-evidence`, not yet
-merged.
+**Main tip**: `15c34775` (PR #261 — fresh SWE-bench source evidence).
+Current working branch is `codex/obl005-fresh-toolbench-source-evidence`, not
+yet merged.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -36,7 +36,7 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 6 rows to older source receipts and 15
+- Current reconciliation fixture binds 5 rows to older source receipts and 16
   rows to fresh current-source receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
@@ -47,9 +47,10 @@ Current state:
   `obl005_fresh_market_ab_20260604T175932Z` market A/B evidence, plus
   `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
   `obl005_fresh_math_20260604T191000Z` Math evidence, plus
-  `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence:
-  `source_receipt_final_closure_false=5`,
-  `source_tree_fingerprint_missing=5`,
+  `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
+  `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence:
+  `source_receipt_final_closure_false=4`,
+  `source_tree_fingerprint_missing=4`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -161,6 +162,25 @@ Current state:
   `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_SWEBENCH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
+- Fresh ToolBench source evidence prepared on the current branch:
+  `toolbench_api_tool_use` now points at
+  `handover/evidence/true_suite/obl005_fresh_toolbench_20260604T194611Z/`.
+  The source receipt is `final_closure_possible=true` with source commit
+  `15c3477586191199f8dbe693e47441595dc73a63`, `FULL_SYSTEM_LIT`,
+  `missing=[]`, green replay indicators, and 4 packaged evidence stores. The
+  model result is honestly recorded as `tool_selection_mismatch` with
+  `exact_match=false`, and the ToolBench domain manifest still omits
+  `final_closure_possible`, so the reconciliation manifest now points only the
+  `toolbench_api_tool_use` broad-family row at this fresh run, reducing
+  `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
+  from 5 to 4 while deliberately keeping
+  `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
+  and `fresh_final_closure_witness_missing`. This does not claim final closure.
+  Verification passed, including `bash scripts/run_constitution_gates.sh`
+  (`[k-1-5] total=165 failed=0`) and
+  `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_TOOLBENCH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION`.
 - Fresh generate/artifact evidence added on main by PR #255:
   `generate_artifact_chain_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_generate_20260604T171500Z/`.
@@ -209,17 +229,45 @@ Current state:
   single-solver settlement/claim sweeping is what prevents multiple same-task
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
-- Current worktree note: successful SWE-bench evidence
-  `obl005_fresh_swebench_20260604T192100Z` is intended for the next PR. Do not
-  treat local failed/intermediate evidence directories as GREEN evidence:
+- Current worktree note: successful ToolBench evidence
+  `obl005_fresh_toolbench_20260604T194611Z` is intended for the next PR. Do not
+  treat local failed/intermediate or superseded evidence directories as GREEN
+  evidence:
   `obl005_fresh_generate_20260604T160500Z`,
   `obl005_fresh_tdma_20260604T190500Z`,
   `obl005_fresh_market_ab_20260604T174500Z`, and
-  `obl005_fresh_market_ab_20260604T175726Z`.
+  `obl005_fresh_market_ab_20260604T175726Z`, plus the superseded local
+  ToolBench run `obl005_fresh_toolbench_20260604T194504Z`.
 
 Recent verification:
 
 ```text
+scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
+  --run-id obl005_fresh_toolbench_20260604T194611Z \
+  --runners toolbench_api_tool_use_fresh
+# exit 0
+
+cargo test -p turingosv4 \
+  --test constitution_true_suite_toolbench_runner -- --nocapture
+# exit 0
+
+git diff --check
+# exit 0
+
+Secret/raw-provider-payload scans over final ToolBench evidence and edited
+docs/fixture
+# no disallowed hits
+
+bash scripts/run_constitution_gates.sh
+# exit 0; [k-1-5] total=165 failed=0
+
+cargo test --workspace --no-fail-fast
+# exit 0
+
+Clean-context Claude witness:
+handover/audits/OBL005_FRESH_TOOLBENCH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md
+# verdict: NO-VIOLATION
+
 scripts/run_true_suite_broad_agi_batch.sh --execute-installed \
   --run-id obl005_fresh_swebench_20260604T192100Z \
   --runners swebench_live_coding_repair_fresh

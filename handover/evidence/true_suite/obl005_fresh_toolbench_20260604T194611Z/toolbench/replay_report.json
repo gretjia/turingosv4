@@ -1,0 +1,21 @@
+{
+  "l4_entries": 16,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "obl005_fresh_toolbench_20260604T194611Z",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "361f7c28fb309cb0390f69d15e5dd2d98e96faf7ac32b810072ed2e1cca2dec2",
+    "final_ledger_root_hex": "6176bbc85e7c00e0c5892e6990db044a56b90d6ba5719d1b10c89b725548c04b",
+    "head_commit_oid_hex": "f4cc4f394bf7df91b091e10a1b93b3726c45736b",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

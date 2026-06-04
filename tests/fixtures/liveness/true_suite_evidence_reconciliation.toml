@@ -180,11 +180,9 @@ blockers = [
 
 [[broad_family]]
 id = "toolbench_api_tool_use"
-evidence_run = "broad_agi_consolidated_continue_20260526T102330Z"
+evidence_run = "obl005_fresh_toolbench_20260604T194611Z"
 evidence_subdir = "toolbench"
 blockers = [
-  "source_receipt_final_closure_false",
-  "source_tree_fingerprint_missing",
   "domain_receipt_final_closure_missing",
   "benchmark_capability_not_solved",
   "fresh_final_closure_witness_missing",
