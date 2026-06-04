@@ -161,6 +161,32 @@ fn assert_artifact_reconstructable(binding: &EvidenceBinding, template: &str) {
     }
 }
 
+fn full_system_template(row: &ContractRow) -> &str {
+    row.final_evidence_artifacts
+        .iter()
+        .find(|path| path.ends_with("/full_system_participation.json"))
+        .map(String::as_str)
+        .unwrap_or_else(|| {
+            panic!(
+                "contract row `{}` has no full_system_participation.json",
+                row.id
+            )
+        })
+}
+
+fn full_system_report_path(binding: &EvidenceBinding, row: &ContractRow) -> PathBuf {
+    materialize(full_system_template(row), &binding.evidence_run)
+}
+
+fn read_full_system_report(binding: &EvidenceBinding, row: &ContractRow) -> Value {
+    let full_system_path = full_system_report_path(binding, row);
+    serde_json::from_str(
+        &fs::read_to_string(&full_system_path)
+            .unwrap_or_else(|err| panic!("read {}: {err}", full_system_path.display())),
+    )
+    .unwrap_or_else(|err| panic!("parse {}: {err}", full_system_path.display()))
+}
+
 fn nested_bool(report: &Value, keys: &[&str]) -> bool {
     let mut cur = report;
     for key in keys {
@@ -222,17 +248,7 @@ fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
         assert_artifact_reconstructable(binding, template);
     }
 
-    let full_system_template = row
-        .final_evidence_artifacts
-        .iter()
-        .find(|path| path.ends_with("/full_system_participation.json"))
-        .unwrap_or_else(|| {
-            panic!(
-                "contract row `{}` has no full_system_participation.json",
-                row.id
-            )
-        });
-    let full_system_path = materialize(full_system_template, &binding.evidence_run);
+    let full_system_path = full_system_report_path(binding, row);
     assert!(
         full_system_path.starts_with(&subdir),
         "binding `{}` full-system report must live under declared subdir `{}`: {}",
@@ -240,11 +256,7 @@ fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
         subdir.display(),
         full_system_path.display()
     );
-    let report: Value = serde_json::from_str(
-        &fs::read_to_string(&full_system_path)
-            .unwrap_or_else(|err| panic!("read {}: {err}", full_system_path.display())),
-    )
-    .unwrap_or_else(|err| panic!("parse {}: {err}", full_system_path.display()));
+    let report = read_full_system_report(binding, row);
 
     assert_eq!(
         report.get("schema_version").and_then(Value::as_str),
@@ -310,6 +322,52 @@ fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
         "binding `{}` lacks required full-system rows: {missing:?}",
         binding.id
     );
+}
+
+#[test]
+fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
+    let manifest = parse_toml(RECONCILIATION_MANIFEST);
+    let final_closure_claimed = manifest
+        .get("final_closure_claimed")
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(false);
+
+    let mut non_closing_receipts = Vec::new();
+    for (binding_key, contract_path, contract_key) in [
+        ("coverage_task", REALWORLD_MANIFEST, "task"),
+        ("broad_family", BROAD_MANIFEST, "family"),
+    ] {
+        let contracts = contract_rows(contract_path, contract_key);
+        for binding in reconciliation_rows(binding_key) {
+            let row = contracts
+                .get(&binding.id)
+                .unwrap_or_else(|| panic!("binding `{}` missing contract row", binding.id));
+            let report = read_full_system_report(&binding, row);
+            let closure_possible = report
+                .pointer("/verdict/final_closure_possible")
+                .and_then(Value::as_bool)
+                == Some(true);
+            if !closure_possible {
+                non_closing_receipts.push(format!(
+                    "{binding_key}:{}:{}",
+                    binding.id,
+                    full_system_report_path(&binding, row).display()
+                ));
+            }
+        }
+    }
+
+    if final_closure_claimed {
+        assert!(
+            non_closing_receipts.is_empty(),
+            "final_closure_claimed=true cannot cite non-closing receipts: {non_closing_receipts:?}"
+        );
+    } else {
+        assert!(
+            !non_closing_receipts.is_empty(),
+            "REAUDIT manifests must keep final_closure_claimed=false until closure-capable receipts replace the non-closing bindings"
+        );
+    }
 }
 
 fn assert_bindings_cover_contract(

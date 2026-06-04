@@ -91,7 +91,7 @@ evidence = ["ChainTape", "CAS", "replay", "restore_replay", "tamper_detection", 
 id = "market_ab_full_system_evidence_20260526T194445Z"
 path = "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z"
 families = ["market_ab", "market", "current_kernel", "full_system_participation", "fc3"]
-evidence = ["ChainTape", "CAS", "audit_tape", "REAL16_candidate_report", "packaged_restore", "full_system_participation"]
+evidence = ["ChainTape", "CAS", "audit_tape", "market_ab_full_system_receipts", "packaged_restore", "full_system_participation"]
 
 [[group]]
 id = "axiom_boot_trust_root"
