@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 69310,
+      "archive_path": "webarena/cas.dotgit.tar.gz",
+      "archive_sha256": "5b82ccdf2774e4a3d526513c2d934560c6365c642ad6aedef84b43b99ae3de19",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "webarena/cas",
+      "source_path": "webarena/cas/.git"
+    },
+    {
+      "archive_bytes": 3860,
+      "archive_path": "webarena/cas.worktree.tar.gz",
+      "archive_sha256": "22cac8168eb939ee13b40c82653b50c9b47fabba852584e12c9e39bf8083f7e8",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "webarena/cas",
+      "source_path": "webarena/cas"
+    },
+    {
+      "archive_bytes": 24800,
+      "archive_path": "webarena/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "9e3f4c3e7922dd17b54fdf227336797df3e8f8d8d5f61010a5d2865d04939db9",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "webarena/runtime_repo",
+      "source_path": "webarena/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1388,
+      "archive_path": "webarena/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "ab0d3d1efeed6aa235a4fcdc470a1e506a56e07191fde542a8a680d9f74861d2",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "webarena/runtime_repo",
+      "source_path": "webarena/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_webarena_20260604T200738Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

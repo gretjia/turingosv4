@@ -1,0 +1,19 @@
+{
+  "allowed_tools": [
+    "browser_sandbox"
+  ],
+  "intent": "What is the top-1 best-selling product in 2022",
+  "observation_html": "<html><body>\n<h1>Offline WebArena task snapshot</h1>\n<p>Task id: 0</p>\n<p>Sites: shopping_admin</p>\n<p>Start URL: __SHOPPING_ADMIN__</p>\n<p>Intent: What is the top-1 best-selling product in 2022</p>\n<p>No live website or account side effects were performed by this runner.</p>\n</body></html>",
+  "public_source": "https://github.com/web-arena-x/webarena/blob/main/config_files/test.raw.json",
+  "reference_answer": "Quest Lumaflex\u2122 Band",
+  "sample_id": "webarena:0",
+  "schema_version": "turingosv4.true_suite.webarena_sample.v1",
+  "sites": [
+    "shopping_admin"
+  ],
+  "source_config_sha256": "7b50386fd69163dbc05d615d834df4c6ed2c35596e97a1b10d17451c02537652",
+  "source_family": "WebArena",
+  "source_file": "config_files/test.raw.json",
+  "start_url": "__SHOPPING_ADMIN__",
+  "task_id": "0"
+}
