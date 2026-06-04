@@ -14,8 +14,8 @@
 **Session**: OBL-005 reopened re-audit on current main after source-receipt
 identity and closure-eligibility hardening.
 
-**Main tip**: `11417237` (PR #250 — source receipts become closure-eligible
-when `FULL_SYSTEM_LIT && replay_green && source_tree` is recorded). Local
+**Main tip**: `5a2c74c4` (PR #252 — fresh boot/replay source evidence).
+Local
 branch snapshots older than this should be treated as stale until rebased onto
 `origin/main`.
 
@@ -35,10 +35,11 @@ Current state:
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
-- Current reconciliation fixture binds 19 rows to older source receipts and 2
+- Current reconciliation fixture binds 17 rows to older source receipts and 4
   rows to fresh current-source receipts from
-  `obl005_fresh_boot_replay_20260604T143328Z`: `source_receipt_final_closure_false=19`,
-  `source_tree_fingerprint_missing=19`,
+  `obl005_fresh_boot_replay_20260604T143328Z` and
+  `obl005_fresh_fc3_20260604T150936Z`: `source_receipt_final_closure_false=17`,
+  `source_tree_fingerprint_missing=17`,
   `fresh_final_closure_witness_missing=21`,
   `domain_receipt_final_closure_false=13`,
   `benchmark_capability_not_solved=10`,
@@ -51,6 +52,14 @@ Current state:
   `024dfd2d75817f7c0e52004fd3fca8122e9981d9`; replay/CAS still keeps its
   domain-closure-missing blocker and all rows still require a fresh final
   closure witness.
+- Fresh FC3 evidence added this session: `fc3_governance_reinit_fresh` and
+  `memory_feedback_reinit` now point at
+  `handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/`.
+  The receipt is `final_closure_possible=true` with source commit
+  `5a2c74c46c9060256410c07a4e79ee2b0331212b`; both rows still require a
+  fresh final closure witness. Clean-context Claude witness
+  `handover/audits/OBL005_FRESH_FC3_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
+  returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
 - WorkTx/escrow boundary: `constitution.md` does not explicitly state a
   WorkTx-accept uniqueness rule for one rewardable WorkTx per task escrow.
   Current kernel admission allows multiple WorkTxs for the same task; TB-8
@@ -72,7 +81,12 @@ cargo test --workspace --no-fail-fast
 # exit 0
 
 cargo test --test constitution_true_suite_evidence_reconciliation \
-  --test constitution_obl005_final_closure_witness -- --nocapture
+  --test constitution_true_suite_fc3_governance_runner \
+  --test constitution_obl005_final_closure_witness \
+  --test constitution_matrix_drift -- --nocapture
+# exit 0
+
+git diff --check
 # exit 0
 
 PR #250 checks
@@ -84,7 +98,7 @@ PR #250 checks
 
 Next steps:
 
-- Continue generating fresh current-source true-suite evidence for the 19
+- Continue generating fresh current-source true-suite evidence for the 17
   remaining source-blocked rows, without mutating historical evidence.
 - Attack remaining domain/benchmark blockers honestly: a row may close only
   when its domain manifest, benchmark result, market NO/short side, replay/CAS

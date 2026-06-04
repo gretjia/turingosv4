@@ -1,0 +1,12 @@
+{
+  "schema_version": "turingosv4.true_suite.full_system_augment.v1",
+  "run_id": "obl005_fresh_fc3_20260604T150936Z",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/cas",
+  "accepted_work_tx_id": "worktx-fc3-governance-reinit-work-true-suite-fc3",
+  "market_event_id": "node_survive:worktx-fc3-governance-reinit-work-true-suite-fc3",
+  "router_tx_id": "router-Agent_1-full-system-augment",
+  "market_decision_trace_cid": "29e5b6dd729fa76f647cbd5db9ad1ce842f5d2e7ee72d510f4fa288a09743190",
+  "fc3_tx_sequence": [],
+  "final_state_root_hex": "92561644c376bffa24c460e185a17470f135a3f534a5665d0fc962929d38b5d7"
+}

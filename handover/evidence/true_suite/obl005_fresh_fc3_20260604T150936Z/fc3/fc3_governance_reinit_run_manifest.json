@@ -1,0 +1,21 @@
+{
+  "schema_version": "turingosv4.true_suite.fc3_governance_reinit_run.v1",
+  "run_id": "obl005_fresh_fc3_20260604T150936Z",
+  "git_head": "5a2c74c46c9060256410c07a4e79ee2b0331212b",
+  "entrypoint": "scripts/run_true_suite_fc3_governance_reinit_current_kernel.sh",
+  "init_provider": "deepseek",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/genesis_report.json",
+  "chaintape_jsonl": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/chaintape.jsonl",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/fc3_replay_report.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/full_system_augmentation_manifest.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z/fc3/full_system_participation.json",
+  "notes": [
+    "FC3 evidence is typed ChainTape/CAS runtime evidence, not handover or dashboard evidence",
+    "This FC3 true-suite sample also appends FC1 WorkTx and market participation rows on the same ChainTape",
+    "ArchitectAI and Veto-AI are represented by runtime system txs",
+    "ReinitRequest and ReinitBoot are tape-visible and replay-verified"
+  ]
+}
