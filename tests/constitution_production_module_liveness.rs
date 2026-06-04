@@ -1124,5 +1124,18 @@ fn registered_real_world_suites_exist_and_are_not_smoke_labels() {
             !families.is_empty() && !evidence.is_empty(),
             "real-world suite `{id}` must name families and evidence kinds"
         );
+        for evidence_kind in &evidence {
+            let lower = evidence_kind.to_ascii_lowercase();
+            assert!(
+                !(lower.contains("candidate_report")
+                    || lower.contains("report")
+                    || lower.contains("log")
+                    || lower.contains("dashboard")
+                    || lower.contains("stdout")
+                    || lower.contains("stderr")
+                    || lower.contains("transcript")),
+                "real-world suite `{id}` evidence kind `{evidence_kind}` is report/log/transcript-style; suite labels must name chain/CAS/replay/full-system receipt classes"
+            );
+        }
     }
 }
