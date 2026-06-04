@@ -249,7 +249,6 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/full_system_augmentation_manifest.json",
-  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
 evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
@@ -567,7 +566,6 @@ real_world_evidence = [
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_VERIFIER_INPUT.json",
-  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/REAL16_ARM_D_E2_VERIFIER.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/external_agent_market_manifest.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",

@@ -110,7 +110,6 @@ final_evidence_artifacts = [
   "handover/evidence/true_suite/<run>/market_ab/arm_D/replay_report.json",
   "handover/evidence/true_suite/<run>/market_ab/arm_D/aggregate_verdict.json",
   "handover/evidence/true_suite/<run>/market_ab/REAL16_VERIFIER_INPUT.json",
-  "handover/evidence/true_suite/<run>/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
   "handover/evidence/true_suite/<run>/market_ab/market_ab_run_manifest.json",
   "handover/evidence/true_suite/<run>/market_ab/full_system_participation.json",
 ]

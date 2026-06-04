@@ -371,6 +371,17 @@ fn is_report_log_or_stdout_path(path: &str) -> bool {
         || lower.ends_with(".stderr")
 }
 
+fn is_candidate_or_performance_report_json(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    if !lower.ends_with(".json") {
+        return false;
+    }
+    let file = lower.rsplit('/').next().unwrap_or(&lower);
+    file.contains("candidate_report")
+        || file.contains("performance_report")
+        || (file.starts_with("real") && file.contains("_report"))
+}
+
 fn assert_unique_group_ids(groups: &[Group]) {
     let mut seen = BTreeSet::new();
     let mut duplicates = Vec::new();
@@ -798,6 +809,11 @@ fn fc_authority_groups_use_current_true_suite_json_receipts() {
                 "FC-authority group `{}` must not cite report/log/stdout evidence: {path}",
                 group.id
             );
+            assert!(
+                !is_candidate_or_performance_report_json(path),
+                "FC-authority group `{}` must not cite candidate/performance report JSON as production liveness evidence: {path}",
+                group.id
+            );
         }
         assert!(
             group
@@ -837,6 +853,11 @@ fn product_workload_groups_use_current_true_suite_receipts() {
             assert!(
                 !is_report_log_or_stdout_path(path),
                 "product workload group `{}` must not cite report/log/stdout/transcript evidence as current liveness evidence: {path}",
+                group.id
+            );
+            assert!(
+                !is_candidate_or_performance_report_json(path),
+                "product workload group `{}` must not cite candidate/performance report JSON as current liveness evidence: {path}",
                 group.id
             );
         }
