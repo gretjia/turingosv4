@@ -325,6 +325,43 @@ fn group_by_id<'a>(groups: &'a [Group], id: &str) -> &'a Group {
         .unwrap_or_else(|| panic!("missing liveness group `{id}`"))
 }
 
+fn read_json(path: &str) -> serde_json::Value {
+    serde_json::from_str(
+        &fs::read_to_string(path).unwrap_or_else(|err| panic!("read {path}: {err}")),
+    )
+    .unwrap_or_else(|err| panic!("parse {path}: {err}"))
+}
+
+fn json_bool_at<'a>(value: &'a serde_json::Value, keys: &[&str]) -> bool {
+    let mut cur = value;
+    for key in keys {
+        cur = match cur.get(*key) {
+            Some(next) => next,
+            None => return false,
+        };
+    }
+    cur.as_bool() == Some(true)
+}
+
+fn json_u64_at<'a>(value: &'a serde_json::Value, keys: &[&str]) -> u64 {
+    let mut cur = value;
+    for key in keys {
+        cur = match cur.get(*key) {
+            Some(next) => next,
+            None => return 0,
+        };
+    }
+    cur.as_u64().unwrap_or(0)
+}
+
+fn is_replay_receipt(path: &str) -> bool {
+    path.ends_with("/replay_report.json")
+        || path.ends_with("/restore_replay_report.json")
+        || path.ends_with("/tdma_replay_report.json")
+        || path.ends_with("/tdma_restore_report.json")
+        || path.ends_with("/aggregate_verdict.json")
+}
+
 fn assert_unique_group_ids(groups: &[Group]) {
     let mut seen = BTreeSet::new();
     let mut duplicates = Vec::new();
@@ -723,6 +760,127 @@ fn product_and_legacy_rows_cannot_be_flowchart_authority() {
             );
         }
     }
+}
+
+#[test]
+fn fc_authority_groups_use_current_true_suite_json_receipts() {
+    for group in groups()
+        .into_iter()
+        .filter(|group| group.allowed_as_fc_authority)
+    {
+        for path in &group.real_world_evidence {
+            let lower = path.to_ascii_lowercase();
+            assert!(
+                path.starts_with("handover/evidence/true_suite/"),
+                "FC-authority group `{}` must use current true-suite evidence, not historical/local evidence: {path}",
+                group.id
+            );
+            assert!(
+                path.ends_with(".json"),
+                "FC-authority group `{}` must use machine-readable JSON receipts, not report/log/stdout evidence: {path}",
+                group.id
+            );
+            assert!(
+                !(lower.ends_with(".md")
+                    || lower.ends_with(".txt")
+                    || lower.ends_with(".log")
+                    || lower.ends_with(".stdout")
+                    || lower.ends_with(".stderr")),
+                "FC-authority group `{}` must not cite report/log/stdout evidence: {path}",
+                group.id
+            );
+        }
+        assert!(
+            group
+                .real_world_evidence
+                .iter()
+                .any(|path| path.ends_with("/full_system_participation.json")),
+            "FC-authority group `{}` must bind at least one current full_system_participation receipt",
+            group.id
+        );
+        assert!(
+            group
+                .real_world_evidence
+                .iter()
+                .any(|path| is_replay_receipt(path)),
+            "FC-authority group `{}` must bind a replay/audit receipt, not only manifests",
+            group.id
+        );
+    }
+}
+
+#[test]
+fn axiom_boot_trust_root_is_bound_to_current_boot_genesis_replay_receipts() {
+    let groups = groups();
+    let boot = group_by_id(&groups, "axiom_boot_trust_root");
+    let genesis_path = "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/genesis_report.json";
+    let full_system_path = "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/full_system_participation.json";
+    let replay_path = "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/replay_report.json";
+
+    for required in [genesis_path, full_system_path, replay_path] {
+        assert!(
+            boot.real_world_evidence.iter().any(|path| path == required),
+            "`axiom_boot_trust_root` must bind current boot CLI receipt `{required}`"
+        );
+    }
+
+    let genesis = read_json(genesis_path);
+    assert!(
+        genesis
+            .get("constitution_hash")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|v| v.len() == 64),
+        "boot genesis receipt must carry the pinned constitution hash"
+    );
+    assert!(
+        genesis
+            .get("system_pubkey_hash")
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|v| v.len() == 64),
+        "boot genesis receipt must carry the system trust-root public-key hash"
+    );
+
+    let full_system = read_json(full_system_path);
+    assert!(
+        json_bool_at(&full_system, &["fc2", "genesis_report_present"])
+            && json_bool_at(&full_system, &["replay", "all_indicators_pass"]),
+        "boot full-system receipt must prove FC2 genesis and replay indicators"
+    );
+}
+
+#[test]
+fn predicate_registry_group_is_bound_to_tape_visible_activation_receipt() {
+    let groups = groups();
+    let predicate = group_by_id(&groups, "predicate_registry_top_white");
+    let full_system_path = "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json";
+    assert!(
+        predicate
+            .real_world_evidence
+            .iter()
+            .any(|path| path == full_system_path),
+        "`predicate_registry_top_white` must bind a current full-system receipt with PredicateBindingActivate"
+    );
+
+    let full_system = read_json(full_system_path);
+    assert!(
+        json_u64_at(
+            &full_system,
+            &["tx_kind_counts", "predicate_binding_activate"]
+        ) > 0,
+        "predicate registry full-system receipt must include a tape-visible PredicateBindingActivate tx"
+    );
+    let sequence = full_system
+        .get("tx_kind_sequence")
+        .and_then(serde_json::Value::as_array)
+        .unwrap_or_else(|| {
+            panic!("predicate registry full-system receipt missing tx_kind_sequence")
+        });
+    assert!(
+        sequence
+            .iter()
+            .any(|kind| kind.as_str() == Some("PredicateBindingActivate")),
+        "predicate registry full-system receipt must show PredicateBindingActivate in L4 sequence"
+    );
 }
 
 #[test]

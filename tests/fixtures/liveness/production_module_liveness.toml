@@ -141,7 +141,12 @@ paths = ["src/boot.rs", "src/main.rs", "genesis_payload.toml"]
 constitutional_anchors = ["Art.0.4", "FC2:boot", "FC3:constitution"]
 necessity = "Boot rejects trust-root drift before any AGI run can claim constitutional tape truth."
 smoke_gates = ["tests/fc_alignment_conformance.rs::fc3_n34_readonly_guard_verify_trust_root_intact_repo"]
-real_world_evidence = ["handover/evidence/real8x_market_ab_20260515T134453Z/REAL8_MARKET_AB_BENCHMARK_REPORT.md"]
+real_world_evidence = [
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/genesis_report.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/replay_report.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/restore_replay_report.json",
+  "handover/evidence/true_suite/boot_cli_full_system_evidence_20260526T182219Z/boot_cli/full_system_participation.json",
+]
 evidence_requires = ["fresh boot", "trusted constitution bytes"]
 
 [[group]]
@@ -182,8 +187,6 @@ smoke_gates = [
   "tests/constitution_fc3_closure.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/aggregate_verdict.json",
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/broad_batch/aggregate_fc_trace_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/replay_cas/restore_replay_report.json",
@@ -217,7 +220,11 @@ smoke_gates = [
   "tests/constitution_predicate_registry_binding.rs",
   "tests/constitution_predicate_registry_replay.rs",
 ]
-real_world_evidence = ["handover/evidence/real8x_market_ab_20260515T134453Z/REAL10_DECISION_GATE_REPORT.md"]
+real_world_evidence = [
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/aggregate_verdict.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/replay_report.json",
+  "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
+]
 evidence_requires = ["predicate activation", "registry root", "admission verification"]
 
 [[group]]
@@ -236,8 +243,8 @@ smoke_gates = [
   "tests/constitution_router_price_quote.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/real13_market_pressure_probe_20260516T070534Z/REAL13_MARKET_PRESSURE_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
+  "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/replay_report.json",
   "handover/evidence/true_suite/market_external_agent_full_system_20260526T163638Z/market_action/full_system_participation.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
@@ -267,8 +274,6 @@ smoke_gates = [
   "tests/constitution_router_buy_with_coin.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/real11_router_positive_control_20260515T164142Z/aggregate_verdict.json",
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/REAL12_TASK_MARKET_PROBE_REPORT.md",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/external_agent_market_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/market_action/restore_replay_report.json",
@@ -369,8 +374,6 @@ smoke_gates = [
   "tests/constitution_tape_canonical_gate.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/PERSISTENCE_BINDING_REPORT.json",
-  "handover/evidence/cas_git_repair_challenge_final_20260517T095728Z/batch_evaluator.log",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/gpqa_science_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/replay_report.json",
   "handover/evidence/true_suite/broad_agi_gpqa_20260525T234028Z/gpqa/restore_replay_report.json",
@@ -466,7 +469,6 @@ smoke_gates = [
   "tests/constitution_true_suite_fc3_governance_runner.rs",
 ]
 real_world_evidence = [
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
   "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/governance_capsule_index.json",
   "handover/evidence/true_suite/broad_agi_fc3_governance_20260525T225140Z/fc3/fc3_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/fc3/governance_capsule_index.json",
@@ -856,8 +858,9 @@ constitutional_anchors = ["FC2:tools", "FC3:tools-to-log"]
 necessity = "Tool permissions and lifecycle hook signals must be rooted in deterministic tool substrate for FC3 tool/log boundaries."
 smoke_gates = ["tests/constitution_fc3_closure.rs"]
 real_world_evidence = [
-  "handover/evidence/real_bcast_1_hard10_B_20260516T100140Z/audit_dashboard_run_report.txt",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/governance_capsule_index.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/replay_report.json",
+  "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/restore_replay_report.json",
   "handover/evidence/true_suite/replay_cas_full_system_evidence_20260526T190754Z/replay_cas/full_system_participation.json",
 ]
 evidence_requires = ["tool registry root", "system-only meta tx"]
