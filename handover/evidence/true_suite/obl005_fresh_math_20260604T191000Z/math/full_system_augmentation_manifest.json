@@ -1,0 +1,55 @@
+{
+  "schema_version": "turingosv4.true_suite.full_system_augment.v1",
+  "run_id": "obl005_fresh_math_20260604T191000Z",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/cas",
+  "accepted_work_tx_id": "worktx-math:EleutherAI-hendrycks_math-algebra-test-0-true-suite-math",
+  "market_event_id": "node_survive:worktx-math:EleutherAI-hendrycks_math-algebra-test-0-true-suite-math",
+  "router_tx_id": "router-Agent_1-full-system-augment",
+  "market_decision_trace_cid": "ea0f22d089acea6434f979e799c95980d9309ab36319b1bffce7e4d58326c935",
+  "fc3_tx_sequence": [
+    {
+      "logical_t": 10,
+      "tx_kind": "LogFeedbackArchive",
+      "tx_id": "system-log-feedback-archive-2-10",
+      "tx_payload_cid": "aee463fd34d2894155a203b3ce511c7c0426546101c979ad0cc52b64e04e0f89"
+    },
+    {
+      "logical_t": 11,
+      "tx_kind": "ArchitectProposal",
+      "tx_id": "system-architect-proposal-2-11",
+      "tx_payload_cid": "b65518db2fded1a6f5d88249b5e88424b69c144d46b61bcb2c90d5c5530f0192"
+    },
+    {
+      "logical_t": 12,
+      "tx_kind": "VetoDecision",
+      "tx_id": "system-veto-decision-2-12",
+      "tx_payload_cid": "6f42e57a8f8ec1b4f4696459868363814be000c461d7bb28c0953732006338d3"
+    },
+    {
+      "logical_t": 13,
+      "tx_kind": "ArchitectCommit",
+      "tx_id": "system-architect-commit-2-13",
+      "tx_payload_cid": "2d7fafcefb3c1bfe5942ce32ba02889b70b064851293d93c3d1e80cbbc0dc928"
+    },
+    {
+      "logical_t": 14,
+      "tx_kind": "TerminalSummary",
+      "tx_id": "system-terminal-summary-2-14",
+      "tx_payload_cid": "a83e0f019803bbef8b523e8d5c8c509ddde631de5692ed4555e9f0ae840be43c"
+    },
+    {
+      "logical_t": 15,
+      "tx_kind": "ReinitRequest",
+      "tx_id": "system-reinit-request-2-15",
+      "tx_payload_cid": "daf0d4fbd4f3a277aee1527ab855242ea96ca8dba534818a66dd07234f4bff42"
+    },
+    {
+      "logical_t": 16,
+      "tx_kind": "ReinitBoot",
+      "tx_id": "system-reinit-boot-2-16",
+      "tx_payload_cid": "af04addf8ee5e5f518308503b4973abb21d8ba7116340843d6e1be50342f10a8"
+    }
+  ],
+  "final_state_root_hex": "7313f8a5835893a84b9a6bf7e9e45ff9422263bf88665a954a06971d0e93cc4c"
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "turingosv4.true_suite.math_competition_reasoning_run.v1",
+  "run_id": "obl005_fresh_math_20260604T191000Z",
+  "git_head": "70330599725b779c4e6e8479d5e8db9e05d83069",
+  "entrypoint": "scripts/run_true_suite_math_competition_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "math_dataset_rows_url": "https://datasets-server.huggingface.co/rows",
+  "math_subject": "algebra",
+  "math_split": "test",
+  "math_sample_index": 0,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/genesis_report.json",
+  "math_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/math_competition_reasoning_manifest.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z/math/full_system_participation.json",
+  "notes": [
+    "MATH data comes from the public EleutherAI/hendrycks_math parquet source unless MATH_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "benchmark accuracy is not treated as liveness closure"
+  ]
+}
