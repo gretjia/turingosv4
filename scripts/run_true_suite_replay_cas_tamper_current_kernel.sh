@@ -87,6 +87,7 @@ TURINGOS_BIN_DIR="$BIN_DIR" "$TURINGOS" verify chaintape \
     --cas "$RUN_DIR/cas" \
     --run-id "$RUN_ID" \
     --out "$RUN_DIR/post_tamper_replay_report.json"
+cp "$RUN_DIR/post_tamper_replay_report.json" "$RUN_DIR/restore_replay_report.json"
 
 "$PARTICIPATION" \
     --run-id "$RUN_ID" \
@@ -165,6 +166,7 @@ cat > "$RUN_DIR/replay_cas_run_manifest.json" <<EOF
   "replay_report": "$RUN_DIR/replay_report.json",
   "tamper_report": "$RUN_DIR/tamper_report.json",
   "post_tamper_replay_report": "$RUN_DIR/post_tamper_replay_report.json",
+  "restore_replay_report": "$RUN_DIR/restore_replay_report.json",
   "full_system_participation": "$RUN_DIR/full_system_participation.json",
   "notes": [
     "fresh evidence is generated through public turingos init",

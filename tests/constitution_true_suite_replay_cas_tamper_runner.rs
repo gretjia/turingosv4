@@ -247,6 +247,25 @@ fn replay_cas_tamper_runner_verifies_current_kernel_and_detects_tamper() {
         tamper_json.get("all_detected").and_then(Value::as_bool),
         Some(true)
     );
+    assert_eq!(
+        tamper_json
+            .get("closure_scope")
+            .and_then(Value::as_str),
+        Some("replay_cas_tamper_detection_current_kernel")
+    );
+    assert_eq!(
+        tamper_json
+            .get("full_system_participation_required")
+            .and_then(Value::as_bool),
+        Some(true)
+    );
+    assert_eq!(
+        tamper_json
+            .get("final_closure_possible")
+            .and_then(Value::as_bool),
+        Some(true),
+        "replay/CAS tamper domain closure is eligible only when all configured tamper classes are detected"
+    );
     let rows = tamper_json
         .get("tamper_results")
         .and_then(Value::as_array)
@@ -346,6 +365,7 @@ fn replay_cas_tamper_runner_script_uses_current_kernel_not_historical_fixtures()
     assert!(script.contains("audit_tape_tamper"));
     assert!(script.contains("tamper_report.json"));
     assert!(script.contains("post_tamper_replay_report.json"));
+    assert!(script.contains("restore_replay_report.json"));
     assert!(script.contains("full_system_augmentation_manifest.json"));
     assert!(script.contains("governance_capsule_index.json"));
     assert!(script.contains("handover/evidence/true_suite"));

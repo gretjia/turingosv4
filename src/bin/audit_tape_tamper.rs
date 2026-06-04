@@ -388,6 +388,9 @@ fn main() -> ExitCode {
         "detected_count": total_detected,
         "expected": 3,
         "all_detected": total_detected == 3,
+        "closure_scope": "replay_cas_tamper_detection_current_kernel",
+        "full_system_participation_required": true,
+        "final_closure_possible": total_detected == 3,
     });
     let json = serde_json::to_string_pretty(&report).unwrap_or_else(|_| "{}".into());
     if let Err(e) = std::fs::write(&args.out, json) {

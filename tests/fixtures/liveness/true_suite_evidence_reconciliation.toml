@@ -87,10 +87,9 @@ blockers = [
 
 [[coverage_task]]
 id = "replay_cas_tamper_repair_current"
-evidence_run = "obl005_fresh_boot_replay_20260604T143328Z"
+evidence_run = "obl005_fresh_boot_replay_20260604T231500Z"
 evidence_subdir = "replay_cas"
 blockers = [
-  "domain_receipt_final_closure_missing",
   "fresh_final_closure_witness_missing",
 ]
 
