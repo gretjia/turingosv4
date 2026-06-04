@@ -283,6 +283,82 @@ fn market_choice_lit(report: &Value) -> bool {
             || nested_u64(report, &["market", "market_decision_declined_count"]) > 0)
 }
 
+fn direction_is_no_or_short(text: &str) -> bool {
+    matches!(
+        text.to_ascii_lowercase().as_str(),
+        "no" | "buy_no" | "buyno" | "long_no" | "short"
+    )
+}
+
+fn value_has_no_or_short_market_side(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            let key = key.to_ascii_lowercase();
+            let direction_key = matches!(
+                key.as_str(),
+                "direction"
+                    | "side"
+                    | "buy_direction"
+                    | "l4_direction"
+                    | "market_decision_direction"
+            );
+            if direction_key
+                && child
+                    .as_str()
+                    .map(direction_is_no_or_short)
+                    .unwrap_or(false)
+            {
+                return true;
+            }
+            if matches!(key.as_str(), "buy_no_count" | "no_side_market_action_txs")
+                && child.as_u64().unwrap_or(0) > 0
+            {
+                return true;
+            }
+            if key.contains("short")
+                && (child.as_u64().unwrap_or(0) > 0 || child.as_bool() == Some(true))
+            {
+                return true;
+            }
+            value_has_no_or_short_market_side(child)
+        }),
+        Value::Array(items) => items.iter().any(value_has_no_or_short_market_side),
+        _ => false,
+    }
+}
+
+fn binding_has_no_or_short_market_side(
+    binding: &EvidenceBinding,
+    row: &ContractRow,
+    report: &Value,
+) -> bool {
+    if value_has_no_or_short_market_side(report) {
+        return true;
+    }
+
+    row.final_evidence_artifacts.iter().any(|template| {
+        let path = materialize(template, &binding.evidence_run);
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") || !path.exists() {
+            return false;
+        }
+        let Ok(raw) = fs::read_to_string(&path) else {
+            return false;
+        };
+        let Ok(value) = serde_json::from_str::<Value>(&raw) else {
+            return false;
+        };
+        value_has_no_or_short_market_side(&value)
+    })
+}
+
+fn is_market_binding(binding: &EvidenceBinding, row: &ContractRow) -> bool {
+    binding.id.contains("market")
+        || row
+            .final_evidence_artifacts
+            .iter()
+            .any(|template| template.contains("/market"))
+}
+
 fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
     assert!(
         !binding.evidence_run.contains('/') && !binding.evidence_run.contains(".."),
@@ -392,6 +468,32 @@ fn assert_full_system_lit(binding: &EvidenceBinding, row: &ContractRow) {
 }
 
 #[test]
+fn no_or_short_market_side_detector_is_structural() {
+    let buy_no = serde_json::json!({
+        "market": {"present": true, "buy_no_count": 1},
+        "domain_manifest": {"direction": "yes"}
+    });
+    let short_alias = serde_json::json!({
+        "domain_manifest": {"market_decision_direction": "short"}
+    });
+    let yes_only = serde_json::json!({
+        "market": {
+            "present": true,
+            "agent_market_action_txs": 2,
+            "market_decision_no_trade_count": 0
+        },
+        "domain_manifest": {"direction": "yes"}
+    });
+
+    assert!(value_has_no_or_short_market_side(&buy_no));
+    assert!(value_has_no_or_short_market_side(&short_alias));
+    assert!(
+        !value_has_no_or_short_market_side(&yes_only),
+        "YES-only market activity must not satisfy the NO/short closure detector"
+    );
+}
+
+#[test]
 fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     let final_closure_claimed = manifest
@@ -433,6 +535,52 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
         assert!(
             !non_closing_receipts.is_empty(),
             "REAUDIT manifests must keep final_closure_claimed=false until closure-capable receipts replace the non-closing bindings"
+        );
+    }
+}
+
+#[test]
+fn final_closure_claim_requires_market_no_or_short_side_evidence() {
+    let manifest = parse_toml(RECONCILIATION_MANIFEST);
+    let final_closure_claimed = manifest
+        .get("final_closure_claimed")
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(false);
+
+    let mut market_bindings = Vec::new();
+    let mut missing_no_or_short = Vec::new();
+    for (binding_key, contract_path, contract_key) in [
+        ("coverage_task", REALWORLD_MANIFEST, "task"),
+        ("broad_family", BROAD_MANIFEST, "family"),
+    ] {
+        let contracts = contract_rows(contract_path, contract_key);
+        for binding in reconciliation_rows(binding_key) {
+            let row = contracts
+                .get(&binding.id)
+                .unwrap_or_else(|| panic!("binding `{}` missing contract row", binding.id));
+            if !is_market_binding(&binding, row) {
+                continue;
+            }
+            market_bindings.push(format!("{binding_key}:{}", binding.id));
+            let report = read_full_system_report(&binding, row);
+            if !binding_has_no_or_short_market_side(&binding, row, &report) {
+                missing_no_or_short.push(format!(
+                    "{binding_key}:{}:{}",
+                    binding.id,
+                    full_system_report_path(&binding, row).display()
+                ));
+            }
+        }
+    }
+
+    assert!(
+        !market_bindings.is_empty(),
+        "the reconciliation guard must inspect at least one market/economy binding"
+    );
+    if final_closure_claimed {
+        assert!(
+            missing_no_or_short.is_empty(),
+            "final market/economy closure cannot cite YES-only market receipts: {missing_no_or_short:?}"
         );
     }
 }

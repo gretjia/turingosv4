@@ -163,6 +163,7 @@ struct MarketEvidenceManifest {
     router_landed: bool,
     work_tx_id: String,
     work_tx_landed: bool,
+    work_tx_count_for_task: usize,
     pool_active: bool,
     router_economics: RouterEconomicsSnapshot,
     closure_scope: &'static str,
@@ -816,6 +817,19 @@ async fn run(args: Args) -> Result<(), String> {
     let post_q = seq_handle
         .q_snapshot()
         .map_err(|e| format!("post-drain q_snapshot: {e:?}"))?;
+    let work_tx_id_key = TxId(work_tx_id.clone());
+    let work_tx_landed = post_q
+        .economic_state_t
+        .stakes_t
+        .0
+        .contains_key(&work_tx_id_key);
+    let work_tx_count_for_task = post_q
+        .economic_state_t
+        .stakes_t
+        .0
+        .values()
+        .filter(|entry| entry.task_id.0 == event_task_id)
+        .count();
 
     let report = GenesisReport {
         constitution_hash: GenesisReport::hash_constitution_md(&args.constitution),
@@ -857,11 +871,8 @@ async fn run(args: Args) -> Result<(), String> {
         router_tx_id,
         router_landed,
         work_tx_id: work_tx_id.clone(),
-        work_tx_landed: post_q
-            .economic_state_t
-            .stakes_t
-            .0
-            .contains_key(&TxId(work_tx_id)),
+        work_tx_landed,
+        work_tx_count_for_task,
         pool_active,
         router_economics,
         closure_scope: "single_sample_market_external_agent_full_system_liveness",

@@ -38,7 +38,15 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("read json")).expect("parse json")
 }
 
-fn start_mock_llm_proxy() -> String {
+#[derive(Clone, Copy)]
+struct MarketCase {
+    direction: &'static str,
+    run_id: &'static str,
+    expected_pool_after_yes: u64,
+    expected_pool_after_no: u64,
+}
+
+fn start_mock_llm_proxy(expected_event_task_id: String, direction: &'static str) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock proxy");
     let addr = listener.local_addr().expect("local addr");
     thread::spawn(move || {
@@ -51,16 +59,22 @@ fn start_mock_llm_proxy() -> String {
             "unexpected mock proxy request: {request}"
         );
         assert!(
-            request.contains("true-suite-market-constitution-true-suite-market-agent"),
+            request.contains(&expected_event_task_id),
             "prompt should name the market event without using kernel fixtures: {request}"
         );
-        let body = r#"{
-          "model": "mock-market-agent",
-          "choices": [
-            {"message": {"content": "{\"direction\":\"yes\",\"amount_micro\":1000}"}}
-          ],
-          "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18}
-        }"#;
+        let decision = serde_json::json!({
+            "direction": direction,
+            "amount_micro": 1000,
+        })
+        .to_string();
+        let body = serde_json::json!({
+            "model": "mock-market-agent",
+            "choices": [
+                {"message": {"content": decision}},
+            ],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+        })
+        .to_string();
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             body.len(),
@@ -75,9 +89,29 @@ fn start_mock_llm_proxy() -> String {
 
 #[test]
 fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
+    for case in [
+        MarketCase {
+            direction: "yes",
+            run_id: "constitution-true-suite-market-agent-yes",
+            expected_pool_after_yes: 99_010,
+            expected_pool_after_no: 101_000,
+        },
+        MarketCase {
+            direction: "no",
+            run_id: "constitution-true-suite-market-agent-no",
+            expected_pool_after_yes: 101_000,
+            expected_pool_after_no: 99_010,
+        },
+    ] {
+        assert_market_external_agent_case(case);
+    }
+}
+
+fn assert_market_external_agent_case(case: MarketCase) {
     let tmp = TempDir::new().expect("tempdir");
-    let run_dir = tmp.path().join("market_action");
-    let proxy_url = start_mock_llm_proxy();
+    let run_dir = tmp.path().join(format!("market_action_{}", case.direction));
+    let proxy_url =
+        start_mock_llm_proxy(format!("true-suite-market-{}", case.run_id), case.direction);
 
     let init = Command::new(bin("turingos"))
         .args([
@@ -106,11 +140,11 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            "constitution-true-suite-market-agent",
+            case.run_id,
             "--constitution",
             "constitution.md",
             "--llm-proxy-url",
-            &proxy_url,
+            proxy_url.as_str(),
             "--model",
             "mock-market-agent",
             "--out",
@@ -132,7 +166,7 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            "constitution-true-suite-market-agent",
+            case.run_id,
             "--constitution",
             "constitution.md",
             "--out-dir",
@@ -163,7 +197,7 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
             "--cas",
             run_dir.join("cas").to_str().expect("utf8 path"),
             "--run-id",
-            "constitution-true-suite-market-agent",
+            case.run_id,
             "--out",
             replay_report.to_str().expect("utf8 path"),
         ])
@@ -183,7 +217,7 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
     );
     assert_eq!(
         manifest.get("direction").and_then(Value::as_str),
-        Some("yes")
+        Some(case.direction)
     );
     assert_eq!(
         manifest.get("amount_micro").and_then(Value::as_i64),
@@ -200,6 +234,13 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
     assert_eq!(
         manifest.get("work_tx_landed").and_then(Value::as_bool),
         Some(true)
+    );
+    assert_eq!(
+        manifest
+            .get("work_tx_count_for_task")
+            .and_then(Value::as_u64),
+        Some(1),
+        "market liveness case must stay on the single-WorkTx-node path; YES/NO activity comes from router side, not same-task reward fan-out"
     );
     assert_eq!(
         manifest
@@ -264,13 +305,13 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
         economics
             .pointer("/pool_after/pool_yes_units")
             .and_then(Value::as_u64),
-        Some(99_010)
+        Some(case.expected_pool_after_yes)
     );
     assert_eq!(
         economics
             .pointer("/pool_after/pool_no_units")
             .and_then(Value::as_u64),
-        Some(101_000)
+        Some(case.expected_pool_after_no)
     );
     assert_eq!(
         economics
@@ -368,7 +409,7 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
     let participation = Command::new(bin("full_system_participation_current_kernel"))
         .args([
             "--run-id",
-            "constitution-true-suite-market-agent",
+            case.run_id,
             "--family-id",
             "market_economy_polymarket",
             "--entrypoint",
