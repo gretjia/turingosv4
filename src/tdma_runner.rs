@@ -1,11 +1,9 @@
 //! TRACE_MATRIX FC1a-rtool + FC1a-judge_pi + FC3-replay:
 //! TDMA-Bounded shared runner library (Atom 18 — K10 + K11 refactor).
 //!
-//! Consolidates the kernel-driving loop that was previously duplicated across:
-//!   - src/bin/tdma_rc1_deepseek_nesbitt.rs        (Atom 12)
-//!   - src/bin/tdma_rc1_deepseek_putnam_a1.rs      (Atom 13)
-//!   - src/bin/tdma_rc1_deepseek_putnam_2025_b3.rs (Atom 14)
-//!   - src/bin/turingos/cmd_tdma.rs                (Atoms 15-17)
+//! Consolidates the kernel-driving loop that was previously duplicated across
+//! retired RC1 standalone shims (Atoms 12-14) and `src/bin/turingos/cmd_tdma.rs`
+//! (Atoms 15-17).
 //!
 //! Each callsite now reduces to: build a `RunConfig`, build an `AnyJudge`,
 //! provide an `LlmCall` closure, call `run_proof`. The runner handles the
