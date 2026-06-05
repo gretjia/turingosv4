@@ -5,7 +5,7 @@
 //! `full_system_participation.json`. It does not mutate the kernel, submit new
 //! transactions, or replace replay as source of truth.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use serde::Serialize;
@@ -213,6 +213,25 @@ struct Verdict {
 }
 
 #[derive(Debug, Serialize)]
+struct FlowchartNodeReceipt {
+    flowchart: &'static str,
+    node_id: &'static str,
+    label: &'static str,
+    status: String,
+    receipt_kind: &'static str,
+    evidence: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct FlowchartNodeReceipts {
+    verdict: String,
+    missing: Vec<String>,
+    fc1: Vec<FlowchartNodeReceipt>,
+    fc2: Vec<FlowchartNodeReceipt>,
+    fc3: Vec<FlowchartNodeReceipt>,
+}
+
+#[derive(Debug, Serialize)]
 struct FullSystemParticipationReport {
     schema_version: &'static str,
     run_id: String,
@@ -228,6 +247,7 @@ struct FullSystemParticipationReport {
     fc2: Fc2Participation,
     fc3: Fc3Participation,
     market: MarketParticipation,
+    flowchart_node_receipts: FlowchartNodeReceipts,
     domain_manifest: Option<Value>,
     verdict: Verdict,
 }
@@ -242,6 +262,39 @@ fn optional_json(path: &Option<PathBuf>) -> Result<Option<Value>, String> {
         Some(path) => read_json(path).map(Some),
         None => Ok(None),
     }
+}
+
+fn first_existing_file(candidates: Vec<PathBuf>) -> Option<PathBuf> {
+    candidates.into_iter().find(|path| path.is_file())
+}
+
+fn sibling_named(path: &Path, file_name: &str) -> Option<PathBuf> {
+    path.parent().map(|parent| parent.join(file_name))
+}
+
+fn effective_fc3_index_path(args: &Args) -> Option<PathBuf> {
+    if let Some(path) = &args.fc3_index {
+        return Some(path.clone());
+    }
+
+    let mut candidates = Vec::new();
+    if let Some(path) = sibling_named(&args.out, "governance_capsule_index.json") {
+        candidates.push(path);
+    }
+    if let Some(path) = sibling_named(&args.replay_report, "governance_capsule_index.json") {
+        candidates.push(path);
+    }
+    if let Some(path) = args
+        .genesis_report
+        .as_ref()
+        .and_then(|genesis| sibling_named(genesis, "governance_capsule_index.json"))
+    {
+        candidates.push(path);
+    }
+    if let Some(parent) = args.runtime_repo.parent() {
+        candidates.push(parent.join("governance_capsule_index.json"));
+    }
+    first_existing_file(candidates)
 }
 
 fn bool_field(value: Option<&Value>, key: &str) -> Option<bool> {
@@ -300,7 +353,8 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
     let replay: ReplayReport = read_json(&args.replay_report)?;
     let replay_green = replay.all_indicators_pass();
     let domain_manifest = optional_json(&args.domain_manifest)?;
-    let fc3_index = optional_json(&args.fc3_index)?;
+    let fc3_index_path = effective_fc3_index_path(&args);
+    let fc3_index = optional_json(&fc3_index_path)?;
     let (entries, tx_kind_sequence) = tx_entries(&args.runtime_repo)?;
     let counts = TxKindCounts::from_entries(&entries);
     let cas = CasStore::open(&args.cas).map_err(|e| format!("open CAS: {e}"))?;
@@ -358,8 +412,10 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
         external_pr_ceremony_used_as_fc3: false,
     };
 
-    let market_mode = if agent_market_action_count > 0 || market_summary.submitted_count > 0 {
+    let market_mode = if agent_market_action_count > 0 && market_summary.submitted_count > 0 {
         "invest"
+    } else if market_summary.submitted_count > 0 {
+        "submitted_trace_missing_l4_market_action"
     } else if market_no_trade_count > 0 || market_declined_count > 0 {
         "abstain_with_tape_visible_market_decision"
     } else if l4_market_count > 0 {
@@ -407,6 +463,20 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
         missing.push("replay_all_indicators_pass".to_string());
     }
 
+    let flowchart_node_receipts = build_flowchart_node_receipts(
+        &args,
+        &fc3_index_path,
+        &replay,
+        replay_green,
+        &counts,
+        &fc1,
+        &fc2,
+        &fc3,
+        &market,
+    );
+    if flowchart_node_receipts.verdict != "FLOW-PASS" {
+        missing.extend(flowchart_node_receipts.missing.clone());
+    }
     let full = missing.is_empty();
     let report = FullSystemParticipationReport {
         schema_version: SCHEMA_VERSION,
@@ -426,7 +496,7 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
                 .domain_manifest
                 .as_ref()
                 .map(|p| p.display().to_string()),
-            fc3_index: args.fc3_index.as_ref().map(|p| p.display().to_string()),
+            fc3_index: fc3_index_path.as_ref().map(|p| p.display().to_string()),
         },
         replay: ReplaySummary {
             l4_entries: replay.l4_entries,
@@ -451,6 +521,7 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
         fc2,
         fc3,
         market,
+        flowchart_node_receipts,
         domain_manifest,
         verdict: Verdict {
             full_system_participation: full,
@@ -464,6 +535,486 @@ fn build_report(args: Args) -> Result<(FullSystemParticipationReport, bool), Str
         },
     };
     Ok((report, full))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_flowchart_node_receipts(
+    args: &Args,
+    fc3_index_path: &Option<PathBuf>,
+    replay: &ReplayReport,
+    replay_green: bool,
+    counts: &TxKindCounts,
+    fc1: &Fc1Participation,
+    fc2: &Fc2Participation,
+    fc3: &Fc3Participation,
+    market: &MarketParticipation,
+) -> FlowchartNodeReceipts {
+    let mut missing = Vec::new();
+    let l4 = replay.l4_entries;
+    let l4e = replay.l4e_entries;
+    let runtime_repo = args.runtime_repo.display().to_string();
+    let cas = args.cas.display().to_string();
+    let replay_path = args.replay_report.display().to_string();
+    let genesis = args
+        .genesis_report
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| {
+            args.runtime_repo
+                .join("genesis_report.json")
+                .display()
+                .to_string()
+        });
+    let domain = args
+        .domain_manifest
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "domain_manifest_absent".to_string());
+    let fc3_index = args
+        .fc3_index
+        .as_ref()
+        .or(fc3_index_path.as_ref())
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| "fc3_index_absent".to_string());
+
+    let fc1_receipts = vec![
+        receipt(
+            "FC1",
+            "FC1-N1",
+            "Q_t loaded",
+            replay.detail.initial_q_state_loaded_from_disk,
+            "initial_q_state",
+            vec![runtime_repo.clone(), replay_path.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N2",
+            "q_t state root",
+            replay.state_reconstructed,
+            "replay_state_root",
+            vec![format!(
+                "final_state_root={:?}",
+                replay.detail.final_state_root_hex
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N3",
+            "HEAD_t / ChainTape head",
+            replay.ledger_root_verified,
+            "git_l4_head",
+            vec![format!(
+                "head_commit={:?}",
+                replay.detail.head_commit_oid_hex
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N4",
+            "tape_t / CAS",
+            replay.cas_payloads_retrievable,
+            "cas_replay",
+            vec![cas.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N5",
+            "rtool read set",
+            fc1.proposal_telemetry_cas_retrievable,
+            "proposal_telemetry_cas",
+            vec![domain.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N6",
+            "input capsule",
+            fc1.proposal_telemetry_cas_retrievable,
+            "proposal_telemetry_cas",
+            vec![domain.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N7",
+            "agent delta",
+            counts.work > 0,
+            "WorkTx",
+            vec![format!("accepted_work_txs={}", counts.work)],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N8",
+            "agent output",
+            fc1.work_or_rejection_landed,
+            "L4_or_L4E",
+            vec![format!("l4={l4} l4e={l4e}")],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N9",
+            "action/output object",
+            counts.work > 0 || market.agent_market_action_txs > 0,
+            "typed_tx",
+            vec![format!(
+                "work={} market_actions={}",
+                counts.work, market.agent_market_action_txs
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N10",
+            "tool/economy output",
+            market.present,
+            "market_tx",
+            vec![format!("market_mode={}", market.mode)],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N11",
+            "predicate check",
+            replay_green,
+            "replay_predicates",
+            vec![replay_path.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N12",
+            "predicate verdict split",
+            counts.work > 0 && replay.l4e_entries > 0,
+            "L4_and_L4E",
+            vec![format!(
+                "accepted_work={} l4e={}",
+                counts.work, replay.l4e_entries
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N13",
+            "wtool append",
+            replay.ledger_root_verified && l4 > 0,
+            "L4_append",
+            vec![format!("l4_entries={l4}")],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N14",
+            "accepted branch",
+            counts.work > 0,
+            "accepted_L4_WorkTx",
+            vec![format!("accepted_work={}", counts.work)],
+            &mut missing,
+        ),
+        receipt(
+            "FC1",
+            "FC1-N15",
+            "rejected branch",
+            replay.l4e_entries > 0,
+            "L4E_rejection",
+            vec![format!("l4e_entries={}", replay.l4e_entries)],
+            &mut missing,
+        ),
+    ];
+
+    let fc2_receipts = vec![
+        receipt(
+            "FC2",
+            "FC2-N16",
+            "InitAI / boot entry",
+            fc2.initial_q_state_loaded_from_disk,
+            "initial_q_state",
+            vec![runtime_repo.clone()],
+            &mut missing,
+        ),
+        receipt_with_status(
+            "FC2",
+            "FC2-N17",
+            "human/project spec",
+            fc2.genesis_report_present,
+            "document-pinned",
+            "genesis_report",
+            vec![genesis.clone()],
+            &mut missing,
+        ),
+        receipt_with_status(
+            "FC2",
+            "FC2-N18",
+            "constitution/law",
+            fc2.genesis_report_present,
+            "document-pinned",
+            "constitution_hash",
+            vec![genesis.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N19",
+            "predicate boot",
+            fc2.genesis_report_present || counts.predicate_binding_activate > 0,
+            "predicate_boot_or_genesis",
+            vec![
+                format!(
+                    "predicate_binding_activate={}",
+                    counts.predicate_binding_activate
+                ),
+                genesis.clone(),
+            ],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N20",
+            "map-reduce tick",
+            counts.map_reduce_tick > 0,
+            "MapReduceTick",
+            vec![format!("map_reduce_tick={}", counts.map_reduce_tick)],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N21",
+            "Q0",
+            fc2.initial_q_state_loaded_from_disk,
+            "initial_q_state",
+            vec![runtime_repo.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N22",
+            "halt",
+            counts.terminal_summary > 0,
+            "TerminalSummary",
+            vec![format!("terminal_summary={}", counts.terminal_summary)],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N23",
+            "halt reason",
+            counts.terminal_summary > 0,
+            "TerminalSummary/ErrorHalt",
+            vec![format!("terminal_summary={}", counts.terminal_summary)],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N24",
+            "replay verifier",
+            replay_green,
+            "verify_chaintape",
+            vec![replay_path.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N25",
+            "CAS evidence",
+            replay.cas_payloads_retrievable,
+            "CAS",
+            vec![cas.clone()],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N26",
+            "tool/runtime state",
+            counts.task_open > 0 || counts.work > 0 || market.present,
+            "task_or_market_tx",
+            vec![format!(
+                "task_open={} work={} market={}",
+                counts.task_open, counts.work, market.l4_market_tx_count
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N27",
+            "tick persisted to tape",
+            fc2.map_reduce_tick_present,
+            "MapReduceTick_L4",
+            vec![format!("map_reduce_tick={}", counts.map_reduce_tick)],
+            &mut missing,
+        ),
+        receipt(
+            "FC2",
+            "FC2-N28",
+            "tools other / economy",
+            market.present,
+            "market_economy_tx",
+            vec![format!("market_tx_count={}", market.l4_market_tx_count)],
+            &mut missing,
+        ),
+    ];
+
+    let fc3_receipts = vec![
+        receipt(
+            "FC3",
+            "FC3-N29",
+            "boot",
+            fc2.initial_q_state_loaded_from_disk && replay_green,
+            "boot_replay",
+            vec![runtime_repo, replay_path.clone()],
+            &mut missing,
+        ),
+        receipt_with_status(
+            "FC3",
+            "FC3-N30",
+            "constitution",
+            fc2.genesis_report_present,
+            "document-pinned",
+            "constitution_hash",
+            vec![genesis],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N31",
+            "logs archive",
+            fc3.log_feedback_archive_txs > 0,
+            "LogFeedbackArchive",
+            vec![format!(
+                "log_feedback_archive={}",
+                fc3.log_feedback_archive_txs
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N32",
+            "ArchitectAI proposal",
+            fc3.architect_proposal_txs > 0,
+            "ArchitectProposal",
+            vec![format!("architect_proposal={}", fc3.architect_proposal_txs)],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N33",
+            "Veto-AI verdict",
+            fc3.veto_decision_txs > 0,
+            "VetoDecision_PASS_OR_VETO",
+            vec![format!("veto_decision={}", fc3.veto_decision_txs)],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N34",
+            "readonly guard",
+            replay_green,
+            "trust_root_replay_guard",
+            vec![replay_path],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N35",
+            "tools/logs feedback",
+            fc3.fc3_index_present,
+            "governance_capsule_index",
+            vec![fc3_index],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N36",
+            "feedback edge",
+            fc3.log_feedback_archive_txs > 0 && fc3.architect_proposal_txs > 0,
+            "LogFeedbackArchive_to_ArchitectProposal",
+            vec![format!(
+                "feedback={} proposal={}",
+                fc3.log_feedback_archive_txs, fc3.architect_proposal_txs
+            )],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N37",
+            "re-init request",
+            fc3.reinit_request_txs > 0,
+            "ReinitRequest",
+            vec![format!("reinit_request={}", fc3.reinit_request_txs)],
+            &mut missing,
+        ),
+        receipt(
+            "FC3",
+            "FC3-N38",
+            "re-init boot / Q update",
+            fc3.reinit_boot_txs > 0,
+            "ReinitBoot",
+            vec![format!("reinit_boot={}", fc3.reinit_boot_txs)],
+            &mut missing,
+        ),
+    ];
+
+    FlowchartNodeReceipts {
+        verdict: if missing.is_empty() {
+            "FLOW-PASS"
+        } else {
+            "FLOW-FAIL"
+        }
+        .to_string(),
+        missing,
+        fc1: fc1_receipts,
+        fc2: fc2_receipts,
+        fc3: fc3_receipts,
+    }
+}
+
+fn receipt(
+    flowchart: &'static str,
+    node_id: &'static str,
+    label: &'static str,
+    present: bool,
+    receipt_kind: &'static str,
+    evidence: Vec<String>,
+    missing: &mut Vec<String>,
+) -> FlowchartNodeReceipt {
+    receipt_with_status(
+        flowchart,
+        node_id,
+        label,
+        present,
+        "present",
+        receipt_kind,
+        evidence,
+        missing,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn receipt_with_status(
+    flowchart: &'static str,
+    node_id: &'static str,
+    label: &'static str,
+    present: bool,
+    present_status: &'static str,
+    receipt_kind: &'static str,
+    evidence: Vec<String>,
+    missing: &mut Vec<String>,
+) -> FlowchartNodeReceipt {
+    if !present {
+        missing.push(node_id.to_string());
+    }
+    FlowchartNodeReceipt {
+        flowchart,
+        node_id,
+        label,
+        status: if present { present_status } else { "missing" }.to_string(),
+        receipt_kind,
+        evidence,
+    }
 }
 
 fn main() -> ExitCode {

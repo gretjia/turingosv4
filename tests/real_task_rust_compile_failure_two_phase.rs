@@ -27,7 +27,11 @@ fn real_task_rust_compile_failure_two_phase() {
     );
     assert!(good_out.success(), "good candidate must compile");
     assert!(!bad_out.success(), "bad/no-op candidate remains rejected");
-    assert_eq!(base_out.cwd, tmp.path());
+    let expected_cwd = tmp
+        .path()
+        .canonicalize()
+        .unwrap_or_else(|_| tmp.path().to_path_buf());
+    assert_eq!(base_out.cwd, expected_cwd);
     assert!(base_out.argv.iter().any(|arg| arg.ends_with("base.rs")));
     assert!(changed_paths_allowed(&["src/lib.rs"]));
     assert!(!changed_paths_allowed(&["constitution.md"]));

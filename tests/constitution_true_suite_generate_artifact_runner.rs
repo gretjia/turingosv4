@@ -13,7 +13,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::artifact_bundle::{ARTIFACT_BUNDLE_SCHEMA_ID, ArtifactBundleManifest};
+use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
 use turingosv4::runtime::generation_attempt::GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 

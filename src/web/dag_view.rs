@@ -21,8 +21,8 @@ use axum::response::{IntoResponse, Response};
 
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter,
-    LedgerEntry, LedgerWriter, TxKind,
+    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry,
+    LedgerWriter, TxKind,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::runtime::agent_role_classifier::{classify_agent_role, RoleActivity};
@@ -171,7 +171,13 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
     let predicates = predicate_registry_loader::load_replay_registry();
     let tools = ToolRegistry::new();
     let replayed_q: QState = replay_full_transition_with_predicate_binding(
-        &initial_q, &entries, &cas, &cas, &pinned, &predicates, &tools,
+        &initial_q,
+        &entries,
+        &cas,
+        &cas,
+        &pinned,
+        &predicates,
+        &tools,
     )
     .map_err(|e| format!("replay_full_transition: {e:?}"))?;
     let econ = &replayed_q.economic_state_t;
@@ -326,7 +332,10 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
     let mut children: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for node in &nodes {
         if let Some(p) = &node.parent_tx {
-            children.entry(p.clone()).or_default().push(node.tx_id.clone());
+            children
+                .entry(p.clone())
+                .or_default()
+                .push(node.tx_id.clone());
         }
     }
 

@@ -25,8 +25,11 @@
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use std::time::{Duration, Instant};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 /// (preamble ending in ":= by", initial goal text shown to the LLM at the root).
 fn theorem(id: &str) -> Option<(&'static str, &'static str)> {
@@ -88,25 +91,34 @@ struct Node {
     tactics: Vec<String>,
     goals: String, // remaining goal text ("" never — root holds the initial goal)
     n_goals: usize,
-    stuck: u32,    // failed expansion attempts from this node (crude dead-end signal)
+    stuck: u32, // failed expansion attempts from this node (crude dead-end signal)
     depth: usize,
 }
 
 enum Eval {
     /// carries the EXACT source string Lean verified, so the emitted proof re-verifies byte-identically
-    Omega { source: String },
-    Partial { goals: String, n: usize },
+    Omega {
+        source: String,
+    },
+    Partial {
+        goals: String,
+        n: usize,
+    },
     Invalid,
 }
 
 fn lean_path(mathlib_dir: &Path) -> Option<String> {
-    let out = std::process::Command::new(format!("{}/.elan/bin/lake", std::env::var("HOME").ok()?))
-        .args(["env", "printenv", "LEAN_PATH"])
-        .current_dir(mathlib_dir)
-        .output()
-        .ok()?;
-    out.status
-        .success()
+    let lake = PathBuf::from(std::env::var("HOME").ok()?).join(".elan/bin/lake");
+    let out = run_sanitized(SanitizedCommand {
+        program: lake,
+        args: vec!["env".into(), "printenv".into(), "LEAN_PATH".into()],
+        cwd: mathlib_dir.to_path_buf(),
+        env: env_allowlist_from_current(&["PATH", "HOME"]),
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    })
+    .ok()?;
+    out.success()
         .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
@@ -150,12 +162,16 @@ fn eval_proof(
     if std::fs::write(&file, &src).is_err() {
         return Eval::Invalid;
     }
-    let out = match std::process::Command::new(lean_bin)
-        .arg(&file)
-        .current_dir(mathlib_dir)
-        .env("LEAN_PATH", lp)
-        .output()
-    {
+    let mut env = env_allowlist_from_current(&["PATH", "HOME"]);
+    env.insert("LEAN_PATH".into(), lp.to_string());
+    let out = match run_sanitized(SanitizedCommand {
+        program: lean_bin.to_path_buf(),
+        args: vec![file.to_string_lossy().into_owned()],
+        cwd: mathlib_dir.to_path_buf(),
+        env,
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    }) {
         Ok(o) => o,
         Err(_) => return Eval::Invalid,
     };
@@ -165,7 +181,7 @@ fn eval_proof(
         String::from_utf8_lossy(&out.stderr)
     );
     let low = text.to_lowercase();
-    if out.status.success() && !low.contains("sorry") && !low.contains("error") {
+    if out.success() && !low.contains("sorry") && !low.contains("error") {
         return Eval::Omega { source: src };
     }
     // Partial iff the ONLY error is "unsolved goals" (no tactic/elab error).
@@ -229,7 +245,11 @@ struct Args {
 
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
-    let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
+    let get = |k: &str| {
+        a.iter()
+            .position(|x| x == k)
+            .and_then(|i| a.get(i + 1).cloned())
+    };
     Ok(Args {
         theorem: get("--theorem").ok_or("--theorem required")?,
         policy: get("--policy").unwrap_or_else(|| "market".into()),
@@ -239,8 +259,12 @@ fn parse_args() -> Result<Args, String> {
         temp: get("--temp").and_then(|s| s.parse().ok()).unwrap_or(0.25),
         proxy: get("--proxy").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("--model").unwrap_or_else(|| "deepseek-chat".into()),
-        mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
-        out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/tmtree.json".into()),
+        mathlib_dir: get("--mathlib-dir")
+            .map(Into::into)
+            .ok_or("--mathlib-dir required")?,
+        out: get("--out")
+            .map(Into::into)
+            .unwrap_or_else(|| "/tmp/tmtree.json".into()),
     })
 }
 
@@ -254,8 +278,9 @@ fn value(node: &Node, root_goals: usize) -> f64 {
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let args = parse_args()?;
-    let (preamble, init_goal) = theorem(&args.theorem).ok_or(format!("unknown theorem {}", args.theorem))?;
-    let llm = ResilientLLMClient::new(&args.proxy, 120, 3);
+    let (preamble, init_goal) =
+        theorem(&args.theorem).ok_or(format!("unknown theorem {}", args.theorem))?;
+    let llm = RecordedLlmClient::new(&args.proxy, 120, 3);
     let lean_bin = default_lean_bin();
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() {
@@ -290,7 +315,10 @@ async fn main() -> Result<(), String> {
                 // MARKET: Boltzmann-softmax over node value → distribute across promising partial
                 // states incl early ones (backtrack / new branch). Art. II.2.1.
                 "market" => {
-                    let vals: Vec<f64> = live.iter().map(|&i| value(&nodes[i], root_goals_n)).collect();
+                    let vals: Vec<f64> = live
+                        .iter()
+                        .map(|&i| value(&nodes[i], root_goals_n))
+                        .collect();
                     let maxv = vals.iter().cloned().fold(f64::MIN, f64::max);
                     let t = args.temp.max(1e-6);
                     let w: Vec<f64> = vals.iter().map(|v| ((v - maxv) / t).exp()).collect();
@@ -346,9 +374,12 @@ async fn main() -> Result<(), String> {
                 parent.goals,
             );
             let resp = match llm
-                .generate(&GenerateRequest {
+                .generate_recorded(&GenerateRequest {
                     model: args.model.clone(),
-                    messages: vec![Message { role: "user".into(), content: prompt }],
+                    messages: vec![Message {
+                        role: "user".into(),
+                        content: prompt,
+                    }],
                     temperature: Some(0.6),
                     max_tokens: Some(300),
                 })
@@ -361,7 +392,9 @@ async fn main() -> Result<(), String> {
                 }
                 Err(_) => continue,
             };
-            let tac = match extract_json(&resp.content).and_then(|v| v.get("tactic").and_then(|x| x.as_str()).map(String::from)) {
+            let tac = match extract_json(&resp.content)
+                .and_then(|v| v.get("tactic").and_then(|x| x.as_str()).map(String::from))
+            {
                 Some(t) if !t.trim().is_empty() => t.trim().to_string(),
                 _ => {
                     nodes[pick].stuck += 1;
@@ -386,7 +419,14 @@ async fn main() -> Result<(), String> {
             match eval_proof(preamble, &tactics, &lean_bin, &args.mathlib_dir, &lp, &tag) {
                 Eval::Omega { source } => {
                     omega_source = Some(source);
-                    let new = Node { parent: Some(pick), tactics, goals: String::new(), n_goals: 0, stuck: 0, depth: nodes[pick].depth + 1 };
+                    let new = Node {
+                        parent: Some(pick),
+                        tactics,
+                        goals: String::new(),
+                        n_goals: 0,
+                        stuck: 0,
+                        depth: nodes[pick].depth + 1,
+                    };
                     nodes.push(new);
                     omega = Some(nodes.len() - 1);
                     best_progress = root_goals_n;
@@ -397,7 +437,14 @@ async fn main() -> Result<(), String> {
                     best_progress = best_progress.max(closed);
                     let depth = nodes[pick].depth + 1;
                     // only keep a child that made PROGRESS (fewer goals) or went deeper meaningfully
-                    let new = Node { parent: Some(pick), tactics, goals, n_goals: n, stuck: 0, depth };
+                    let new = Node {
+                        parent: Some(pick),
+                        tactics,
+                        goals,
+                        n_goals: n,
+                        stuck: 0,
+                        depth,
+                    };
                     nodes.push(new);
                     own_last.insert(ai, nodes.len() - 1);
                 }
@@ -411,7 +458,8 @@ async fn main() -> Result<(), String> {
     let wall = t0.elapsed().as_secs_f64();
     let solved = omega.is_some();
     // tree shape: branching = parents with >1 child; max_depth; distinct parents extended.
-    let mut child_count: std::collections::BTreeMap<usize, usize> = std::collections::BTreeMap::new();
+    let mut child_count: std::collections::BTreeMap<usize, usize> =
+        std::collections::BTreeMap::new();
     for n in &nodes {
         if let Some(p) = n.parent {
             *child_count.entry(p).or_insert(0) += 1;

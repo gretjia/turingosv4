@@ -1,0 +1,41 @@
+snapshot_id: tc-q-20260603T232218Z
+snapshot_path: /tmp/turingosv4-tc-quarantine-20260603T232218Z
+source_branch: claude/p1-realvalue
+source_head: 1da3f6674aa7036d76cc9a49b273853b10e13d3e
+origin_main: "39233aa7c868f0e9b37a7a29eb426279f41cf032"
+divergence_ahead_behind_origin_main: "12 49"
+tracked_patch_sha256: 3c7b3036360fd2b86253faf23482a35301959fc2d5cfe3264fd8ec391b224036
+ahead_patch_sha256: 4333566bde6e313559000fd10aa34c15b0353b975838794828a213f7d485f4d1
+untracked_tgz_sha256: 8ba17efbb60fa32edaf881cbf74c99a479e5525a12f7337b3e15b10880924de3
+status_txt_sha256: bbac726a8bac635451b50b67250700b2575e2c50b606f4ed82e1042eaa6c7d0f
+untracked_zlist_sha256: e4b6edfcea267a0b01ebfe963eb466c374c4281c9dc7778cb8cd2bc9995521bb
+preserved_files:
+  tracked_dirty_patch: tracked-dirty.patch
+  ahead_patch: ahead.patch
+  untracked_tgz: untracked.tgz
+  status_txt: status.txt
+  untracked_zlist: untracked.zlist
+  sha256sums: SHA256SUMS
+counts:
+  porcelain_status_records: 8006
+  tracked_dirty_patch_bytes: 724214
+  ahead_patch_bytes: 3679394
+  untracked_tgz_bytes: 822726927
+  status_txt_bytes: 682708
+classifications:
+  PORT_NOW: []
+  PORT_SEPARATE:
+    - src/bin/lean_market_agent.rs
+    - scripts/refresh_run_status.py
+    - handover/evidence/p1_v4_laterday_full_2026-06-03/**
+    - handover/reports/P1_REALVALUE_V4_LATERDAY_FULL_RERUN_EXTERNAL_AUDIT_PACKET_2026-06-03.md
+  ARCHIVE_ONLY:
+    - historical evidence directories not explicitly listed in PORT_SEPARATE
+    - generated run logs
+    - target-local build outputs
+  DROP_JUNK:
+    - rules/enforcement.log
+notes:
+  - The dirty tree is preserved as evidence quarry only.
+  - No dirty-file payload is imported wholesale into the TC clean worktree.
+  - Salvage candidates must be ported as fresh, reviewable commits with new tests.

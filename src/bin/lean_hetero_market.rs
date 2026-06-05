@@ -30,8 +30,11 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use std::time::{Duration, Instant};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 /// (conjunct goal text, the tactic FAMILY that closes it). Families: omega/ring/induction/nlinarith.
 fn task(id: &str) -> Option<Vec<(&'static str, &'static str)>> {
@@ -40,14 +43,20 @@ fn task(id: &str) -> Option<Vec<(&'static str, &'static str)>> {
         "het4" => Some(vec![
             ("2 * n + 3 ≤ 5 * n + 3 + 1", "omega"),
             ("(a + b)^2 = a^2 + 2*a*b + b^2", "ring"),
-            ("(∑ i ∈ Finset.range (n+1), (i:ℤ)) * 2 = n * (n+1)", "induction"),
+            (
+                "(∑ i ∈ Finset.range (n+1), (i:ℤ)) * 2 = n * (n+1)",
+                "induction",
+            ),
             ("a^2 + b^2 ≥ 2*a*b", "nlinarith"),
         ]),
         // het6: harder, 6 conjuncts across the same 4 families (some families repeat).
         "het6" => Some(vec![
             ("3 * n + 1 ≤ 7 * n + 2", "omega"),
             ("(a - b)^2 = a^2 - 2*a*b + b^2", "ring"),
-            ("(∑ i ∈ Finset.range (n+1), (i:ℤ)) * 2 = n * (n+1)", "induction"),
+            (
+                "(∑ i ∈ Finset.range (n+1), (i:ℤ)) * 2 = n * (n+1)",
+                "induction",
+            ),
             ("a^2 + b^2 ≥ 2*a*b", "nlinarith"),
             ("n + 5 ≤ 2 * n + 5 + n", "omega"),
             ("(a + b) * (a - b) = a^2 - b^2", "ring"),
@@ -73,22 +82,39 @@ fn family_hint(fam: &str) -> &'static str {
 }
 
 fn lean_path(mathlib_dir: &Path) -> Option<String> {
-    let out = std::process::Command::new(format!("{}/.elan/bin/lake", std::env::var("HOME").ok()?))
-        .args(["env", "printenv", "LEAN_PATH"])
-        .current_dir(mathlib_dir)
-        .output()
-        .ok()?;
-    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
+    let lake = PathBuf::from(std::env::var("HOME").ok()?).join(".elan/bin/lake");
+    let out = run_sanitized(SanitizedCommand {
+        program: lake,
+        args: vec!["env".into(), "printenv".into(), "LEAN_PATH".into()],
+        cwd: mathlib_dir.to_path_buf(),
+        env: env_allowlist_from_current(&["PATH", "HOME"]),
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    })
+    .ok()?;
+    out.success()
+        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 fn default_lean_bin() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
     let p = PathBuf::from(&home).join(".elan/toolchains/leanprover--lean4---v4.24.0/bin/lean");
-    if p.exists() { p } else { PathBuf::from("lean") }
+    if p.exists() {
+        p
+    } else {
+        PathBuf::from("lean")
+    }
 }
 
 /// Verify one conjunct's proof in isolation (full theorem with the conjunct as the goal).
-fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path, lp: &str, tag: &str) -> bool {
+fn verify_conjunct(
+    goal: &str,
+    proof: &str,
+    lean_bin: &Path,
+    mathlib_dir: &Path,
+    lp: &str,
+    tag: &str,
+) -> bool {
     let low = proof.to_lowercase();
     if low.contains("sorry") || low.contains("admit") {
         return false;
@@ -96,16 +122,34 @@ fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path,
     // wrap: the conjunct may mention n,a,b → bind them all.
     let src = format!(
         "import Mathlib\nopen Finset in\ntheorem c_{tag} {PREAMBLE_VARS} : {goal} := by\n{}\n",
-        proof.lines().map(|l| format!("  {l}")).collect::<Vec<_>>().join("\n")
+        proof
+            .lines()
+            .map(|l| format!("  {l}"))
+            .collect::<Vec<_>>()
+            .join("\n")
     );
     let file = std::env::temp_dir().join(format!("het_{tag}.lean"));
     if std::fs::write(&file, &src).is_err() {
         return false;
     }
-    match std::process::Command::new(lean_bin).arg(&file).current_dir(mathlib_dir).env("LEAN_PATH", lp).output() {
+    let mut env = env_allowlist_from_current(&["PATH", "HOME"]);
+    env.insert("LEAN_PATH".into(), lp.to_string());
+    match run_sanitized(SanitizedCommand {
+        program: lean_bin.to_path_buf(),
+        args: vec![file.to_string_lossy().into_owned()],
+        cwd: mathlib_dir.to_path_buf(),
+        env,
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    }) {
         Ok(o) => {
-            let t = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).to_lowercase();
-            o.status.success() && !t.contains("sorry") && !t.contains("error")
+            let t = format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            )
+            .to_lowercase();
+            o.success() && !t.contains("sorry") && !t.contains("error")
         }
         Err(_) => false,
     }
@@ -119,7 +163,9 @@ fn extract_tactic(s: &str) -> Option<String> {
         let b = s.rfind('}')?;
         serde_json::from_str(&s[a..=b]).ok()?
     };
-    v.get("tactic").and_then(|x| x.as_str()).map(|s| s.trim().to_string())
+    v.get("tactic")
+        .and_then(|x| x.as_str())
+        .map(|s| s.trim().to_string())
 }
 
 struct Args {
@@ -135,7 +181,11 @@ struct Args {
 
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
-    let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
+    let get = |k: &str| {
+        a.iter()
+            .position(|x| x == k)
+            .and_then(|i| a.get(i + 1).cloned())
+    };
     Ok(Args {
         task: get("--task").ok_or("--task required")?,
         policy: get("--policy").unwrap_or_else(|| "market".into()),
@@ -143,8 +193,12 @@ fn parse_args() -> Result<Args, String> {
         seed: get("--seed").and_then(|s| s.parse().ok()).unwrap_or(1),
         proxy: get("--proxy").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("--model").unwrap_or_else(|| "deepseek-chat".into()),
-        mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
-        out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/het.json".into()),
+        mathlib_dir: get("--mathlib-dir")
+            .map(Into::into)
+            .ok_or("--mathlib-dir required")?,
+        out: get("--out")
+            .map(Into::into)
+            .unwrap_or_else(|| "/tmp/het.json".into()),
     })
 }
 
@@ -153,7 +207,7 @@ async fn main() -> Result<(), String> {
     let args = parse_args()?;
     let conjuncts = task(&args.task).ok_or(format!("unknown task {}", args.task))?;
     let k = conjuncts.len();
-    let llm = ResilientLLMClient::new(&args.proxy, 120, 3);
+    let llm = RecordedLlmClient::new(&args.proxy, 120, 3);
     let lean_bin = default_lean_bin();
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() {
@@ -204,23 +258,38 @@ async fn main() -> Result<(), String> {
         let (goal, _truth_fam) = conjuncts[target];
         let role = match fam {
             Some(f) => format!("You are a SPECIALIST agent. {}", family_hint(f)),
-            None => "You are a generalist Lean 4 prover; use any single appropriate tactic.".to_string(),
+            None => {
+                "You are a generalist Lean 4 prover; use any single appropriate tactic.".to_string()
+            }
         };
         let prompt = format!(
             "{role}\n\nProve this Lean 4 (Mathlib) goal. Context binds `(n : ℕ) (a b : ℝ)`.\n\nGoal:\n{goal}\n\nGive a Lean proof (a `by`-block body, one or more tactics) that closes THIS goal. Output ONLY JSON: {{\"tactic\": \"<proof body>\"}}. If your specialty does not apply, output {{\"tactic\": \"SKIP\"}}. No `sorry`.",
         );
-        let resp = match llm.generate(&GenerateRequest {
-            model: args.model.clone(),
-            messages: vec![Message { role: "user".into(), content: prompt }],
-            temperature: Some(0.3),
-            max_tokens: Some(300),
-        }).await {
-            Ok(r) => { tokens += (r.prompt_tokens + r.completion_tokens) as u64; llm_calls += 1; r }
+        let resp = match llm
+            .generate_recorded(&GenerateRequest {
+                model: args.model.clone(),
+                messages: vec![Message {
+                    role: "user".into(),
+                    content: prompt,
+                }],
+                temperature: Some(0.3),
+                max_tokens: Some(300),
+            })
+            .await
+        {
+            Ok(r) => {
+                tokens += (r.prompt_tokens + r.completion_tokens) as u64;
+                llm_calls += 1;
+                r
+            }
             Err(_) => continue,
         };
         let tac = match extract_tactic(&resp.content) {
             Some(t) if !t.is_empty() && t.to_uppercase() != "SKIP" => t,
-            _ => { skips += 1; continue; }
+            _ => {
+                skips += 1;
+                continue;
+            }
         };
         // ENFORCE the specialty at the HARNESS (deepseek ignores the prompt's "only X" rule):
         // a specialist's proof MUST use its locked tactic family and NOT another family's closer.

@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
 use turingosv4::economy::money::MicroCoin;
 use turingosv4::runtime::adapter::{
     genesis_with_balances, make_real_escrow_lock_signed_by, make_real_task_open_signed_by,
@@ -418,8 +418,8 @@ async fn run(args: Args) -> Result<(), String> {
         &observation,
     );
     let prompt_sha256 = sha256_hex(&prompt);
-    let response = ResilientLLMClient::new(&args.llm_proxy_url, 180, 2)
-        .generate(&GenerateRequest {
+    let response = RecordedLlmClient::new(&args.llm_proxy_url, 180, 2)
+        .generate_recorded(&GenerateRequest {
             model: args.model.clone(),
             messages: vec![
                 Message {

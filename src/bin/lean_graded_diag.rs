@@ -18,8 +18,11 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use std::time::{Duration, Instant};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
+use turingosv4::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+};
 
 /// Graded theorems: id -> conjunct goal strings (each independently Lean-provable,
 /// verified in /tmp/grad_verify.lean before commit). Reference proofs are NOT here —
@@ -107,7 +110,9 @@ struct Args {
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
     let get = |k: &str| -> Option<String> {
-        a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned())
+        a.iter()
+            .position(|x| x == k)
+            .and_then(|i| a.get(i + 1).cloned())
     };
     Ok(Args {
         theorem: get("--theorem").ok_or("--theorem required")?,
@@ -117,13 +122,24 @@ fn parse_args() -> Result<Args, String> {
         seed: get("--seed").and_then(|s| s.parse().ok()).unwrap_or(1),
         proxy: get("--proxy").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("--model").unwrap_or_else(|| "deepseek-chat".into()),
-        mathlib_dir: get("--mathlib-dir").map(Into::into).ok_or("--mathlib-dir required")?,
-        out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/grad_diag.json".into()),
+        mathlib_dir: get("--mathlib-dir")
+            .map(Into::into)
+            .ok_or("--mathlib-dir required")?,
+        out: get("--out")
+            .map(Into::into)
+            .unwrap_or_else(|| "/tmp/grad_diag.json".into()),
     })
 }
 
 /// Verify one conjunct's proof in isolation under Lean+Mathlib (exit 0 + no sorry).
-fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path, lean_path: &str, tag: &str) -> bool {
+fn verify_conjunct(
+    goal: &str,
+    proof: &str,
+    lean_bin: &Path,
+    mathlib_dir: &Path,
+    lean_path: &str,
+    tag: &str,
+) -> bool {
     let lower = proof.to_lowercase();
     if BYPASS.iter().any(|b| lower.contains(b)) {
         return false;
@@ -133,27 +149,40 @@ fn verify_conjunct(goal: &str, proof: &str, lean_bin: &Path, mathlib_dir: &Path,
     if std::fs::write(&file, &src).is_err() {
         return false;
     }
-    match std::process::Command::new(lean_bin)
-        .arg(&file)
-        .current_dir(mathlib_dir)
-        .env("LEAN_PATH", lean_path)
-        .output()
-    {
+    let mut env = env_allowlist_from_current(&["PATH", "HOME"]);
+    env.insert("LEAN_PATH".into(), lean_path.to_string());
+    match run_sanitized(SanitizedCommand {
+        program: lean_bin.to_path_buf(),
+        args: vec![file.to_string_lossy().into_owned()],
+        cwd: mathlib_dir.to_path_buf(),
+        env,
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    }) {
         Ok(o) => {
-            let out = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
-            o.status.success() && !out.to_lowercase().contains("sorry")
+            let out = format!(
+                "{}{}",
+                String::from_utf8_lossy(&o.stdout),
+                String::from_utf8_lossy(&o.stderr)
+            );
+            o.success() && !out.to_lowercase().contains("sorry")
         }
         Err(_) => false,
     }
 }
 
 fn lean_path(mathlib_dir: &Path) -> Option<String> {
-    let out = std::process::Command::new(format!("{}/.elan/bin/lake", std::env::var("HOME").ok()?))
-        .args(["env", "printenv", "LEAN_PATH"])
-        .current_dir(mathlib_dir)
-        .output()
-        .ok()?;
-    if out.status.success() {
+    let lake = PathBuf::from(std::env::var("HOME").ok()?).join(".elan/bin/lake");
+    let out = run_sanitized(SanitizedCommand {
+        program: lake,
+        args: vec!["env".into(), "printenv".into(), "LEAN_PATH".into()],
+        cwd: mathlib_dir.to_path_buf(),
+        env: env_allowlist_from_current(&["PATH", "HOME"]),
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    })
+    .ok()?;
+    if out.success() {
         Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
     } else {
         None
@@ -162,8 +191,7 @@ fn lean_path(mathlib_dir: &Path) -> Option<String> {
 
 fn default_lean_bin() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
-    let pinned = PathBuf::from(&home)
-        .join(".elan/toolchains/leanprover--lean4---v4.24.0/bin/lean");
+    let pinned = PathBuf::from(&home).join(".elan/toolchains/leanprover--lean4---v4.24.0/bin/lean");
     if pinned.exists() {
         pinned
     } else {
@@ -185,7 +213,7 @@ async fn main() -> Result<(), String> {
     let args = parse_args()?;
     let goals = graded_theorem(&args.theorem).ok_or(format!("unknown theorem {}", args.theorem))?;
     let k = goals.len();
-    let llm = ResilientLLMClient::new(&args.proxy, 120, 3);
+    let llm = RecordedLlmClient::new(&args.proxy, 120, 3);
     let lean_bin = default_lean_bin();
     let lp = lean_path(&args.mathlib_dir).unwrap_or_default();
     if lp.is_empty() {
@@ -240,7 +268,11 @@ async fn main() -> Result<(), String> {
                 .iter()
                 .enumerate()
                 .map(|(i, g)| {
-                    let mark = if base.closed.contains(&i) { "[DONE]" } else { "[OPEN]" };
+                    let mark = if base.closed.contains(&i) {
+                        "[DONE]"
+                    } else {
+                        "[OPEN]"
+                    };
                     format!("  {i}. {mark} {g}")
                 })
                 .collect::<Vec<_>>()
@@ -253,9 +285,12 @@ async fn main() -> Result<(), String> {
                  The proof must compile as `theorem t : <conjunct i> := <proof>`. No `sorry`.",
             );
             let resp = match llm
-                .generate(&GenerateRequest {
+                .generate_recorded(&GenerateRequest {
                     model: args.model.clone(),
-                    messages: vec![Message { role: "user".into(), content: prompt }],
+                    messages: vec![Message {
+                        role: "user".into(),
+                        content: prompt,
+                    }],
                     temperature: Some(0.4),
                     max_tokens: Some(400),
                 })
@@ -273,12 +308,22 @@ async fn main() -> Result<(), String> {
             let mut node = base.clone();
             if let Some(v) = extract_json(&resp.content) {
                 let idx = v.get("index").and_then(|x| x.as_u64()).map(|x| x as usize);
-                let proof = v.get("proof").and_then(|x| x.as_str()).map(|s| s.to_string());
+                let proof = v
+                    .get("proof")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string());
                 if let (Some(idx), Some(proof)) = (idx, proof) {
                     if idx < k && !node.closed.contains(&idx) {
                         verify_calls += 1;
                         let tag = format!("{}_{}_{}_{}", args.theorem, round, ai, idx);
-                        if verify_conjunct(goals[idx], &proof, &lean_bin, &args.mathlib_dir, &lp, &tag) {
+                        if verify_conjunct(
+                            goals[idx],
+                            &proof,
+                            &lean_bin,
+                            &args.mathlib_dir,
+                            &lp,
+                            &tag,
+                        ) {
                             node.closed.insert(idx);
                             node.proofs.insert(idx, proof);
                         }

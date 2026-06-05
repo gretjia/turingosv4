@@ -17,9 +17,9 @@
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_GENERATE_PHASE_E_DIRECTIVE_AND_§8.md
 
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use sha2::{Digest, Sha256};
 
 use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, TapeNode,
@@ -50,6 +50,27 @@ pub const GIT_LEDGER_LEDGER_TAIL_REF: &str = "refs/tdma/ledger_tail";
 /// TRACE_MATRIX FC1a-substrate_seam: Prefix for per-AttemptScope refs. The
 /// scope-hashed suffix is appended at commit time.
 pub const GIT_LEDGER_SCOPE_REF_PREFIX: &str = "refs/tdma/scopes/";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TcHeadRefs {
+    pub accepted_l4: &'static str,
+    pub rejected_l4e: &'static str,
+    pub cas_root: &'static str,
+    pub tdma_verified: &'static str,
+    pub tdma_tail: &'static str,
+}
+
+impl Default for TcHeadRefs {
+    fn default() -> Self {
+        Self {
+            accepted_l4: "refs/chaintape/l4",
+            rejected_l4e: "refs/chaintape/l4e",
+            cas_root: "refs/chaintape/cas",
+            tdma_verified: GIT_LEDGER_HEAD_REF,
+            tdma_tail: GIT_LEDGER_LEDGER_TAIL_REF,
+        }
+    }
+}
 
 // ── Error type ─────────────────────────────────────────────────────
 
@@ -104,9 +125,10 @@ impl GitTapeLedger {
     /// TRACE_MATRIX FC1a-substrate_seam: Open an existing bare repo at `path`.
     pub fn open(path: &Path) -> Result<Self, GitTapeLedgerError> {
         let repo = git2::Repository::open_bare(path)?;
+        let next_seq = next_seq_from_repo(&repo)?;
         Ok(Self {
             repo,
-            next_seq: AtomicU64::new(1),
+            next_seq: AtomicU64::new(next_seq),
         })
     }
 
@@ -262,7 +284,9 @@ fn reconstruct_node_from_commit(
     let verified_bytes = read_blob_bytes(repo, &tree, "2_verified")?
         .ok_or_else(|| GitTapeLedgerError::MalformedNode("missing 2_verified".into()))?;
     if verified_bytes.len() != 1 {
-        return Err(GitTapeLedgerError::MalformedNode("verified blob len".into()));
+        return Err(GitTapeLedgerError::MalformedNode(
+            "verified blob len".into(),
+        ));
     }
     let verified = verified_bytes[0] != 0;
 
@@ -276,17 +300,21 @@ fn reconstruct_node_from_commit(
 
     let attempt_ordinal: Option<u32> = match read_blob_bytes(repo, &tree, "4_attempt_ordinal")? {
         Some(b) if b.len() == 4 => Some(u32::from_be_bytes([b[0], b[1], b[2], b[3]])),
-        Some(_) => return Err(GitTapeLedgerError::MalformedNode("attempt_ordinal len".into())),
+        Some(_) => {
+            return Err(GitTapeLedgerError::MalformedNode(
+                "attempt_ordinal len".into(),
+            ))
+        }
         None => None,
     };
 
-    let reject_class: Option<String> = match read_blob_bytes(repo, &tree, "5_reject_class")? {
-        Some(b) => Some(
-            String::from_utf8(b)
-                .map_err(|e| GitTapeLedgerError::MalformedNode(format!("reject_class utf8: {e}")))?,
-        ),
-        None => None,
-    };
+    let reject_class: Option<String> =
+        match read_blob_bytes(repo, &tree, "5_reject_class")? {
+            Some(b) => Some(String::from_utf8(b).map_err(|e| {
+                GitTapeLedgerError::MalformedNode(format!("reject_class utf8: {e}"))
+            })?),
+            None => None,
+        };
 
     let token_count: Option<usize> = match read_blob_bytes(repo, &tree, "6_token_count")? {
         Some(b) if b.len() == 8 => {
@@ -301,7 +329,9 @@ fn reconstruct_node_from_commit(
     let created_at_unix_ms_bytes = read_blob_bytes(repo, &tree, "7_created_at_ms")?
         .ok_or_else(|| GitTapeLedgerError::MalformedNode("missing 7_created_at_ms".into()))?;
     if created_at_unix_ms_bytes.len() != 8 {
-        return Err(GitTapeLedgerError::MalformedNode("created_at_ms len".into()));
+        return Err(GitTapeLedgerError::MalformedNode(
+            "created_at_ms len".into(),
+        ));
     }
     let mut arr = [0u8; 8];
     arr.copy_from_slice(&created_at_unix_ms_bytes);
@@ -367,6 +397,18 @@ where
     Ok(())
 }
 
+fn next_seq_from_repo(repo: &git2::Repository) -> Result<u64, GitTapeLedgerError> {
+    let mut max_id = 0u64;
+    walk_commits(repo, GIT_LEDGER_LEDGER_TAIL_REF, |commit| {
+        let seconds = commit.time().seconds();
+        if seconds > 0 {
+            max_id = max_id.max(seconds as u64);
+        }
+        Ok(true)
+    })?;
+    Ok(max_id + 1)
+}
+
 impl ImmutableTapeLedger for GitTapeLedger {
     fn get_verified_head(&self) -> String {
         // Atom 22: read refs/tdma/verified_head; return its target OID hex
@@ -389,20 +431,21 @@ impl ImmutableTapeLedger for GitTapeLedger {
         // simply delete the ref if it exists so get_verified_head returns "H0".
         if new_head == "H0" || new_head.is_empty() {
             if let Ok(mut r) = self.repo.find_reference(GIT_LEDGER_HEAD_REF) {
-                let _ = r.delete();
+                r.delete().expect("tdma verified_head delete failed");
             }
             return;
         }
         let oid = match git2::Oid::from_str(&new_head) {
             Ok(o) => o,
-            Err(_) => return, // invalid OID; refuse silently (parallels MemoryTapeLedger)
+            Err(_) => panic!("invalid tdma verified_head oid"),
         };
         if let Ok(mut r) = self.repo.find_reference(GIT_LEDGER_HEAD_REF) {
-            let _ = r.set_target(oid, "tdma verified_head update");
+            r.set_target(oid, "tdma verified_head update")
+                .expect("tdma verified_head update failed");
         } else {
-            let _ = self
-                .repo
-                .reference(GIT_LEDGER_HEAD_REF, oid, true, "tdma verified_head init");
+            self.repo
+                .reference(GIT_LEDGER_HEAD_REF, oid, true, "tdma verified_head init")
+                .expect("tdma verified_head init failed");
         }
     }
 
@@ -472,7 +515,14 @@ impl ImmutableTapeLedger for GitTapeLedger {
 
         let commit_oid = self
             .repo
-            .commit(None, &signature, &signature, &canonical_msg, &tree, &parent_refs)
+            .commit(
+                None,
+                &signature,
+                &signature,
+                &canonical_msg,
+                &tree,
+                &parent_refs,
+            )
             .expect("Atom 21: git commit failed");
 
         // Update refs: per-scope (if scope.is_some) + ledger_tail (always).
@@ -480,22 +530,26 @@ impl ImmutableTapeLedger for GitTapeLedger {
             let ref_name = scope_ref_name(scope);
             // update_or_create: set_target if exists, else create.
             if let Ok(mut r) = self.repo.find_reference(&ref_name) {
-                let _ = r.set_target(commit_oid, "tdma scope ref update");
+                r.set_target(commit_oid, "tdma scope ref update")
+                    .expect("tdma scope ref update failed");
             } else {
-                let _ = self
-                    .repo
-                    .reference(&ref_name, commit_oid, true, "tdma scope ref init");
+                self.repo
+                    .reference(&ref_name, commit_oid, true, "tdma scope ref init")
+                    .expect("tdma scope ref init failed");
             }
         }
         if let Ok(mut r) = self.repo.find_reference(GIT_LEDGER_LEDGER_TAIL_REF) {
-            let _ = r.set_target(commit_oid, "tdma ledger_tail update");
+            r.set_target(commit_oid, "tdma ledger_tail update")
+                .expect("tdma ledger_tail update failed");
         } else {
-            let _ = self.repo.reference(
-                GIT_LEDGER_LEDGER_TAIL_REF,
-                commit_oid,
-                true,
-                "tdma ledger_tail init",
-            );
+            self.repo
+                .reference(
+                    GIT_LEDGER_LEDGER_TAIL_REF,
+                    commit_oid,
+                    true,
+                    "tdma ledger_tail init",
+                )
+                .expect("tdma ledger_tail init failed");
         }
 
         TapeNode {

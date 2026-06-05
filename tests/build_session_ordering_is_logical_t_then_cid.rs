@@ -12,17 +12,15 @@ use tokio::sync::Mutex;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::spec_capsule::{cas_path, GrillSessionCapsuleBody, GrillAttemptTally};
+use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
+use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
 use turingosv4::runtime::generation_attempt::{
-    GenerationAttemptCapsule, AttemptOutcome, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
-};
-use turingosv4::runtime::artifact_bundle::{
-    ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID,
+    AttemptOutcome, GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::preview_run::{
     PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID,
 };
-use turingosv4::runtime::build_session_view::{BuildSessionView, BuildStatus};
+use turingosv4::runtime::spec_capsule::{cas_path, GrillAttemptTally, GrillSessionCapsuleBody};
 
 static ENV_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
 
@@ -89,7 +87,8 @@ async fn build_session_ordering_is_logical_t_then_cid() {
     let session_id = "test-session-ordering";
 
     // Add GrillSession (to pass spec validation)
-    let spec_cid_hex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
+    let spec_cid_hex =
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string();
     let grill_body = GrillSessionCapsuleBody {
         session_id: session_id.to_string(),
         turn_cids: vec![],
@@ -102,13 +101,15 @@ async fn build_session_ordering_is_logical_t_then_cid() {
         logical_t: 10,
     };
     let grill_bytes = serde_json::to_vec(&grill_body).unwrap();
-    let _grill_cid = store.put(
-        &grill_bytes,
-        ObjectType::EvidenceCapsule,
-        "test_user",
-        10,
-        Some("turingos-spec-grill-session-v1".to_string()),
-    ).expect("put grill");
+    let _grill_cid = store
+        .put(
+            &grill_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            10,
+            Some("turingos-spec-grill-session-v1".to_string()),
+        )
+        .expect("put grill");
 
     // Write attempts with different logical timestamps to test ordering by (logical_t, cid)
     // Attempt A: logical_t = 30
@@ -140,9 +141,33 @@ async fn build_session_ordering_is_logical_t_then_cid() {
     let att_c_bytes = make_attempt(20, "C");
 
     // Put them into CAS in a specific order: A, C, B
-    let cid_a = store.put(&att_a_bytes, ObjectType::EvidenceCapsule, "test_user", 30, Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string())).unwrap();
-    let cid_c = store.put(&att_c_bytes, ObjectType::EvidenceCapsule, "test_user", 20, Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string())).unwrap();
-    let cid_b = store.put(&att_b_bytes, ObjectType::EvidenceCapsule, "test_user", 20, Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string())).unwrap();
+    let cid_a = store
+        .put(
+            &att_a_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            30,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .unwrap();
+    let cid_c = store
+        .put(
+            &att_c_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            20,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .unwrap();
+    let cid_b = store
+        .put(
+            &att_b_bytes,
+            ObjectType::EvidenceCapsule,
+            "test_user",
+            20,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .unwrap();
 
     let (status, body) = http_get(addr, &format!("/api/build/session/{session_id}")).await;
     assert_eq!(status, 200);

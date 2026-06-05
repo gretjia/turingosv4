@@ -17,10 +17,12 @@
 //! + parser; reuses `LeanJudge`; no §6 surface).
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use serde::Deserialize;
 
 use crate::judges::lean_judge::{default_lean_bin, LeanJudge, PINNED_TOOLCHAIN};
+use crate::sdk::sanitized_runner::{env_allowlist_from_current, run_sanitized, SanitizedCommand};
 
 /// TRACE_MATRIX FC1a-judge_pi: a target theorem in the JudgeAI problem-set bank.
 #[derive(Debug, Clone, Deserialize)]
@@ -76,12 +78,16 @@ pub fn load_bank(path: impl AsRef<Path>) -> Result<Vec<LeanTheorem>, String> {
 /// Resolve the Mathlib `LEAN_PATH` by asking lake in the Mathlib project dir.
 /// Returns `None` if lake/dir is unavailable (callers then skip Mathlib theorems).
 pub fn mathlib_lean_path(mathlib_dir: impl AsRef<Path>, lake_bin: &Path) -> Option<String> {
-    let out = std::process::Command::new(lake_bin)
-        .args(["env", "printenv", "LEAN_PATH"])
-        .current_dir(mathlib_dir.as_ref())
-        .output()
-        .ok()?;
-    if !out.status.success() {
+    let out = run_sanitized(SanitizedCommand {
+        program: lake_bin.to_path_buf(),
+        args: vec!["env".into(), "printenv".into(), "LEAN_PATH".into()],
+        cwd: mathlib_dir.as_ref().to_path_buf(),
+        env: env_allowlist_from_current(&["PATH", "HOME"]),
+        stdin: None,
+        timeout: Duration::from_secs(60),
+    })
+    .ok()?;
+    if !out.success() {
         return None;
     }
     let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
@@ -121,9 +127,16 @@ mod tests {
     fn bank_parses_and_is_well_formed() {
         let bank = load_bank(bank_path()).expect("load bank");
         assert!(bank.len() >= 5, "expected >=5 theorems, got {}", bank.len());
-        assert!(bank.iter().any(|t| t.needs_mathlib), "want at least one Mathlib entry");
+        assert!(
+            bank.iter().any(|t| t.needs_mathlib),
+            "want at least one Mathlib entry"
+        );
         for t in &bank {
-            assert!(t.preamble.contains(":= by"), "{}: preamble must end with := by", t.id);
+            assert!(
+                t.preamble.contains(":= by"),
+                "{}: preamble must end with := by",
+                t.id
+            );
             for tok in ["sorry", "admit", "native_decide"] {
                 assert!(
                     !t.reference_body.contains(tok),
@@ -145,7 +158,8 @@ mod tests {
             eprintln!("skip: pinned Lean toolchain {PINNED_TOOLCHAIN} absent");
             return;
         }
-        let mathlib_lp = resolve_mathlib_dir().and_then(|d| mathlib_lean_path(d, &default_lake_bin()));
+        let mathlib_lp =
+            resolve_mathlib_dir().and_then(|d| mathlib_lean_path(d, &default_lake_bin()));
         let bank = load_bank(bank_path()).expect("load bank");
         for t in &bank {
             if t.needs_mathlib && mathlib_lp.is_none() {
@@ -154,7 +168,11 @@ mod tests {
             }
             let judge = t.judge(lean_bin.clone(), mathlib_lp.as_deref());
             let o = judge.verify(&t.reference_body);
-            assert!(o.is_verified(), "bank {} reference body did not verify: {o:?}", t.id);
+            assert!(
+                o.is_verified(),
+                "bank {} reference body did not verify: {o:?}",
+                t.id
+            );
         }
     }
 

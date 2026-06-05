@@ -201,7 +201,6 @@ fn positive_ev_ignored_summary_excludes_policy_from_e2_and_private_material() {
     );
 }
 
-
 #[test]
 fn dashboard_renders_positive_ev_ignored_action_conversion_metrics() {
     let dashboard = std::fs::read_to_string("src/bin/audit_dashboard.rs").unwrap();

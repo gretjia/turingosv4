@@ -374,7 +374,10 @@ fn spec_detection_game_keywords() {
 fn spec_detection_non_game() {
     // The exact Π5 video-converter spec one-liner — MUST NOT match game.
     let spec = "想做一個影片轉檔工具, 支援拖曳上傳, 輸出 mp4。介面用繁體中文";
-    assert!(!spec_looks_like_game(spec), "video converter spec must not match game");
+    assert!(
+        !spec_looks_like_game(spec),
+        "video converter spec must not match game"
+    );
     assert!(!spec_looks_like_game("Build a todo app with localStorage"));
     assert!(!spec_looks_like_game("CRUD dashboard for inventory"));
     assert!(!spec_looks_like_game("Markdown editor with preview"));

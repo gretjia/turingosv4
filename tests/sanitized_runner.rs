@@ -64,6 +64,7 @@ fn sandbox_cwd_is_explicit_workspace() {
 
     let output = run_sanitized(bash_command(&cwd, "pwd")).expect("command runs");
     let stdout = String::from_utf8(output.stdout).expect("stdout is utf8");
+    let cwd = cwd.canonicalize().expect("workspace path canonicalizes");
 
     assert_eq!(stdout.trim(), cwd.to_string_lossy());
     assert_eq!(output.cwd, cwd);

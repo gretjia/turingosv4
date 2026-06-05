@@ -4,7 +4,7 @@
 //! Atom 18 thin-shim refactor: all the kernel-driving / probe-capture /
 //! evidence-writing logic now lives in `turingosv4::tdma_runner`. This
 //! binary contributes only:
-//!   * the local-proxy LLM-call closure (ResilientLLMClient wrapped in a
+//!   * the local-proxy LLM-call closure (RecordedLlmClient wrapped in a
 //!     current-thread tokio block-on),
 //!   * the per-stage prompt builders for Nesbitt,
 //!   * the run configuration (run_id, evidence-dir, problem text).
@@ -15,7 +15,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
 const PROBLEM_TEXT: &str = r#"Prove Nesbitt's inequality for positive reals:
@@ -100,7 +100,7 @@ fn main() -> ExitCode {
         proxy_url, model, max_attempts_per_stage, temperature
     );
 
-    let llm = ResilientLLMClient::new(&proxy_url, 120, 2);
+    let llm = RecordedLlmClient::new(&proxy_url, 120, 2);
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -146,7 +146,7 @@ fn main() -> ExitCode {
             max_tokens: Some(500),
         };
         let resp = rt
-            .block_on(llm.generate(&req))
+            .block_on(llm.generate_recorded(&req))
             .map_err(|e| format!("llm: {}", e))?;
         Ok(LlmResponse {
             content: resp.content,

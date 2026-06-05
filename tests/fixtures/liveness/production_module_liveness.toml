@@ -739,6 +739,51 @@ real_world_evidence = [
 evidence_requires = ["real user simulator", "artifact delivery", "backend observer"]
 
 [[group]]
+id = "tc_operationalization_contract_scaffolds"
+classification = "support_invariant"
+status = "smoke_only"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = [
+  "bin::turingos::cmd_boot",
+  "judges::lean_micro_state",
+  "runtime::boot_trust_root_manifest",
+  "runtime::external_call",
+  "runtime::g0_completeness",
+  "runtime::tc_agent_view",
+  "runtime::tc_crash_matrix",
+  "runtime::tc_tape_canonical",
+  "runtime::tc_universal_witness",
+]
+paths = [
+  "src/bin/turingos/cmd_boot.rs",
+  "src/judges/lean_micro_state.rs",
+  "src/runtime/boot_trust_root_manifest.rs",
+  "src/runtime/external_call.rs",
+  "src/runtime/g0_completeness.rs",
+  "src/runtime/tc_agent_view.rs",
+  "src/runtime/tc_crash_matrix.rs",
+  "src/runtime/tc_tape_canonical.rs",
+  "src/runtime/tc_universal_witness.rs",
+]
+constitutional_anchors = ["Art.0.2", "Art.I", "FC1:predicates", "FC1:agent delta"]
+necessity = "TC operationalization needs typed contracts and explicit boot verifier gates before production gateway, Lean stepping, and bounded G0 scheduling can be wired to tape."
+smoke_gates = [
+  "tests/constitution_tc_boot_trust_root_manifest.rs::tc_boot_manifest_verifies_constitution_predicates_payload_and_refs",
+  "tests/tc_external_call_records.rs::terminal_count_invariant_holds_for_clean_ledger",
+  "tests/tc_lean_micro_state_contract.rs::lean_step_outcome_has_no_verified_state_before_final_judge",
+  "tests/tc_g0_completeness.rs::even_lane_trace_is_identical_under_poisoned_odd_queue",
+  "tests/tc_agent_view_shielding.rs::tc_goal_view_hides_theorem_body_and_full_landscape",
+  "tests/tc_crash_matrix.rs::crash_matrix_restarts_from_git_cas_only",
+  "tests/tc_tape_canonical_repairs.rs::wallet_fact_replays_from_chaintape_not_tool_state",
+  "tests/tc_universal_witnesses.rs::minsky_addition_works_and_replay_verifies",
+]
+real_world_evidence = []
+evidence_requires = ["future ChainTape/CAS integration", "future LeanJudge certification", "future scheduler replay"]
+closure_action = "Promote to real-world candidate only after TC production gateway, Lean adapter, and scheduler evidence land."
+
+[[group]]
 id = "tdma_bounded_solver"
 classification = "product_workload"
 status = "historical_real_world_candidate"
@@ -812,6 +857,7 @@ module_ids = [
   "bin::turingos::cmd_audit_tamper",
   "bin::turingos::cmd_audit_tape",
   "bin::turingos::cmd_batch",
+  "bin::turingos::cmd_benchmark_full_flow",
   "bin::turingos::cmd_config",
   "bin::turingos::cmd_export_evidence",
   "bin::turingos::cmd_generate",

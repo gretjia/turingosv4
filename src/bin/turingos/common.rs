@@ -174,3 +174,17 @@ fn resolve_default(bin_name: &str) -> std::path::PathBuf {
         .cloned()
         .unwrap_or_else(|| std::path::PathBuf::from(bin_name))
 }
+
+/// TRACE_MATRIX FC2-N16: resolve a sibling project binary without executing it.
+///
+/// Mirrors `run_external`'s resolution chain so orchestration commands can
+/// capture child stdout/stderr as evidence instead of streaming it directly.
+pub(crate) fn resolve_external_bin(bin_name: &str) -> std::path::PathBuf {
+    if let Ok(d) = std::env::var("TURINGOS_BIN_DIR") {
+        let p = std::path::PathBuf::from(d).join(bin_name);
+        if p.exists() {
+            return p;
+        }
+    }
+    resolve_default(bin_name)
+}

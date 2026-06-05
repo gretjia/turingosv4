@@ -30,7 +30,8 @@ use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Tas
 use turingosv4::token_budget::B_PROMPT_MAX;
 use turingosv4::tokenizer::Tokenizer;
 
-const PROBLEM: &str = "证明所有自然数之和 = -1/12，想办法利用已知提示的公式 m·exp(-m/N)·cos(m/N).\n\
+const PROBLEM: &str =
+    "证明所有自然数之和 = -1/12，想办法利用已知提示的公式 m·exp(-m/N)·cos(m/N).\n\
                        RULES:\n\
                        - Write exactly ONE mathematical reasoning step per submission\n\
                        - Your step must logically follow from the previous steps\n\
@@ -50,7 +51,11 @@ fn header(status: &str, step_idx: usize) -> String {
         r#"{{"schema_version":"tdma-state-update/v1","status":"{}","task_id":"step-{}","action":"{}","failed_predicate":"step.valid","reject_class":"structural"}}"#,
         status,
         step_idx,
-        if status == "Proceed" { "PROCEED" } else { "RETRY" }
+        if status == "Proceed" {
+            "PROCEED"
+        } else {
+            "RETRY"
+        }
     )
 }
 
@@ -122,7 +127,11 @@ fn main() -> ExitCode {
     for (i, step_text) in PROOF_STEPS.iter().enumerate() {
         let task = Task {
             id: format!("step-{}", i + 1),
-            prompt: format!("{}\nAccepted so far:\n{}\n", PROBLEM, accepted_steps.join("\n")),
+            prompt: format!(
+                "{}\nAccepted so far:\n{}\n",
+                PROBLEM,
+                accepted_steps.join("\n")
+            ),
         };
         let verdict = judge.verdict(&accepted_steps, step_text);
         verdict_lines.push(format!(
@@ -133,7 +142,11 @@ fn main() -> ExitCode {
         ));
         let success = verdict.is_pass();
         let env = EnvironmentResult {
-            raw_output: format!("{}\n---BODY---\n{}", header(if success { "Proceed" } else { "Retry" }, i + 1), step_text),
+            raw_output: format!(
+                "{}\n---BODY---\n{}",
+                header(if success { "Proceed" } else { "Retry" }, i + 1),
+                step_text
+            ),
             raw_stderr: if success {
                 String::new()
             } else {
@@ -150,7 +163,11 @@ fn main() -> ExitCode {
                     evidence_hash
                 ));
             }
-            KernelStep::Retry { prompt, bbs_hash, evidence_hash } => {
+            KernelStep::Retry {
+                prompt,
+                bbs_hash,
+                evidence_hash,
+            } => {
                 let n = tk.count_text(&prompt);
                 prompt_lines.push(format!(
                     r#"{{"step":{},"kind":"retry","token_count":{},"evidence_hash":"{}","bbs_hash":"{}"}}"#,
@@ -159,17 +176,16 @@ fn main() -> ExitCode {
                     evidence_hash,
                     bbs_hash
                 ));
-                bbs_lines.push(format!(
-                    r#"{{"step":{},"bbs_hash":"{}"}}"#,
-                    i + 1,
-                    bbs_hash
-                ));
+                bbs_lines.push(format!(r#"{{"step":{},"bbs_hash":"{}"}}"#, i + 1, bbs_hash));
                 if n > B_PROMPT_MAX {
                     eprintln!("step {} retry prompt exceeded B_PROMPT_MAX", i + 1);
                     return ExitCode::from(3);
                 }
             }
-            KernelStep::Escalate { reason, evidence_hash } => {
+            KernelStep::Escalate {
+                reason,
+                evidence_hash,
+            } => {
                 prompt_lines.push(format!(
                     r#"{{"step":{},"kind":"escalate","reason":{:?},"evidence_hash":"{}"}}"#,
                     i + 1,
@@ -215,9 +231,10 @@ fn main() -> ExitCode {
     let verified_head_final = kernel.tape.get_verified_head();
     let head_advanced = verified_head_final != "H0";
 
-    let accepted_count = kernel
-        .tape
-        .count_nodes(Some(NodeKind::StateAccepted), Some(true), None, None);
+    let accepted_count =
+        kernel
+            .tape
+            .count_nodes(Some(NodeKind::StateAccepted), Some(true), None, None);
     let proposal_count =
         kernel
             .tape
@@ -264,7 +281,10 @@ fn main() -> ExitCode {
     report.push_str(&format!("- verified_head moved: {}\n", head_advanced));
     report.push_str(&format!("- invariants_passed: {}\n\n", invariants_passed));
     report.push_str("## Evidence files\n\n");
-    report.push_str(&format!("- chaintape.jsonl    (sha256 {})\n", chaintape_sha));
+    report.push_str(&format!(
+        "- chaintape.jsonl    (sha256 {})\n",
+        chaintape_sha
+    ));
     report.push_str(&format!("- bbs_per_step.jsonl (sha256 {})\n", bbs_sha));
     report.push_str(&format!(
         "- prompt_per_attempt.jsonl (sha256 {})\n",

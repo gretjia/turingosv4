@@ -202,7 +202,6 @@ fn sg_g3_13_b_build_agent_prompt_signature_has_10th_param() {
     );
 }
 
-
 // ────────────────────────────────────────────────────────────────────────
 // SG-G3.13.d — block integrates into full prompt with proper heading
 // ────────────────────────────────────────────────────────────────────────

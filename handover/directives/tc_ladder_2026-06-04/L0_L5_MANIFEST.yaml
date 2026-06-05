@@ -1,0 +1,78 @@
+manifest_id: tc_l0_l5_task_bank_v1
+atom: TC-019A
+created_at: 2026-06-04
+risk_class: Class 1
+fc_binding:
+  - FC1-N11 predicate gate discipline
+  - FC3-N31 audit report shielding
+truth_status: derived_manifest
+authority: handover/directives/tc_taskpackets_2026-06-04/packets/TC-019A-difficulty-ladder.md
+obligation: OBL-014 remains open
+freeze_state: frozen
+freeze_scope:
+  task_bank: L0-L5
+  mutation_policy: no task replacement after preregistration
+  allowed_forward_change: append-only errata with new manifest version
+
+levels:
+  - id: L0
+    name: smoke fixtures
+    entry_condition: finite task fixtures exist
+    receipt_required: L0_GREEN_RECEIPT
+  - id: L1
+    name: basic theorem steps
+    entry_condition: L0_GREEN_RECEIPT
+    receipt_required: L1_GREEN_RECEIPT
+  - id: L2
+    name: multi-step proof search
+    entry_condition: L1_GREEN_RECEIPT
+    receipt_required: L2_GREEN_RECEIPT
+  - id: L3
+    name: branching proof obligations
+    entry_condition: L2_GREEN_RECEIPT
+    receipt_required: L3_GREEN_RECEIPT
+  - id: L4
+    name: adversarial search pressure
+    entry_condition: L3_GREEN_RECEIPT
+    receipt_required: L4_GREEN_RECEIPT
+  - id: L5
+    name: Claim C hard-set run
+    entry_condition: L5_ENTRY_LADDER_GATE
+    receipt_required: L5_GREEN_RECEIPT
+
+l5_entry_gate:
+  gate_id: L5_ENTRY_LADDER_GATE
+  mode: fail_closed
+  required_green_receipts:
+    - L0
+    - L1
+    - L2
+    - L3
+    - L4
+  receipt_validation:
+    source: handover/evidence/tc_ladder_2026-06-04/
+    required_fields:
+      - level
+      - manifest_id
+      - green
+      - command
+      - exit_code
+      - evidence_path
+  missing_or_red_receipt: block_l5_entry
+
+hard_claim_c_gate:
+  claim_id: Claim C
+  start_requires_gate: L5_ENTRY_LADDER_GATE
+  when_gate_missing: blocked
+  allowed_report_mode: descriptive_only
+  claim_headline: forbidden
+  claim_start_record_must_include:
+    - manifest_id
+    - l5_entry_gate
+    - l0_l4_receipt_paths
+    - parity_schema_id
+
+claim_language:
+  replay_green_means: provenance_and_anti_tamper_only
+  l5_without_gate_means: descriptive_progress_report_only
+  strong_outcome_language_requires: no_proven_checklist_g1_g6_plus_clean_context_audit

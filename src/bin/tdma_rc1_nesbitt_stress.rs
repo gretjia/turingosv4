@@ -37,12 +37,8 @@ use std::process::ExitCode;
 use sha2::{Digest, Sha256};
 use turingosv4::charter_core::compile_charter_core;
 use turingosv4::judges::math_step_judge::JudgeVerdict;
-use turingosv4::judges::nesbitt_step_judge::{
-    NesbittRejectClass, NesbittStage, NesbittStepJudge,
-};
-use turingosv4::ledger::{
-    AttemptScope, ImmutableTapeLedger, MemoryTapeLedger, NodeKind,
-};
+use turingosv4::judges::nesbitt_step_judge::{NesbittRejectClass, NesbittStage, NesbittStepJudge};
+use turingosv4::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger, NodeKind};
 use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use turingosv4::token_budget::{B_D, B_PROMPT_MAX, MAX_RETRIES};
 use turingosv4::tokenizer::Tokenizer;
@@ -287,7 +283,11 @@ fn header_text(status: &str, task_id: &str, reject_class: &str, failed_pred: &st
         r#"{{"schema_version":"tdma-state-update/v1","status":"{}","task_id":"{}","action":"{}","failed_predicate":"{}","reject_class":"{}"}}"#,
         status,
         task_id,
-        if status == "Proceed" { "PROCEED" } else { "RETRY" },
+        if status == "Proceed" {
+            "PROCEED"
+        } else {
+            "RETRY"
+        },
         failed_pred,
         reject_class,
     )
@@ -541,16 +541,24 @@ fn main() -> ExitCode {
         });
         chaintape_lines.push(serde_json::to_string(&json).unwrap_or_default());
     }
-    let chaintape_sha = write_jsonl(&evidence_dir.join("chaintape.jsonl"), &chaintape_lines)
-        .unwrap_or_default();
+    let chaintape_sha =
+        write_jsonl(&evidence_dir.join("chaintape.jsonl"), &chaintape_lines).unwrap_or_default();
 
     // ── Compute analytics ──
     let retry_probes: Vec<&AttemptProbe> = probes
         .iter()
         .filter(|p| p.kernel_step.starts_with("Retry"))
         .collect();
-    let prompt_min = retry_probes.iter().map(|p| p.prompt_tokens).min().unwrap_or(0);
-    let prompt_max = retry_probes.iter().map(|p| p.prompt_tokens).max().unwrap_or(0);
+    let prompt_min = retry_probes
+        .iter()
+        .map(|p| p.prompt_tokens)
+        .min()
+        .unwrap_or(0);
+    let prompt_max = retry_probes
+        .iter()
+        .map(|p| p.prompt_tokens)
+        .max()
+        .unwrap_or(0);
     let prompt_variance = prompt_max - prompt_min;
     let prompts_within_budget = retry_probes.iter().all(|p| p.prompt_tokens <= B_PROMPT_MAX);
 
@@ -566,7 +574,11 @@ fn main() -> ExitCode {
 
     let total_attempts = probes.len();
     let total_failed_attempts = retry_probes.len() + stages_escalated.len();
-    let zero_gain_max = retry_probes.iter().map(|p| p.bbs_zero_gain_streak).max().unwrap_or(0);
+    let zero_gain_max = retry_probes
+        .iter()
+        .map(|p| p.bbs_zero_gain_streak)
+        .max()
+        .unwrap_or(0);
     let max_constraints_in_any_bbs = retry_probes
         .iter()
         .map(|p| p.bbs_constraint_count)
@@ -623,7 +635,9 @@ fn main() -> ExitCode {
     r.push_str("**Real-world basis**: IneqMath benchmark (arxiv.org/abs/2506.07927). ");
     r.push_str("LLM step-level accuracy on this problem class is ≤ 10% per the paper.\n\n");
     r.push_str("**Judge backend**: NesbittStepJudge — 5-category IneqMath-style judge ");
-    r.push_str("(direction-reversal, bad-substitution, algebra-error, logical-gap, missing-equality).\n\n");
+    r.push_str(
+        "(direction-reversal, bad-substitution, algebra-error, logical-gap, missing-equality).\n\n",
+    );
 
     r.push_str("## Proof progress\n\n");
     r.push_str(&format!(
@@ -696,7 +710,10 @@ fn main() -> ExitCode {
     r.push_str("- verified_head never advanced on failure: structurally enforced by the kernel (KILL-tdma-5)\n\n");
 
     r.push_str("## Evidence integrity\n\n");
-    r.push_str(&format!("- per_attempt_probes.jsonl sha256: {}\n", probes_sha));
+    r.push_str(&format!(
+        "- per_attempt_probes.jsonl sha256: {}\n",
+        probes_sha
+    ));
     r.push_str(&format!("- chaintape.jsonl sha256: {}\n", chaintape_sha));
 
     fs::write(evidence_dir.join("CompressionReport.md"), r).ok();

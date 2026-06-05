@@ -7,23 +7,26 @@
 //!
 //! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
 
-/// TRACE_MATRIX FC1a-judge_pi: math-step JudgeAI submodule.
-pub mod math_step_judge;
+/// TRACE_MATRIX FC1a-judge_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
+pub mod generate_judge;
 /// TRACE_MATRIX FC1a-judge_pi: deterministic scripted-verdict judge (Atom 9 stress fixture).
 pub mod injected_judge;
+/// TRACE_MATRIX FC1a-judge_pi: Lean-kernel strict verifier for the price-routed proof market.
+pub mod lean_judge;
+/// TRACE_MATRIX FC1a-judge_pi + Art.0.2 (TC-011): Lean proof-state contract.
+/// Step outcomes are not final truth; final verification remains LeanJudge.
+pub mod lean_micro_state;
+/// TRACE_MATRIX FC1a-judge_pi: Lean theorem bank (JSONL problem set) for the proof market.
+pub mod lean_theorem_bank;
+/// TRACE_MATRIX FC1a-judge_pi: math-step JudgeAI submodule.
+pub mod math_step_judge;
 /// TRACE_MATRIX FC1a-judge_pi: Nesbitt's-inequality multi-category step judge (Atom 10).
 pub mod nesbitt_step_judge;
 /// TRACE_MATRIX FC1a-judge_pi: Putnam 2024 A1 strict step judge (Atom 13 extreme stress).
 pub mod putnam_2024_a1_judge;
 /// TRACE_MATRIX FC1a-judge_pi: Putnam 2025 B3 strict step judge (Atom 14 post-cutoff stress).
 pub mod putnam_2025_b3_judge;
-/// TRACE_MATRIX FC1a-judge_pi: Single-stage code-generation judge (Atom 19 turingos generate wire-up).
-pub mod generate_judge;
-/// TRACE_MATRIX FC1a-judge_pi: SWE-bench hidden-test repair judge (real swebench harness verifier).
-pub mod swebench_test_judge;
-/// TRACE_MATRIX FC1a-judge_pi: Lean-kernel strict verifier for the price-routed proof market.
-pub mod lean_judge;
-/// TRACE_MATRIX FC1a-judge_pi: Lean theorem bank (JSONL problem set) for the proof market.
-pub mod lean_theorem_bank;
 /// TRACE_MATRIX FC1a-output_edge: M7 shared output adapter + deterministic diff materializer (market-activation G0).
 pub mod shared_output_adapter;
+/// TRACE_MATRIX FC1a-judge_pi: SWE-bench hidden-test repair judge (real swebench harness verifier).
+pub mod swebench_test_judge;

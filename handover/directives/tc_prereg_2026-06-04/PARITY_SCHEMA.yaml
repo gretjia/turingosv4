@@ -1,0 +1,83 @@
+schema_id: tc_claim_c_prereg_parity_v1
+atom: TC-020A
+created_at: 2026-06-04
+risk_class: Class 1
+fc_binding:
+  - FC1-N7 external agent call accounting
+  - FC1-N11 predicate gate discipline
+  - FC3-N31 audit report shielding
+truth_status: derived_prereg_schema
+authority: handover/directives/tc_taskpackets_2026-06-04/packets/TC-020A-prereg-parity.md
+obligation: OBL-014 remains open
+finite_budget: true
+claim_scope: Claim C finite-budget parity
+
+required_metrics:
+  - id: proposal_llm_calls
+    unit: count
+    parity_axis: llm_call_count
+  - id: route_llm_calls
+    unit: count
+    parity_axis: llm_call_count
+  - id: challenge_bear_llm_calls
+    unit: count
+    parity_axis: llm_call_count
+  - id: prompt_tokens
+    unit: tokens
+    parity_axis: token_parity
+  - id: completion_tokens
+    unit: tokens
+    parity_axis: token_parity
+  - id: total_model_tokens
+    unit: tokens
+    parity_axis: token_parity
+  - id: verifier_calls
+    unit: count
+    parity_axis: verifier_parity
+  - id: scheduler_ticks
+    unit: ticks
+    parity_axis: scheduler_parity
+  - id: enumerator_ticks
+    unit: ticks
+    parity_axis: enumerator_parity
+  - id: accepted_commits
+    unit: count
+    parity_axis: commit_parity
+  - id: rejected_commits
+    unit: count
+    parity_axis: commit_parity
+  - id: wall_clock_time
+    unit: milliseconds
+    parity_axis: wall_clock_parity
+
+budget_identity:
+  claim_c_start_condition: all_required_axes_green
+  compare_arms_using_same:
+    - task_bank_manifest
+    - finite_problem_set
+    - model_family
+    - verifier_contract
+    - scheduler_budget
+    - enumerator_budget
+    - wall_clock_budget
+
+parity_failure_policy:
+  token_parity: descriptive_only
+  verifier_parity: descriptive_only
+  scheduler_parity: descriptive_only
+  enumerator_parity: descriptive_only
+  wall_clock_parity: descriptive_only
+  report_mode_on_failure: descriptive_only
+  claim_headline_on_failure: forbidden
+  claim_c_start_condition: all_required_axes_green
+  required_failure_report_fields:
+    - failed_axis
+    - observed_delta
+    - affected_arm
+    - evidence_path
+    - downgraded_report_mode
+
+report_language:
+  permitted_when_any_required_axis_fails: descriptive_only
+  claim_headline_on_failure: forbidden
+  replay_green_means: provenance_and_anti_tamper_only

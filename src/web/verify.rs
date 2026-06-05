@@ -149,8 +149,18 @@ pub(crate) enum VerifyMode {
 pub(crate) fn spec_looks_like_game(spec_md: &str) -> bool {
     let lower = spec_md.to_ascii_lowercase();
     let ascii_keywords = [
-        "game", "tetris", "snake", "breakout", "pong", "pacman", "pac-man",
-        "minesweeper", "2048", "arcade", "playfield", "canvas",
+        "game",
+        "tetris",
+        "snake",
+        "breakout",
+        "pong",
+        "pacman",
+        "pac-man",
+        "minesweeper",
+        "2048",
+        "arcade",
+        "playfield",
+        "canvas",
     ];
     if ascii_keywords.iter().any(|k| lower.contains(k)) {
         return true;
@@ -287,7 +297,8 @@ fn verify_minimum_bar(html: &str, size_bytes: u64) -> VerifyOutcome {
     // Check 2: non-empty <body>.
     if !has_nonempty_body(&lower) {
         failure_reasons.push(
-            "missing_or_empty_body: 找不到 <body>...</body>，或 body 内容为空 — 无可见内容".to_string(),
+            "missing_or_empty_body: 找不到 <body>...</body>，或 body 内容为空 — 无可见内容"
+                .to_string(),
         );
     }
 

@@ -11,9 +11,7 @@
 //! On-disk §8: handover/directives/2026-05-22_TDMA_BOUNDED_RC1_DIRECTIVE_AND_§8.md
 
 use turingosv4::charter_core::compile_charter_core;
-use turingosv4::ledger::{
-    AttemptScope, ImmutableTapeLedger, MemoryTapeLedger,
-};
+use turingosv4::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger};
 use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use turingosv4::token_budget::B_PROMPT_MAX;
 use turingosv4::tokenizer::Tokenizer;
@@ -56,11 +54,7 @@ fn bug7_50_retry_10kb_stderr_prompt_invariant() {
         // fixed.
         let env = EnvironmentResult {
             raw_output: retry_header("bug7-1", &format!("p_{}", i % 5), &format!("r_{}", i % 5)),
-            raw_stderr: format!(
-                "{}\n at src/file.rs:{}\n",
-                "x".repeat(10_000),
-                i
-            ),
+            raw_stderr: format!("{}\n at src/file.rs:{}\n", "x".repeat(10_000), i),
             success: false,
         };
         match k.step_forward(&task, env) {
@@ -73,7 +67,12 @@ fn bug7_50_retry_10kb_stderr_prompt_invariant() {
     }
     assert!(!sizes.is_empty(), "must produce at least one retry prompt");
     let max = *sizes.iter().max().unwrap();
-    assert!(max <= B_PROMPT_MAX, "max prompt {} > B_PROMPT_MAX={}", max, B_PROMPT_MAX);
+    assert!(
+        max <= B_PROMPT_MAX,
+        "max prompt {} > B_PROMPT_MAX={}",
+        max,
+        B_PROMPT_MAX
+    );
     let min = *sizes.iter().min().unwrap();
     assert!(
         max - min <= 200,
@@ -134,7 +133,10 @@ fn bug7_bbs_derivable_from_tape_after_kernel_drop() {
         task_id: "bug7-3".into(),
         verified_parent: "H0".into(),
     };
-    let original = k.tape.derive_latest_belief_state_from_tape(&scope).expect("BBS present");
+    let original = k
+        .tape
+        .derive_latest_belief_state_from_tape(&scope)
+        .expect("BBS present");
 
     // Snapshot indexes, drop kernel, rebuild a new tape from them.
     let frozen = k.tape.indexes.clone();
@@ -142,6 +144,8 @@ fn bug7_bbs_derivable_from_tape_after_kernel_drop() {
     let mut rebuilt = MemoryTapeLedger::new();
     rebuilt.indexes = frozen;
 
-    let derived = rebuilt.derive_latest_belief_state_from_tape(&scope).expect("BBS derivable");
+    let derived = rebuilt
+        .derive_latest_belief_state_from_tape(&scope)
+        .expect("BBS derivable");
     assert_eq!(derived, original, "post-drop BBS must equal pre-drop BBS");
 }

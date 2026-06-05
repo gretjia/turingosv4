@@ -262,6 +262,21 @@ covered_by = [
 ]
 
 [[script_group]]
+id = "tc_audit_packet_scripts"
+classification = "evidence_packaging"
+status = "active_support_gate"
+counts_for_obl005_script_closure = true
+paths = [
+  "scripts/export_tc_audit_packet.sh",
+  "scripts/tc_clean_checkout_replay.sh",
+]
+covered_by = [
+  "tests/tc_audit_packet_export.rs",
+  "tests/tc_clean_checkout_replay_contract.rs",
+  "tests/constitution_script_liveness_inventory.rs",
+]
+
+[[script_group]]
 id = "evidence_maintenance_historical"
 classification = "evidence_packaging"
 status = "historical_smoke"

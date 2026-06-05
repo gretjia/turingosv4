@@ -210,11 +210,11 @@ fn prompt_eval_v2_catches_m8_gibberish_regression() {
 
 #[test]
 fn test_llm_prompt_eval_promote_writes_receipt() {
-    use turingosv4::runtime::prompt_promotion::{
-        sha256_hex_of_prompt, PROMPT_PROMOTION_RECEIPT_SCHEMA_ID, PromptPromotionReceipt,
-    };
     use turingosv4::bottom_white::cas::schema::ObjectType;
     use turingosv4::bottom_white::cas::store::CasStore;
+    use turingosv4::runtime::prompt_promotion::{
+        sha256_hex_of_prompt, PromptPromotionReceipt, PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
+    };
     use turingosv4::runtime::spec_capsule::cas_path;
 
     let dir = tempfile::TempDir::new().expect("tempdir");
@@ -240,10 +240,14 @@ fn test_llm_prompt_eval_promote_writes_receipt() {
 
     let output = Command::new(bin_path())
         .args(["llm", "prompt-eval"])
-        .arg("--workspace").arg(ws)
-        .arg("--from").arg(&v1_path)
-        .arg("--to").arg(&v2_path)
-        .arg("--eval-set").arg(eval_set)
+        .arg("--workspace")
+        .arg(ws)
+        .arg("--from")
+        .arg(&v1_path)
+        .arg("--to")
+        .arg(&v2_path)
+        .arg("--eval-set")
+        .arg(eval_set)
         .output()
         .expect("run prompt-eval");
 
@@ -254,12 +258,18 @@ fn test_llm_prompt_eval_promote_writes_receipt() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let json: serde_json::Value = serde_json::from_str(&stdout)
-        .expect(&format!("expected JSON output, got: {}", stdout));
+    let json: serde_json::Value =
+        serde_json::from_str(&stdout).expect(&format!("expected JSON output, got: {}", stdout));
 
     assert_eq!(json["ok"], true, "ok must be true: {}", stdout);
-    assert!(json["receipt_cid"].is_string(), "receipt_cid must be in output");
-    assert_eq!(json["to_prompt_cid"], v2_expected_cid, "to_prompt_cid must match");
+    assert!(
+        json["receipt_cid"].is_string(),
+        "receipt_cid must be in output"
+    );
+    assert_eq!(
+        json["to_prompt_cid"], v2_expected_cid,
+        "to_prompt_cid must match"
+    );
     assert_eq!(json["eval_set_cid"], eval_set);
     assert_eq!(json["promotion_decision"], "promote");
 
@@ -270,8 +280,13 @@ fn test_llm_prompt_eval_promote_writes_receipt() {
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
     let mut found = false;
     for cid in cids {
-        let meta = match store.metadata(&cid) { Some(m) => m, None => continue };
-        if meta.schema_id.as_deref() != Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID) { continue; }
+        let meta = match store.metadata(&cid) {
+            Some(m) => m,
+            None => continue,
+        };
+        if meta.schema_id.as_deref() != Some(PROMPT_PROMOTION_RECEIPT_SCHEMA_ID) {
+            continue;
+        }
         let bytes = store.get(&cid).expect("read");
         let r: PromptPromotionReceipt = serde_json::from_slice(&bytes).expect("deserialize");
         assert_eq!(r.to_prompt_cid, v2_expected_cid);
@@ -303,13 +318,18 @@ fn test_llm_prompt_eval_promote_rejects_missing_eval_set() {
     // Without --eval-set, falls back to normal prompt-eval which needs --fixture
     let output = Command::new(bin_path())
         .args(["llm", "prompt-eval"])
-        .arg("--workspace").arg(ws)
-        .arg("--from").arg(&v1)
-        .arg("--to").arg(&v2)
+        .arg("--workspace")
+        .arg(ws)
+        .arg("--from")
+        .arg(&v1)
+        .arg("--to")
+        .arg(&v2)
         // no --eval-set
         .output()
         .expect("run");
 
-    assert!(!output.status.success(), "must fail without --eval-set or --fixture");
+    assert!(
+        !output.status.success(),
+        "must fail without --eval-set or --fixture"
+    );
 }
-

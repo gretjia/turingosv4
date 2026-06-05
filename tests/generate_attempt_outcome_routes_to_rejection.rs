@@ -4,10 +4,10 @@ use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
-use turingosv4::runtime::generation_attempt::{GenerationAttemptCapsule, AttemptOutcome};
-use turingosv4::runtime::rejection_capsule::{GenerateRejectionCapsule, RejectClass};
-use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bottom_white::cas::schema::ObjectType;
+use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::generation_attempt::{AttemptOutcome, GenerationAttemptCapsule};
+use turingosv4::runtime::rejection_capsule::{GenerateRejectionCapsule, RejectClass};
 
 fn turingos_bin() -> PathBuf {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -62,7 +62,7 @@ fn start_mock_llm_error_server() -> String {
 fn test_generate_attempt_outcome_routes_to_rejection_llm_error() {
     let tmp = tempfile::tempdir().expect("create temp workspace");
     let ws = tmp.path().join("my_workspace");
-    
+
     // Init workspace
     let status = Command::new(turingos_bin())
         .arg("init")
@@ -93,19 +93,21 @@ fn test_generate_attempt_outcome_routes_to_rejection_llm_error() {
     let cas_dir = ws.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas store");
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
-    
+
     let mut attempt_capsule: Option<(GenerationAttemptCapsule, String)> = None;
     let mut rejection_capsule: Option<GenerateRejectionCapsule> = None;
-    
+
     for cid in cids {
         if let Some(meta) = store.metadata(&cid) {
             if meta.schema_id.as_deref() == Some("turingos-generation-attempt-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerationAttemptCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerationAttemptCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 attempt_capsule = Some((cap, cid.hex()));
             } else if meta.schema_id.as_deref() == Some("turingos-generate-rejection-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerateRejectionCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerateRejectionCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 rejection_capsule = Some(cap);
             }
         }
@@ -125,7 +127,7 @@ fn test_generate_attempt_outcome_routes_to_rejection_llm_error() {
 fn test_generate_attempt_outcome_routes_to_rejection_no_files() {
     let tmp = tempfile::tempdir().expect("create temp workspace");
     let ws = tmp.path().join("my_workspace");
-    
+
     // Init workspace
     let status = Command::new(turingos_bin())
         .arg("init")
@@ -154,7 +156,8 @@ fn test_generate_attempt_outcome_routes_to_rejection_no_files() {
         "completion_tokens": 5,
         "total_tokens": 10
       }
-    }"#.to_string();
+    }"#
+    .to_string();
 
     let endpoint = start_mock_llm_server(raw_response);
 
@@ -174,19 +177,21 @@ fn test_generate_attempt_outcome_routes_to_rejection_no_files() {
     let cas_dir = ws.join("cas");
     let store = CasStore::open(&cas_dir).expect("open cas store");
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
-    
+
     let mut attempt_capsule: Option<(GenerationAttemptCapsule, String)> = None;
     let mut rejection_capsule: Option<GenerateRejectionCapsule> = None;
-    
+
     for cid in cids {
         if let Some(meta) = store.metadata(&cid) {
             if meta.schema_id.as_deref() == Some("turingos-generation-attempt-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerationAttemptCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerationAttemptCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 attempt_capsule = Some((cap, cid.hex()));
             } else if meta.schema_id.as_deref() == Some("turingos-generate-rejection-v1") {
                 let bytes = store.get(&cid).expect("read capsule");
-                let cap: GenerateRejectionCapsule = serde_json::from_slice(&bytes).expect("deserialize");
+                let cap: GenerateRejectionCapsule =
+                    serde_json::from_slice(&bytes).expect("deserialize");
                 rejection_capsule = Some(cap);
             }
         }

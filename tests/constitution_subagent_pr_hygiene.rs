@@ -124,8 +124,8 @@ fn l8_git_add_hook_emits_deny_for_wildcard_staging() {
 
 #[test]
 fn l8_pre_commit_hook_chains_k_harden_2_block() {
-    let content = fs::read_to_string("scripts/hooks/pre-commit.r022")
-        .expect("pre-commit.r022 readable");
+    let content =
+        fs::read_to_string("scripts/hooks/pre-commit.r022").expect("pre-commit.r022 readable");
     assert!(
         content.contains("K-HARDEN-2") || content.contains("sidecar"),
         "scripts/hooks/pre-commit.r022 must chain K-HARDEN-2 sidecar block (defense-in-depth at git layer)"
@@ -199,7 +199,9 @@ fn l7_subagent_harness_skill_exists_with_postlude() {
         "L7 skill POSTLUDE must compare PR's head SHA against local git rev-parse HEAD"
     );
     assert!(
-        content.contains("BRANCH:") && content.contains("HEAD_SHA:") && content.contains("PR_NUMBER:"),
+        content.contains("BRANCH:")
+            && content.contains("HEAD_SHA:")
+            && content.contains("PR_NUMBER:"),
         "L7 skill must mandate 5-field final-report format"
     );
 }
@@ -207,11 +209,18 @@ fn l7_subagent_harness_skill_exists_with_postlude() {
 #[test]
 fn l7_dispatch_wrapper_exists() {
     let path = "scripts/dispatch_subagent.sh";
-    assert!(Path::new(path).exists(), "L7 dispatch wrapper missing: {}", path);
+    assert!(
+        Path::new(path).exists(),
+        "L7 dispatch wrapper missing: {}",
+        path
+    );
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = fs::metadata(path).expect("script stat").permissions().mode();
+        let mode = fs::metadata(path)
+            .expect("script stat")
+            .permissions()
+            .mode();
         assert!(
             mode & 0o111 != 0,
             "L7 dispatch wrapper must be executable: {} (mode={:o})",
@@ -225,15 +234,17 @@ fn l7_dispatch_wrapper_exists() {
         "L7 dispatch wrapper must have pre-flight cleanliness section"
     );
     assert!(
-        content.contains("post-dispatch") || content.contains("Post-dispatch") || content.contains("post:"),
+        content.contains("post-dispatch")
+            || content.contains("Post-dispatch")
+            || content.contains("post:"),
         "L7 dispatch wrapper must have post-dispatch contamination scan"
     );
 }
 
 #[test]
 fn settings_json_wires_worktree_create_and_validate_git_add() {
-    let content = fs::read_to_string(".claude/settings.json")
-        .expect(".claude/settings.json readable");
+    let content =
+        fs::read_to_string(".claude/settings.json").expect(".claude/settings.json readable");
     assert!(
         content.contains("WorktreeCreate"),
         ".claude/settings.json must wire WorktreeCreate hook (K-HARDEN-1)"
@@ -255,7 +266,11 @@ fn settings_json_wires_worktree_create_and_validate_git_add() {
 #[test]
 fn l9_git_push_hook_exists_and_blocks_main() {
     let path = ".claude/hooks/validate_git_push.sh";
-    assert!(Path::new(path).exists(), "L9 mitigation hook missing: {}", path);
+    assert!(
+        Path::new(path).exists(),
+        "L9 mitigation hook missing: {}",
+        path
+    );
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -318,8 +333,8 @@ fn l9_universal_git_pre_push_hook_exists() {
 
 #[test]
 fn install_hooks_script_installs_pre_push() {
-    let content = fs::read_to_string("scripts/install_hooks.sh")
-        .expect("install_hooks.sh readable");
+    let content =
+        fs::read_to_string("scripts/install_hooks.sh").expect("install_hooks.sh readable");
     assert!(
         content.contains("pre-push"),
         "scripts/install_hooks.sh must install pre-push hook (K-HARDEN-7)"
@@ -335,8 +350,8 @@ fn install_hooks_script_installs_commit_msg() {
     // R022_HOOK_FIX_2026-05-22: existing clones must re-run install_hooks.sh
     // after the R-022 migration to pick up the new commit-msg symlink. Bind
     // the requirement in a gate so future install_hooks.sh edits don't drop it.
-    let content = fs::read_to_string("scripts/install_hooks.sh")
-        .expect("install_hooks.sh readable");
+    let content =
+        fs::read_to_string("scripts/install_hooks.sh").expect("install_hooks.sh readable");
     assert!(
         content.contains("commit-msg"),
         "scripts/install_hooks.sh must install commit-msg hook (R022_HOOK_FIX_2026-05-22)"
@@ -381,8 +396,8 @@ fn agents_md_documents_pr_only_workflow() {
 
 #[test]
 fn subagent_skill_documents_pr_only_workflow() {
-    let content = fs::read_to_string("skills/SUBAGENT_HARNESS.md")
-        .expect("SUBAGENT_HARNESS readable");
+    let content =
+        fs::read_to_string("skills/SUBAGENT_HARNESS.md").expect("SUBAGENT_HARNESS readable");
     assert!(
         content.contains("PR-only") || content.contains("PR only"),
         "SUBAGENT_HARNESS skill must document PR-only workflow rule"
@@ -424,8 +439,7 @@ fn k_harden_8_all_cli_entries_point_to_agents_md() {
     for (path, cli) in CROSS_CLI_ENTRY_FILES {
         if path.ends_with(".yml") {
             // .aider.conf.yml: must include AGENTS.md in the read list
-            let content = fs::read_to_string(path)
-                .unwrap_or_else(|_| panic!("readable: {}", path));
+            let content = fs::read_to_string(path).unwrap_or_else(|_| panic!("readable: {}", path));
             assert!(
                 content.contains("AGENTS.md"),
                 "K-HARDEN-8: {} ({}) must auto-load AGENTS.md",
@@ -434,8 +448,7 @@ fn k_harden_8_all_cli_entries_point_to_agents_md() {
             );
             continue;
         }
-        let content = fs::read_to_string(path)
-            .unwrap_or_else(|_| panic!("readable: {}", path));
+        let content = fs::read_to_string(path).unwrap_or_else(|_| panic!("readable: {}", path));
         assert!(
             content.contains("AGENTS.md"),
             "K-HARDEN-8: {} ({}) must reference AGENTS.md as canonical source",
@@ -453,8 +466,7 @@ fn k_harden_8_all_cli_entries_mention_pr_only_rule() {
             // .aider.conf.yml is just config — skip prose check
             continue;
         }
-        let content = fs::read_to_string(path)
-            .unwrap_or_else(|_| panic!("readable: {}", path));
+        let content = fs::read_to_string(path).unwrap_or_else(|_| panic!("readable: {}", path));
         let mentions_pr = content.contains("PR-only")
             || content.contains("PR only")
             || content.contains("never `git push origin main`")
@@ -462,8 +474,7 @@ fn k_harden_8_all_cli_entries_mention_pr_only_rule() {
         assert!(
             mentions_pr,
             "K-HARDEN-8: {} ({}) must document PR-only workflow rule",
-            path,
-            cli
+            path, cli
         );
     }
 }
@@ -476,10 +487,12 @@ fn k_harden_8_agents_md_documents_universal_entry() {
         "AGENTS.md §2 must explicitly state it is the canonical universal entry for all CLIs"
     );
     // Must list at least 5 CLI families to show cross-agent intent
-    let cli_mentions: usize = ["Claude", "Codex", "Gemini", "Aider", "Cursor", "Windsurf", "Copilot", "Warp"]
-        .iter()
-        .filter(|c| content.contains(*c))
-        .count();
+    let cli_mentions: usize = [
+        "Claude", "Codex", "Gemini", "Aider", "Cursor", "Windsurf", "Copilot", "Warp",
+    ]
+    .iter()
+    .filter(|c| content.contains(*c))
+    .count();
     assert!(
         cli_mentions >= 5,
         "AGENTS.md §2 must mention ≥5 CLI families (found {}); cross-CLI intent unclear",

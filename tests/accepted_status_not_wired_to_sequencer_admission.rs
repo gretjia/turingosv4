@@ -17,14 +17,14 @@ fn test_accepted_status_not_wired_to_sequencer_admission() {
         return;
     }
 
-    let content = std::fs::read_to_string(&sequencer_path)
-        .expect("cannot read src/state/sequencer.rs");
+    let content =
+        std::fs::read_to_string(&sequencer_path).expect("cannot read src/state/sequencer.rs");
 
     let forbidden = [
-        "BuildStatus",       // C11 enum lives in runtime::build_session_view — not sequencer
-        "accepted_delivery", // C11 field
-        "TestRunCapsule",    // C11 test run
-        "overall_pass",      // C11 test run field
+        "BuildStatus",          // C11 enum lives in runtime::build_session_view — not sequencer
+        "accepted_delivery",    // C11 field
+        "TestRunCapsule",       // C11 test run
+        "overall_pass",         // C11 test run field
         "turingos-test-run-v1", // C11 schema ID
     ];
 
@@ -63,5 +63,8 @@ fn test_build_session_view_accepted_delivery_defaults_to_false() {
     }"#;
     let view: turingosv4::runtime::build_session_view::BuildSessionView =
         serde_json::from_str(old_json).expect("deserialize old format");
-    assert!(!view.accepted_delivery, "accepted_delivery must default to false");
+    assert!(
+        !view.accepted_delivery,
+        "accepted_delivery must default to false"
+    );
 }

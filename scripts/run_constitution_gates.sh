@@ -10,12 +10,22 @@ mkdir -p target
 OUT_TXT="target/constitution_gates_output.txt"
 REPORT_JSON="target/constitution_gate_report.json"
 REPORT_MD="target/constitution_gate_report.md"
+if [ -n "${CARGO:-}" ]; then
+  CARGO_BIN="$CARGO"
+elif command -v cargo >/dev/null 2>&1; then
+  CARGO_BIN="$(command -v cargo)"
+elif [ -x "$HOME/.cargo/bin/cargo" ]; then
+  CARGO_BIN="$HOME/.cargo/bin/cargo"
+else
+  echo "[k-1-5] FAIL: cargo not found on PATH or at \$HOME/.cargo/bin/cargo" >&2
+  exit 1
+fi
 
 # Discover gates from test files
 DISCOVERED=$(ls tests/constitution_*.rs 2>/dev/null | xargs -n1 basename | sed 's/\.rs$//' | sort)
 
 # Extract gates from manifest
-MANIFEST=$(grep -oP '^name = "\K[^"]+' scripts/constitution_gates.manifest.toml | sort)
+MANIFEST=$(sed -n 's/^name = "\([^"]*\)".*/\1/p' scripts/constitution_gates.manifest.toml | sort)
 
 # Cross-check: gates discovered but missing from manifest
 ONLY_DISC=$(comm -23 <(echo "$DISCOVERED") <(echo "$MANIFEST"))
@@ -47,7 +57,7 @@ done
 # scripts/run_constitution_gates.sh` and `make constitution` share the same
 # isolation guarantee.
 FAIL=0
-if ! RUST_TEST_THREADS=1 cargo test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee "$OUT_TXT"; then
+if ! RUST_TEST_THREADS=1 "$CARGO_BIN" test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee "$OUT_TXT"; then
   FAIL=$(grep -c "test result: FAILED" "$OUT_TXT" || true)
   if [ "$FAIL" -eq 0 ]; then
     FAIL=1

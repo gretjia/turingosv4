@@ -19,8 +19,8 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{
-    Arc,
     atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 fn turingos_bin() -> PathBuf {
@@ -79,7 +79,11 @@ impl MockServer401 {
             }
         });
 
-        MockServer401 { port, shutdown, _handle: handle }
+        MockServer401 {
+            port,
+            shutdown,
+            _handle: handle,
+        }
     }
 }
 
@@ -98,8 +102,11 @@ fn workspace_with_invalid_key(dir: &std::path::Path, endpoint: &str) -> PathBuf 
          llm.blackbox.api_key_env = \"FAKE_INVALID_KEY\"\n"
     );
     fs::write(ws.join("turingos.toml"), config).expect("write turingos.toml");
-    fs::write(ws.join("spec.md"), "# Test spec\nBuild a hello world app.\n")
-        .expect("write spec.md");
+    fs::write(
+        ws.join("spec.md"),
+        "# Test spec\nBuild a hello world app.\n",
+    )
+    .expect("write spec.md");
     // Write the endpoint override so the binary hits our mock server.
     let _ = endpoint; // endpoint is passed via env var below
     ws

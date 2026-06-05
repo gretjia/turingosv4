@@ -51,7 +51,10 @@ fn test_guard_not_bypassable_by_empty_bypass_var() {
     let result = check_promotion_guard(ws, &to_cid);
     std::env::remove_var("TURINGOS_BYPASS_PROMOTION_GUARD");
 
-    assert!(result.is_err(), "guard must remain active with empty bypass var");
+    assert!(
+        result.is_err(),
+        "guard must remain active with empty bypass var"
+    );
 }
 
 #[test]
@@ -69,5 +72,8 @@ fn test_guard_not_bypassable_by_true_bypass_var() {
     let result = check_promotion_guard(ws, &to_cid);
     std::env::remove_var("TURINGOS_BYPASS_PROMOTION_GUARD");
 
-    assert!(result.is_err(), "guard must remain active with bypass var=true");
+    assert!(
+        result.is_err(),
+        "guard must remain active with bypass var=true"
+    );
 }

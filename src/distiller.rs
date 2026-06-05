@@ -31,6 +31,8 @@ use crate::state_update::StateUpdate;
 use crate::token_budget::EPSILON_GAIN;
 use crate::tokenizer::Tokenizer;
 
+const MAX_TRACE_FRAME_CHARS: usize = 240;
+
 // ── TraceView ───────────────────────────────────────────────────
 
 /// Slim, deterministic view of a raw stderr trace (directive §6.1).
@@ -63,11 +65,19 @@ pub fn extract_stack_frames(raw: &str) -> Vec<String> {
     let mut frames = Vec::new();
     for line in raw.lines() {
         let l = line.trim();
-        if l.starts_with("at ") || l.contains(".rs:") || l.contains(".py:") || l.contains(".lean:") {
-            frames.push(l.to_string());
+        if l.starts_with("at ") || l.contains(".rs:") || l.contains(".py:") || l.contains(".lean:")
+        {
+            frames.push(truncate_chars(l, MAX_TRACE_FRAME_CHARS));
         }
     }
     frames
+}
+
+fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
+    }
+    s.chars().take(max).collect()
 }
 
 /// Extract `path/to/file.ext` style references from a trace.
@@ -154,7 +164,10 @@ pub fn deterministic_trace_slicer(
     let top_frames: Vec<String> = all_frames.iter().take(5).cloned().collect();
     let bottom_frames: Vec<String> = all_frames.iter().rev().take(5).cloned().collect();
     // Cap touched_paths upfront to keep the trim loop bounded on huge stderr.
-    let touched_paths: Vec<String> = extract_file_paths(raw_stderr).into_iter().take(20).collect();
+    let touched_paths: Vec<String> = extract_file_paths(raw_stderr)
+        .into_iter()
+        .take(20)
+        .collect();
     // Cap stderr tail aggressively: 40 lines, then 4 KB max to prevent the
     // trim loop from halving a multi-megabyte string repeatedly.
     let mut stderr_tail = take_last_lines(raw_stderr, 40);
@@ -180,11 +193,11 @@ pub fn deterministic_trace_slicer(
             view.touched_paths.pop();
             continue;
         }
-        if view.top_frames.len() > 1 {
+        if !view.top_frames.is_empty() {
             view.top_frames.pop();
             continue;
         }
-        if view.bottom_frames.len() > 1 {
+        if !view.bottom_frames.is_empty() {
             view.bottom_frames.pop();
             continue;
         }
@@ -196,12 +209,22 @@ pub fn deterministic_trace_slicer(
             }
             continue;
         }
-        if !view.failed_predicate.is_empty() && view.failed_predicate.len() > 32 {
-            view.failed_predicate = view
-                .failed_predicate
-                .chars()
-                .take(view.failed_predicate.len() / 2)
-                .collect();
+        if !view.failed_predicate.is_empty() {
+            if view.failed_predicate.chars().count() > 32 {
+                let keep = view.failed_predicate.chars().count() / 2;
+                view.failed_predicate = view.failed_predicate.chars().take(keep).collect();
+            } else {
+                view.failed_predicate.clear();
+            }
+            continue;
+        }
+        if !view.reject_class.is_empty() {
+            if view.reject_class.chars().count() > 16 {
+                let keep = view.reject_class.chars().count() / 2;
+                view.reject_class = view.reject_class.chars().take(keep).collect();
+            } else {
+                view.reject_class.clear();
+            }
             continue;
         }
         // Already at minimal shape — break.
@@ -280,9 +303,7 @@ pub fn fallback_regex_bbs(
                 .cloned()
                 .unwrap_or_else(|| "unknown".into()),
         },
-        constraints: prev
-            .map(|p| p.constraints.clone())
-            .unwrap_or_default(),
+        constraints: prev.map(|p| p.constraints.clone()).unwrap_or_default(),
         evidence: EvidencePointer {
             evidence_node_hash: evidence_hash.into(),
             raw_stderr_sha256: trace.raw_stderr_sha256.clone(),
@@ -339,9 +360,8 @@ pub fn compress_belief_state(
     tokenizer: &Tokenizer,
 ) -> RetryBeliefState {
     // Build the candidate by merging prev constraints + new rules.
-    let mut constraints: Vec<RetryConstraint> = prev
-        .map(|p| p.constraints.clone())
-        .unwrap_or_default();
+    let mut constraints: Vec<RetryConstraint> =
+        prev.map(|p| p.constraints.clone()).unwrap_or_default();
     for rule in new_rules {
         if !constraints.iter().any(|c| c.id == rule.id) {
             constraints.push(rule.clone());
@@ -377,9 +397,7 @@ pub fn compress_belief_state(
     let evidence = EvidencePointer {
         evidence_node_hash: evidence_hash.into(),
         raw_stderr_sha256: trace.raw_stderr_sha256.clone(),
-        trace_view_sha256: sha256_hex(
-            serde_json::to_string(trace).unwrap_or_default().as_bytes(),
-        ),
+        trace_view_sha256: sha256_hex(serde_json::to_string(trace).unwrap_or_default().as_bytes()),
     };
 
     let candidate = RetryBeliefState {
@@ -452,7 +470,8 @@ mod tests {
         }
         assert!(
             tk().count_text(&raw) > 50_000,
-            "synthetic stderr should be oversized (got {})", tk().count_text(&raw)
+            "synthetic stderr should be oversized (got {})",
+            tk().count_text(&raw)
         );
         let header = header_with(Some("schema-fail"), Some("x.y"));
         let view = deterministic_trace_slicer(&raw, &header, B_DISTILL_IN, &tk());
@@ -466,6 +485,35 @@ mod tests {
         let json = serde_json::to_string(&view).unwrap();
         assert!(!json.contains("error context line 4999"));
         assert_eq!(view.raw_stderr_sha256.len(), 64); // sha256 hex
+    }
+
+    #[test]
+    fn distiller_in_budget_for_swebench_long_report_line() {
+        let mut long_report = String::from(
+            "2026-06-05 INFO report: {'pallets__flask-5063': {'tests_status': {'PASS_TO_PASS': {'success': [",
+        );
+        for i in 0..300 {
+            long_report.push_str(&format!(
+                "'tests/test_cli.py::test_case_{i}_with_long_parameterization', "
+            ));
+        }
+        long_report.push_str("], 'failure': []}}}}\n");
+        let header = header_with(
+            Some("hidden_test_failure"),
+            Some("hidden tests still failing: tests/test_cli.py::TestRoutes::test_host"),
+        );
+        let view = deterministic_trace_slicer(&long_report, &header, B_DISTILL_IN, &tk());
+        let budget_tokens = tk().count_json(&view);
+        assert!(
+            budget_tokens <= B_DISTILL_IN,
+            "SWE-bench report trace view must fit B_DISTILL_IN, got {budget_tokens}"
+        );
+        assert!(view.raw_stderr_sha256.len() == 64);
+        assert!(view
+            .top_frames
+            .iter()
+            .chain(view.bottom_frames.iter())
+            .all(|frame| frame.chars().count() <= MAX_TRACE_FRAME_CHARS));
     }
 
     // ── zero_gain_circuit_breaker ───────────────────────────────
@@ -545,8 +593,15 @@ mod tests {
             evidence_hash: "ev3".into(),
         };
 
-        let bbs0 =
-            compress_belief_state(None, &trace, std::slice::from_ref(&r1), "ev1", &scope(), B_D, &tk());
+        let bbs0 = compress_belief_state(
+            None,
+            &trace,
+            std::slice::from_ref(&r1),
+            "ev1",
+            &scope(),
+            B_D,
+            &tk(),
+        );
         let bbs1 = compress_belief_state(
             Some(&bbs0),
             &trace,
@@ -590,10 +645,7 @@ mod tests {
         let raw = "src/a/b.rs and again src/a/b.rs plus src/c/d.rs";
         let paths = extract_file_paths(raw);
         // dedup
-        assert_eq!(
-            paths.iter().filter(|p| *p == "src/a/b.rs").count(),
-            1
-        );
+        assert_eq!(paths.iter().filter(|p| *p == "src/a/b.rs").count(), 1);
         assert!(paths.contains(&"src/c/d.rs".to_string()));
     }
 }

@@ -12,7 +12,6 @@
 /// in the library crate, so we test the JSON contract directly via `serde_json::Value`
 /// round-trips and struct-level serialization using local mirror structs that match
 /// the exact wire shape.
-
 use serde::{Deserialize, Serialize};
 
 /// Mirror of `ThinkingConfig` from chat_client — same serde contract.
@@ -37,7 +36,8 @@ struct ChatRequest<'a> {
 
 #[test]
 fn thinking_enabled_serialized_to_request_json() {
-    let messages: Vec<serde_json::Value> = vec![serde_json::json!({"role": "user", "content": "hello"})];
+    let messages: Vec<serde_json::Value> =
+        vec![serde_json::json!({"role": "user", "content": "hello"})];
     let req = ChatRequest {
         model: "deepseek-v4-pro",
         messages: &messages,
@@ -56,7 +56,8 @@ fn thinking_enabled_serialized_to_request_json() {
 
 #[test]
 fn thinking_none_omitted_from_request_json() {
-    let messages: Vec<serde_json::Value> = vec![serde_json::json!({"role": "user", "content": "hello"})];
+    let messages: Vec<serde_json::Value> =
+        vec![serde_json::json!({"role": "user", "content": "hello"})];
     let req = ChatRequest {
         model: "deepseek-v4-flash",
         messages: &messages,
@@ -130,8 +131,8 @@ fn reasoning_content_decoded_from_response_json() {
         choices: Vec<Choice>,
     }
 
-    let parsed: Response = serde_json::from_str(response_json)
-        .expect("response must deserialize into mirror struct");
+    let parsed: Response =
+        serde_json::from_str(response_json).expect("response must deserialize into mirror struct");
 
     let first = &parsed.choices[0];
     assert_eq!(first.message.content, "The answer is 42.");

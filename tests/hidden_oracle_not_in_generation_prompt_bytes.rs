@@ -11,16 +11,23 @@
 //! FC-trace: FC1 (test loop, hidden-oracle invariant), FC3 (test evidence)
 //! Risk class: Class 3
 
-use turingosv4::runtime::test_scenario::{derive_scenario_set_from_spec, TEST_SCENARIO_SET_SCHEMA_ID};
-use turingosv4::runtime::test_run::write_scenario_set;
-use turingosv4::runtime::generation_attempt::{GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID, AttemptOutcome};
+use std::time::{SystemTime, UNIX_EPOCH};
 use turingosv4::bottom_white::cas::schema::ObjectType;
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::generation_attempt::{
+    AttemptOutcome, GenerationAttemptCapsule, GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID,
+};
 use turingosv4::runtime::spec_capsule::cas_path;
-use std::time::{SystemTime, UNIX_EPOCH};
+use turingosv4::runtime::test_run::write_scenario_set;
+use turingosv4::runtime::test_scenario::{
+    derive_scenario_set_from_spec, TEST_SCENARIO_SET_SCHEMA_ID,
+};
 
 fn now_t() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(1000)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(1000)
 }
 
 #[test]
@@ -30,7 +37,8 @@ fn test_hidden_oracle_not_in_generation_prompt_bytes() {
     let t = now_t();
 
     // Write a scenario set to CAS.
-    let scenario_set = derive_scenario_set_from_spec(b"Build a todo list app", "spec-oracle-cid", t);
+    let scenario_set =
+        derive_scenario_set_from_spec(b"Build a todo list app", "spec-oracle-cid", t);
     let scenario_set_bytes = serde_json::to_vec(&scenario_set).expect("serialize");
     write_scenario_set(ws, &scenario_set).expect("write set");
 
@@ -55,14 +63,27 @@ fn test_hidden_oracle_not_in_generation_prompt_bytes() {
         logical_t: t,
     };
     let attempt_bytes = serde_json::to_vec(&attempt).expect("serialize");
-    store.put(&attempt_bytes, ObjectType::EvidenceCapsule, "test", t, Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string())).expect("put");
+    store
+        .put(
+            &attempt_bytes,
+            ObjectType::EvidenceCapsule,
+            "test",
+            t,
+            Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID.to_string()),
+        )
+        .expect("put");
 
     // Verify: the scenario set JSON bytes must NOT appear as a substring in any attempt bytes.
     let _ = store.reload_index_from_sidecar();
     let cids = store.list_cids_by_object_type(ObjectType::EvidenceCapsule);
     for cid in cids {
-        let meta = match store.metadata(&cid) { Some(m) => m, None => continue };
-        if meta.schema_id.as_deref() != Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID) { continue; }
+        let meta = match store.metadata(&cid) {
+            Some(m) => m,
+            None => continue,
+        };
+        if meta.schema_id.as_deref() != Some(GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID) {
+            continue;
+        }
         let bytes = store.get(&cid).expect("read attempt");
 
         // Scenario set bytes must not appear in the attempt capsule bytes.
@@ -84,7 +105,10 @@ fn test_scenario_set_json_not_substring_of_any_prompt_hash() {
 
     // A real prompt_hash is a sha256 hex string (64 chars) — it cannot contain JSON.
     let sha256_like = "a".repeat(64);
-    assert!(!sha256_like.contains(&set_json), "sha256 hash cannot contain scenario JSON");
+    assert!(
+        !sha256_like.contains(&set_json),
+        "sha256 hash cannot contain scenario JSON"
+    );
     assert!(!sha256_like.contains("turingos-test-scenario-set-v1"));
 }
 
@@ -105,14 +129,17 @@ fn test_hidden_oracle_static_no_scenario_set_in_prompt_builder() {
     ];
     for path in &prompt_paths {
         let full = root.join(path);
-        if !full.exists() { continue; }
-        let content = std::fs::read_to_string(&full)
-            .unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
+        if !full.exists() {
+            continue;
+        }
+        let content =
+            std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
         for pattern in &forbidden {
             assert!(
                 !content.contains(pattern),
                 "HIDDEN-ORACLE VIOLATION: {:?} found in prompt builder file {:?}",
-                pattern, path
+                pattern,
+                path
             );
         }
     }

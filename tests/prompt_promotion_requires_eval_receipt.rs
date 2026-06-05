@@ -8,9 +8,8 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use turingosv4::runtime::prompt_promotion::{
-    check_promotion_guard, write_promotion_receipt,
-    PromptPromotionReceipt, PromotionDecision,
-    sha256_hex_of_prompt, PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
+    check_promotion_guard, sha256_hex_of_prompt, write_promotion_receipt, PromotionDecision,
+    PromptPromotionReceipt, PROMPT_PROMOTION_RECEIPT_SCHEMA_ID,
 };
 use turingosv4::runtime::spec_capsule::cas_path;
 
@@ -49,9 +48,16 @@ fn test_guard_fails_without_receipt() {
 
     let to_cid = sha256_hex_of_prompt(b"v2 prompt content");
     let result = check_promotion_guard(dir.path(), &to_cid);
-    assert!(result.is_err(), "guard must fail with no receipt: {:?}", result);
+    assert!(
+        result.is_err(),
+        "guard must fail with no receipt: {:?}",
+        result
+    );
     let msg = format!("{}", result.unwrap_err());
-    assert!(msg.contains("no PromptPromotionReceipt"), "expected guard message: {msg}");
+    assert!(
+        msg.contains("no PromptPromotionReceipt"),
+        "expected guard message: {msg}"
+    );
 }
 
 #[test]
@@ -69,7 +75,11 @@ fn test_guard_passes_with_promote_receipt() {
     write_promotion_receipt(ws, &receipt, now_t()).expect("write receipt");
 
     let result = check_promotion_guard(ws, &to_cid);
-    assert!(result.is_ok(), "guard must pass with Promote receipt: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "guard must pass with Promote receipt: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -87,7 +97,10 @@ fn test_guard_blocks_with_reject_receipt() {
     let result = check_promotion_guard(ws, &to_cid);
     assert!(result.is_err(), "guard must block with Reject receipt");
     let msg = format!("{}", result.unwrap_err());
-    assert!(msg.contains("decision=reject"), "expected reject message: {msg}");
+    assert!(
+        msg.contains("decision=reject"),
+        "expected reject message: {msg}"
+    );
 }
 
 #[test]
@@ -120,5 +133,9 @@ fn test_guard_passes_after_rollback_receipt() {
 
     // Guard for v1 should now pass (rollback receipt).
     let result = check_promotion_guard(ws, &v1_cid);
-    assert!(result.is_ok(), "guard must pass after rollback: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "guard must pass after rollback: {:?}",
+        result
+    );
 }

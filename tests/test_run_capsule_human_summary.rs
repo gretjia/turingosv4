@@ -11,7 +11,11 @@ fn make_result(scenario: TestScenario, pass: bool) -> TestScenarioResult {
     TestScenarioResult {
         scenario,
         pass,
-        detail: if pass { "ok".to_string() } else { "fail".to_string() },
+        detail: if pass {
+            "ok".to_string()
+        } else {
+            "fail".to_string()
+        },
     }
 }
 
@@ -20,20 +24,31 @@ fn all_pass_shows_pass_with_scenario_names() {
     let results = vec![
         make_result(TestScenario::EntrypointExists, true),
         make_result(TestScenario::HtmlParses, true),
-        make_result(TestScenario::SandboxPolicyPreserved { policy: "sandbox".to_string() }, true),
+        make_result(
+            TestScenario::SandboxPolicyPreserved {
+                policy: "sandbox".to_string(),
+            },
+            true,
+        ),
     ];
     let summary = format_test_run_summary(&results);
     assert!(
         summary.starts_with("Internal tests: PASS"),
         "should start with 'Internal tests: PASS'; got: {summary}"
     );
+    assert!(summary.contains("3/3"), "should show 3/3; got: {summary}");
     assert!(
-        summary.contains("3/3"),
-        "should show 3/3; got: {summary}"
+        summary.contains("EntrypointExists"),
+        "missing EntrypointExists; got: {summary}"
     );
-    assert!(summary.contains("EntrypointExists"), "missing EntrypointExists; got: {summary}");
-    assert!(summary.contains("HtmlParses"), "missing HtmlParses; got: {summary}");
-    assert!(summary.contains("SandboxPolicyPreserved"), "missing SandboxPolicyPreserved; got: {summary}");
+    assert!(
+        summary.contains("HtmlParses"),
+        "missing HtmlParses; got: {summary}"
+    );
+    assert!(
+        summary.contains("SandboxPolicyPreserved"),
+        "missing SandboxPolicyPreserved; got: {summary}"
+    );
 }
 
 #[test]
@@ -41,7 +56,12 @@ fn partial_fail_shows_fail_with_failing_scenario() {
     let results = vec![
         make_result(TestScenario::EntrypointExists, true),
         make_result(TestScenario::HtmlParses, false),
-        make_result(TestScenario::SandboxPolicyPreserved { policy: "sandbox".to_string() }, true),
+        make_result(
+            TestScenario::SandboxPolicyPreserved {
+                policy: "sandbox".to_string(),
+            },
+            true,
+        ),
     ];
     let summary = format_test_run_summary(&results);
     assert!(
@@ -78,8 +98,14 @@ fn all_fail_shows_fail_with_all_scenarios() {
         summary.contains("0/2"),
         "should show 0/2 passed; got: {summary}"
     );
-    assert!(summary.contains("EntrypointExists"), "should list EntrypointExists; got: {summary}");
-    assert!(summary.contains("HtmlParses"), "should list HtmlParses; got: {summary}");
+    assert!(
+        summary.contains("EntrypointExists"),
+        "should list EntrypointExists; got: {summary}"
+    );
+    assert!(
+        summary.contains("HtmlParses"),
+        "should list HtmlParses; got: {summary}"
+    );
 }
 
 #[test]
@@ -90,10 +116,7 @@ fn single_pass_scenario_formats_correctly() {
         summary.contains("PASS"),
         "single pass should show PASS; got: {summary}"
     );
-    assert!(
-        summary.contains("1/1"),
-        "should show 1/1; got: {summary}"
-    );
+    assert!(summary.contains("1/1"), "should show 1/1; got: {summary}");
 }
 
 #[test]
@@ -101,7 +124,12 @@ fn multiple_failures_listed_comma_separated() {
     let results = vec![
         make_result(TestScenario::EntrypointExists, false),
         make_result(TestScenario::HtmlParses, false),
-        make_result(TestScenario::SandboxPolicyPreserved { policy: "csp".to_string() }, true),
+        make_result(
+            TestScenario::SandboxPolicyPreserved {
+                policy: "csp".to_string(),
+            },
+            true,
+        ),
     ];
     let summary = format_test_run_summary(&results);
     assert!(
@@ -110,7 +138,8 @@ fn multiple_failures_listed_comma_separated() {
     );
     // They should be comma-separated.
     assert!(
-        summary.contains("EntrypointExists, HtmlParses") || summary.contains("HtmlParses, EntrypointExists"),
+        summary.contains("EntrypointExists, HtmlParses")
+            || summary.contains("HtmlParses, EntrypointExists"),
         "failing scenarios should be comma-separated; got: {summary}"
     );
 }

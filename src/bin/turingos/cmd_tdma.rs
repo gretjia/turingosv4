@@ -43,6 +43,20 @@ struct SwebenchSampleInput {
     hints_text: Option<String>,
     #[serde(default)]
     fail_to_pass: Vec<String>,
+    #[serde(default)]
+    public_repo_context: Vec<SwebenchRepoContext>,
+}
+
+/// TRACE_MATRIX FC1a-rtool_input: Optional PUBLIC source context supplied by a
+/// benchmark packet. This is not hidden benchmark material: it is a bounded
+/// excerpt from the repository at `base_commit`, included so the model can
+/// emit real hunks instead of hallucinating line context.
+#[derive(Debug, Clone, serde::Deserialize)]
+struct SwebenchRepoContext {
+    path: String,
+    #[serde(default)]
+    start_line: Option<u64>,
+    text: String,
 }
 
 /// TRACE_MATRIX FC2-N16: `tdma` short-help (registry display).
@@ -269,14 +283,40 @@ fn make_swebench_user_prompt(sample: &SwebenchSampleInput) -> String {
     } else {
         sample.fail_to_pass.join("\n")
     };
+    let public_context = format_public_repo_context(&sample.public_repo_context);
     format!(
-        "Repository: {repo}\nBase commit: {base_commit}\n\nProblem statement:\n{problem}{hints}\n\nTarget failing tests that your patch must make pass:\n{failing}\n\nProvide a unified git diff patch (standard `git diff` format, file paths relative to the repository root, beginning with `diff --git`, with correct @@ hunk headers) that resolves the issue so the failing tests pass, as the `patch` field of a JSON object {{\"patch\":\"...\",\"rationale\":\"...\"}}. Do not include or quote any hidden test code, reference solution, or benchmark patch.",
+        "Repository: {repo}\nBase commit: {base_commit}\n\nProblem statement:\n{problem}{hints}\n\nTarget failing tests that your patch must make pass:\n{failing}{public_context}\n\nProvide a unified git diff patch (standard `git diff` format, file paths relative to the repository root, beginning with `diff --git`, with correct @@ hunk headers) that resolves the issue so the failing tests pass, as the `patch` field of a JSON object {{\"patch\":\"...\",\"rationale\":\"...\"}}. Do not include or quote any hidden test code, reference solution, or benchmark patch.",
         repo = sample.repo,
         base_commit = sample.base_commit,
         problem = sample.problem_statement,
         hints = hints,
         failing = failing,
+        public_context = public_context,
     )
+}
+
+fn format_public_repo_context(context: &[SwebenchRepoContext]) -> String {
+    if context.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("\n\nPublic repository context at base commit:");
+    for item in context.iter().take(6) {
+        let text = item.text.trim();
+        if text.is_empty() {
+            continue;
+        }
+        let line = item
+            .start_line
+            .map(|n| format!(" starting at line {n}"))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "\n\n--- {path}{line} ---\n{text}",
+            path = item.path,
+            line = line,
+            text = text
+        ));
+    }
+    out
 }
 
 /// TRACE_MATRIX FC2-N16: `turingos tdma` subcommand entry-point.
@@ -400,9 +440,7 @@ fn run_run(args: &[String]) -> ExitCode {
         let path = match &swebench_sample {
             Some(p) => p.clone(),
             None => {
-                eprintln!(
-                    "turingos tdma run: --judge swebench requires --swebench-sample <PATH>"
-                );
+                eprintln!("turingos tdma run: --judge swebench requires --swebench-sample <PATH>");
                 return ExitCode::from(2);
             }
         };
@@ -683,4 +721,41 @@ fn default_evidence_dir(workspace: &Path) -> PathBuf {
         .join("artifacts")
         .join("tdma")
         .join(format!("tdma_run_{}", ts))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_with_context() -> SwebenchSampleInput {
+        SwebenchSampleInput {
+            instance_id: "pallets__flask-5063".to_string(),
+            repo: "pallets/flask".to_string(),
+            base_commit: "182ce3dd15dfa3537391c3efaf9c3ff407d134d4".to_string(),
+            problem_statement: "Show route domains in flask routes.".to_string(),
+            hints_text: None,
+            fail_to_pass: vec!["tests/test_cli.py::TestRoutes::test_subdomain".to_string()],
+            public_repo_context: vec![SwebenchRepoContext {
+                path: "src/flask/cli.py".to_string(),
+                start_line: Some(1001),
+                text: "def routes_command(sort: str, all_methods: bool) -> None:\n    headers = (\"Endpoint\", \"Methods\", \"Rule\")".to_string(),
+            }],
+        }
+    }
+
+    #[test]
+    fn swebench_prompt_includes_public_repo_context() {
+        let prompt = make_swebench_user_prompt(&sample_with_context());
+        assert!(prompt.contains("Public repository context at base commit"));
+        assert!(prompt.contains("--- src/flask/cli.py starting at line 1001 ---"));
+        assert!(prompt.contains("def routes_command"));
+        assert!(prompt.contains("test_subdomain"));
+    }
+
+    #[test]
+    fn swebench_prompt_does_not_name_hidden_patch_fields() {
+        let prompt = make_swebench_user_prompt(&sample_with_context());
+        assert!(!prompt.contains("gold_patch"));
+        assert!(!prompt.contains("test_patch"));
+    }
 }

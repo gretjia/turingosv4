@@ -29,9 +29,7 @@ use std::process::ExitCode;
 use sha2::{Digest, Sha256};
 use turingosv4::charter_core::compile_charter_core;
 use turingosv4::judges::math_step_judge::JudgeVerdict;
-use turingosv4::judges::nesbitt_step_judge::{
-    NesbittRejectClass, NesbittStage, NesbittStepJudge,
-};
+use turingosv4::judges::nesbitt_step_judge::{NesbittRejectClass, NesbittStage, NesbittStepJudge};
 use turingosv4::ledger::{AttemptScope, ImmutableTapeLedger, MemoryTapeLedger};
 use turingosv4::memory_kernel::{EnvironmentResult, KernelStep, MemoryKernel, Task};
 use turingosv4::token_budget::{MAX_RETRIES, ZERO_GAIN_K};
@@ -60,7 +58,11 @@ fn header_text(status: &str, task_id: &str, reject_class: &str, failed_pred: &st
         r#"{{"schema_version":"tdma-state-update/v1","status":"{}","task_id":"{}","action":"{}","failed_predicate":"{}","reject_class":"{}"}}"#,
         status,
         task_id,
-        if status == "Proceed" { "PROCEED" } else { "RETRY" },
+        if status == "Proceed" {
+            "PROCEED"
+        } else {
+            "RETRY"
+        },
         failed_pred,
         reject_class,
     )
@@ -80,9 +82,7 @@ fn make_stuck_stderr(attempt_idx: usize) -> String {
     s.push_str("traceback:\n");
     s.push_str("  at src/judges/nesbitt_step_judge.rs:42 in verdict_for_stage\n");
     s.push_str("  at src/memory_kernel.rs:178 in handle_rejection\n");
-    s.push_str(
-        "  caused by: structural mismatch at stage Step5-ApplyAMGM (direction-reversal)\n",
-    );
+    s.push_str("  caused by: structural mismatch at stage Step5-ApplyAMGM (direction-reversal)\n");
     s.push_str("\nFull rejection context:\n");
     let template =
         "  > Attempt body line: candidate step text included the direction-reversal pattern, \
@@ -151,8 +151,7 @@ fn main() -> ExitCode {
     // ── Stuck loop: 5 consecutive direction-reversal attempts ──
     // (The kernel should escalate at attempt 4 with reason=ZERO_GAIN; we
     // try a 5th to confirm escalation already happened.)
-    let stuck_step =
-        "By AM-GM with arithmetic mean ≤ geometric mean, each pair x/y + y/x ≤ 2.";
+    let stuck_step = "By AM-GM with arithmetic mean ≤ geometric mean, each pair x/y + y/x ≤ 2.";
 
     let mut probes: Vec<String> = Vec::new();
     let mut escalated_at: Option<usize> = None;
@@ -162,11 +161,8 @@ fn main() -> ExitCode {
     let tk = Tokenizer::new();
 
     for attempt in 1..=(MAX_RETRIES as usize + 2) {
-        let (verdict, expected_class) = judge.verdict_for_stage(
-            stuck_step,
-            NesbittStage::Step5ApplyAmGm,
-            &accepted_steps,
-        );
+        let (verdict, expected_class) =
+            judge.verdict_for_stage(stuck_step, NesbittStage::Step5ApplyAmGm, &accepted_steps);
         assert!(
             matches!(verdict, JudgeVerdict::Fail { .. }),
             "judge must reject same direction-reversal step"
@@ -252,8 +248,8 @@ fn main() -> ExitCode {
     let beat_max_retries = escalated_at_attempt < (MAX_RETRIES as usize + 1);
 
     // ── Write evidence ──
-    let probes_sha = write_jsonl(&evidence_dir.join("per_attempt_probes.jsonl"), &probes)
-        .unwrap_or_default();
+    let probes_sha =
+        write_jsonl(&evidence_dir.join("per_attempt_probes.jsonl"), &probes).unwrap_or_default();
 
     let mut chaintape_lines: Vec<String> = Vec::new();
     for (h, node) in &kernel.tape.indexes.by_hash {
@@ -268,8 +264,8 @@ fn main() -> ExitCode {
         });
         chaintape_lines.push(serde_json::to_string(&json).unwrap_or_default());
     }
-    let chaintape_sha = write_jsonl(&evidence_dir.join("chaintape.jsonl"), &chaintape_lines)
-        .unwrap_or_default();
+    let chaintape_sha =
+        write_jsonl(&evidence_dir.join("chaintape.jsonl"), &chaintape_lines).unwrap_or_default();
 
     let manifest = serde_json::json!({
         "atom": "11",

@@ -71,7 +71,17 @@ fn collect_rs_recursive(dir: &Path, out: &mut Vec<String>) {
 fn r001_kernel_purity_no_domain_terms() {
     let kernel = fs::read_to_string("src/kernel.rs").expect("src/kernel.rs must exist");
     // Pattern from rules/active/R-001_kernel_purity.yaml
-    let forbidden = ["Lean", "theorem", "proof", "sorry", "simp", "lemma", "tactic", "induction", "[OMEGA]"];
+    let forbidden = [
+        "Lean",
+        "theorem",
+        "proof",
+        "sorry",
+        "simp",
+        "lemma",
+        "tactic",
+        "induction",
+        "[OMEGA]",
+    ];
     let mut found = Vec::new();
     for term in &forbidden {
         if kernel.contains(term) {
@@ -97,7 +107,10 @@ fn r002_no_coin_minting_in_repo() {
     let mut violations = Vec::new();
     for f in &files {
         // Skip authorized economy/money path (where minting impl lives in on_init)
-        if f.contains("economy/money.rs") || f.contains("state/sequencer.rs") || f.contains("state/q_state.rs") {
+        if f.contains("economy/money.rs")
+            || f.contains("state/sequencer.rs")
+            || f.contains("state/q_state.rs")
+        {
             continue;
         }
         let content = fs::read_to_string(f).unwrap_or_default();
@@ -139,7 +152,8 @@ fn r005_no_forced_investment_in_repo() {
         for line in content.lines() {
             // Skip comments
             let trimmed = line.trim();
-            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!") {
+            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!")
+            {
                 continue;
             }
             for (a, b) in &forbidden_pairs {

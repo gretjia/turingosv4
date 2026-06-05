@@ -56,6 +56,11 @@ pub mod autopsy_capsule;
 /// TRACE_MATRIX FC3-N43 (TB-15 Atom 5; architect §6.2 + FR-15.4 + FR-15.5): `MarkovEvidenceCapsule` schema + writer + default-deny deep-history gate. End-of-TB rollup binding constitution_hash + L4 root + L4.E root + CAS root + previous capsule + typical_errors + unresolved_obs + next_session_context_cid. Default next-session bootstrap source; deeper history requires `TURINGOS_MARKOV_OVERRIDE=1`.
 pub mod markov_capsule;
 
+/// TRACE_MATRIX FC2 boot + FC3 readonly guard (TC-002): explicit TC boot
+/// manifest verification over constitution hash, genesis trust-root payload,
+/// predicate boot catalog, and Path-B ref topology. Non-authoritative verifier:
+/// it does not mutate trust-root authority or ChainTape/CAS schemas.
+pub mod boot_trust_root_manifest;
 /// TRACE_MATRIX FC2 Boot: TB-10 Atom 1 — Reusable preseed factory for chaintape genesis QState. Single source of truth for `tb7-7-sponsor` + `Agent_user_0` + `Agent_0..9` initial balances. Consumed by both evaluator (`--task-mode self|both`) and `lean_market` user CLI bootstrap. Pure function; replay-deterministic.
 pub mod bootstrap;
 
@@ -69,6 +74,32 @@ pub mod audit_assertions;
 
 /// TRACE_MATRIX FC1-N41 + FC1-N42 + FC1-N43 NEW (TB-18R R1 charter v2 §1 + Codex Gate 1 ratified 2026-05-06): per-LLM-Lean-cycle `AttemptTelemetry` + `LeanResult` + `TerminalAbortRecord` CAS object schemas. Closes failure-path asymmetry (omega ✅ / step_reject + parse_fail + llm_err + step_partial_ok ❌) documented in 2026-05-06 external-audit VETO. R2 wires evaluator hot path; R3 extends sequencer L4.E admission with `RejectionClass::LeanFailed=6 / ParseFailed=7 / SorryBlocked=8 / LlmError=9` tail-append.
 pub mod attempt_telemetry;
+/// TRACE_MATRIX FC1-N7 + Art.0.2 (TC-007): durable external side-effect
+/// intent/terminal accounting. Pure in-memory contract today; production
+/// callers persist these records through ChainTape/CAS before claiming clean
+/// cost/provenance.
+pub mod external_call;
+/// TRACE_MATRIX FC1-N7 + Art.0.2 (TC-012/TC-013): bounded G0 grammar,
+/// stable rank enumeration, and strict even/odd dovetail trace helpers.
+/// Market/LLM heuristics can feed only the odd lane.
+pub mod g0_completeness;
+/// TRACE_MATRIX FC1 rtool/prompt shielding (TC-018): TC-specific prompt-view
+/// allowlist renderer and fail-closed prompt guard. Feature/workload boundary
+/// only; not kernel, verifier, or trust-root authority.
+pub mod tc_agent_view;
+/// TRACE_MATRIX FC2 restart + FC3 replay (TC-015): crash-matrix helper
+/// contracts proving TC restart derives from persisted Git/CAS state while
+/// snapshots remain acceleration-only.
+pub mod tc_crash_matrix;
+/// TRACE_MATRIX FC1 tape + Art.0.2 (TC-101): generic tape-canonical fact
+/// helper for forward TC repair atoms. Additive helper only: no typed-tx
+/// discriminant, CAS ObjectType, sequencer, or signing-payload authority.
+pub mod tc_tape_canonical;
+/// TRACE_MATRIX FC1 workload step + FC3 replay (TC-009/TC-010): bounded
+/// Minsky and Brainfuck universal-machine witness interpreters with
+/// deterministic prev_hash/step_hash traces. Workload witness only; not a
+/// kernel, sequencer, typed-tx, or trust-root authority surface.
+pub mod tc_universal_witness;
 
 /// TRACE_MATRIX FC1-N11 + FC1-N12 + FC2-N19: shared replay loader for the executable predicate registry activated on ChainTape.
 pub mod predicate_registry_loader;

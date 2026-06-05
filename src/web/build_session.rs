@@ -50,7 +50,8 @@ fn is_safe_path_component(s: &str) -> bool {
     if s.is_empty() || s.len() > 128 {
         return false;
     }
-    s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    s.chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 #[cfg(feature = "web")]

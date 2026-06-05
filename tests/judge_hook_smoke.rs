@@ -97,10 +97,10 @@ fn run_edit(file_path: &str, new_string: &str) -> (i32, String) {
 // Benign, read-only commands whose *text* contains a command-name substring.
 // Each one was blocked by the pre-fix patterns; each must now pass (exit 0).
 const BENIGN_READS: &[&str] = &[
-    "grep -n \"parsed\" src/kernel.rs",  // 'sed' in 'parsed' + kernel.rs  (old L122)
-    "rg -n \"used\" constitution.md",    // 'sed' in 'used' + constitution (old L69)
+    "grep -n \"parsed\" src/kernel.rs", // 'sed' in 'parsed' + kernel.rs  (old L122)
+    "rg -n \"used\" constitution.md",   // 'sed' in 'used' + constitution (old L69)
     "rg -n \"transform\" logs/run.jsonl", // 'rm' in 'transform' + .jsonl  (old L117)
-    "rg -n \"perform -rf\" /etc/hosts",  // 'rm -rf ' in 'perform -rf' + / (old L100+L101)
+    "rg -n \"perform -rf\" /etc/hosts", // 'rm -rf ' in 'perform -rf' + / (old L100+L101)
     "for f in src/*.rs; do echo $f; done", // original for-loop symptom
 ];
 
@@ -108,12 +108,12 @@ const BENIGN_READS: &[&str] = &[
 // block (exit 2). This is the "narrowed, not fail-open" guarantee.
 const DESTRUCTIVE_BLOCKS: &[&str] = &[
     "rm -rf /home/zephryj/projects/turingosv4-harness-upgrade/src", // L100+L101
-    "rm -rf ~/.claude",                  // L100+L101 (~/ and .claude)
-    "rm build/run.jsonl",                // L117 WAL/ledger deletion
-    "sed -i 's/x/y/' src/kernel.rs",     // L122 kernel constant mutation
-    "sed -i 's/a/b/' constitution.md",   // L69 constitution mutation
-    "git push --force origin main",      // L107 force push
-    "git reset --hard HEAD~1",           // L112 hard reset
+    "rm -rf ~/.claude",                                             // L100+L101 (~/ and .claude)
+    "rm build/run.jsonl",                                           // L117 WAL/ledger deletion
+    "sed -i 's/x/y/' src/kernel.rs",                                // L122 kernel constant mutation
+    "sed -i 's/a/b/' constitution.md",                              // L69 constitution mutation
+    "git push --force origin main",                                 // L107 force push
+    "git reset --hard HEAD~1",                                      // L112 hard reset
 ];
 
 #[test]

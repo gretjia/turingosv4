@@ -20,11 +20,13 @@
 //! No new crates: only `serde_json` + `std` + the in-repo sanitized runner.
 
 use std::cell::Cell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::judges::math_step_judge::{JudgeVerdict, MathStepJudge};
 use crate::sdk::sanitized_runner::{env_allowlist_from_current, run_sanitized, SanitizedCommand};
+
+const MACOS_DOCKER_DESKTOP_BIN: &str = "/Applications/Docker.app/Contents/Resources/bin";
 
 /// TRACE_MATRIX FC1a-judge_pi: Single-stage cursor for swebench repair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -166,6 +168,7 @@ impl MathStepJudge for SwebenchTestJudge {
                 };
             }
         };
+        let patch = canonicalize_unified_diff_for_harness(&patch);
 
         // 2. Per-attempt bookkeeping.
         let n = self.attempt.get();
@@ -221,14 +224,7 @@ impl MathStepJudge for SwebenchTestJudge {
             // keeping the verifier deterministic and answer-independent. NOTE:
             // instance/base Docker images must be pre-built (e.g. a gold smoke with
             // full env) before the loop — image builds need network this env lacks.
-            env: {
-                let mut env = env_allowlist_from_current(&[
-                    "PATH", "HOME", "USER", "LANG", "DOCKER_HOST", "TMPDIR",
-                ]);
-                env.insert("HF_HUB_OFFLINE".to_string(), "1".to_string());
-                env.insert("HF_DATASETS_OFFLINE".to_string(), "1".to_string());
-                env
-            },
+            env: swebench_harness_env(),
             stdin: None,
             timeout: Duration::from_secs(60 * 60),
         };
@@ -314,11 +310,140 @@ impl MathStepJudge for SwebenchTestJudge {
     }
 }
 
+fn canonicalize_unified_diff_for_harness(patch: &str) -> String {
+    let mut normalized = normalize_unified_diff_hunk_counts(patch);
+    if !normalized.ends_with('\n') {
+        normalized.push('\n');
+    }
+    normalized
+}
+
+fn normalize_unified_diff_hunk_counts(patch: &str) -> String {
+    let lines: Vec<&str> = patch.lines().collect();
+    let mut out = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let Some((old_start, new_start, suffix)) = parse_hunk_header(lines[i]) else {
+            out.push(lines[i].to_string());
+            i += 1;
+            continue;
+        };
+
+        let header_index = out.len();
+        out.push(String::new());
+        i += 1;
+        let mut old_count = 0usize;
+        let mut new_count = 0usize;
+        while i < lines.len()
+            && !lines[i].starts_with("@@ ")
+            && !lines[i].starts_with("diff --git ")
+        {
+            count_hunk_body_line(lines[i], &mut old_count, &mut new_count);
+            out.push(lines[i].to_string());
+            i += 1;
+        }
+        out[header_index] = format_hunk_header(old_start, old_count, new_start, new_count, suffix);
+    }
+
+    let mut normalized = out.join("\n");
+    if patch.ends_with('\n') {
+        normalized.push('\n');
+    }
+    normalized
+}
+
+fn parse_hunk_header(line: &str) -> Option<(usize, usize, &str)> {
+    let after_open = line.strip_prefix("@@ ")?;
+    let close = after_open.find(" @@")?;
+    let spec = &after_open[..close];
+    let suffix = &after_open[close + 3..];
+    let mut parts = spec.split_whitespace();
+    let old = parts.next()?.strip_prefix('-')?;
+    let new = parts.next()?.strip_prefix('+')?;
+    Some((parse_range_start(old)?, parse_range_start(new)?, suffix))
+}
+
+fn parse_range_start(range: &str) -> Option<usize> {
+    range.split(',').next()?.parse().ok()
+}
+
+fn count_hunk_body_line(line: &str, old_count: &mut usize, new_count: &mut usize) {
+    if line.starts_with('\\') {
+        return;
+    }
+    if line.starts_with('+') && !line.starts_with("+++") {
+        *new_count += 1;
+    } else if line.starts_with('-') && !line.starts_with("---") {
+        *old_count += 1;
+    } else {
+        *old_count += 1;
+        *new_count += 1;
+    }
+}
+
+fn format_hunk_header(
+    old_start: usize,
+    old_count: usize,
+    new_start: usize,
+    new_count: usize,
+    suffix: &str,
+) -> String {
+    format!(
+        "@@ -{} +{} @@{}",
+        format_range(old_start, old_count),
+        format_range(new_start, new_count),
+        suffix
+    )
+}
+
+fn format_range(start: usize, count: usize) -> String {
+    if count == 1 {
+        start.to_string()
+    } else {
+        format!("{start},{count}")
+    }
+}
+
+fn swebench_harness_env() -> std::collections::BTreeMap<String, String> {
+    let mut env =
+        env_allowlist_from_current(&["PATH", "HOME", "USER", "LANG", "DOCKER_HOST", "TMPDIR"]);
+    if Path::new(MACOS_DOCKER_DESKTOP_BIN).is_dir() {
+        let current = env.get("PATH").map(String::as_str);
+        env.insert(
+            "PATH".to_string(),
+            path_with_extra_dir(current, MACOS_DOCKER_DESKTOP_BIN),
+        );
+    }
+    env.insert("HF_HUB_OFFLINE".to_string(), "1".to_string());
+    env.insert("HF_DATASETS_OFFLINE".to_string(), "1".to_string());
+    env
+}
+
+fn path_with_extra_dir(current: Option<&str>, extra_dir: &str) -> String {
+    let current = current.unwrap_or("");
+    if current
+        .split(':')
+        .filter(|segment| !segment.is_empty())
+        .any(|segment| segment == extra_dir)
+    {
+        return current.to_string();
+    }
+    if current.is_empty() {
+        extra_dir.to_string()
+    } else {
+        format!("{current}:{extra_dir}")
+    }
+}
+
 /// TRACE_MATRIX FC1a-judge_pi: Build an actionable, shielded retry reason when
 /// the harness produced no `report.json` (it errored the instance). Prefers the
 /// patch-apply failure from `run_instance.log` (about the model's own patch, so
 /// no gold/test leakage); falls back to the raw stderr tail.
-fn harness_failure_reason(log_path: &std::path::Path, stderr: &[u8], exit_code: Option<i32>) -> String {
+fn harness_failure_reason(
+    log_path: &std::path::Path,
+    stderr: &[u8],
+    exit_code: Option<i32>,
+) -> String {
     if let Ok(log) = std::fs::read_to_string(log_path) {
         if log.contains("Patch Apply Failed") || log.contains("malformed patch") {
             // Extract the most specific `patch:`/`malformed` line for the model.
@@ -335,7 +460,10 @@ fn harness_failure_reason(log_path: &std::path::Path, stderr: &[u8], exit_code: 
         }
     }
     let tail = tail_chars(&String::from_utf8_lossy(stderr), 400);
-    format!("swebench harness error (exit {:?}); stderr tail: {}", exit_code, tail)
+    format!(
+        "swebench harness error (exit {:?}); stderr tail: {}",
+        exit_code, tail
+    )
 }
 
 /// TRACE_MATRIX FC1a-output_edge: char-safe truncation to at most `max` chars.
@@ -421,5 +549,70 @@ mod tests {
         assert_eq!(truncate_chars("ab", 5), "ab");
         assert_eq!(tail_chars("abcdef", 3), "def");
         assert_eq!(tail_chars("ab", 5), "ab");
+    }
+
+    #[test]
+    fn normalize_unified_diff_hunk_counts_recounts_body_lines() {
+        let raw = concat!(
+            "diff --git a/x.py b/x.py\n",
+            "--- a/x.py\n",
+            "+++ b/x.py\n",
+            "@@ -10,99 +10,99 @@ def f():\n",
+            " context\n",
+            "-old\n",
+            "+new\n",
+            " same\n",
+        );
+        let normalized = normalize_unified_diff_hunk_counts(raw);
+        assert!(normalized.contains("@@ -10,3 +10,3 @@ def f():"));
+        assert!(normalized.contains("-old\n+new\n same\n"));
+    }
+
+    #[test]
+    fn normalize_unified_diff_hunk_counts_keeps_single_line_ranges_compact() {
+        let raw = concat!(
+            "diff --git a/x.py b/x.py\n",
+            "--- a/x.py\n",
+            "+++ b/x.py\n",
+            "@@ -4,12 +4,12 @@\n",
+            "-old\n",
+            "+new\n",
+        );
+        let normalized = normalize_unified_diff_hunk_counts(raw);
+        assert!(normalized.contains("@@ -4 +4 @@"));
+    }
+
+    #[test]
+    fn canonicalize_unified_diff_for_harness_adds_final_newline() {
+        let raw = concat!(
+            "diff --git a/x.py b/x.py\n",
+            "--- a/x.py\n",
+            "+++ b/x.py\n",
+            "@@ -4 +4 @@\n",
+            "-old\n",
+            "+new"
+        );
+        let normalized = canonicalize_unified_diff_for_harness(raw);
+        assert!(normalized.ends_with('\n'));
+        assert!(normalized.contains("-old\n+new\n"));
+    }
+
+    #[test]
+    fn swebench_harness_path_adds_docker_desktop_helper_once() {
+        assert_eq!(
+            path_with_extra_dir(Some("/usr/bin:/bin"), "/Applications/Docker.app/bin"),
+            "/usr/bin:/bin:/Applications/Docker.app/bin"
+        );
+        assert_eq!(
+            path_with_extra_dir(
+                Some("/usr/bin:/Applications/Docker.app/bin:/bin"),
+                "/Applications/Docker.app/bin"
+            ),
+            "/usr/bin:/Applications/Docker.app/bin:/bin"
+        );
+        assert_eq!(
+            path_with_extra_dir(None, "/Applications/Docker.app/bin"),
+            "/Applications/Docker.app/bin"
+        );
     }
 }

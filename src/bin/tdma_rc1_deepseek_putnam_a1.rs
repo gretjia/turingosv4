@@ -10,7 +10,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
+use turingosv4::drivers::llm_http::{GenerateRequest, Message, RecordedLlmClient};
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
 const PROBLEM_TEXT: &str = r#"Putnam 2024 A1.
@@ -100,7 +100,7 @@ fn main() -> ExitCode {
         proxy_url, model, max_attempts_per_stage, temperature
     );
 
-    let llm = ResilientLLMClient::new(&proxy_url, 120, 2);
+    let llm = RecordedLlmClient::new(&proxy_url, 120, 2);
     let rt = match tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -145,7 +145,7 @@ fn main() -> ExitCode {
             max_tokens: Some(600),
         };
         let resp = rt
-            .block_on(llm.generate(&req))
+            .block_on(llm.generate_recorded(&req))
             .map_err(|e| format!("llm: {}", e))?;
         Ok(LlmResponse {
             content: resp.content,

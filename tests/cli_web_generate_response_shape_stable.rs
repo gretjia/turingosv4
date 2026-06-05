@@ -12,15 +12,13 @@ use web::generate::{ArtifactEntry, GenerateResponse};
 fn test_generate_response_json_shape_stable_when_none() {
     let resp = GenerateResponse {
         session_id: "test-session-123".to_string(),
-        artifacts: vec![
-            ArtifactEntry {
-                path: "index.html".to_string(),
-                size_bytes: 1024,
-                content_type: "text/html",
-                cid: None,
-                sha256: None,
-            }
-        ],
+        artifacts: vec![ArtifactEntry {
+            path: "index.html".to_string(),
+            size_bytes: 1024,
+            content_type: "text/html",
+            cid: None,
+            sha256: None,
+        }],
         transcript_excerpt: Some("Excerpt text".to_string()),
         total_attempts: 2,
         status: None,
@@ -34,7 +32,7 @@ fn test_generate_response_json_shape_stable_when_none() {
     assert_eq!(val["session_id"].as_str(), Some("test-session-123"));
     assert_eq!(val["transcript_excerpt"].as_str(), Some("Excerpt text"));
     assert_eq!(val["total_attempts"].as_u64(), Some(2));
-    
+
     let artifacts = val["artifacts"].as_array().expect("artifacts array");
     assert_eq!(artifacts.len(), 1);
     let art = &artifacts[0];
@@ -53,15 +51,13 @@ fn test_generate_response_json_shape_stable_when_none() {
 fn test_generate_response_json_shape_when_some() {
     let resp = GenerateResponse {
         session_id: "test-session-123".to_string(),
-        artifacts: vec![
-            ArtifactEntry {
-                path: "index.html".to_string(),
-                size_bytes: 1024,
-                content_type: "text/html",
-                cid: Some("file_cid_123".to_string()),
-                sha256: Some("file_sha_123".to_string()),
-            }
-        ],
+        artifacts: vec![ArtifactEntry {
+            path: "index.html".to_string(),
+            size_bytes: 1024,
+            content_type: "text/html",
+            cid: Some("file_cid_123".to_string()),
+            sha256: Some("file_sha_123".to_string()),
+        }],
         transcript_excerpt: Some("Excerpt text".to_string()),
         total_attempts: 2,
         status: Some("success".to_string()),
@@ -75,7 +71,7 @@ fn test_generate_response_json_shape_when_some() {
     assert_eq!(val["session_id"].as_str(), Some("test-session-123"));
     assert_eq!(val["status"].as_str(), Some("success"));
     assert_eq!(val["artifact_bundle_cid"].as_str(), Some("bundle_cid_123"));
-    
+
     let artifacts = val["artifacts"].as_array().expect("artifacts array");
     assert_eq!(artifacts.len(), 1);
     let art = &artifacts[0];

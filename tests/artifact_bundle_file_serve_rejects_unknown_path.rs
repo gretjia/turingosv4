@@ -57,7 +57,7 @@ async fn http_get(addr: SocketAddr, path: &str) -> (u16, String, Option<String>)
         .nth(1)
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
-    
+
     let mut content_type = None;
     for line in head.lines() {
         if line.to_ascii_lowercase().starts_with("content-type:") {
@@ -85,22 +85,21 @@ async fn test_artifact_bundle_file_serve_rejects_unknown_path() {
         spec_capsule_cid: Some("aa".repeat(32)),
         generation_attempt_cid: "bb".repeat(32),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: "34".repeat(32),
-                mime: "text/html".to_string(),
-                sha256: "56".repeat(32),
-                size_bytes: 120,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: "34".repeat(32),
+            mime: "text/html".to_string(),
+            sha256: "56".repeat(32),
+            size_bytes: 120,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: 120,
         created_at_logical_t: 100,
     };
 
-    let actual_written_bundle_cid_hex = write_artifact_bundle(&workspace, &manifest).expect("write manifest");
+    let actual_written_bundle_cid_hex =
+        write_artifact_bundle(&workspace, &manifest).expect("write manifest");
 
     let workspace_str = workspace.to_string_lossy().into_owned();
 
@@ -119,5 +118,8 @@ async fn test_artifact_bundle_file_serve_rejects_unknown_path() {
     std::env::remove_var("TURINGOS_WEB_WORKSPACE");
     drop(_guard);
 
-    assert_eq!(status, 404, "GET for unknown path must return 404; body={resp_body}");
+    assert_eq!(
+        status, 404,
+        "GET for unknown path must return 404; body={resp_body}"
+    );
 }

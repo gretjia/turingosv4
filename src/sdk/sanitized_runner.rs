@@ -65,10 +65,11 @@ pub fn env_allowlist_from_current(keys: &[&str]) -> BTreeMap<String, String> {
 pub fn run_sanitized(command: SanitizedCommand) -> io::Result<SanitizedOutput> {
     let argv = command_argv(&command);
     let allowed_env_keys = command.env.keys().cloned().collect();
+    let cwd = command.cwd.canonicalize().unwrap_or(command.cwd.clone());
 
     let mut child = Command::new(&command.program)
         .args(&command.args)
-        .current_dir(&command.cwd)
+        .current_dir(&cwd)
         .env_clear()
         .envs(&command.env)
         .stdin(Stdio::piped())
@@ -107,7 +108,7 @@ pub fn run_sanitized(command: SanitizedCommand) -> io::Result<SanitizedOutput> {
 
     Ok(SanitizedOutput {
         argv,
-        cwd: command.cwd,
+        cwd,
         allowed_env_keys,
         stdout,
         stderr,

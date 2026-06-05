@@ -37,7 +37,6 @@ use std::path::PathBuf;
 
 use turingosv4::state::typed_tx::{ExhaustionReason, RunOutcome};
 
-
 /// SG-18.3 projection contract — `ExhaustionReason::to_run_outcome()` is
 /// the canonical mapping invoked by Atom E's refactor. Every variant must
 /// project to the constitutionally-correct `RunOutcome` per Art.IV

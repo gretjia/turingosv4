@@ -120,7 +120,6 @@ fn real12_task_market_prompt_affordance_is_opt_in_and_not_forced() {
     );
 }
 
-
 #[test]
 fn real12_task_market_probe_runner_records_bid_task_attempts_without_forcing_trade() {
     let script = fs::read_to_string("scripts/run_real12_task_market_probe.sh")

@@ -1,7 +1,7 @@
-use turingosv4::runtime::artifact_bundle::{
-    write_artifact_bundle, ArtifactBundleManifest, ArtifactFileEntry, ArtifactFileRole
-};
 use turingosv4::bottom_white::cas::store::CasStore;
+use turingosv4::runtime::artifact_bundle::{
+    write_artifact_bundle, ArtifactBundleManifest, ArtifactFileEntry, ArtifactFileRole,
+};
 
 fn parse_cid_hex(s: &str) -> turingosv4::bottom_white::cas::schema::Cid {
     let mut out = [0u8; 32];
@@ -21,16 +21,14 @@ fn test_artifact_bundle_cas_wire_round_trip() {
         spec_capsule_cid: Some("a".repeat(64)),
         generation_attempt_cid: "b".repeat(64),
         previous_bundle_cid: None,
-        files: vec![
-            ArtifactFileEntry {
-                path: "index.html".to_string(),
-                cid: "c".repeat(64),
-                mime: "text/html".to_string(),
-                sha256: "d".repeat(64),
-                size_bytes: 120,
-                role: ArtifactFileRole::Entrypoint,
-            }
-        ],
+        files: vec![ArtifactFileEntry {
+            path: "index.html".to_string(),
+            cid: "c".repeat(64),
+            mime: "text/html".to_string(),
+            sha256: "d".repeat(64),
+            size_bytes: 120,
+            role: ArtifactFileRole::Entrypoint,
+        }],
         entrypoint: "index.html".to_string(),
         bundle_size_bytes_total: 120,
         created_at_logical_t: 12345,
@@ -43,6 +41,7 @@ fn test_artifact_bundle_cas_wire_round_trip() {
     let store = CasStore::open(&cas_dir).expect("open store");
     let cid_obj = parse_cid_hex(&cid);
     let bytes = store.get(&cid_obj).expect("get bytes");
-    let read_manifest: ArtifactBundleManifest = serde_json::from_slice(&bytes).expect("deserialize");
+    let read_manifest: ArtifactBundleManifest =
+        serde_json::from_slice(&bytes).expect("deserialize");
     assert_eq!(read_manifest, manifest);
 }

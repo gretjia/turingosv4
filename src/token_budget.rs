@@ -278,11 +278,7 @@ pub fn enforce_code_budget(
 /// (directive §7). For RC1 we keep only `+++/---/@@` markers + lines beginning
 /// with `+`/`-` (the actual changes), dropping leading-space context lines.
 /// TRACE_MATRIX FC1a-budget_gate: Diff degradation keeps the failing hunk.
-pub fn enforce_diff_budget(
-    diff: &str,
-    budget: usize,
-    tokenizer: &Tokenizer,
-) -> BudgetedPayload {
+pub fn enforce_diff_budget(diff: &str, budget: usize, tokenizer: &Tokenizer) -> BudgetedPayload {
     let n = tokenizer.count_text(diff);
     if n <= budget {
         return BudgetedPayload {
@@ -319,11 +315,7 @@ pub fn enforce_diff_budget(
 /// Markdown: keep heading hierarchy + TODO/ERROR/Invariant lines;
 /// drop long body text (directive §7).
 /// TRACE_MATRIX FC1a-budget_gate: Markdown degradation keeps headings.
-pub fn enforce_markdown_budget(
-    md: &str,
-    budget: usize,
-    tokenizer: &Tokenizer,
-) -> BudgetedPayload {
+pub fn enforce_markdown_budget(md: &str, budget: usize, tokenizer: &Tokenizer) -> BudgetedPayload {
     let n = tokenizer.count_text(md);
     if n <= budget {
         return BudgetedPayload {
@@ -453,8 +445,14 @@ mod tests {
         // High-priority constraint must survive eviction longest.
         if let Some(arr) = parsed.get("constraints").and_then(|c| c.as_array()) {
             if !arr.is_empty() {
-                let ids: Vec<&str> = arr.iter().filter_map(|c| c.get("id").and_then(|i| i.as_str())).collect();
-                assert!(!ids.contains(&"low"), "low priority should be evicted first");
+                let ids: Vec<&str> = arr
+                    .iter()
+                    .filter_map(|c| c.get("id").and_then(|i| i.as_str()))
+                    .collect();
+                assert!(
+                    !ids.contains(&"low"),
+                    "low priority should be evicted first"
+                );
             }
         }
     }
