@@ -168,18 +168,25 @@ fn closure_scope_ratification_guard_is_current_handover_state() {
         "tests/constitution_obl005_final_closure_witness.rs::closure_scope_packet_is_required_before_fresh_final_witness",
         "does not ratify the scope",
         "does not close OBL-005",
+        "Fresh final-closure witness binding guard",
+        "PR #286",
+        "fresh_final_closure_witness_path",
     ] {
         assert!(
             obl005_block.contains(required),
-            "OBL-005 ledger must record the executable scope-ratification guard: {required}"
+            "OBL-005 ledger must record current executable closure guard state: {required}"
         );
     }
 
     let latest = read_text(LATEST_PATH);
     for required in [
-        "PR #279",
-        "d319a3f3",
+        "PR #285",
+        "PR #286",
+        "e13fb9d5",
         "executable closure-scope ratification guard",
+        "fresh final closure witness",
+        "fresh_final_closure_witness_path",
+        "source-tree commit",
         "Current-binary boundary",
         "418d8a7d",
         "7b12e9f1",
@@ -191,6 +198,10 @@ fn closure_scope_ratification_guard_is_current_handover_state() {
             "LATEST.md must be synchronized to the current guard/boundary state: {required}"
         );
     }
+    assert!(
+        !latest.contains("Last synchronized base**: `d319a3f3`"),
+        "LATEST.md must not keep PR #279/d319a3f3 as the current synchronized base after PR #286"
+    );
 }
 
 #[test]
