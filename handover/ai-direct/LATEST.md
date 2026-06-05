@@ -11,12 +11,12 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #274 merged
-two-sided market external-agent evidence after PR #272 merged generate/artifact
-and market A/B closure-status accounting.
+**Session**: OBL-005 reopened re-audit on current main; PR #275 merged the
+benchmark single-sample closure guard after PR #274 merged two-sided
+market external-agent evidence.
 
-**Main tip**: `2ddf1eaa` (PR #274 — two-sided market external evidence).
-Current `origin/main` includes #274.
+**Main tip**: `0d704f4a` (PR #275 — benchmark single-sample closure guard).
+Current `origin/main` includes #275.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,13 +27,14 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #274 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #275 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
   market/generate, Cybench, OSWorld, GPQA, Math, SWE-bench, ToolBench,
   WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
-  evidence, plus two-sided YES/NO external market evidence.
+  evidence, plus two-sided YES/NO external market evidence, plus the
+  single-sample benchmark overclaim guard.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -63,6 +64,11 @@ Current state:
   `benchmark_capability_not_solved=10`,
   `domain_receipt_final_closure_missing=0`, and
   `market_no_or_short_side_missing=0`.
+- Class 0 scope note added 2026-06-05:
+  `handover/directives/2026-06-05_OBL005_CLOSURE_SCOPE_DECISION_PACKET.md`
+  records the remaining decision fork. Recommended scope is no-zombie/no-drift
+  closure for OBL-005, with benchmark/domain failures kept as honest
+  capability-pending facts. No final closure is claimed.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
