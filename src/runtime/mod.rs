@@ -47,6 +47,12 @@ pub mod tape_event;
 /// TRACE_MATRIX Art.0.2 + FC1-N13: A05 generic projection trait over ChainTape-derived TapeEvent envelopes.
 pub mod projection;
 
+/// TRACE_MATRIX Art.0.2 + FC1-N7 + FC1-N13 + FC2-N22: A06 external call Intent/Terminal outbox over ChainTape-derived TapeEvent envelopes.
+pub mod external_call;
+
+/// TRACE_MATRIX Art.0.2 + FC2-N22: A06 boot orphan Intent sweeper appending Abandoned Terminal events.
+pub mod orphan_intent_sweeper;
+
 /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — VerificationResult CAS object recording Lean oracle verdict (target_work_tx / verifier_agent / lean_exit_code / lean_*_hash / proof_file_hash / proof_artifact_cid / verified). Linked from ProposalTelemetry.verification_result_cid.
 pub mod verification_result;
 

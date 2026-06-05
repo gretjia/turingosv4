@@ -1,7 +1,6 @@
 //! C9 static check: offline replay modules must not import LLM/network clients.
 //!
-//! This test greps the source of `src/runtime/replay.rs` and
-//! `src/bin/turingos/cmd_spec_audit.rs` to assert they do NOT:
+//! This test greps offline replay/outbox source to assert it does NOT:
 //! (a) use any siliconflow / reqwest / hyper / LlmError client module
 //! (b) mod any module that itself uses them
 //!
@@ -42,16 +41,54 @@ fn assert_no_llm_imports(path: &std::path::Path) {
 fn test_offline_replay_no_llm_dependency_static_check() {
     let root = workspace_root();
 
-    let replay_rs = root.join("src/runtime/replay.rs");
-    assert!(replay_rs.exists(), "src/runtime/replay.rs must exist");
-    assert_no_llm_imports(&replay_rs);
-
-    let cmd_spec_audit_rs = root.join("src/bin/turingos/cmd_spec_audit.rs");
-    assert!(
-        cmd_spec_audit_rs.exists(),
-        "src/bin/turingos/cmd_spec_audit.rs must exist"
-    );
-    assert_no_llm_imports(&cmd_spec_audit_rs);
+    for rel in [
+        "src/runtime/replay.rs",
+        "src/runtime/external_call.rs",
+        "src/runtime/orphan_intent_sweeper.rs",
+        "src/bin/turingos/cmd_spec_audit.rs",
+    ] {
+        let path = root.join(rel);
+        assert!(path.exists(), "{rel} must exist");
+        assert_no_llm_imports(&path);
+    }
 
     println!("STATIC-CHECK PASS: no LLM/network imports in offline replay modules");
+}
+
+fn assert_file_contains(path: &std::path::Path, needle: &str) {
+    let content =
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("could not read {:?}: {e}", path));
+    assert!(
+        content.contains(needle),
+        "File {:?} must stay in the external-call inventory; missing {:?}",
+        path,
+        needle
+    );
+}
+
+#[test]
+fn test_external_call_entrypoint_inventory_is_explicit() {
+    let root = workspace_root();
+
+    let expected = [
+        (
+            "src/bin/turingos/chat_client.rs",
+            "reqwest::Client::builder",
+        ),
+        (
+            "src/bin/turingos/cmd_llm.rs",
+            "crate::chat_client::chat_complete",
+        ),
+        ("src/bin/turingos/cmd_generate.rs", "chat_complete_blocking"),
+        ("src/bin/turingos/cmd_spec.rs", "chat_complete_blocking"),
+        ("src/bin/turingos/cmd_spec.rs", "turingos llm complete"),
+        ("src/bin/turingos/cmd_tdma.rs", "chat_complete_blocking"),
+        ("src/drivers/llm_http.rs", "reqwest::Client::builder"),
+        ("src/web/spec.rs", "turingos llm complete"),
+        ("src/web/generate.rs", "turingos generate"),
+    ];
+
+    for (rel, needle) in expected {
+        assert_file_contains(&root.join(rel), needle);
+    }
 }
