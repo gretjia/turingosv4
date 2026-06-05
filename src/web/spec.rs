@@ -59,9 +59,7 @@ use super::ws::{AppState, WsBroadcastMsg};
 #[cfg(feature = "web")]
 use turingosv4::runtime::grill_envelope::CANONICAL_SLOTS;
 #[cfg(feature = "web")]
-use turingosv4::sdk::sanitized_runner::{
-    env_allowlist_from_current, run_sanitized, SanitizedCommand, SanitizedOutput,
-};
+use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand, SanitizedOutput};
 
 // ---------------------------------------------------------------------------
 // Request / Response / Error types
@@ -237,32 +235,9 @@ fn explicit_cwd(path: PathBuf) -> PathBuf {
 
 #[cfg(feature = "web")]
 /// TRACE_MATRIX FC1-N7: Web child LLM key handoff keeps API-key capability in child env only.
-pub(crate) fn web_llm_child_env_for_api_key(
-    api_key: Option<&str>,
-) -> std::collections::BTreeMap<String, String> {
-    let mut env = env_allowlist_from_current(&[
-        "PATH",
-        "SILICONFLOW_API_KEY",
-        "DEEPSEEK_API_KEY",
-        "DEEPSEEK_API_KEY_WORKER",
-        "OPENROUTER_API_KEY",
-        "OPENAI_API_KEY",
-        "TURINGOS_SILICONFLOW_ENDPOINT",
-    ]);
-    if let Some(key) = api_key.filter(|k| !k.is_empty()) {
-        for name in [
-            "SILICONFLOW_API_KEY",
-            "DEEPSEEK_API_KEY",
-            "DEEPSEEK_API_KEY_WORKER",
-        ] {
-            env.entry(name.to_string())
-                .or_insert_with(|| key.to_string());
-        }
-    }
-    env
-}
-
-#[cfg(feature = "web")]
+///
+/// The web boundary reads the session key; `runtime::spec_synthesis::build_llm_child_env`
+/// is the shared CLI/web helper that constructs the sanitized child env.
 fn current_session_api_key(state: &AppState) -> Option<String> {
     state.api_key.lock().ok().and_then(|guard| guard.clone())
 }
@@ -856,7 +831,9 @@ pub(crate) async fn spec_turn_handler(
                 "--turn-id".into(),
                 triage_turn_id.clone(),
             ],
-            web_llm_child_env_for_api_key(current_session_api_key(&state).as_deref()),
+            turingosv4::runtime::spec_synthesis::build_llm_child_env(
+                current_session_api_key(&state).as_deref(),
+            ),
             Duration::from_secs(240),
         )
         .await
@@ -1190,7 +1167,9 @@ pub(crate) async fn spec_turn_handler(
             "--meta-prompt".into(),
             META_PROMPT_REL.into(),
         ],
-        web_llm_child_env_for_api_key(current_session_api_key(&state).as_deref()),
+        turingosv4::runtime::spec_synthesis::build_llm_child_env(
+            current_session_api_key(&state).as_deref(),
+        ),
         Duration::from_secs(240),
     )
     .await
@@ -1732,12 +1711,12 @@ mod tests {
     }
 
     #[test]
-    fn web_llm_child_env_aliases_session_key_without_overriding_explicit_env() {
+    fn spec_llm_child_env_aliases_session_key_without_overriding_explicit_env() {
         std::env::set_var("DEEPSEEK_API_KEY", "sk-explicit-meta-key");
         std::env::remove_var("SILICONFLOW_API_KEY");
         std::env::remove_var("DEEPSEEK_API_KEY_WORKER");
 
-        let env = web_llm_child_env_for_api_key(Some("sk-session-key"));
+        let env = turingosv4::runtime::spec_synthesis::build_llm_child_env(Some("sk-session-key"));
 
         std::env::remove_var("DEEPSEEK_API_KEY");
 
