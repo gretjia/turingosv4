@@ -340,6 +340,29 @@ fn read_json(path: &str) -> serde_json::Value {
     .unwrap_or_else(|err| panic!("parse {path}: {err}"))
 }
 
+fn reconciled_broad_family_run(id: &str) -> String {
+    let reconciliation = reconciliation_manifest();
+    for row in reconciliation
+        .get("broad_family")
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{RECONCILIATION_MANIFEST_PATH} missing [[broad_family]] rows"))
+    {
+        let table = row
+            .as_table()
+            .unwrap_or_else(|| panic!("broad_family row is not a table: {row:?}"));
+        if table.get("id").and_then(toml::Value::as_str) == Some(id) {
+            return as_string(table, "evidence_run");
+        }
+    }
+    panic!("{RECONCILIATION_MANIFEST_PATH} missing broad_family `{id}`");
+}
+
+fn true_suite_run_id(path: &str) -> Option<&str> {
+    path.strip_prefix("handover/evidence/true_suite/")?
+        .split('/')
+        .next()
+}
+
 fn json_bool_at<'a>(value: &'a serde_json::Value, keys: &[&str]) -> bool {
     let mut cur = value;
     for key in keys {
@@ -1210,4 +1233,38 @@ fn registered_real_world_suites_cover_reconciled_fresh_runs() {
         missing.is_empty(),
         "production real_world_suite registry must include every fresh evidence_run bound by reconciliation; missing {missing:?}"
     );
+}
+
+#[test]
+fn production_group_domain_evidence_uses_reconciled_fresh_runs() {
+    let tracked_families = [
+        ("mind2web_open_web", "mind2web"),
+        ("toolbench_api_tool_use", "toolbench"),
+    ];
+    let groups = groups();
+
+    for (family_id, evidence_subdir) in tracked_families {
+        let expected_run = reconciled_broad_family_run(family_id);
+        let mut references = Vec::new();
+
+        for group in &groups {
+            for path in &group.real_world_evidence {
+                if path.contains(&format!("/{evidence_subdir}/")) {
+                    references.push((group.id.as_str(), path.as_str()));
+                }
+            }
+        }
+
+        assert!(
+            !references.is_empty(),
+            "production liveness groups must bind `{family_id}` evidence from reconciliation"
+        );
+        for (group_id, path) in references {
+            assert_eq!(
+                true_suite_run_id(path),
+                Some(expected_run.as_str()),
+                "group `{group_id}` cites stale `{family_id}` evidence; expected run `{expected_run}` from reconciliation, got `{path}`"
+            );
+        }
+    }
 }
