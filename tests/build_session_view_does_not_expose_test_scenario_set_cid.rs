@@ -21,6 +21,7 @@ use turingosv4::runtime::preview_run::{
     PreviewRunCapsule, SandboxPolicy, PREVIEW_RUN_CAPSULE_SCHEMA_ID,
 };
 use turingosv4::runtime::spec_capsule::{cas_path, GrillAttemptTally, GrillSessionCapsuleBody};
+use turingosv4::runtime::test_run::{TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
 
 static ENV_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
 
@@ -112,12 +113,14 @@ async fn build_session_view_does_not_expose_test_scenario_set_cid() {
         .expect("put grill session");
 
     // Verify test_scenario_set_cid shielding
-    let test_run_body = serde_json::json!({
-        "schema_id": "turingos-test-run-v1",
-        "session_id": session_id.to_string(),
-        "test_scenario_set_cid": "secret_scenario_cid",
-        "logical_t": 50,
-    });
+    let test_run_body = TestRunCapsule {
+        schema_id: TEST_RUN_CAPSULE_SCHEMA_ID.to_string(),
+        artifact_bundle_cid: String::new(),
+        test_scenario_set_cid: "secret_scenario_cid".to_string(),
+        results: Vec::new(),
+        overall_pass: false,
+        logical_t: 50,
+    };
     let test_run_bytes = serde_json::to_vec(&test_run_body).unwrap();
     let _test_run_cid = store
         .put(
@@ -125,7 +128,7 @@ async fn build_session_view_does_not_expose_test_scenario_set_cid() {
             ObjectType::EvidenceCapsule,
             "test_user",
             50,
-            Some("turingos-test-run-v1".to_string()),
+            Some(TEST_RUN_CAPSULE_SCHEMA_ID.to_string()),
         )
         .expect("put test run");
 

@@ -47,6 +47,12 @@ use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, Verify
 #[cfg(feature = "web")]
 use super::ws::{AppState, WsBroadcastMsg};
 #[cfg(feature = "web")]
+use turingosv4::bottom_white::cas::schema::Cid;
+#[cfg(feature = "web")]
+use turingosv4::bottom_white::cas::store::CasStore;
+#[cfg(feature = "web")]
+use turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule;
+#[cfg(feature = "web")]
 use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 
 // ---------------------------------------------------------------------------
@@ -430,6 +436,15 @@ pub(crate) async fn generate_handler(
                 });
             last_failure_reason = reason;
             last_failure_kind = "shellout_failed";
+            if let Some((public_rejection, retryable)) =
+                public_rejection_error_from_stderr(&workspace, &stderr_str)
+            {
+                last_failure_reason = public_rejection.reason.clone();
+                last_failure_kind = public_rejection.kind;
+                if !retryable || attempt >= MAX_GENERATE_ATTEMPTS {
+                    return Err((StatusCode::UNPROCESSABLE_ENTITY, Json(public_rejection)));
+                }
+            }
             if attempt < MAX_GENERATE_ATTEMPTS {
                 continue;
             }
@@ -596,6 +611,76 @@ pub(crate) async fn generate_handler(
             kind: last_failure_kind,
         }),
     ))
+}
+
+#[cfg(feature = "web")]
+fn public_rejection_error_from_stderr(workspace: &str, stderr: &str) -> Option<(SpecError, bool)> {
+    let rejection_cid = extract_rejection_cid(stderr)?;
+    let capsule = read_rejection_capsule(workspace, &rejection_cid)?;
+    let public = serde_json::json!({
+        "rejection_cid": rejection_cid,
+        "reject_class": format!("{:?}", capsule.reject_class),
+        "public_error_summary": capsule.public_error_summary,
+        "reason": capsule.reason,
+        "retryable": capsule.retryable,
+        "world_head_unchanged": capsule.world_head_unchanged,
+    });
+    Some((
+        SpecError {
+            reason: public.to_string(),
+            kind: "generate_rejected",
+        },
+        capsule.retryable,
+    ))
+}
+
+#[cfg(feature = "web")]
+fn extract_rejection_cid(stderr: &str) -> Option<String> {
+    let marker = "rejection_cid=";
+    let start = stderr.find(marker)? + marker.len();
+    let cid: String = stderr[start..]
+        .chars()
+        .take_while(|c| c.is_ascii_hexdigit())
+        .collect();
+    if cid.len() == 64 {
+        Some(cid)
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "web")]
+fn read_rejection_capsule(workspace: &str, cid_hex: &str) -> Option<GenerateRejectionCapsule> {
+    let cid = parse_cid_hex(cid_hex)?;
+    let cas_dir = std::path::Path::new(workspace).join("cas");
+    let mut store = CasStore::open(&cas_dir).ok()?;
+    let _ = store.reload_index_from_sidecar();
+    let bytes = store.get(&cid).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+#[cfg(feature = "web")]
+fn parse_cid_hex(s: &str) -> Option<Cid> {
+    if s.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for (i, chunk) in s.as_bytes().chunks(2).enumerate() {
+        let hi = hex_nibble(chunk[0])?;
+        let lo = hex_nibble(chunk[1])?;
+        bytes[i] = (hi << 4) | lo;
+    }
+    Some(Cid(bytes))
+}
+
+#[cfg(feature = "web")]
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
 }
 
 /// W8 helper: best-effort recursive removal of all entries inside `dir`.
