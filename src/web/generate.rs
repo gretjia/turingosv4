@@ -41,7 +41,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[cfg(feature = "web")]
-use super::spec::{web_llm_child_env_for_api_key, SpecError};
+use super::spec::SpecError;
 #[cfg(feature = "web")]
 use super::verify::{spec_looks_like_game, verify_artifact_html_with_mode, VerifyMode};
 #[cfg(feature = "web")]
@@ -330,7 +330,8 @@ pub(crate) async fn generate_handler(
         args.push("--n-parallel-workers".to_string());
         args.push(n_parallel_workers.to_string());
         let session_api_key = state.api_key.lock().ok().and_then(|guard| guard.clone());
-        let env = web_llm_child_env_for_api_key(session_api_key.as_deref());
+        let env =
+            turingosv4::runtime::spec_synthesis::build_llm_child_env(session_api_key.as_deref());
         let command = SanitizedCommand {
             program: PathBuf::from(&bin),
             args,

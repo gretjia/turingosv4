@@ -38,10 +38,12 @@ use sha2::{Digest, Sha256};
 
 use crate::chat_client::{chat_complete_blocking, require_api_key, ChatMessage, LlmError};
 use crate::cmd_llm;
+use turingosv4::runtime::grill_predicates::Lang;
 use turingosv4::runtime::spec_capsule;
-use turingosv4::sdk::sanitized_runner::{
-    env_allowlist_from_current, run_sanitized, SanitizedCommand,
+use turingosv4::runtime::spec_synthesis::{
+    canonical_questions, synthesise_spec_md_no_llm, wrap_spec_md,
 };
+use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 
 /// TRACE_MATRIX FC2-N16: `spec` short-help
 pub(crate) const SHORT_HELP: &str =
@@ -122,19 +124,11 @@ impl SpecMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Lang {
-    Zh,
-    En,
-}
-
-impl Lang {
-    fn parse(s: &str) -> Result<Self, String> {
-        match s {
-            "zh" | "cn" | "中文" => Ok(Self::Zh),
-            "en" | "english" => Ok(Self::En),
-            other => Err(format!("invalid --lang '{other}': expect zh|en")),
-        }
+fn parse_lang(s: &str) -> Result<Lang, String> {
+    match s {
+        "zh" | "cn" | "中文" => Ok(Lang::Zh),
+        "en" | "english" => Ok(Lang::En),
+        other => Err(format!("invalid --lang '{other}': expect zh|en")),
     }
 }
 
@@ -223,7 +217,7 @@ fn run_inner(args: &[String]) -> Result<(), SpecError> {
             }
             "--lang" => {
                 let v = iter.next().ok_or(SpecError::MissingFlag("--lang"))?;
-                lang = Lang::parse(v).map_err(SpecError::BadAnswersFile)?;
+                lang = parse_lang(v).map_err(SpecError::BadAnswersFile)?;
             }
             "--skip-llm" => {
                 skip_llm = true;
@@ -537,16 +531,6 @@ fn generate_session_id() -> String {
     format!("{epoch_secs}_{random_hex}")
 }
 
-// ── Lang conversion ──────────────────────────────────────────────────────────
-
-/// Convert cmd_spec::Lang to grill_predicates::Lang for predicate calls.
-fn to_pred_lang(lang: Lang) -> turingosv4::runtime::grill_predicates::Lang {
-    match lang {
-        Lang::Zh => turingosv4::runtime::grill_predicates::Lang::Zh,
-        Lang::En => turingosv4::runtime::grill_predicates::Lang::En,
-    }
-}
-
 fn lang_str(lang: Lang) -> &'static str {
     match lang {
         Lang::Zh => "zh",
@@ -679,7 +663,7 @@ fn shell_llm_complete(
             meta_prompt_path.to_string_lossy().into_owned(),
         ],
         cwd: workspace.to_path_buf(),
-        env: llm_child_env(),
+        env: turingosv4::runtime::spec_synthesis::build_llm_child_env(None),
         stdin: None,
         timeout: std::time::Duration::from_secs(240),
     })
@@ -787,7 +771,7 @@ fn shell_llm_triage(
             turn_id.to_string(),
         ],
         cwd: workspace.to_path_buf(),
-        env: llm_child_env(),
+        env: turingosv4::runtime::spec_synthesis::build_llm_child_env(None),
         stdin: None,
         timeout: std::time::Duration::from_secs(240),
     })
@@ -824,18 +808,6 @@ fn shell_llm_triage(
         .to_string();
 
     Ok(TriageResult { ok, class })
-}
-
-fn llm_child_env() -> std::collections::BTreeMap<String, String> {
-    env_allowlist_from_current(&[
-        "PATH",
-        "SILICONFLOW_API_KEY",
-        "DEEPSEEK_API_KEY",
-        "DEEPSEEK_API_KEY_WORKER",
-        "OPENROUTER_API_KEY",
-        "OPENAI_API_KEY",
-        "TURINGOS_SILICONFLOW_ENDPOINT",
-    ])
 }
 
 // ── Main driven-mode orchestration ───────────────────────────────────────────
@@ -1053,7 +1025,7 @@ fn run_driven_mode(
             let bundle = turingosv4::runtime::grill_predicates::run_turn_predicates(
                 &tp,
                 &prev_covered,
-                to_pred_lang(lang),
+                lang,
             );
 
             if !bundle.all_pass() {
@@ -1493,59 +1465,6 @@ fn write_failed_turn_capsule(
 // Canonical 8-question flow (research-derived)
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn canonical_questions(lang: Lang) -> Vec<String> {
-    match lang {
-        Lang::Zh => vec![
-            // Q1 — The Job (JTBD opener; no jargon)
-            "先不用想程序怎么做。能跟我说说你最近遇到了什么事，让你觉得『要是有个小工具就好了』？\
-比如『我妈每周要算一次社区团购账，Excel 太麻烦』。你的故事是什么？".into(),
-            // Q2 — The Anchor (let user supply anchor)
-            "有没有哪个网站 / App / 小工具，跟你想要的『有点像』？不用一模一样，一两个相似的地方就行。\
-（如果想不出来：那纸笔 / Excel / 微信群里现在是怎么做的？）".into(),
-            // Q3 — Data model in plain words
-            "想象关掉电脑明天再打开，这个工具应该还『记得』哪些东西？比如团购账本会记得：\
-每个人的名字、买了什么、付了多少、还欠多少。你的工具要记得什么？".into(),
-            // Q4 — First-click walkthrough
-            "假设我是你的用户，第一次打开这个工具——我看到什么？然后我点什么？然后呢？\
-一步一步告诉我，直到我完成一件事。".into(),
-            // Q5 — Weird-user test (Mom-Test sin-3 antidote, specifics)
-            "如果有个奇怪的用户，故意乱点乱填——比如把『金额』填成『哈哈哈』，\
-或者同一个名字录入 50 遍——你希望工具怎么办？报错？忽略？还是有别的反应？".into(),
-            // Q6 — Disappointment boundary (inverse framing surfaces real priorities)
-            "如果这个工具突然多了一个功能，你反而会觉得『搞这个干嘛，反而把简单的事弄复杂了』——\
-是什么功能？说两三个。".into(),
-            // Q7 — Success test (past-cost framing)
-            "用了一个月之后，你怎么判断『这个工具是有用的』？不是『感觉不错』那种——\
-是具体能数出来或看得见的事。比如：『我妈现在不用每周日花两小时算账了。』".into(),
-            // Q8 — Playback / mirror (Voss labeling)
-            "（最后一题）下面我会把前面听到的复述一遍，请你看看哪里我听错了或听漏了——\
-别客气，挑错就是帮我。如果你想直接补充什么，请在这里写出来。".into(),
-        ],
-        Lang::En => vec![
-            "Forget about code for now. Tell me about a recent moment when you thought \
-'I wish I had a tool for this.' For example: 'My mom does community group-buy accounting \
-every week in Excel and it's painful.' What's your story?".into(),
-            "Is there a website, app, or tool that's even a little bit like what you want? \
-Doesn't have to be exact — just one or two similar pieces. (If you can't name one: \
-'How do you do this today with paper, Excel, or a chat group?')".into(),
-            "Imagine you close the program and open it tomorrow — what should it still \
-'remember'? A group-buy tracker remembers: each person's name, what they bought, how \
-much they paid, what they still owe. What does yours remember?".into(),
-            "Pretend I'm your user opening this for the first time. What do I see? What do \
-I click? Then what? Walk me through, step by step, until I finish one task.".into(),
-            "If a weird user messes around — types 'lolol' into the price field, or enters \
-the same name 50 times — what should the tool do? Show an error? Ignore it? Something else?".into(),
-            "If the tool grew a new feature and your reaction was 'why did you add this, \
-you've made the simple thing complicated' — name two or three such features.".into(),
-            "After one month of using it, how do you know it's actually working? Not 'feels \
-nice' — something countable or visible. Like: 'My mom no longer spends two hours every \
-Sunday doing the math.'".into(),
-            "(Last question) I'll play back what I heard. Tell me which line is wrong or \
-incomplete — corrections help me. If you want to add anything directly, write it here.".into(),
-        ],
-    }
-}
-
 /// A8b (2026-05-19): synthesis prompt moved from inline Rust literal to
 /// runtime fs load from `<workspace>/assets/prompts/grill_synthesis_{lang}.md`.
 /// Mirrors F4 meta-prompt pattern. Enables A/B without rebuild.
@@ -1670,91 +1589,4 @@ fn write_transcript_jsonl(path: &Path, turns: &[TurnRecord]) -> Result<(), SpecE
     }
     fs::write(path, out).map_err(|e| SpecError::Io(format!("write transcript: {e}")))?;
     Ok(())
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LLM-less synthesis fallback (for --skip-llm CAS-wire smoke tests)
-// ─────────────────────────────────────────────────────────────────────────────
-
-fn synthesise_spec_md_no_llm(lang: Lang, questions: &[String], answers: &[String]) -> String {
-    let mut s = String::new();
-    match lang {
-        Lang::Zh => {
-            s.push_str("## 一句话目标\n\n");
-            s.push_str(&answers[0]);
-            s.push_str("\n\n## 我们要做什么 (Goal)\n\n");
-            s.push_str(&answers[0]);
-            s.push_str("\n\n## 像谁 (Reference)\n\n");
-            s.push_str(&answers[1]);
-            s.push_str("\n\n## 程序要记住的东西 (Memory)\n\n");
-            s.push_str(&answers[2]);
-            s.push_str("\n\n## 第一次使用 (First Run)\n\n");
-            s.push_str(&answers[3]);
-            s.push_str("\n\n## 不能搞坏的情况 (Robustness)\n\n");
-            s.push_str(&answers[4]);
-            s.push_str("\n\n## 故意不做的 (Out of Scope)\n\n");
-            s.push_str(&answers[5]);
-            s.push_str("\n\n## 算成功 (Acceptance)\n\n");
-            s.push_str(&answers[6]);
-            s.push_str("\n\n## 用户补充\n\n");
-            s.push_str(&answers[7]);
-            s.push_str("\n\n## 一句话给 AI 编程员\n\n");
-            s.push_str("根据上面的 Goal / Memory / First Run 实现一个最小可用版本。");
-        }
-        Lang::En => {
-            s.push_str("## One-line Goal\n\n");
-            s.push_str(&answers[0]);
-            s.push_str("\n\n## What We're Building (Goal)\n\n");
-            s.push_str(&answers[0]);
-            s.push_str("\n\n## Like What (Reference)\n\n");
-            s.push_str(&answers[1]);
-            s.push_str("\n\n## What the Program Remembers\n\n");
-            s.push_str(&answers[2]);
-            s.push_str("\n\n## First Run\n\n");
-            s.push_str(&answers[3]);
-            s.push_str("\n\n## What It Must Not Break On\n\n");
-            s.push_str(&answers[4]);
-            s.push_str("\n\n## Deliberately NOT Doing\n\n");
-            s.push_str(&answers[5]);
-            s.push_str("\n\n## Success Looks Like\n\n");
-            s.push_str(&answers[6]);
-            s.push_str("\n\n## User Additions\n\n");
-            s.push_str(&answers[7]);
-            s.push_str("\n\n## One-line Brief to AI Coder\n\n");
-            s.push_str("Implement a minimal version using the Goal / Memory / First Run above.");
-        }
-    }
-    let _ = questions; // suppress unused warning
-    s.push_str("\n\n<!-- TURINGOS_SPEC_END -->\n");
-    s
-}
-
-/// Wrap the LLM-synthesised body with a header (model id + timestamp) and an
-/// appendix (raw Q/A for audit). The CAS capsule hashes this WHOLE blob, so
-/// future replay can derive both the formatted spec and the raw transcript
-/// from the single capsule CID.
-fn wrap_spec_md(
-    body: &str,
-    questions: &[String],
-    answers: &[String],
-    model_id: &str,
-    skipped_llm: bool,
-) -> String {
-    let mut s = String::new();
-    s.push_str("# TuringOS Spec (Phase 6.3)\n\n");
-    s.push_str(&format!(
-        "> Generated by `turingos spec` — meta model: `{model_id}`"
-    ));
-    if skipped_llm {
-        s.push_str(" (skip-llm: no synthesis call made)");
-    }
-    s.push_str("\n\n");
-    s.push_str(body.trim_end());
-    s.push_str("\n\n---\n\n");
-    s.push_str("## Appendix — Raw Q/A (for audit)\n\n");
-    for (i, (q, a)) in questions.iter().zip(answers.iter()).enumerate() {
-        s.push_str(&format!("**Q{}**: {q}\n\n", i + 1));
-        s.push_str(&format!("**A{}**: {a}\n\n", i + 1));
-    }
-    s
 }

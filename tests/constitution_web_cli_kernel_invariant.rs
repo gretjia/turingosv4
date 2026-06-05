@@ -220,6 +220,173 @@ fn web_and_cli_share_spec_turn_prompt_builder() {
 }
 
 #[test]
+fn web_and_cli_share_static_spec_synthesis_helpers() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let cli_spec_path = root.join("src/bin/turingos/cmd_spec.rs");
+    let runtime_spec_path = root.join("src/runtime/spec_synthesis.rs");
+
+    let cli_spec = std::fs::read_to_string(&cli_spec_path)
+        .expect("read src/bin/turingos/cmd_spec.rs for invariant");
+    let runtime_spec = std::fs::read_to_string(&runtime_spec_path)
+        .expect("read src/runtime/spec_synthesis.rs for invariant");
+    let cli_code = code_without_line_comments(&cli_spec);
+    let runtime_code = code_without_line_comments(&runtime_spec);
+
+    let mut violations = Vec::new();
+    for helper in [
+        "pub fn canonical_questions(",
+        "pub fn synthesise_spec_md_no_llm(",
+        "pub fn wrap_spec_md(",
+    ] {
+        if !runtime_code.contains(helper) {
+            violations.push(format!(
+                "src/runtime/spec_synthesis.rs must expose `{helper}`"
+            ));
+        }
+    }
+    for forbidden in [
+        "fn canonical_questions(",
+        "fn synthesise_spec_md_no_llm(",
+        "fn wrap_spec_md(",
+        "enum Lang",
+    ] {
+        if cli_code.contains(forbidden) {
+            violations.push(format!(
+                "src/bin/turingos/cmd_spec.rs still defines private `{forbidden}`"
+            ));
+        }
+    }
+    if !cli_code.contains("runtime::spec_synthesis::{") {
+        violations.push(
+            "src/bin/turingos/cmd_spec.rs must import static spec synthesis helpers from runtime"
+                .to_string(),
+        );
+    }
+    if !cli_code.contains("runtime::grill_predicates::Lang") {
+        violations.push(
+            "src/bin/turingos/cmd_spec.rs must use runtime::grill_predicates::Lang, \
+             not a private mirror"
+                .to_string(),
+        );
+    }
+
+    if !violations.is_empty() {
+        panic!(
+            "WEB-CLI KERNEL INVARIANT VIOLATED: static spec synthesis and language \
+             selection must have exactly one implementation under src/runtime/. \
+             Web and CLI may differ as entrypoints, but not as canonical question \
+             or spec.md synthesis kernels. Violations:\n  {}",
+            violations.join("\n  ")
+        );
+    }
+}
+
+#[test]
+fn web_and_cli_share_spec_llm_child_env_builder() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let web_spec_path = root.join("src/web/spec.rs");
+    let cli_spec_path = root.join("src/bin/turingos/cmd_spec.rs");
+    let runtime_spec_path = root.join("src/runtime/spec_synthesis.rs");
+
+    let web_spec =
+        std::fs::read_to_string(&web_spec_path).expect("read src/web/spec.rs for invariant");
+    let cli_spec = std::fs::read_to_string(&cli_spec_path)
+        .expect("read src/bin/turingos/cmd_spec.rs for invariant");
+    let runtime_spec = std::fs::read_to_string(&runtime_spec_path)
+        .expect("read src/runtime/spec_synthesis.rs for invariant");
+    let web_code = code_without_line_comments(&web_spec);
+    let cli_code = code_without_line_comments(&cli_spec);
+    let runtime_code = code_without_line_comments(&runtime_spec);
+
+    let shared_helper = "runtime::spec_synthesis::build_llm_child_env";
+    let mut violations = Vec::new();
+
+    if !runtime_code.contains("pub fn build_llm_child_env(") {
+        violations.push(
+            "src/runtime/spec_synthesis.rs must expose `pub fn build_llm_child_env` \
+             as the single LLM child-process env builder"
+                .to_string(),
+        );
+    }
+    if web_code.contains("fn web_llm_child_env_for_api_key") {
+        violations.push(
+            "src/web/spec.rs still defines private `web_llm_child_env_for_api_key`; \
+             LLM child env assembly must live in the shared runtime helper"
+                .to_string(),
+        );
+    }
+    if cli_code.contains("fn llm_child_env") {
+        violations.push(
+            "src/bin/turingos/cmd_spec.rs still defines private `llm_child_env`; \
+             LLM child env assembly must live in the shared runtime helper"
+                .to_string(),
+        );
+    }
+    if web_code.contains("env_allowlist_from_current(&[") {
+        violations.push(
+            "src/web/spec.rs still assembles the LLM child env allowlist directly".to_string(),
+        );
+    }
+    if cli_code.contains("env_allowlist_from_current(&[") {
+        violations.push(
+            "src/bin/turingos/cmd_spec.rs still assembles the LLM child env allowlist directly"
+                .to_string(),
+        );
+    }
+    for file in walk_rust_files_in(&root.join("src/web")) {
+        let content = match std::fs::read_to_string(&file) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let code_only = code_without_line_comments(&content);
+        if code_only.contains("web_llm_child_env_for_api_key") {
+            violations.push(format!(
+                "{} still depends on the former web-local LLM child env helper",
+                file.display()
+            ));
+        }
+        let mut search_from = 0;
+        while let Some(relative_start) =
+            code_only[search_from..].find("env_allowlist_from_current(&[")
+        {
+            let start = search_from + relative_start;
+            let tail = &code_only[start..];
+            let call = tail.lines().take(12).collect::<Vec<_>>().join("\n");
+            if call.contains("SILICONFLOW_API_KEY")
+                || call.contains("DEEPSEEK_API_KEY")
+                || call.contains("DEEPSEEK_API_KEY_WORKER")
+                || call.contains("OPENROUTER_API_KEY")
+                || call.contains("OPENAI_API_KEY")
+            {
+                violations.push(format!(
+                    "{} still assembles an API-key-bearing LLM child env allowlist directly",
+                    file.display()
+                ));
+            }
+            search_from = start + "env_allowlist_from_current(&[".len();
+        }
+    }
+    if !web_code.contains(shared_helper) {
+        violations.push(format!("src/web/spec.rs does not call `{shared_helper}`"));
+    }
+    if !cli_code.contains(shared_helper) {
+        violations.push(format!(
+            "src/bin/turingos/cmd_spec.rs does not call `{shared_helper}`"
+        ));
+    }
+
+    if !violations.is_empty() {
+        panic!(
+            "WEB-CLI KERNEL INVARIANT VIOLATED: LLM child-process env assembly \
+             must have exactly one implementation under src/runtime/. Web and \
+             CLI may differ as entrypoints, but not as API-key/env capability \
+             handoff logic. Violations:\n  {}",
+            violations.join("\n  ")
+        );
+    }
+}
+
+#[test]
 fn web_layer_never_defines_capsule_schema_ids() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let web_dir = root.join("src/web");

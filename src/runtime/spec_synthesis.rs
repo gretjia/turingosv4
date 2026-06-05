@@ -134,6 +134,37 @@ pub fn build_grill_turn_prompt_json(
     serde_json::json!({ "messages": messages }).to_string()
 }
 
+/// TRACE_MATRIX FC1-N7 + FC2-N16: shared child-process LLM env builder.
+///
+/// Web and CLI differ only as entrypoints. The API-key/env capability handoff
+/// for spawned `turingos llm` children is part of the spec-grill runtime
+/// kernel, so both entrypoints must call this helper instead of keeping local
+/// allowlists.
+pub fn build_llm_child_env(api_key: Option<&str>) -> BTreeMap<String, String> {
+    const LLM_CHILD_ENV_ALLOWLIST: &[&str] = &[
+        "PATH",
+        "SILICONFLOW_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_API_KEY_WORKER",
+        "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
+        "TURINGOS_SILICONFLOW_ENDPOINT",
+    ];
+
+    let mut env = crate::sdk::sanitized_runner::env_allowlist_from_current(LLM_CHILD_ENV_ALLOWLIST);
+    if let Some(key) = api_key.filter(|k| !k.is_empty()) {
+        for name in [
+            "SILICONFLOW_API_KEY",
+            "DEEPSEEK_API_KEY",
+            "DEEPSEEK_API_KEY_WORKER",
+        ] {
+            env.entry(name.to_string())
+                .or_insert_with(|| key.to_string());
+        }
+    }
+    env
+}
+
 /// TRACE_MATRIX FC2-N16: deterministic LLM-less spec.md body synthesiser.
 ///
 /// Verbatim copy of `cmd_spec::synthesise_spec_md_no_llm` (pre-A6 src/bin/turingos/cmd_spec.rs
