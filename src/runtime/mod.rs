@@ -56,6 +56,9 @@ pub mod orphan_intent_sweeper;
 /// TRACE_MATRIX FC1-N5 + FC1-N6 + FC1-N7 + FC3-N31: A07 generic AgentView projection derived from a granted ChainTape prefix.
 pub mod tc_agent_view;
 
+/// TRACE_MATRIX FC1-N11 + FC1-N12 + FC1-N14 + FC1-N15: A08 non-authoritative PredicateReceipt derived from ChainTape/CAS evidence.
+pub mod predicate_receipt;
+
 /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — VerificationResult CAS object recording Lean oracle verdict (target_work_tx / verifier_agent / lean_exit_code / lean_*_hash / proof_file_hash / proof_artifact_cid / verified). Linked from ProposalTelemetry.verification_result_cid.
 pub mod verification_result;
 
