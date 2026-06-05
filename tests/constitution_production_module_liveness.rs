@@ -12,6 +12,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
+const RECONCILIATION_MANIFEST_PATH: &str =
+    "tests/fixtures/liveness/true_suite_evidence_reconciliation.toml";
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 const VERIFIED_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 
@@ -35,6 +37,12 @@ fn manifest() -> toml::Value {
     let raw = fs::read_to_string(MANIFEST_PATH)
         .unwrap_or_else(|err| panic!("read {MANIFEST_PATH}: {err}"));
     toml::from_str(&raw).unwrap_or_else(|err| panic!("parse {MANIFEST_PATH}: {err}"))
+}
+
+fn reconciliation_manifest() -> toml::Value {
+    let raw = fs::read_to_string(RECONCILIATION_MANIFEST_PATH)
+        .unwrap_or_else(|err| panic!("read {RECONCILIATION_MANIFEST_PATH}: {err}"));
+    toml::from_str(&raw).unwrap_or_else(|err| panic!("parse {RECONCILIATION_MANIFEST_PATH}: {err}"))
 }
 
 fn as_str_array(table: &toml::value::Table, key: &str) -> Vec<String> {
@@ -1159,4 +1167,47 @@ fn registered_real_world_suites_exist_and_are_not_smoke_labels() {
             );
         }
     }
+}
+
+#[test]
+fn registered_real_world_suites_cover_reconciled_fresh_runs() {
+    let production = manifest();
+    let suite_runs: BTreeSet<_> = production
+        .get("real_world_suite")
+        .and_then(toml::Value::as_array)
+        .unwrap_or_else(|| panic!("{MANIFEST_PATH} missing [[real_world_suite]] rows"))
+        .iter()
+        .map(|suite| {
+            let table = suite
+                .as_table()
+                .unwrap_or_else(|| panic!("real_world_suite row is not a table: {suite:?}"));
+            let path = as_string(table, "path");
+            Path::new(&path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_else(|| panic!("real_world_suite path has no run id basename: {path}"))
+                .to_string()
+        })
+        .collect();
+
+    let reconciliation = reconciliation_manifest();
+    let mut bound_runs = BTreeSet::new();
+    for section in ["coverage_task", "broad_family"] {
+        for row in reconciliation
+            .get(section)
+            .and_then(toml::Value::as_array)
+            .unwrap_or_else(|| panic!("{RECONCILIATION_MANIFEST_PATH} missing [[{section}]] rows"))
+        {
+            let table = row
+                .as_table()
+                .unwrap_or_else(|| panic!("{section} row is not a table: {row:?}"));
+            bound_runs.insert(as_string(table, "evidence_run"));
+        }
+    }
+
+    let missing: Vec<_> = bound_runs.difference(&suite_runs).cloned().collect();
+    assert!(
+        missing.is_empty(),
+        "production real_world_suite registry must include every fresh evidence_run bound by reconciliation; missing {missing:?}"
+    );
 }
