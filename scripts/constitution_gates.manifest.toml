@@ -840,3 +840,13 @@ added = "2026-05-21"
 name = "constitution_obl005_final_closure_witness"
 authority = "OBL-005 final closure witness: verify OBL-005 satisfied, OBL-001 open, final closure audit file contains OBL005-FINAL-CLOSURE-VERIFIED, all five manifests closed, and witness does not claim global project closure"
 added = "2026-05-27"
+
+[[gate]]
+name = "constitution_headline_recompute_from_chaintape"
+authority = "A05 Tape Event Envelope and Projection Trait: headline claims must recompute from ChainTape-derived TapeEventEnvelope and cannot be accepted from manifest, dashboard, or stdout text"
+added = "2026-06-05"
+
+[[gate]]
+name = "constitution_router_name_matches_mechanism"
+authority = "A05 Tape Event Envelope and Projection Trait: mechanism names must match implementation; softmax labels over argmax-like routers are rejected as claim drift"
+added = "2026-06-05"

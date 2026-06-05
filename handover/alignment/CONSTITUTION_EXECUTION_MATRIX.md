@@ -209,6 +209,8 @@ human development work, but it no longer counts as FC3 node coverage.
 | `canonical_txid_not_shadow_id` | 🟢 GREEN | shadow id used as canonical |
 | `dashboard_regenerates_from_tape_cas` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (MVP-3; Wave 3 50p binding 2026-05-07; was 🟡 AMBER) | dashboard differs |
 | `chain_derived_facts_not_evaluator_stdout` + `tests/constitution_wave3_evidence_binding.rs::wave3_50p_dashboard_regen_matches_chain` | 🟢 GREEN (Wave 3 50p binding 2026-05-07; was 🟡 AMBER) | facts depend on stdout |
+| `constitution_headline_recompute_from_chaintape` | 🟢 GREEN (A05: headline projection recomputes from ChainTape-derived `TapeEventEnvelope`; manifest/dashboard/stdout headline text cannot override source head) | headline accepted without ChainTape events |
+| `constitution_router_name_matches_mechanism` | 🟢 GREEN (A05: mechanism-name gate catches softmax labels over argmax-like bodies; current Boltzmann v2 discloses argmax+epsilon, softmax selector uses exp weights) | router/mechanism label overclaims implementation |
 | `all_externalized_attempts_have_cas_payload` | 🟢 GREEN | attempt without CAS payload |
 | `all_lean_results_have_cas_payload` | 🟢 GREEN | LeanResult without CAS |
 
