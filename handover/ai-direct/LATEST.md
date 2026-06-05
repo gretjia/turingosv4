@@ -14,10 +14,14 @@
 **Session**: OBL-005 reopened re-audit on current main. PR #284 keeps Market
 A/B G0 at single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree
 commit git-history closure; PR #286 binds any future final closure to a fresh
-current-tree witness path. No final closure is claimed.
+current-tree witness path; PR #287-#291 synchronize the guard state, keep
+web/CLI spec generation on shared runtime helpers, bind active ToolBench and
+Mind2Web production liveness refs to fresh true-suite runs, and guard the
+R-022 enforcement log against committed conflict markers. No final closure is
+claimed.
 
-**Last synchronized base**: `e13fb9d5` (PR #286 — OBL-005 fresh final-closure
-witness binding guard). Verify the current tip with `git rev-parse origin/main`;
+**Last synchronized base**: `4a883d3c` (PR #291 — R-022 enforcement-log
+conflict-marker guard). Verify the current tip with `git rev-parse origin/main`;
 this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -29,7 +33,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #286 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #291 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -40,7 +44,9 @@ Current state:
   executable closure-scope ratification guard plus derived handover/ledger
   guard-state synchronization, G0 historical/current-runner boundary guard,
   Market A/B single-node/core-scope stage-2 guard, source-tree commit
-  git-history guard, and fresh final closure witness binding guard.
+  git-history guard, fresh final closure witness binding guard, web/CLI shared
+  spec runtime kernel guards, production liveness fresh-run binding, and
+  R-022 enforcement-log conflict-marker guard.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -58,10 +64,10 @@ Current state:
   `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
   `obl005_fresh_math_20260604T191000Z` Math evidence, plus
   `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
-  `obl005_fresh_toolbench_20260604T194611Z` ToolBench evidence,
+  `obl005_fresh_toolbench_20260604T224409Z` ToolBench evidence,
   `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
   `obl005_fresh_tdma_20260604T203708Z` TDMA evidence,
-  `obl005_fresh_mind2web_20260604T210300Z` Mind2Web evidence, and
+  `obl005_fresh_mind2web_20260604T224409Z` Mind2Web evidence, and
   `obl005_fresh_gaia_20260604T213500Z` GAIA evidence:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
@@ -90,8 +96,27 @@ Current state:
   `tests/constitution_true_suite_evidence_reconciliation.rs::final_closure_claim_requires_fresh_current_tree_witness_binding`
   requires any future `final_closure_claimed=true` to bind a fresh current-tree
   witness through `fresh_final_closure_witness_path`. The historical 2026-05-27
-  witness remains immutable history, not reusable current closure authority.
-  This is a guard only and does not close OBL-005.
+  witness remains immutable history, not reusable current closure authority. The
+  PR #286 guard landed at `e13fb9d5`; this is a guard only and does not close
+  OBL-005.
+- Class 2 guard-state sync added by PR #287:
+  `tests/constitution_obl005_final_closure_witness.rs` keeps the derived
+  handover/ledger guard language aligned with the fresh witness and scope
+  ratification gates. This is a guard only and does not close OBL-005.
+- Class 2 web/CLI spec-kernel sharing added by PR #288 and PR #289:
+  the web spec entry and CLI spec path now share the same runtime prompt/env
+  helper surface, preserving one production kernel with different user entries.
+  This supports the "web and CLI are entrances, not two TuringOSes" boundary.
+- Class 2 production-liveness fresh-ref binding added by PR #290:
+  `tests/constitution_production_module_liveness.rs::production_group_domain_evidence_uses_reconciled_fresh_runs`
+  prevents active production ToolBench/Mind2Web liveness groups from drifting
+  away from the reconciled fresh true-suite refs
+  `obl005_fresh_toolbench_20260604T224409Z` and
+  `obl005_fresh_mind2web_20260604T224409Z`.
+- Class 2 R-022 enforcement-log guard added by PR #291:
+  `tests/constitution_rules_ci_mirror.rs::enforcement_log_has_no_conflict_markers`
+  prevents committed `rules/enforcement.log` conflict markers from surviving
+  constitution gates. This is a hygiene guard only and does not close OBL-005.
 - Current-binary boundary added 2026-06-05: OBL-010's 11/11 `g0run5`
   capability receipt is historical evidence anchored to commit `418d8a7d`.
   Current `src/bin/g0_market_activation_current_kernel.rs` was deliberately
@@ -207,8 +232,8 @@ Current state:
   `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_SWEBENCH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
-- Fresh ToolBench source evidence prepared on the current branch:
-  `toolbench_api_tool_use` now points at
+- Fresh ToolBench source evidence initially prepared in this session:
+  `toolbench_api_tool_use` first pointed at
   `handover/evidence/true_suite/obl005_fresh_toolbench_20260604T194611Z/`.
   The source receipt is `final_closure_possible=true` with source commit
   `15c3477586191199f8dbe693e47441595dc73a63`, `FULL_SYSTEM_LIT`,
@@ -220,7 +245,9 @@ Current state:
   `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
   from 5 to 4 while deliberately keeping
   `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
-  and `fresh_final_closure_witness_missing`. This does not claim final closure.
+  and `fresh_final_closure_witness_missing`. This initial receipt does not
+  claim final closure and is superseded for active production-liveness refs by
+  PR #290's reconciled fresh ToolBench run `obl005_fresh_toolbench_20260604T224409Z`.
   Verification passed, including `bash scripts/run_constitution_gates.sh`
   (`[k-1-5] total=165 failed=0`) and
   `cargo test --workspace --no-fail-fast`. Clean-context Claude witness
@@ -265,7 +292,7 @@ Current state:
   `handover/audits/OBL005_FRESH_TDMA_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`. This does not claim final closure.
 - Fresh Mind2Web source evidence added on main by PR #265:
-  `mind2web_open_web` now points at
+  `mind2web_open_web` initially pointed at
   `handover/evidence/true_suite/obl005_fresh_mind2web_20260604T210300Z/`.
   The receipt is `final_closure_possible=true` with source commit
   `cd4c9e832dd7d213fabc61dba1c8e57a1b6c6544`, `FULL_SYSTEM_LIT`,
@@ -276,7 +303,9 @@ Current state:
   `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
   from 2 to 1 while deliberately keeping
   `domain_receipt_final_closure_missing`, `benchmark_capability_not_solved`,
-  and `fresh_final_closure_witness_missing`. This does not claim final closure.
+  and `fresh_final_closure_witness_missing`. This initial receipt does not
+  claim final closure and is superseded for active production-liveness refs by
+  PR #290's reconciled fresh Mind2Web run `obl005_fresh_mind2web_20260604T224409Z`.
 - Fresh GAIA source evidence added by PR #267:
   `gaia_general_assistant` now points at
   `handover/evidence/true_suite/obl005_fresh_gaia_20260604T213500Z/`.
