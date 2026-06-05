@@ -11,12 +11,13 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #275 merged the
-benchmark single-sample closure guard after PR #274 merged two-sided
-market external-agent evidence.
+**Session**: OBL-005 reopened re-audit on current main; PR #276 merged the
+closure-scope decision packet after PR #275 merged the benchmark single-sample
+closure guard.
 
-**Main tip**: `0d704f4a` (PR #275 — benchmark single-sample closure guard).
-Current `origin/main` includes #275.
+**Last synchronized base**: `4de2e6b6` (PR #276 — OBL-005 closure-scope
+decision packet). Verify the current tip with `git rev-parse origin/main`;
+this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,14 +28,14 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #275 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #276 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
   market/generate, Cybench, OSWorld, GPQA, Math, SWE-bench, ToolBench,
   WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
-  evidence, plus two-sided YES/NO external market evidence, plus the
-  single-sample benchmark overclaim guard.
+  evidence, plus two-sided YES/NO external market evidence, the single-sample
+  benchmark overclaim guard, and the closure-scope decision packet.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.

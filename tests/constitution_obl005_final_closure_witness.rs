@@ -8,7 +8,10 @@
 use std::fs;
 
 const OBLIGATIONS_PATH: &str = "OBLIGATIONS.md";
+const LATEST_PATH: &str = "handover/ai-direct/LATEST.md";
 const WITNESS_PATH: &str = "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-05-27.md";
+const CLOSURE_SCOPE_PACKET: &str =
+    "handover/directives/2026-06-05_OBL005_CLOSURE_SCOPE_DECISION_PACKET.md";
 const RECONCILIATION_MANIFEST: &str =
     "tests/fixtures/liveness/true_suite_evidence_reconciliation.toml";
 const PRODUCTION_MANIFEST: &str = "tests/fixtures/liveness/production_module_liveness.toml";
@@ -116,6 +119,42 @@ fn historical_witness_file_exists_but_is_not_current_authority() {
     assert!(
         lower.contains("src/"),
         "witness must state no runtime source under src/ was touched"
+    );
+}
+
+#[test]
+fn closure_scope_packet_is_required_before_fresh_final_witness() {
+    let packet = read_text(CLOSURE_SCOPE_PACKET);
+    for required in [
+        "APPROVED-OBL005-NO-ZOMBIE-SCOPE",
+        "Before any future PR changes `final_closure_claimed`",
+        "One-word messages",
+        "benchmark/domain failures as capability-pending facts",
+        "multi-node priced-DAG reward settlement",
+        "Class 4 M2/M3 settlement redesign",
+        "Do not edit old ChainTape/CAS evidence",
+    ] {
+        assert!(
+            packet.contains(required),
+            "closure-scope packet must preserve ratification/fake-closure boundary text: {required}"
+        );
+    }
+
+    let ledger = read_text(OBLIGATIONS_PATH);
+    let obl005_block = extract_obl_block(&ledger, "OBL-005");
+    assert!(
+        obl005_block.contains(CLOSURE_SCOPE_PACKET)
+            && obl005_block.contains("pending explicit ratification")
+            && obl005_block.contains("No final closure is claimed"),
+        "OBL-005 ledger must bind the scope packet as a current closure precondition; found block:\n{obl005_block}"
+    );
+
+    let latest = read_text(LATEST_PATH);
+    assert!(
+        latest.contains(CLOSURE_SCOPE_PACKET)
+            && latest.contains("No final closure is claimed")
+            && latest.contains("Last synchronized base"),
+        "LATEST.md must describe the scope packet as derived handover state without claiming current closure"
     );
 }
 
