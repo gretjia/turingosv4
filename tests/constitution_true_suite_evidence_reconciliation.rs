@@ -508,6 +508,46 @@ fn value_has_benchmark_failure(value: &Value) -> bool {
     }
 }
 
+fn value_has_single_sample_benchmark_success(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            let key = key.to_ascii_lowercase();
+            if matches!(
+                key.as_str(),
+                "answer_correct"
+                    | "exact_match"
+                    | "action_match"
+                    | "safe_action_match"
+                    | "selected_candidate_available"
+            ) && child.as_bool() == Some(true)
+            {
+                return true;
+            }
+            if key == "benchmark_verdict" {
+                let verdict = child.as_str().unwrap_or_default().to_ascii_lowercase();
+                if verdict.contains("correct") || verdict.contains("exact_match") {
+                    return true;
+                }
+            }
+            value_has_single_sample_benchmark_success(child)
+        }),
+        Value::Array(items) => items.iter().any(value_has_single_sample_benchmark_success),
+        _ => false,
+    }
+}
+
+fn domain_manifest_has_suite_closure_witness(domain_manifest: &Value) -> bool {
+    domain_manifest
+        .get("domain_closure_witness")
+        .and_then(Value::as_object)
+        .is_some_and(|witness| !witness.is_empty())
+        || domain_manifest
+            .get("suite_sample_count")
+            .and_then(Value::as_u64)
+            .unwrap_or(0)
+            > 1
+}
+
 fn allowed_blocker_classes() -> BTreeSet<&'static str> {
     BTreeSet::from([
         "source_receipt_final_closure_false",
@@ -997,6 +1037,76 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
             "REAUDIT manifests must keep final_closure_claimed=false until source receipts are closure-capable and blocker inventories are empty"
         );
     }
+}
+
+#[test]
+fn broad_benchmark_domain_closure_requires_more_than_single_sample_success() {
+    let contracts = contract_rows(BROAD_MANIFEST, "family");
+    let mut single_sample_success_receipts = Vec::new();
+    for binding in reconciliation_rows("broad_family") {
+        let row = contracts
+            .get(&binding.id)
+            .unwrap_or_else(|| panic!("binding `{}` missing broad-family row", binding.id));
+        let report = read_full_system_report(&binding, row);
+        let Some(domain_manifest) = report.get("domain_manifest") else {
+            continue;
+        };
+        if !value_has_single_sample_benchmark_success(domain_manifest) {
+            continue;
+        }
+
+        single_sample_success_receipts.push(binding.id.clone());
+        let domain_final_closure_possible = domain_manifest
+            .get("final_closure_possible")
+            .and_then(Value::as_bool)
+            == Some(true);
+        if domain_final_closure_possible {
+            assert!(
+                domain_manifest_has_suite_closure_witness(domain_manifest),
+                "broad benchmark `{}` cannot claim domain final_closure_possible from a single-sample success signal without a suite/domain closure witness",
+                binding.id
+            );
+        } else {
+            assert_eq!(
+                domain_manifest.get("closure_scope").and_then(Value::as_str),
+                Some("domain_adapter_smoke_only"),
+                "single-sample benchmark success for `{}` must remain explicitly smoke-only until a suite/domain closure witness exists",
+                binding.id
+            );
+        }
+    }
+
+    assert!(
+        single_sample_success_receipts.len() >= 2,
+        "guard must inspect the current GPQA/Math single-sample success receipts; saw {single_sample_success_receipts:?}"
+    );
+}
+
+#[test]
+fn single_sample_success_detector_rejects_synthetic_domain_closure_without_suite_witness() {
+    let synthetic_overclaim = serde_json::json!({
+        "answer_correct": true,
+        "benchmark_verdict": "correct_with_rationale",
+        "closure_scope": "gpqa_current_kernel_single_sample",
+        "final_closure_possible": true
+    });
+    assert!(value_has_single_sample_benchmark_success(
+        &synthetic_overclaim
+    ));
+    assert!(!domain_manifest_has_suite_closure_witness(
+        &synthetic_overclaim
+    ));
+
+    let synthetic_suite_witness = serde_json::json!({
+        "answer_correct": true,
+        "benchmark_verdict": "correct_with_rationale",
+        "closure_scope": "gpqa_current_kernel_suite",
+        "final_closure_possible": true,
+        "suite_sample_count": 10
+    });
+    assert!(domain_manifest_has_suite_closure_witness(
+        &synthetic_suite_witness
+    ));
 }
 
 #[test]

@@ -9,14 +9,14 @@
 
 ---
 
-## Current Snapshot (2026-06-04)
+## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #272 merged
-generate/artifact and market A/B closure-status accounting after PR #271 bound
-fresh ToolBench/Mind2Web evidence.
+**Session**: OBL-005 reopened re-audit on current main; PR #274 merged
+two-sided market external-agent evidence after PR #272 merged generate/artifact
+and market A/B closure-status accounting.
 
-**Main tip**: `f09de424` (PR #272 — generate/market A-B closure status).
-Current `origin/main` includes #272.
+**Main tip**: `2ddf1eaa` (PR #274 — two-sided market external evidence).
+Current `origin/main` includes #274.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -27,13 +27,13 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #272 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #274 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
   market/generate, Cybench, OSWorld, GPQA, Math, SWE-bench, ToolBench,
   WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
-  evidence.
+  evidence, plus two-sided YES/NO external market evidence.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -90,10 +90,10 @@ Current state:
   indicators green. This removes the market rows'
   `market_no_or_short_side_missing` and `domain_receipt_final_closure_false`
   blockers while deliberately keeping `fresh_final_closure_witness_missing`.
-  Clean-context Claude witness
-  `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
-  covered the earlier single-direction run; this follow-up branch still needs a
-  fresh clean-context witness before merge. No final OBL-005 closure is claimed.
+  Clean-context AGY witness
+  `handover/audits/OBL005_TWO_SIDED_MARKET_EXTERNAL_CLEAN_CONTEXT_AUDIT_2026-06-05.md`
+  returned `NO-VIOLATION` before PR #274 merged. No final OBL-005 closure is
+  claimed.
 - Fresh market A/B closure-status evidence merged by PR #272:
   `market_ab_performance_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_market_ab_20260604T232500Z/`.
@@ -148,10 +148,8 @@ Current state:
   broad-family row at this fresh run, reducing
   `source_receipt_final_closure_false` and `source_tree_fingerprint_missing`
   from 8 to 7 while deliberately keeping `domain_receipt_final_closure_false`
-  and `fresh_final_closure_witness_missing`. The prior
-  `obl005_fresh_tdma_20260604T190500Z` attempt failed at 2/5 TDMA stages and
-  is not GREEN evidence. This does not claim final closure. Clean-context
-  Claude witness
+  and `fresh_final_closure_witness_missing`. This single-sample correct result
+  is a capability signal, not a domain-closure proof. Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MATH_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
   returned `NO-VIOLATION`.
 - Fresh SWE-bench source evidence prepared on the current branch:
