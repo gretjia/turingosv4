@@ -11,12 +11,13 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #276 merged the
-closure-scope decision packet after PR #275 merged the benchmark single-sample
+**Session**: OBL-005 reopened re-audit on current main; PR #277 merged the
+executable closure-scope ratification guard after PR #276 merged the
+closure-scope decision packet and PR #275 merged the benchmark single-sample
 closure guard.
 
-**Last synchronized base**: `4de2e6b6` (PR #276 — OBL-005 closure-scope
-decision packet). Verify the current tip with `git rev-parse origin/main`;
+**Last synchronized base**: `8b45d1f8` (PR #277 — OBL-005 closure-scope
+ratification guard). Verify the current tip with `git rev-parse origin/main`;
 this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -28,14 +29,15 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #276 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #277 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
   market/generate, Cybench, OSWorld, GPQA, Math, SWE-bench, ToolBench,
   WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
   evidence, plus two-sided YES/NO external market evidence, the single-sample
-  benchmark overclaim guard, and the closure-scope decision packet.
+  benchmark overclaim guard, the closure-scope decision packet, and the
+  executable closure-scope ratification guard.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -70,6 +72,10 @@ Current state:
   records the remaining decision fork. Recommended scope is no-zombie/no-drift
   closure for OBL-005, with benchmark/domain failures kept as honest
   capability-pending facts. No final closure is claimed.
+- Class 2 guard added by PR #277: `tests/constitution_obl005_final_closure_witness.rs`
+  now requires the scope packet, the explicit ratification phrase, and
+  no-final-closure language before any later final witness can proceed. This is
+  a guard only; it does not ratify the scope and does not close OBL-005.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -319,9 +325,9 @@ Current state:
   full escrow payouts. Current market liveness stays single-WorkTx-node with
   multi-agent YES/NO router-side activity.
 - Current worktree note: successful TDMA evidence
-  `obl005_fresh_tdma_20260604T203708Z` is intended for the next PR. Do not
-  treat local failed/intermediate or superseded evidence directories as GREEN
-  evidence:
+  `obl005_fresh_tdma_20260604T203708Z` is already bound in the reconciliation
+  manifest. Do not treat local failed/intermediate or superseded evidence
+  directories as GREEN evidence:
   `obl005_fresh_generate_20260604T160500Z`,
   `obl005_fresh_tdma_20260604T190500Z`,
   `obl005_fresh_tdma_20260604T203106Z`,

@@ -159,6 +159,38 @@ fn closure_scope_packet_is_required_before_fresh_final_witness() {
 }
 
 #[test]
+fn closure_scope_ratification_guard_is_current_handover_state() {
+    let ledger = read_text(OBLIGATIONS_PATH);
+    let obl005_block = extract_obl_block(&ledger, "OBL-005");
+    for required in [
+        "Closure-scope ratification guard",
+        "PR #277",
+        "tests/constitution_obl005_final_closure_witness.rs::closure_scope_packet_is_required_before_fresh_final_witness",
+        "does not ratify the scope",
+        "does not close OBL-005",
+    ] {
+        assert!(
+            obl005_block.contains(required),
+            "OBL-005 ledger must record the executable scope-ratification guard: {required}"
+        );
+    }
+
+    let latest = read_text(LATEST_PATH);
+    for required in [
+        "PR #277",
+        "8b45d1f8",
+        "executable closure-scope ratification guard",
+        "guard only",
+        "does not close OBL-005",
+    ] {
+        assert!(
+            latest.contains(required),
+            "LATEST.md must be synchronized to the PR #277 guard state: {required}"
+        );
+    }
+}
+
+#[test]
 fn execution_matrix_does_not_claim_current_obl005_final_closure() {
     let matrix = read_text(EXECUTION_MATRIX);
     assert!(
