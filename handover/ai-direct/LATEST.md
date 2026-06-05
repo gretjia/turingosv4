@@ -11,13 +11,13 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #277 merged the
-executable closure-scope ratification guard after PR #276 merged the
-closure-scope decision packet and PR #275 merged the benchmark single-sample
-closure guard.
+**Session**: OBL-005 reopened re-audit on current main; PR #278 synchronized
+the PR #277 executable closure-scope ratification guard state after PR #276
+merged the closure-scope decision packet and PR #275 merged the benchmark
+single-sample closure guard.
 
-**Last synchronized base**: `8b45d1f8` (PR #277 — OBL-005 closure-scope
-ratification guard). Verify the current tip with `git rev-parse origin/main`;
+**Last synchronized base**: `dbfbe52c` (PR #278 — OBL-005 PR #277 guard-state
+sync). Verify the current tip with `git rev-parse origin/main`;
 this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -29,7 +29,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #277 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #278 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -37,7 +37,8 @@ Current state:
   WebArena, TDMA, Mind2Web, GAIA, and generate/market A-B closure-status
   evidence, plus two-sided YES/NO external market evidence, the single-sample
   benchmark overclaim guard, the closure-scope decision packet, and the
-  executable closure-scope ratification guard.
+  executable closure-scope ratification guard plus derived handover/ledger
+  guard-state synchronization.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -76,6 +77,12 @@ Current state:
   now requires the scope packet, the explicit ratification phrase, and
   no-final-closure language before any later final witness can proceed. This is
   a guard only; it does not ratify the scope and does not close OBL-005.
+- Current-binary boundary added 2026-06-05: OBL-010's 11/11 `g0run5`
+  capability receipt is historical evidence anchored to commit `418d8a7d`.
+  Current `src/bin/g0_market_activation_current_kernel.rs` was deliberately
+  narrowed by PR #258 / commit `7b12e9f1` into the OBL-005 Market A/B
+  single-node/core-scope runner. Do not cite the current retained binary as
+  current c4/c5/c10/c11 proof without fresh multi-node replay evidence.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.

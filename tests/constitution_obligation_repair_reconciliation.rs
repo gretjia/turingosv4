@@ -123,6 +123,8 @@ fn obl010_obl011_market_activation_closure_has_no_live_stale_blockers() {
     let ledger = fs::read_to_string(LEDGER).expect("read OBLIGATIONS.md");
     let obl010 = section(&ledger, "## OBL-010:", "## OBL-011:");
     let obl011 = section(&ledger, "## OBL-011:", "## OBL-012:");
+    let current_g0_source = fs::read_to_string("src/bin/g0_market_activation_current_kernel.rs")
+        .expect("read current g0 market activation binary source");
 
     assert!(
         obl010.contains("- Status: satisfied"),
@@ -133,6 +135,20 @@ fn obl010_obl011_market_activation_closure_has_no_live_stale_blockers() {
             && obl010.contains("g0run5")
             && obl010.contains("archival negative evidence"),
         "OBL-010 must state the current c4/c5 resolution and demote the old §8 packet to archival negative evidence"
+    );
+    assert!(
+        obl010.contains("Current-binary boundary")
+            && obl010.contains("418d8a7d")
+            && obl010.contains("7b12e9f1")
+            && obl010.contains("single-node/core-scope")
+            && obl010.contains("must not be cited as current c4/c5/c10/c11 proof"),
+        "OBL-010 must anchor the historical 11/11 receipt separately from the current retained binary boundary"
+    );
+    assert!(
+        current_g0_source.contains("g0_core_market_price_discovery_conditions_1_2_3_6_7_8_9")
+            && current_g0_source.contains("c4_c5_constraint_note")
+            && current_g0_source.contains("c10_c11_stage2_note"),
+        "current g0_market_activation_current_kernel.rs must remain the OBL-005 core-scope runner unless fresh multi-node replay evidence is rebound"
     );
     for stale in [
         "BLOCKED on Class-4 architect decision",
