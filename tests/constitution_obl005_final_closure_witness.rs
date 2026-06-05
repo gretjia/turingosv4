@@ -177,15 +177,18 @@ fn closure_scope_ratification_guard_is_current_handover_state() {
 
     let latest = read_text(LATEST_PATH);
     for required in [
-        "PR #277",
-        "8b45d1f8",
+        "PR #278",
+        "dbfbe52c",
         "executable closure-scope ratification guard",
+        "Current-binary boundary",
+        "418d8a7d",
+        "7b12e9f1",
         "guard only",
         "does not close OBL-005",
     ] {
         assert!(
             latest.contains(required),
-            "LATEST.md must be synchronized to the PR #277 guard state: {required}"
+            "LATEST.md must be synchronized to the current guard/boundary state: {required}"
         );
     }
 }
