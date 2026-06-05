@@ -631,60 +631,6 @@ fn cas_store_payload(
     Some(cid.hex())
 }
 
-// ── Prompt JSON for a driven turn ────────────────────────────────────────────
-
-/// Build the messages JSON file content for one driven-mode turn.
-/// Format: `{"messages": [...]}`
-fn build_turn_prompt_json(
-    meta_prompt_content: &str,
-    coverage_summary: &str,
-    last_3_turns: &VecDeque<(String, String)>,
-    turn_index: u32,
-    extra_system: Option<&str>,
-) -> String {
-    let mut messages: Vec<serde_json::Value> = Vec::new();
-
-    // 1. System: meta-prompt content.
-    messages.push(serde_json::json!({
-        "role": "system",
-        "content": meta_prompt_content,
-    }));
-
-    // 2. System: coverage state summary.
-    messages.push(serde_json::json!({
-        "role": "system",
-        "content": coverage_summary,
-    }));
-
-    // 3. Optional extra system message (e.g. predicate failure nudge).
-    if let Some(extra) = extra_system {
-        messages.push(serde_json::json!({
-            "role": "system",
-            "content": extra,
-        }));
-    }
-
-    // 4. Last 3 accepted turns as alternating user/assistant pairs.
-    for (q, a) in last_3_turns.iter() {
-        messages.push(serde_json::json!({
-            "role": "assistant",
-            "content": q,
-        }));
-        messages.push(serde_json::json!({
-            "role": "user",
-            "content": a,
-        }));
-    }
-
-    // 5. Final user instruction.
-    messages.push(serde_json::json!({
-        "role": "user",
-        "content": format!("Produce your turn-{turn_index} output per the contract."),
-    }));
-
-    serde_json::json!({ "messages": messages }).to_string()
-}
-
 // ── Shell-out helper: call `turingos llm complete` ───────────────────────────
 
 struct LlmCompleteResult {
@@ -956,7 +902,7 @@ fn run_driven_mode(
 
         // ── 4a. Assemble prompt JSON ──────────────────────────────────────────
         let coverage_summary = state.coverage_summary();
-        let prompt_json = build_turn_prompt_json(
+        let prompt_json = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
             &meta_prompt_content,
             &coverage_summary,
             &state.last_3_turns,
@@ -1044,7 +990,7 @@ fn run_driven_mode(
                 retry_count += 1;
                 let retry_extra = "Your previous output failed JSON/envelope validation. \
                     Output ONLY the JSON envelope with a valid question. Try again.";
-                let retry_json = build_turn_prompt_json(
+                let retry_json = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
                     &meta_prompt_content,
                     &coverage_summary,
                     &state.last_3_turns,
@@ -1090,13 +1036,14 @@ fn run_driven_mode(
                         "Your previous output failed predicate: {e}. \
                         Output ONLY the JSON envelope with a valid question. Try again."
                     );
-                    let retry_json = build_turn_prompt_json(
-                        &meta_prompt_content,
-                        &coverage_summary,
-                        &state.last_3_turns,
-                        turn_index,
-                        Some(&retry_extra),
-                    );
+                    let retry_json =
+                        turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
+                            &meta_prompt_content,
+                            &coverage_summary,
+                            &state.last_3_turns,
+                            turn_index,
+                            Some(&retry_extra),
+                        );
                     let _ = fs::write(&prompt_file_path, &retry_json);
                     continue;
                 }
@@ -1141,7 +1088,7 @@ fn run_driven_mode(
                     "Your previous output failed predicate {fail_class_str}. \
                     Output ONLY the JSON envelope with a valid question. Try again."
                 );
-                let retry_json = build_turn_prompt_json(
+                let retry_json = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
                     &meta_prompt_content,
                     &coverage_summary,
                     &state.last_3_turns,
@@ -1255,7 +1202,7 @@ fn run_driven_mode(
                     Ask one more concrete question about '{missing}', do NOT declare done yet."
                 );
                 // Write a nudge prompt and continue iteration (do not break).
-                let nudge_json = build_turn_prompt_json(
+                let nudge_json = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
                     &meta_prompt_content,
                     &coverage_summary,
                     &state.last_3_turns,

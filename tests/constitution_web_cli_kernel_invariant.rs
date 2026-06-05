@@ -170,6 +170,56 @@ fn web_artifact_delivery_uses_runtime_artifact_bundle_kernel() {
 }
 
 #[test]
+fn web_and_cli_share_spec_turn_prompt_builder() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let web_spec_path = root.join("src/web/spec.rs");
+    let cli_spec_path = root.join("src/bin/turingos/cmd_spec.rs");
+
+    let web_spec =
+        std::fs::read_to_string(&web_spec_path).expect("read src/web/spec.rs for invariant");
+    let cli_spec = std::fs::read_to_string(&cli_spec_path)
+        .expect("read src/bin/turingos/cmd_spec.rs for invariant");
+    let web_code = code_without_line_comments(&web_spec);
+    let cli_code = code_without_line_comments(&cli_spec);
+
+    let shared_helper = "runtime::spec_synthesis::build_grill_turn_prompt_json";
+    let mut violations = Vec::new();
+
+    if web_code.contains("fn build_web_turn_prompt_json") {
+        violations.push(
+            "src/web/spec.rs still defines private `build_web_turn_prompt_json`; \
+             prompt JSON assembly must live in the shared runtime helper"
+                .to_string(),
+        );
+    }
+    if cli_code.contains("fn build_turn_prompt_json") {
+        violations.push(
+            "src/bin/turingos/cmd_spec.rs still defines private `build_turn_prompt_json`; \
+             prompt JSON assembly must live in the shared runtime helper"
+                .to_string(),
+        );
+    }
+    if !web_code.contains(shared_helper) {
+        violations.push(format!("src/web/spec.rs does not call `{shared_helper}`"));
+    }
+    if !cli_code.contains(shared_helper) {
+        violations.push(format!(
+            "src/bin/turingos/cmd_spec.rs does not call `{shared_helper}`"
+        ));
+    }
+
+    if !violations.is_empty() {
+        panic!(
+            "WEB-CLI KERNEL INVARIANT VIOLATED: driven spec turn prompt JSON \
+             must have exactly one implementation under src/runtime/. Web and \
+             CLI may differ as entrypoints, but not as prompt-program assembly. \
+             Violations:\n  {}",
+            violations.join("\n  ")
+        );
+    }
+}
+
+#[test]
 fn web_layer_never_defines_capsule_schema_ids() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let web_dir = root.join("src/web");
