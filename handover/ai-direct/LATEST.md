@@ -11,14 +11,13 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #279 separated the
-historical G0 `g0run5` 11/11 receipt from the current retained
-`g0_market_activation_current_kernel` single-node/core-scope runner boundary,
-after PR #278 synchronized the PR #277 executable closure-scope ratification
-guard state.
+**Session**: OBL-005 reopened re-audit on current main. PR #284 keeps Market
+A/B G0 at single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree
+commit git-history closure; PR #286 binds any future final closure to a fresh
+current-tree witness path. No final closure is claimed.
 
-**Last synchronized base**: `d319a3f3` (PR #279 — OBL-005 G0 receipt/current
-runner boundary sync). Verify the current tip with `git rev-parse origin/main`;
+**Last synchronized base**: `e13fb9d5` (PR #286 — OBL-005 fresh final-closure
+witness binding guard). Verify the current tip with `git rev-parse origin/main`;
 this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -30,7 +29,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #279 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #286 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -39,7 +38,9 @@ Current state:
   evidence, plus two-sided YES/NO external market evidence, the single-sample
   benchmark overclaim guard, the closure-scope decision packet, and the
   executable closure-scope ratification guard plus derived handover/ledger
-  guard-state synchronization and G0 historical/current-runner boundary guard.
+  guard-state synchronization, G0 historical/current-runner boundary guard,
+  Market A/B single-node/core-scope stage-2 guard, source-tree commit
+  git-history guard, and fresh final closure witness binding guard.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -78,6 +79,19 @@ Current state:
   now requires the scope packet, the explicit ratification phrase, and
   no-final-closure language before any later final witness can proceed. This is
   a guard only; it does not ratify the scope and does not close OBL-005.
+- Class 2 source-tree commit guard added by PR #285:
+  `tests/constitution_true_suite_evidence_reconciliation.rs::final_closure_source_tree_commits_must_exist_in_git_history`
+  prevents any future final closure from citing source-tree commits absent from
+  git history unless rows remain non-closing with explicit blockers. This is a
+  guard only; it does not close OBL-005.
+- Class 2 fresh final closure witness guard added by PR #286:
+  `tests/fixtures/liveness/true_suite_evidence_reconciliation.toml` declares
+  `fresh_final_closure_witness_path = ""`, and
+  `tests/constitution_true_suite_evidence_reconciliation.rs::final_closure_claim_requires_fresh_current_tree_witness_binding`
+  requires any future `final_closure_claimed=true` to bind a fresh current-tree
+  witness through `fresh_final_closure_witness_path`. The historical 2026-05-27
+  witness remains immutable history, not reusable current closure authority.
+  This is a guard only and does not close OBL-005.
 - Current-binary boundary added 2026-06-05: OBL-010's 11/11 `g0run5`
   capability receipt is historical evidence anchored to commit `418d8a7d`.
   Current `src/bin/g0_market_activation_current_kernel.rs` was deliberately
