@@ -1,0 +1,68 @@
+{
+  "constitution_hash": "eec695459c71fbef3685583485deb431fe3b561657b2f285b7c5e7e220e59e03",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T235308Z/market_action/runtime_repo",
+  "cas_path": "/home/zephryj/projects/turingosv4-main/handover/evidence/true_suite/obl005_fresh_market_20260604T235308Z/market_action/cas",
+  "system_pubkey_hash": "71d3e37fd7b0c76ea5b97355f3f3a7f56d9d513cf0a1d26eec415544d2fc3f90",
+  "agent_pubkeys_path": "agent_pubkeys.json",
+  "initial_balances": [
+    [
+      "tb7-7-sponsor",
+      10000000
+    ],
+    [
+      "Agent_user_0",
+      10000000
+    ],
+    [
+      "Agent_0",
+      1000000
+    ],
+    [
+      "Agent_1",
+      1000000
+    ],
+    [
+      "Agent_2",
+      1000000
+    ],
+    [
+      "Agent_3",
+      1000000
+    ],
+    [
+      "Agent_4",
+      1000000
+    ],
+    [
+      "Agent_5",
+      1000000
+    ],
+    [
+      "Agent_6",
+      1000000
+    ],
+    [
+      "Agent_7",
+      1000000
+    ],
+    [
+      "Agent_8",
+      1000000
+    ],
+    [
+      "Agent_9",
+      1000000
+    ],
+    [
+      "MarketMakerBudget",
+      5000000
+    ]
+  ],
+  "task_id": "true-suite-market-obl005_fresh_market_20260604T235308Z",
+  "task_open_tx": null,
+  "escrow_lock_tx": null,
+  "agent_model_assignment": [],
+  "model_assignment_manifest_cid": null,
+  "agent_role_assignment": [],
+  "role_assignment_manifest_cid": null
+}
