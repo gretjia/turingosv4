@@ -18,24 +18,29 @@
 //!                                      BYPASSES the kernel) => MUST source-reject
 //!
 //! So a candidate is `Verified` IFF (a) it contains none of the kernel-trust-bypass
-//! tokens [`sorry`, `admit`, `native_decide`] (source scan, comments stripped;
-//! mirrors constitution bus rule C-011) AND (b) `lean -DwarningAsError=true` exits 0.
-//! This is STRICTER than `run_lean_checker` (registry.rs:1220), which treats a bare
-//! exit 0 as pass and would therefore accept a `sorry`-bearing proof — exactly the
-//! weak-judge inflation the constitution (CLAUDE.md §4) and the prereg forbid.
+//! tokens [`sorry`, `admit`, `native_decide`, `unsafe`] (source scan, comments
+//! stripped; mirrors constitution bus rule C-011), (b) `lean -DwarningAsError=true`
+//! exits 0, and (c) an appended `#print axioms <theorem>` probe reports only
+//! explicitly whitelisted axioms. This is STRICTER than `run_lean_checker`
+//! (registry.rs:1220), which treats a bare exit 0 as pass and would therefore
+//! accept a `sorry`-bearing proof — exactly the weak-judge inflation the
+//! constitution (CLAUDE.md §4) and the prereg forbid.
 //!
 //! Substrate-agnostic: verifies whatever the `preamble` imports. Lean-core / Std
 //! proofs verify offline today; Mathlib proofs verify once a Mathlib olean build +
 //! `LEAN_PATH` exist (set via `extra_env` / `cwd`). Class 2 (additive verifier;
 //! reuses the in-repo sanitized runner; no §6 surface).
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::judges::math_step_judge::{JudgeVerdict, MathStepJudge};
 use crate::runtime::attempt_telemetry::{LeanErrorClass, LeanVerdictKind};
-use crate::sdk::sanitized_runner::{env_allowlist_from_current, run_sanitized, SanitizedCommand};
+use crate::sdk::sanitized_runner::{
+    env_allowlist_from_current, run_sanitized, SanitizedCommand, SanitizedOutput,
+};
 
 /// TRACE_MATRIX FC1a-judge_pi: pinned Lean toolchain for the JudgeAI verifier.
 /// Toolchain that the existing minif2f proofs pin to (elan layout name).
@@ -47,7 +52,14 @@ pub const PINNED_TOOLCHAIN: &str = "leanprover--lean4---v4.24.0";
 /// reject them at the source so the verdict is `SorryBlocked` (not `Failed`), and so
 /// that `native_decide` — which is NOT a warning and would otherwise exit 0 — is also
 /// blocked. Mirrors constitution bus rule C-011 (forbidden scratch-work tactics).
-pub const KERNEL_BYPASS_TOKENS: &[&str] = &["sorry", "admit", "native_decide"];
+pub const KERNEL_BYPASS_TOKENS: &[&str] = &["sorry", "admit", "native_decide", "unsafe"];
+
+/// TRACE_MATRIX FC1-N12: explicit default axiom whitelist for standalone LeanJudge.
+///
+/// Lean core proofs commonly report `propext` and `Quot.sound`; callers may
+/// replace `allowed_axioms` for stricter experiments, but any unlisted axiom
+/// remains fail-closed.
+pub const DEFAULT_ALLOWED_AXIOMS: &[&str] = &["propext", "Quot.sound"];
 
 /// Max bytes of (shielded) Lean error text fed back into a retry prompt. The error
 /// is the public compiler diagnostic on the agent's OWN candidate (legitimate retry
@@ -57,6 +69,23 @@ const FEEDBACK_MAX: usize = 240;
 
 static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// TRACE_MATRIX FC1-N12: A08 Lean axiom-probe status for standalone JudgeAI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AxiomCheckStatus {
+    PassedWhitelisted,
+    RejectedNonWhitelisted,
+    AxiomProbeFailed,
+    SourceForbiddenPattern,
+    LeanFailed,
+}
+
+/// TRACE_MATRIX FC1-N12: parsed `#print axioms` report, never raw Lean authority by itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AxiomReport {
+    pub status: AxiomCheckStatus,
+    pub rejected_axioms: Vec<String>,
+}
+
 /// TRACE_MATRIX FC1a-judge_pi: typed JudgeAI verdict for one candidate proof.
 /// Strict Lean outcome for one candidate proof against the fixed target theorem.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +94,8 @@ pub struct LeanOutcome {
     pub error_class: Option<LeanErrorClass>,
     pub exit_code: i32,
     pub timed_out: bool,
+    pub axiom_check_status: AxiomCheckStatus,
+    pub rejected_axioms: Vec<String>,
     /// Bounded, shielded failure summary for the retry prompt (empty on Verified).
     pub feedback: String,
 }
@@ -90,6 +121,8 @@ pub struct LeanJudge {
     pub cwd: PathBuf,
     /// Extra env beyond the PATH+HOME allowlist (e.g. `("LEAN_PATH", "<oleans>")`).
     pub extra_env: Vec<(String, String)>,
+    /// Axioms allowed by the standalone A08 `#print axioms` gate.
+    pub allowed_axioms: BTreeSet<String>,
     /// Per-verify wall-clock timeout.
     pub timeout: Duration,
 }
@@ -103,6 +136,10 @@ impl LeanJudge {
             lean_bin: default_lean_bin(),
             cwd: std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()),
             extra_env: Vec::new(),
+            allowed_axioms: DEFAULT_ALLOWED_AXIOMS
+                .iter()
+                .map(|axiom| (*axiom).to_string())
+                .collect(),
             timeout: Duration::from_secs(60),
         }
     }
@@ -131,23 +168,52 @@ impl LeanJudge {
                 error_class: Some(LeanErrorClass::SorryBlocked),
                 exit_code: 0,
                 timed_out: false,
+                axiom_check_status: AxiomCheckStatus::SourceForbiddenPattern,
+                rejected_axioms: Vec::new(),
                 feedback: format!("kernel-bypass token `{tok}` is forbidden"),
             };
         }
 
-        // 2. Assemble + write a temp .lean file.
+        // 2. Assemble + verify the candidate proof with Lean.
         let src = self.assemble(candidate_body);
+        let theorem_name = match theorem_name_from_preamble(&self.preamble) {
+            Some(name) => name,
+            None => {
+                return failed_with_axioms(
+                    -1,
+                    false,
+                    AxiomCheckStatus::AxiomProbeFailed,
+                    Vec::new(),
+                    "could not identify theorem name for #print axioms".into(),
+                )
+            }
+        };
+        let out = self.run_lean_source(&src, "candidate");
+
+        match out {
+            Ok(o) if o.success() => self.verify_axioms_after_success(&src, &theorem_name),
+            Ok(o) => {
+                let timed_out = o.timed_out;
+                let feedback = if timed_out {
+                    "lean timed out".to_string()
+                } else {
+                    shield_lean_diagnostic(&o.stderr, &o.stdout)
+                };
+                failed(o.exit_code.unwrap_or(-1), timed_out, feedback)
+            }
+            Err(e) => failed(-1, false, format!("lean spawn failed: {e}")),
+        }
+    }
+
+    fn run_lean_source(&self, source: &str, label: &str) -> std::io::Result<SanitizedOutput> {
         let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "turingos-leanjudge-{}-{}.lean",
+            "turingos-leanjudge-{label}-{}-{}.lean",
             std::process::id(),
             n
         ));
-        if std::fs::write(&path, src.as_bytes()).is_err() {
-            return failed(-1, false, "could not write temp lean file".into());
-        }
+        std::fs::write(&path, source.as_bytes())?;
 
-        // 3. Run `lean -DwarningAsError=true <file>` under the sanitized runner.
         let mut env = env_allowlist_from_current(&["PATH", "HOME"]);
         for (k, v) in &self.extra_env {
             env.insert(k.clone(), v.clone());
@@ -164,27 +230,144 @@ impl LeanJudge {
             timeout: self.timeout,
         });
         let _ = std::fs::remove_file(&path);
+        out
+    }
 
-        match out {
-            Ok(o) if o.success() => LeanOutcome {
-                verdict_kind: LeanVerdictKind::Verified,
-                error_class: None,
-                exit_code: 0,
-                timed_out: false,
-                feedback: String::new(),
-            },
+    fn verify_axioms_after_success(&self, source: &str, theorem_name: &str) -> LeanOutcome {
+        let probe_source = format!("{source}\n#print axioms {theorem_name}\n");
+        match self.run_lean_source(&probe_source, "axioms") {
+            Ok(o) if o.success() => {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                let report = classify_axiom_report(&stdout, &stderr, &self.allowed_axioms);
+                match report.status {
+                    AxiomCheckStatus::PassedWhitelisted => LeanOutcome {
+                        verdict_kind: LeanVerdictKind::Verified,
+                        error_class: None,
+                        exit_code: 0,
+                        timed_out: false,
+                        axiom_check_status: report.status,
+                        rejected_axioms: report.rejected_axioms,
+                        feedback: String::new(),
+                    },
+                    AxiomCheckStatus::RejectedNonWhitelisted => failed_with_axioms(
+                        0,
+                        false,
+                        report.status,
+                        report.rejected_axioms.clone(),
+                        format!(
+                            "non-whitelisted axioms: {}",
+                            report.rejected_axioms.join(", ")
+                        ),
+                    ),
+                    AxiomCheckStatus::AxiomProbeFailed => failed_with_axioms(
+                        0,
+                        false,
+                        report.status,
+                        report.rejected_axioms,
+                        "axiom probe failed".into(),
+                    ),
+                    AxiomCheckStatus::SourceForbiddenPattern | AxiomCheckStatus::LeanFailed => {
+                        failed_with_axioms(
+                            0,
+                            false,
+                            AxiomCheckStatus::AxiomProbeFailed,
+                            Vec::new(),
+                            "unexpected axiom probe status".into(),
+                        )
+                    }
+                }
+            }
             Ok(o) => {
-                let timed_out = o.timed_out;
-                let feedback = if timed_out {
-                    "lean timed out".to_string()
+                let feedback = if o.timed_out {
+                    "axiom probe timed out".to_string()
                 } else {
                     shield_lean_diagnostic(&o.stderr, &o.stdout)
                 };
-                failed(o.exit_code.unwrap_or(-1), timed_out, feedback)
+                failed_with_axioms(
+                    o.exit_code.unwrap_or(-1),
+                    o.timed_out,
+                    AxiomCheckStatus::AxiomProbeFailed,
+                    Vec::new(),
+                    feedback,
+                )
             }
-            Err(e) => failed(-1, false, format!("lean spawn failed: {e}")),
+            Err(e) => failed_with_axioms(
+                -1,
+                false,
+                AxiomCheckStatus::AxiomProbeFailed,
+                Vec::new(),
+                format!("axiom probe spawn failed: {e}"),
+            ),
         }
     }
+}
+
+/// TRACE_MATRIX FC1-N12: classify a `#print axioms` output against an explicit whitelist.
+pub fn classify_axiom_report(
+    stdout: &str,
+    stderr: &str,
+    allowed_axioms: &BTreeSet<String>,
+) -> AxiomReport {
+    let text = format!("{stdout}\n{stderr}");
+    if text.trim().is_empty() {
+        return AxiomReport {
+            status: AxiomCheckStatus::AxiomProbeFailed,
+            rejected_axioms: Vec::new(),
+        };
+    }
+    if text.contains("does not depend on any axioms") {
+        return AxiomReport {
+            status: AxiomCheckStatus::PassedWhitelisted,
+            rejected_axioms: Vec::new(),
+        };
+    }
+    let Some(axioms) = parse_axiom_list(&text) else {
+        return AxiomReport {
+            status: AxiomCheckStatus::AxiomProbeFailed,
+            rejected_axioms: Vec::new(),
+        };
+    };
+    let rejected_axioms: Vec<String> = axioms
+        .into_iter()
+        .filter(|axiom| !allowed_axioms.contains(axiom))
+        .collect();
+    let status = if rejected_axioms.is_empty() {
+        AxiomCheckStatus::PassedWhitelisted
+    } else {
+        AxiomCheckStatus::RejectedNonWhitelisted
+    };
+    AxiomReport {
+        status,
+        rejected_axioms,
+    }
+}
+
+fn parse_axiom_list(text: &str) -> Option<Vec<String>> {
+    let start = text.find('[')?;
+    let end = text[start + 1..].find(']')? + start + 1;
+    let body = &text[start + 1..end];
+    let axioms: Vec<String> = body
+        .split(',')
+        .map(|part| part.trim().trim_matches('`').trim_matches('"'))
+        .filter(|part| !part.is_empty())
+        .map(ToOwned::to_owned)
+        .collect();
+    Some(axioms)
+}
+
+fn theorem_name_from_preamble(preamble: &str) -> Option<String> {
+    let mut tokens = preamble.split_whitespace();
+    while let Some(token) = tokens.next() {
+        if token == "theorem" || token == "lemma" {
+            return tokens
+                .next()
+                .map(|name| name.trim_matches(|c: char| c == ':' || c == '{' || c == '('))
+                .filter(|name| !name.is_empty())
+                .map(ToOwned::to_owned);
+        }
+    }
+    None
 }
 
 /// `MathStepJudge` impl — the verifier-agnostic product seam. `candidate_step` is a
@@ -202,11 +385,29 @@ impl MathStepJudge for LeanJudge {
 }
 
 fn failed(exit_code: i32, timed_out: bool, feedback: String) -> LeanOutcome {
+    failed_with_axioms(
+        exit_code,
+        timed_out,
+        AxiomCheckStatus::LeanFailed,
+        Vec::new(),
+        feedback,
+    )
+}
+
+fn failed_with_axioms(
+    exit_code: i32,
+    timed_out: bool,
+    axiom_check_status: AxiomCheckStatus,
+    rejected_axioms: Vec<String>,
+    feedback: String,
+) -> LeanOutcome {
     LeanOutcome {
         verdict_kind: LeanVerdictKind::Failed,
         error_class: Some(LeanErrorClass::LeanFailed),
         exit_code,
         timed_out,
+        axiom_check_status,
+        rejected_axioms,
         feedback,
     }
 }
