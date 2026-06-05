@@ -82,6 +82,58 @@ incomplete — corrections help me. If you want to add anything directly, write 
     }
 }
 
+/// TRACE_MATRIX FC1-N5: driven grill prompt-program assembly.
+///
+/// This is the single implementation used by both `turingos spec --mode
+/// driven` and the web `/api/spec/turn` entrypoint. The prompt JSON itself is
+/// part of the program boundary for the Meta-AI turn; duplicating it in an
+/// entrypoint lets web and CLI drift while still sharing lower-level runtime
+/// helpers.
+pub fn build_grill_turn_prompt_json(
+    meta_prompt_content: &str,
+    coverage_summary: &str,
+    last_3_turns: &std::collections::VecDeque<(String, String)>,
+    turn_index: u32,
+    extra_system: Option<&str>,
+) -> String {
+    let mut messages: Vec<serde_json::Value> = Vec::new();
+
+    messages.push(serde_json::json!({
+        "role": "system",
+        "content": meta_prompt_content,
+    }));
+
+    messages.push(serde_json::json!({
+        "role": "system",
+        "content": coverage_summary,
+    }));
+
+    if let Some(extra) = extra_system {
+        messages.push(serde_json::json!({
+            "role": "system",
+            "content": extra,
+        }));
+    }
+
+    for (q, a) in last_3_turns.iter() {
+        messages.push(serde_json::json!({
+            "role": "assistant",
+            "content": q,
+        }));
+        messages.push(serde_json::json!({
+            "role": "user",
+            "content": a,
+        }));
+    }
+
+    messages.push(serde_json::json!({
+        "role": "user",
+        "content": format!("Produce your turn-{turn_index} output per the contract."),
+    }));
+
+    serde_json::json!({ "messages": messages }).to_string()
+}
+
 /// TRACE_MATRIX FC2-N16: deterministic LLM-less spec.md body synthesiser.
 ///
 /// Verbatim copy of `cmd_spec::synthesise_spec_md_no_llm` (pre-A6 src/bin/turingos/cmd_spec.rs

@@ -1136,7 +1136,7 @@ pub(crate) async fn spec_turn_handler(
             }
         }
     };
-    let prompt_json = build_web_turn_prompt_json(
+    let prompt_json = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
         &meta_prompt_content,
         &coverage_summary,
         &last_3_for_prompt,
@@ -1680,73 +1680,6 @@ fn build_coverage_summary(
     )
 }
 
-/// Build the prompt JSON for a driven-mode web turn.
-///
-/// FIX F4 (2026-05-18): the previous implementation dropped the meta-prompt
-/// from the `messages` array on the assumption that the shell-out to
-/// `turingos llm complete --meta-prompt <path>` would inject it server-side.
-/// It does not — `cmd_llm.rs` treats `--meta-prompt` as informational only
-/// (the path's sha256 lands in the prompt capsule as
-/// `system_prompt_template_hash`, but the bytes are never spliced into the
-/// outgoing `chat_messages`). The CLI driven path at
-/// `cmd_spec.rs::build_turn_prompt_json` correctly prepends the meta-prompt
-/// content as `messages[0]` with role `system`; this function now mirrors
-/// that exactly. Without it, the LLM receives only the coverage summary +
-/// turn instruction, has no contract to follow, and the strict-JSON parser
-/// rejects whatever free-form prose it emits — surfacing as HTTP 500
-/// `{kind: shellout_failed}` on the very first POST `/api/spec/turn` (W9
-/// real-LLM verdict: FAIL).
-#[cfg(feature = "web")]
-fn build_web_turn_prompt_json(
-    meta_prompt_content: &str,
-    coverage_summary: &str,
-    last_3_turns: &std::collections::VecDeque<(String, String)>,
-    turn_index: u32,
-    extra_system: Option<&str>,
-) -> String {
-    let mut messages: Vec<serde_json::Value> = Vec::new();
-
-    // 1. System: meta-prompt content (the interviewer contract).
-    messages.push(serde_json::json!({
-        "role": "system",
-        "content": meta_prompt_content,
-    }));
-
-    // 2. System: coverage state summary.
-    messages.push(serde_json::json!({
-        "role": "system",
-        "content": coverage_summary,
-    }));
-
-    // 3. Optional extra system message (e.g. predicate failure nudge).
-    if let Some(extra) = extra_system {
-        messages.push(serde_json::json!({
-            "role": "system",
-            "content": extra,
-        }));
-    }
-
-    // 4. Last 3 accepted turns as alternating assistant/user pairs.
-    for (q, a) in last_3_turns.iter() {
-        messages.push(serde_json::json!({
-            "role": "assistant",
-            "content": q,
-        }));
-        messages.push(serde_json::json!({
-            "role": "user",
-            "content": a,
-        }));
-    }
-
-    // 5. Final user instruction.
-    messages.push(serde_json::json!({
-        "role": "user",
-        "content": format!("Produce your turn-{turn_index} output per the contract."),
-    }));
-
-    serde_json::json!({ "messages": messages }).to_string()
-}
-
 // ---------------------------------------------------------------------------
 // Accepted-turns force-synthesis decision (OBL001 fallback)
 // ---------------------------------------------------------------------------
@@ -2035,7 +1968,7 @@ mod tests {
     #[test]
     fn web_spec_turn_prompt_includes_meta_prompt() {
         // Regression: fix F4 (2026-05-18). Prior to this fix,
-        // `build_web_turn_prompt_json` dropped the meta-prompt entirely on the
+        // The pre-shared web prompt builder dropped the meta-prompt entirely on the
         // assumption that the shell-out to `turingos llm complete
         // --meta-prompt <path>` would inject it server-side. It does not:
         // cmd_llm.rs treats --meta-prompt as informational (hashed into the
@@ -2050,9 +1983,11 @@ mod tests {
         let coverage = "Coverage state (turn 1):\n[ ] job\nTurns used: 1";
         let last3 = std::collections::VecDeque::<(String, String)>::new();
 
-        let json_str = build_web_turn_prompt_json(meta, coverage, &last3, 1, None);
+        let json_str = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
+            meta, coverage, &last3, 1, None,
+        );
         let value: serde_json::Value = serde_json::from_str(&json_str)
-            .expect("build_web_turn_prompt_json must emit valid JSON");
+            .expect("shared grill turn prompt helper must emit valid JSON");
         let messages = value
             .get("messages")
             .and_then(|m| m.as_array())
@@ -2077,7 +2012,7 @@ mod tests {
         // Regression: fix F4 (2026-05-18). The meta-prompt must specifically
         // be messages[0] (role=system) so the LLM sees its contract before any
         // coverage state or user turn — this mirrors the CLI driven path in
-        // cmd_spec.rs::build_turn_prompt_json exactly. We also assert message[1]
+        // the CLI driven path exactly. We also assert message[1]
         // is the coverage summary (system) and the final message is the turn
         // instruction (user), to lock the canonical ordering.
         let meta = "# TuringOS Spec Grill — Meta Prompt v1\n\nROLE: interviewer.\n";
@@ -2085,7 +2020,9 @@ mod tests {
         let mut last3 = std::collections::VecDeque::<(String, String)>::new();
         last3.push_back(("prior question?".to_string(), "prior answer.".to_string()));
 
-        let json_str = build_web_turn_prompt_json(meta, coverage, &last3, 2, None);
+        let json_str = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
+            meta, coverage, &last3, 2, None,
+        );
         let value: serde_json::Value =
             serde_json::from_str(&json_str).expect("must emit valid JSON");
         let messages = value
@@ -2176,7 +2113,9 @@ mod tests {
 
         let coverage = "Coverage state (turn 1):\n[ ] job\nTurns used: 1";
         let last3 = std::collections::VecDeque::<(String, String)>::new();
-        let json_str = build_web_turn_prompt_json(&meta, coverage, &last3, 1, None);
+        let json_str = turingosv4::runtime::spec_synthesis::build_grill_turn_prompt_json(
+            &meta, coverage, &last3, 1, None,
+        );
         let value: serde_json::Value =
             serde_json::from_str(&json_str).expect("must emit valid JSON");
         let messages = value
