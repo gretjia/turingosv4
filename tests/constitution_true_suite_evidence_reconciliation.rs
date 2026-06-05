@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use serde_json::Value;
 
@@ -18,6 +19,18 @@ const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manif
 const TRUE_SUITE_ROOT: &str = "handover/evidence/true_suite";
 const FULL_SYSTEM_SCHEMA: &str = "turingosv4.true_suite.full_system_participation.v1";
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
+const SOURCE_TREE_COMMIT_POINTERS: &[&str] = &[
+    "/source_tree/commit",
+    "/source_tree/head_commit",
+    "/source_tree/git_commit",
+    "/source_tree/source_commit",
+    "/source/source_commit",
+    "/source/turingos_commit",
+    "/source_commit",
+    "/turingos_commit",
+    "/workspace/source_commit",
+    "/workspace/git_commit",
+];
 
 #[derive(Debug)]
 struct ContractRow {
@@ -137,27 +150,29 @@ fn is_git_commit_hex(text: &str) -> bool {
     text.len() == 40 && text.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-fn source_tree_fingerprint_present(report: &Value) -> bool {
-    [
-        "/source_tree/commit",
-        "/source_tree/head_commit",
-        "/source_tree/git_commit",
-        "/source_tree/source_commit",
-        "/source/source_commit",
-        "/source/turingos_commit",
-        "/source_commit",
-        "/turingos_commit",
-        "/workspace/source_commit",
-        "/workspace/git_commit",
-    ]
-    .iter()
-    .any(|pointer| {
+fn source_tree_commit_fingerprint(report: &Value) -> Option<String> {
+    SOURCE_TREE_COMMIT_POINTERS.iter().find_map(|pointer| {
         report
             .pointer(pointer)
             .and_then(Value::as_str)
-            .map(is_git_commit_hex)
-            .unwrap_or(false)
+            .filter(|commit| is_git_commit_hex(commit))
+            .map(str::to_string)
     })
+}
+
+fn source_tree_fingerprint_present(report: &Value) -> bool {
+    source_tree_commit_fingerprint(report).is_some()
+}
+
+fn source_tree_commit_object_exists(commit: &str) -> bool {
+    let commit_ref = format!("{commit}^{{commit}}");
+    match Command::new("git")
+        .args(["cat-file", "-e", commit_ref.as_str()])
+        .status()
+    {
+        Ok(status) => status.success(),
+        Err(_) => false,
+    }
 }
 
 fn packaged_git_store_for(path: &Path) -> Option<PathBuf> {
@@ -994,6 +1009,57 @@ fn source_tree_fingerprint_detector_rejects_replay_head_as_source_proof() {
         "runtime replay HEAD is not a source-tree fingerprint"
     );
     assert!(source_tree_fingerprint_present(&source_commit));
+}
+
+#[test]
+fn final_closure_source_tree_commits_must_exist_in_git_history() {
+    let manifest = parse_toml(RECONCILIATION_MANIFEST);
+    let final_closure_claimed = manifest
+        .get("final_closure_claimed")
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(false);
+
+    let mut checked = 0usize;
+    let mut missing = Vec::new();
+    for (binding_key, contract_path, contract_key) in [
+        ("coverage_task", REALWORLD_MANIFEST, "task"),
+        ("broad_family", BROAD_MANIFEST, "family"),
+    ] {
+        let contracts = contract_rows(contract_path, contract_key);
+        for binding in reconciliation_rows(binding_key) {
+            let row = contracts
+                .get(&binding.id)
+                .unwrap_or_else(|| panic!("binding `{}` missing contract row", binding.id));
+            let report = read_full_system_report(&binding, row);
+            let commit = source_tree_commit_fingerprint(&report).unwrap_or_else(|| {
+                panic!(
+                    "{binding_key}:{} has no source-tree commit fingerprint in {}",
+                    binding.id,
+                    full_system_report_path(&binding, row).display()
+                )
+            });
+
+            if !source_tree_commit_object_exists(&commit) {
+                missing.push(format!("{binding_key}:{}:{commit}", binding.id));
+                assert!(
+                    !binding.blockers.is_empty(),
+                    "{binding_key}:{} binds source-tree commit `{commit}` that is not present in git history and has no unresolved blocker",
+                    binding.id
+                );
+            }
+            checked += 1;
+        }
+    }
+    assert!(
+        checked > 0,
+        "source-tree git-history guard must inspect at least one bound receipt"
+    );
+    if final_closure_claimed {
+        assert!(
+            missing.is_empty(),
+            "final_closure_claimed=true cannot cite source-tree commits absent from git history: {missing:?}"
+        );
+    }
 }
 
 #[test]
