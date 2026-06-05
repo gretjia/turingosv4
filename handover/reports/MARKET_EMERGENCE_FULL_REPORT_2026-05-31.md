@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — propagates the C6 combination overclaim ('market 3.81 > single' is coverage/prompt-shaping with no price code, erased at equal budget) and contains a self-flagged fabricated '17/24 71%' number written before data + a dangling reference. Treat the positive headlines as RETRACTED pending the real-value experiment.
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # TuringOS Market Emergence — Full Investigation Report
 ### Constitutional root-cause → real-tested multi-agent emergence
 > 2026-05-31 · branch `claude/lean-market-baselines` · self-contained (code + data + analysis in one file)

@@ -9,6 +9,53 @@
 
 ---
 
+## Current Snapshot (2026-06-02) — P1 v4 corrective experiment, market price-routing NO-GO
+
+**Full stage summary**: `handover/reports/SESSION_P1V4_STAGE_SUMMARY_2026-06-02.md` (read first).
+
+**Branch**: `claude/p1-realvalue` (HEAD `841c08e9`, 44 ahead / 5 behind `origin/main`). NOT pushed. PR-only.
+Clean v4-only PR off latest `origin/main` recommended but NOT yet opened (architect to decide).
+
+**What happened**: Two external auditors VETO'd the v3 P1 causal claim (confound B — `autonomous`'s proof
+prompt leaked the full search landscape). Corrected the binary (`cb89a5d6`, `lean_market_agent.rs` +
+`lean_judge.rs` only): F1 decouple (Stage-1 compact route → Stage-2 byte-identical `build_prompt`,
+self-test-enforced), F5 inline `#print-axioms` gate, F2 compute telemetry, F3 topology baselines. Verified
+真跑 (self-test PROMPT-PARITY-OK; bin 14/0, judge 12/0 real Lean; gates 165/166 — the 1 red is pre-existing
+OBLIGATIONS.md reconciliation drift; the script_liveness red was MY unregistered P1 scripts, now registered
+in the OBL-005 inventory `c0e03243`; §6 clean; integer money). Then found the v3 hard floor was itself unreliable
+(`single` proves `lm_ineq1` axiom-clean — a 3-seed fluke); re-established it at `single` 0/6 → 13 hard
+theorems. Ran the corrected 9-arm sweep (prereg `d80ba8cd` SHA-locked; 732 cells, all replay-clean, cracks
+axiom-clean via the inline gate).
+
+**VERDICT (clean-context audit `NO-VIOLATION` + `PROCEED`)**: **NO-GO for loss-bearing price routing as the
+lever.** `market` (real price) LOSES to `no_price` (random) 2/78 vs 6/78; PREREG_1 + PREREG_2 both NOT
+confirmed (`p_holm=1.0`). Directional (not significant) lever = **non-local tree search**
+(`single_tree_no_price` 5.1% @ 329K tok/solve > market 2.6% @ 1.13M > autonomous 1.3% @ 3.09M); adding real
+price is the biggest negative delta (−3.8pp). Multi-agent beats single chain (24 axiom-clean cracks) but
+it's sampling + non-locality, **not the price**. Scope: P1 tests price-as-ROUTER in an abundant-budget
+homogeneous regime — it does NOT refute price-ALLOCATION of a scarce budget across specialists
+(LEAN-ALLOC/PROBE-ALLOC, untested steelman). Report `P1_REALVALUE_V4_FINDINGS_2026-06-02.md`; audit
+`P1_REALVALUE_V4_AUDIT_2026-06-02.md`.
+
+**Constitutional compliance (`wf7b6ms3m`, done): COMPLIANT-WITH-GAPS** —
+`handover/audits/MARKET_FC_COMPLIANCE_2026-06-02.md`. Market = faithful FC1 instance on real FC2 boot; all
+four white-box mechanisms LIT with live tape evidence (广播 librarian every proposal; 屏蔽 shield DECISIVE —
+16,723 feedback nodes 0-newlines; 谓词 Lean+axiom-gate 35/35 omega clean; price-Veto bear-short on every
+price arm / 0 on Bulls-only; constitutional Veto-AI correctly absent → FC3). No HIGH gaps. **Gaps M2 + L4 FIXED (live-verified)**: `librarian_notice_nonempty_count`/`_chars` (广播
+injection now a manifest scalar — live 10/12, 2642 chars) + `AttemptNode.reject_class` (§4 reject taxonomy;
+live on all failed nodes). M1/L3 already real-Lean-tested + now tape-visible via `reject_class`. L5 deferred
+(trust-root), Info6 by-design. Build 14/0, self-test OK, no §6/trust-root touched.
+
+**Open decisions (architect)**: (1) PR strategy (clean v4-only recommended); (2) next line — A power-up
+non-locality / B harder theorems / C price×scarce-budget-allocation (recommended steelman) / D accept
+NO-GO + Mission Stage-2.
+
+**Discipline**: dirty-tree drift (`OBLIGATIONS.md`, `rules/enforcement.log`, `scripts/run_constitution_gates.sh`,
+`src/bin/lean_hayek_market.rs`) — do NOT revert. `.env` at `/Users/zephryj/work/turingosv4-probe-gpqa/.env`
+(outside repo) — never commit. Gateway `localhost:8123`; Mathlib `/Users/zephryj/work/mathlib4`.
+
+---
+
 ## Current Snapshot (2026-05-29)
 
 **Session**: Post-merge reconciliation after PR #212 and platform-agnostic

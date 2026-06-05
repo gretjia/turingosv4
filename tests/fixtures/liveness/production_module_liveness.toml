@@ -302,6 +302,7 @@ module_ids = [
   "bin::audit_dashboard",
   "bin::audit_tape",
   "bin::audit_tape_tamper",
+  "bin::verify_market_tape",
   "bin::boot_cli_current_kernel_fresh",
   "bin::cybench_security_sandbox_current_kernel",
   "bin::full_system_augment_current_kernel",

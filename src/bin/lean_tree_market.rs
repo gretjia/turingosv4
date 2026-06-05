@@ -9,9 +9,14 @@
 //!   branch = different next-tactics from the SAME state; dead-end = a state whose expansions fail
 //!   OMEGA  = a tactic script that closes all goals (Lean exit 0, no sorry)
 //!
-//! market (policy=market): price-routed tree search — Boltzmann-softmax over node VALUE
+//! market (policy=market): Boltzmann-softmax tree search over a heuristic node VALUE
 //!   (progress − stuck-penalty), so attention DISTRIBUTES across promising partial states INCLUDING
 //!   early ones (non-local re-expansion / new branch / backtrack). The architect's vision.
+//!   CORRECTION 2026-06-01 (forensic retrospective §0/§1): this was earlier labeled a price-based
+//!   tree search, but `value()` is a HEURISTIC — the loss-bearing market signal is ABSENT here
+//!   (grep: zero `price` identifier in code). The ONLY bin with loss-bearing price + true softmax
+//!   over the live index is `src/bin/lean_market_agent.rs`. Treat this bin as heuristic tree
+//!   search ONLY; do NOT cite it as price-market evidence.
 //! single (policy=single): one DFS chain — always extend the agent's own deepest live node; on a
 //!   failed tactic it retries the SAME node (no jump to a different branch). The control.
 //!

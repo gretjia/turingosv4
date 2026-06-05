@@ -45,56 +45,10 @@ const MIN_STAKE_MICRO: i64 = 1_000;
 const MAX_STAKE_MICRO: i64 = 40_000;
 const ALPHA_MICRO: i64 = 1_000; // Laplace smoothing α (in micro units), so empty claim → p=0.5
 
-// ── per-model micro-USD rates (cost path is integer-only, no f64) ────────────
-// Each row: (model-id substring, in_micro_usd_per_1M_prompt_tok, out_micro_usd_per_1M_completion_tok).
-// ROWS ORDERED MOST-SPECIFIC FIRST — call_micro_usd bills the FIRST row whose substring is contained in
-// the model id, so a heterogeneous strong model is priced at ITS real rate, never silently at the
-// deepseek-chat proxy. The liberal "reasoner"/"deepseek" catch-alls MUST stay last: a full slash-id like
-// "deepseek-ai/DeepSeek-V3.2" also contains "deepseek" and must match its own row first. Adding a model
-// to the roster = add a row here; an unlisted id falls through to FALLBACK below. (tests guard the order.)
-//
-// SiliconFlow rows — any slash-form id ("Org/Model") routes to api.siliconflow.cn
-// (src/drivers/llm_proxy.py::detect_provider), so the true price is SiliconFlow's published USD list
-// price. Retrieved 2026-05-31 from https://www.siliconflow.com :
-//   deepseek-ai/DeepSeek-V3.2    $0.27 in / $0.41 out  (blog: "DeepSeek-V3.2-Exp Now on SiliconFlow")
-//   Qwen/Qwen3-32B               $0.14 in / $0.57 out  (/models/qwen-qwen3-32b)
-//   Qwen/Qwen2.5-72B-Instruct    $0.59 in / $0.59 out  (/models/qwen-qwen2-5-72b-instruct)
-// DeepSeek rows — bare "deepseek-*" ids route to api.deepseek.com; pinned to the DeepSeek API USD price
-// (https://api-docs.deepseek.com/quick_start/pricing, retrieved 2026-05-31). The live official catalog is
-// now exactly {deepseek-v4-flash, deepseek-v4-pro}; deepseek-chat/deepseek-reasoner are being deprecated
-// (they map to flash non-thinking / thinking). v4-pro/v4-flash MUST precede the bare "deepseek" catch-all:
-// "deepseek" is a substring of "deepseek-v4-pro", so an earlier liberal row would steal the match and
-// under-bill the flagship — the exact OBL-012 class of bug. The legacy reasoner/deepseek baseline pins are
-// kept (after the specific rows) so earlier banked-per-dollar tapes stay comparable — re-pin deliberately.
-const MODEL_RATES: &[(&str, i64, i64)] = &[
-    ("deepseek-ai/DeepSeek-V3.2", 270_000, 410_000),   // SiliconFlow $0.27 / $0.41
-    ("Qwen/Qwen3-32B", 140_000, 570_000),              // SiliconFlow $0.14 / $0.57
-    ("Qwen/Qwen2.5-72B-Instruct", 590_000, 590_000),   // SiliconFlow $0.59 / $0.59
-    ("deepseek-v4-pro", 435_000, 870_000),             // DeepSeek API $0.435 / $0.87 (75%-off promo; regular $1.74/$3.48 = 1_740_000/3_480_000 — re-pin when promo ends)
-    ("deepseek-v4-flash", 140_000, 280_000),           // DeepSeek API $0.14 cache-miss / $0.28
-    ("reasoner", 550_000, 2_190_000),                  // DeepSeek API $0.55 / $2.19 (legacy baseline pin)
-    ("deepseek", 270_000, 1_100_000),                  // DeepSeek API $0.27 / $1.10 (legacy baseline catch-all — MUST stay last)
-];
-// FALLBACK for an id not in MODEL_RATES — clearly a PROXY, not a true price (deepseek-chat-class). An
-// unlisted model is a roster gap to close (add a row above), never a license to under-bill the metric.
-const FALLBACK_IN_UPMT: i64 = 270_000;
-const FALLBACK_OUT_UPMT: i64 = 1_100_000;
-
-/// integer micro-USD for a call, by model (the real dollar cost — the scarce resource's denominator).
-/// First MODEL_RATES row whose substring is in `model` wins (most-specific-first); else FALLBACK.
-fn call_micro_usd(model: &str, prompt_tok: u64, completion_tok: u64) -> i64 {
-    let (i, o) = {
-        let mut rate = (FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT);
-        for &(id, in_upmt, out_upmt) in MODEL_RATES {
-            if model.contains(id) {
-                rate = (in_upmt, out_upmt);
-                break;
-            }
-        }
-        rate
-    };
-    (prompt_tok as i64 * i + completion_tok as i64 * o) / 1_000_000
-}
+// ── per-model micro-USD cost: MODEL_RATES + call_micro_usd moved to src/market_tape_shared.rs (TP-0A.3)
+// so the producer bin AND the standalone verify_market_tape link the IDENTICAL rate table — derive_cost
+// recomputes micro_usd from the tape alone using the same function. Price provenance (SiliconFlow/DeepSeek
+// USD lists, OBL-012/OBL-013) preserved in git history. Imported via `use market_tape_shared::call_micro_usd`.
 
 /// confidence (0..100) → integer stake, sized by belief, capped to wallet. The capital an agent
 /// is willing to LOSE if its proof fails — honest skin in the game.
@@ -104,70 +58,13 @@ fn stake_from_confidence(confidence_pct: u64, wallet: i64) -> i64 {
     raw.clamp(MIN_STAKE_MICRO, MAX_STAKE_MICRO).min(wallet.max(0))
 }
 
-// ── MarketTape-lite: append-only event log, prev_hash chained (ATOM 1) ──────
-// Price is DERIVED from Invest events; node.score is never authoritative.
-#[derive(Clone)]
-enum MarketEvent {
-    MarketOpen { claim: usize, claim_type: String },
-    Invest { agent: usize, claim: usize, side: String, amount_micro: i64, model_hash: String, confidence: u64 },
-    Proposal { agent: usize, claim: usize, output_hash: String },
-    LlmCall { model: String, prompt_tokens: u64, completion_tokens: u64 },
-    Verify { claim: usize, verdict: bool, reject_class: String },
-    RouteSample { policy: String, frontier_hash: String, selected_claim: usize },
-    Resolve { claim: usize, outcome: String },
-}
-
-struct MarketTape {
-    lines: Vec<String>,
-    prev_hash: String,
-}
-impl MarketTape {
-    fn new() -> Self { MarketTape { lines: Vec::new(), prev_hash: "genesis".into() } }
-    fn append(&mut self, kind: &str, body: serde_json::Value) {
-        let payload = serde_json::json!({ "kind": kind, "prev": self.prev_hash, "body": body });
-        let s = serde_json::to_string(&payload).unwrap();
-        let mut h = Sha256::new();
-        h.update(s.as_bytes());
-        self.prev_hash = format!("{:x}", h.finalize());
-        self.lines.push(s);
-    }
-    fn record(&mut self, e: &MarketEvent) {
-        match e {
-            MarketEvent::MarketOpen { claim, claim_type } => self.append("MarketOpen", serde_json::json!({"claim":claim,"claim_type":claim_type})),
-            MarketEvent::Invest { agent, claim, side, amount_micro, model_hash, confidence } => self.append("Invest", serde_json::json!({"agent":agent,"claim":claim,"side":side,"amount_micro":amount_micro,"model_hash":model_hash,"confidence":confidence})),
-            MarketEvent::Proposal { agent, claim, output_hash } => self.append("Proposal", serde_json::json!({"agent":agent,"claim":claim,"output_hash":output_hash})),
-            MarketEvent::LlmCall { model, prompt_tokens, completion_tokens } => self.append("LLMCall", serde_json::json!({"model":model,"prompt_tokens":prompt_tokens,"completion_tokens":completion_tokens})),
-            MarketEvent::Verify { claim, verdict, reject_class } => self.append("Verify", serde_json::json!({"claim":claim,"verdict":verdict,"reject_class":reject_class})),
-            MarketEvent::RouteSample { policy, frontier_hash, selected_claim } => self.append("RouteSample", serde_json::json!({"policy":policy,"frontier_hash":frontier_hash,"selected_claim":selected_claim})),
-            MarketEvent::Resolve { claim, outcome } => self.append("Resolve", serde_json::json!({"claim":claim,"outcome":outcome})),
-        }
-    }
-    /// Verify the append-only prev_hash chain (replayability gate, ATOM 5-lite).
-    fn verify_chain(&self) -> bool {
-        let mut prev = "genesis".to_string();
-        for line in &self.lines {
-            let v: serde_json::Value = match serde_json::from_str(line) { Ok(v) => v, Err(_) => return false };
-            if v["prev"].as_str() != Some(&prev) { return false; }
-            let mut h = Sha256::new(); h.update(line.as_bytes());
-            prev = format!("{:x}", h.finalize());
-        }
-        true
-    }
-    /// Re-derive each claim's (yes,no) pools from the Invest events ALONE — proves price is
-    /// tape-derivable, not an authoritative in-memory score (Art. 0.2).
-    fn derive_pools(&self, k: usize) -> Vec<(i64, i64)> {
-        let mut pools = vec![(0i64, 0i64); k];
-        for line in &self.lines {
-            let v: serde_json::Value = serde_json::from_str(line).unwrap();
-            if v["kind"] == "Invest" {
-                let c = v["body"]["claim"].as_u64().unwrap() as usize;
-                let amt = v["body"]["amount_micro"].as_i64().unwrap();
-                if v["body"]["side"] == "YES" { pools[c].0 += amt; } else { pools[c].1 += amt; }
-            }
-        }
-        pools
-    }
-}
+// ── MarketTape-lite: extracted to a bin-local shared module (TP-0A.1, behavior-preserving) so the
+// producer bin AND the standalone verify_market_tape verifier link the IDENTICAL event schema + hash
+// chain. Lives in src/ (NOT src/bin/, so cargo does not treat it as a binary) and is NOT declared in
+// lib.rs (adding a mod there is a trust-root/constitution touch); pulled in via #[path].
+#[path = "../market_tape_shared.rs"]
+mod market_tape_shared;
+use market_tape_shared::{call_micro_usd, MarketEvent, MarketTape, FALLBACK_OUT_UPMT};
 
 // ── Hayek price (ATOM 2): integer-rational, identical to compute_price_index's long/(long+short) ──
 /// p_raw scaled to per-mille (integer) to stay off f64 in the price path: 1000*(YES+α)/(YES+NO+2α).
@@ -419,7 +316,7 @@ fn verify_pool_err(preamble: &str, body: &str, lean_bin: &Path, mathlib_dir: &Pa
     (false, class.into())
 }
 
-struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64 }
+struct Args { task: String, policy: String, n_rounds: usize, verify_budget: usize, seed: u64, temp: f64, proxy: String, model: String, bettor_model: String, mathlib_dir: PathBuf, out: PathBuf, tape_out: Option<PathBuf>, pool_subset: usize, reasoner_budget_tok: u64, reasoner_model: String }
 fn parse_args() -> Result<Args, String> {
     let a: Vec<String> = std::env::args().collect();
     let get = |k: &str| a.iter().position(|x| x == k).and_then(|i| a.get(i + 1).cloned());
@@ -439,7 +336,10 @@ fn parse_args() -> Result<Args, String> {
         out: get("--out").map(Into::into).unwrap_or_else(|| "/tmp/hayek.json".into()),
         tape_out: get("--tape-out").map(Into::into),
         pool_subset: get("--pool-subset").and_then(|s| s.parse().ok()).unwrap_or(0),
-        reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(5000),
+        reasoner_budget_tok: get("--reasoner-budget-tok").and_then(|s| s.parse().ok()).unwrap_or(4000),
+        // the repair model (the scarce, strong reasoner). Configurable so the experiment can use a reasoner
+        // that actually CAN repair the residuals (calibration found deepseek-reasoner thinking-off banked 0).
+        reasoner_model: get("--reasoner-model").unwrap_or_else(|| "deepseek-reasoner".into()),
     })
 }
 
@@ -1073,14 +973,133 @@ fn finish_probe(args: &Args, tape: &MarketTape, closed: &BTreeSet<usize>, k: usi
 ///     the ARM's order (price-descending / random / shuffled / confidence) until B exhausted; Lean-verify each.
 ///  5. settle: reasoner-clean → YES wins (split NO pool); fail/unreached → YES forfeits.
 /// Metric: axiom-clean theorems banked / reasoner-completion-ktok. Money integer; f64 only in routing.
+/// SHARED-STATE allocation experiment (2026-06-01 confound fix). The per-arm run_alloc re-ran the STOCHASTIC
+/// free-bank for every arm, so each arm faced a DIFFERENT residual set (free-bank luck ±7) that swamped the
+/// thin routing signal (~3 repairable) — the constitution's price-coordination could never show. Here the
+/// free-bank + betting + per-residual REPAIR are computed ONCE; the 6 arms are deterministic allocation
+/// policies over the IDENTICAL (residuals, prices, repair-outcomes) state, so banked@B differs ONLY by routing
+/// ORDER. Emits one replayable manifest+tape PER arm: /tmp(or --out dir)/t2s_<arm>_<seed>.{json,tape}.
+async fn run_alloc_shared(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
+    let pool_path = args.task.strip_prefix("shared:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
+    let pool = load_pool(pool_path, args.pool_subset);
+    if pool.is_empty() { return Err("empty pool".into()); }
+    let reasoner = args.reasoner_model.as_str();
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let t0 = Instant::now();
+    let stmt = |pre: &str| pre.trim_end().trim_end_matches(":= by").trim().to_string();
+    let mut ov_chat = 0u64; let mut ov_llm = 0usize; let mut ov_micro = 0i64; // shared overhead (free+bet+coord)
+    let mut shared_calls: Vec<(String, u64, u64)> = Vec::new(); // (model, prompt, completion) — replayed onto every arm's tape so it reconstructs
+
+    // ── SHARED Phase 1: free-bank ONCE → the residual set every arm shares ──
+    let mut free_banked: Vec<usize> = Vec::new();
+    let mut residual: Vec<(usize, String, String)> = Vec::new();
+    for (ti, thm) in pool.iter().enumerate() {
+        let mut best_fail: Option<(String, String)> = None; let mut solved = false;
+        for ai in 0..4usize {
+            let temp = 0.2 + 0.12 * ai as f64;
+            let prompt = format!("Prove this Lean 4 (Mathlib) theorem. Output ONLY JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.\n\n{} := by", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(temp), max_tokens: Some(500) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((args.model.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); r }, Err(_) => continue };
+            let tac = match extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { Some(t) if !t.trim().is_empty() => t.trim().to_string(), _ => continue };
+            let (ok, ec) = verify_pool_err(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_sh_free_{}_{}", args.seed, ti, ai));
+            if ok { free_banked.push(ti); solved = true; break; }
+            else { let rank = |c: &str| match c { "unsolved_goals" => 5, "type_mismatch" => 4, "rewrite_failed" => 3, "unknown_id" => 2, "parse" => 1, _ => 0 }; if best_fail.as_ref().map_or(true, |(_, e)| rank(&ec) > rank(e)) { best_fail = Some((tac, ec)); } }
+        }
+        if !solved { if let Some((b, e)) = best_fail { residual.push((ti, b, e)); } }
+    }
+    let nr = residual.len();
+
+    // ── SHARED Phase 2: betting ONCE → market price (confidence) + flatbid price (constant stake) ──
+    let n_bettors = 4usize;
+    let (mut yes, mut no) = (vec![0i64; nr], vec![0i64; nr]);
+    let (mut fyes, mut fno) = (vec![0i64; nr], vec![0i64; nr]);
+    for (ri, (ti, body, ec)) in residual.iter().enumerate() {
+        let thm = &pool[*ti];
+        for bi in 0..n_bettors {
+            let bm = if bi == n_bettors - 1 { reasoner.to_string() } else { args.model.clone() };
+            let prompt = format!("Assess how CLOSE this failed Lean 4 attempt at `{}` is to a correct proof.\n```\n{body}\n```\nLean error class: {ec} (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Will a careful repair likely succeed? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}.", stmt(&thm.preamble));
+            let resp = match llm.generate(&GenerateRequest { model: bm.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&bm, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((bm.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); r }, Err(_) => continue };
+            let v = extract(&resp.content, "verdict").and_then(|x| x.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
+            let c = extract(&resp.content, "confidence").and_then(|x| x.as_u64()).unwrap_or(50).min(100);
+            let stake = stake_from_confidence(c, WALLET_BUDGET_MICRO); let flat = (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2;
+            if v == "YES" { yes[ri] += stake; fyes[ri] += flat; } else if v == "NO" { no[ri] += stake; fno[ri] += flat; }
+        }
+    }
+    let market_pm: Vec<i64> = (0..nr).map(|i| price_yes_permille(yes[i], no[i])).collect();
+    let flat_pm: Vec<i64> = (0..nr).map(|i| price_yes_permille(fyes[i], fno[i])).collect();
+
+    // ── SHARED coordinator rank ONCE (sees the bodies — audit fix) ──
+    let coord_order: Option<Vec<usize>> = {
+        let summary: String = residual.iter().enumerate().map(|(ri, (ti, b, ec))| { let bt: String = b.chars().take(500).collect(); format!("[{ri}] thm: {}\n  failed_attempt: {}\n  lean_error_class: {ec}", stmt(&pool[*ti].preamble), bt) }).collect::<Vec<_>>().join("\n");
+        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {nr} failed Lean 4 proof attempts. Each shows the theorem, the failed attempt, and its Lean error class. Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[EVERY residual index, best-first]}}.\n\n{summary}");
+        match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.2), max_tokens: Some(400) }).await { Ok(r) => { ov_llm += 1; ov_chat += r.completion_tokens as u64; ov_micro += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); shared_calls.push((args.model.clone(), r.prompt_tokens as u64, r.completion_tokens as u64)); extract(&r.content, "order").and_then(|v| v.as_array().map(|a| a.iter().filter_map(|x| x.as_u64().map(|u| u as usize)).filter(|&i| i < nr).collect::<Vec<usize>>())) }, Err(_) => None }
+    };
+
+    // ── SHARED Phase 2.5: repair EACH residual ONCE → (success, cost, micro) shared by all arms ──
+    let mut rep_ok = vec![false; nr]; let mut rep_cost = vec![0u64; nr]; let mut rep_micro = vec![0i64; nr]; let mut rep_prompt = vec![0u64; nr];
+    for (ri, (ti, body, err)) in residual.iter().enumerate() {
+        let thm = &pool[*ti];
+        let prompt = format!("Repair this failed Lean 4 (Mathlib) proof attempt of `{}` (it gave: {err}).\nFailed attempt:\n```\n{body}\n```\nOutput a CORRECT proof as JSON {{\"tactic\":\"<proof body>\"}}. No sorry/admit.", stmt(&thm.preamble));
+        let resp = match llm.generate(&GenerateRequest { model: reasoner.into(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(600) }).await { Ok(r) => { ov_llm += 1; rep_cost[ri] = r.completion_tokens as u64; rep_prompt[ri] = r.prompt_tokens as u64; rep_micro[ri] = call_micro_usd(reasoner, r.prompt_tokens as u64, r.completion_tokens as u64); r }, Err(_) => continue };
+        if let Some(tac) = extract(&resp.content, "tactic").and_then(|v| v.as_str().map(String::from)) { if !tac.trim().is_empty() { rep_ok[ri] = verify_pool(&thm.preamble, &tac, lean_bin, &args.mathlib_dir, lp, &format!("{}_sh_rep_{}", args.seed, ti)); } }
+    }
+    let repairable = rep_ok.iter().filter(|&&x| x).count();
+
+    // ── PER-ARM deterministic allocation over the SHARED state (only the ORDER differs) ──
+    let arms = ["market", "shuffled", "flatbid", "coordinator", "random", "index"];
+    let base = args.out.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("/tmp"));
+    for arm in arms {
+        let mut order: Vec<usize> = (0..nr).collect();
+        match arm {
+            "market" => order.sort_by(|&a, &b| market_pm[b].cmp(&market_pm[a])),
+            "flatbid" => order.sort_by(|&a, &b| flat_pm[b].cmp(&flat_pm[a])),
+            "shuffled" => { let mut p = market_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i, j); } order.sort_by(|&a, &b| p[b].cmp(&p[a])); }
+            "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i, j); } }
+            "coordinator" => { if let Some(co) = &coord_order { if co.iter().copied().collect::<BTreeSet<usize>>().len() == nr { let mut seen = BTreeSet::new(); order = co.iter().copied().filter(|i| seen.insert(*i)).collect(); } } }
+            _ => {} // index = pool order (no-information baseline)
+        }
+        let mut tape = MarketTape::new();
+        tape.record(&MarketEvent::GenesisPin { run_id: format!("{arm}__seed{}", args.seed), seed: args.seed, policy: arm.to_string(), model_roster: vec![args.model.clone(), reasoner.to_string()], budget_b: args.reasoner_budget_tok, axiom_whitelist: vec!["propext".into(), "Classical.choice".into(), "Quot.sound".into()], head_commit_sha: market_tape_shared::head_commit_sha() });
+        // replay the SHARED overhead LLM calls onto this arm's tape so verify_market_tape reconstructs the full cost/tokens
+        for (m, p, c) in &shared_calls { tape.record(&MarketEvent::LlmCall { model: m.clone(), prompt_tokens: *p, completion_tokens: *c }); }
+        for &ti in &free_banked { tape.record(&MarketEvent::Verify { claim: ti, verdict: true, reject_class: "none".into() }); tape.record(&MarketEvent::Resolve { claim: ti, outcome: "YES_FREE".into() }); }
+        let (mut spent, mut banked, mut arm_micro, mut afforded) = (0u64, free_banked.len(), ov_micro, 0usize);
+        for &ri in &order {
+            if spent + rep_cost[ri] > args.reasoner_budget_tok { continue; } // can't afford this repair within B
+            spent += rep_cost[ri]; arm_micro += rep_micro[ri]; afforded += 1;
+            let ti = residual[ri].0;
+            tape.record(&MarketEvent::RouteSample { policy: arm.to_string(), frontier_hash: short_hash(&format!("{arm}{ri}")), selected_claim: ri });
+            tape.record(&MarketEvent::LlmCall { model: reasoner.to_string(), prompt_tokens: rep_prompt[ri], completion_tokens: rep_cost[ri] });
+            tape.record(&MarketEvent::Verify { claim: ti, verdict: rep_ok[ri], reject_class: if rep_ok[ri] { "none".into() } else { "reasoner_failed".into() } });
+            tape.record(&MarketEvent::Resolve { claim: ri, outcome: if rep_ok[ri] { "YES".into() } else { "NO".into() } });
+            if rep_ok[ri] { banked += 1; }
+        }
+        let cop = if banked > 0 { arm_micro / banked as i64 } else { i64::MAX };
+        let manifest = serde_json::json!({ "schema": "lean_hayek_alloc.v2", "policy": arm, "pool_size": pool.len(), "banked_at_B": banked, "residual": nr, "reasoner_completion_tokens": spent, "chat_completion_tokens": ov_chat, "reasoner_budget_tok": args.reasoner_budget_tok, "micro_usd": arm_micro, "cost_of_pass_micro_usd": cop, "seed": args.seed, "llm_calls": shared_calls.len() + afforded, "lean_calls": 0, "tape_chain_ok": tape.verify_chain(), "tape_events": tape.lines.len(), "shared_state": true, "free_banked": free_banked.len(), "repairable": repairable });
+        let _ = std::fs::write(base.join(format!("t2s_{arm}_{}.json", args.seed)), serde_json::to_string_pretty(&manifest).unwrap());
+        let _ = std::fs::write(base.join(format!("t2s_{arm}_{}.tape", args.seed)), tape.lines.join("\n"));
+        println!("shared[{arm}] seed{} banked@B={banked} (free={} +repair) repair_spent={spent}/{}", args.seed, free_banked.len(), args.reasoner_budget_tok);
+    }
+    println!("shared-state seed{} DONE: residual={nr} free_banked={} repairable={repairable} (max routing effect) shared_llm_calls={} total_llm_calls={ov_llm} wall={:.1}s", args.seed, free_banked.len(), shared_calls.len(), t0.elapsed().as_secs_f64());
+    Ok(())
+}
+
 async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &str) -> Result<(), String> {
     let pool_path = args.task.strip_prefix("pool:").unwrap_or("tests/fixtures/lean_theorems_pool.jsonl");
     let pool = load_pool(pool_path, args.pool_subset);
     if pool.is_empty() { return Err("empty pool".into()); }
-    let reasoner = "deepseek-reasoner";
+    let reasoner = args.reasoner_model.as_str();
     let mut rng = StdRng::seed_from_u64(args.seed);
     let t0 = Instant::now();
     let mut tape = MarketTape::new();
+    // GenesisPin MUST be the first event (TP-0A.2): pins run identity + provenance for the replay verifier.
+    tape.record(&MarketEvent::GenesisPin {
+        run_id: format!("{}__seed{}", args.policy, args.seed),
+        seed: args.seed, policy: args.policy.clone(),
+        model_roster: vec![args.model.clone(), args.bettor_model.clone(), reasoner.to_string()],
+        budget_b: args.reasoner_budget_tok,
+        axiom_whitelist: vec!["propext".into(), "Classical.choice".into(), "Quot.sound".into()],
+        head_commit_sha: market_tape_shared::head_commit_sha(),
+    });
     let mut reasoner_completion_tok = 0u64; let mut chat_completion_tok = 0u64;
     let mut micro_usd = 0i64; let mut llm_calls = 0usize; let mut lean_calls = 0usize;
     let mut banked: BTreeSet<String> = BTreeSet::new();
@@ -1156,15 +1175,19 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
             let (_ti2, _b2, eclass) = &residual[ri];
             let prompt = format!("Assess how CLOSE this failed Lean 4 attempt at `{}` is to a correct proof.\n```\n{body}\n```\nLean rejected it with error class: {eclass} (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Will a careful repair likely succeed? Output JSON {{\"verdict\":\"YES\"|\"NO\",\"confidence\":0-100}}. You stake real capital and LOSE it if wrong.", stmt(&thm.preamble));
             let resp = match llm.generate(&GenerateRequest { model: bettor_m.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.3), max_tokens: Some(120) }).await {
-                Ok(r) => { llm_calls += 1; if bettor_m.contains("reasoner") { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
+                Ok(r) => { llm_calls += 1; if bettor_m.as_str() == reasoner { reasoner_completion_tok += r.completion_tokens as u64; } else { chat_completion_tok += r.completion_tokens as u64; } micro_usd += call_micro_usd(&bettor_m, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: bettor_m.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 }); r }
                 Err(_) => continue,
             };
             let verdict = extract(&resp.content, "verdict").and_then(|v| v.as_str().map(|s| s.to_uppercase())).unwrap_or_default();
             let conf = extract(&resp.content, "confidence").and_then(|v| v.as_u64()).unwrap_or(50).min(100);
-            let stake = stake_from_confidence(conf, WALLET_BUDGET_MICRO);
+            // flatbid firewall = CONSTANT bids (no confidence weighting) → the resulting price is the bare
+            // vote-fraction, NOT capital-weighted. Distinct from market (which weights by belief). Mirrors
+            // run_probe_alloc's flatbid. (audit BLOCKER-1 fix: flatbid was previously the unimplemented `_`
+            // default = index-order roundrobin, masquerading as the causal firewall.)
+            let stake = if args.policy == "flatbid" { (MIN_STAKE_MICRO + MAX_STAKE_MICRO) / 2 } else { stake_from_confidence(conf, WALLET_BUDGET_MICRO) };
             conf_sum[ri] += conf as i64;
             // skeptic-rerank signal: the reasoner bettor's raw success belief (signed by verdict), NO capital.
-            if bettor_m.contains("reasoner") { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
+            if bettor_m.as_str() == reasoner { reasoner_conf[ri] = if verdict == "YES" { conf as i64 } else { -(conf as i64) }; }
             if stake < MIN_STAKE_MICRO { continue; }
             let mh = short_hash(&format!("{bettor_m}:{bi}"));
             if verdict == "YES" { yes[ri] += stake; tape.record(&MarketEvent::Invest { agent: bi, claim: ri, side: "YES".into(), amount_micro: stake, model_hash: mh, confidence: conf }); }
@@ -1173,16 +1196,51 @@ async fn run_alloc(args: &Args, llm: &ResilientLLMClient, lean_bin: &Path, lp: &
     }
     let price_pm: Vec<i64> = (0..residual.len()).map(|ri| price_yes_permille(yes[ri], no[ri])).collect();
 
+    // ── COORDINATOR arm (central planning, TP-2): a single central-coordinator LLM RANKS the residuals
+    // (vs the market PRICING them). It sees the SAME proximity info (Lean error class) the market sees; the
+    // ONLY difference is central-LLM allocation vs price allocation of the scarce reasoner budget — the clean
+    // Hayek contrast. NOT a strawman: a real LLM central planner, same task/budget/verifier as the market.
+    let coord_order: Option<Vec<usize>> = if args.policy == "coordinator" {
+        // audit BLOCKER-2 fix: the coordinator must see the SAME per-residual signal the market bettors see
+        // (statement + failed attempt body + error class), not just the id — else the market has strictly
+        // more information and the comparison is biased toward "price beats coordinator".
+        let summary: String = residual.iter().enumerate()
+            .map(|(ri, (ti, b, ec))| { let body_t: String = b.chars().take(500).collect();
+                format!("[{ri}] thm: {}\n  failed_attempt: {}\n  lean_error_class: {ec}", stmt(&pool[*ti].preamble), body_t) })
+            .collect::<Vec<_>>().join("\n");
+        let prompt = format!("You are a CENTRAL COORDINATOR with a SCARCE reasoner-repair budget over {} failed Lean 4 proof attempts. Each shows the theorem, the failed attempt, and its Lean error class (unsolved_goals/type_mismatch = NEAR a fix; unknown_id/parse = FAR). Decide the ORDER to send them to the reasoner to MAXIMISE verified solves within budget. Output ONLY JSON {{\"order\":[EVERY residual index, best-first]}}.\n\n{summary}", residual.len());
+        match llm.generate(&GenerateRequest { model: args.model.clone(), messages: vec![Message { role: "user".into(), content: prompt }], temperature: Some(0.2), max_tokens: Some(300) }).await {
+            Ok(r) => { llm_calls += 1; chat_completion_tok += r.completion_tokens as u64; micro_usd += call_micro_usd(&args.model, r.prompt_tokens as u64, r.completion_tokens as u64); tape.record(&MarketEvent::LlmCall { model: args.model.clone(), prompt_tokens: r.prompt_tokens as u64, completion_tokens: r.completion_tokens as u64 });
+                extract(&r.content, "order").and_then(|v| v.as_array().map(|a| a.iter().filter_map(|x| x.as_u64().map(|u| u as usize)).filter(|&i| i < residual.len()).collect::<Vec<usize>>())) }
+            Err(_) => None,
+        }
+    } else { None };
+    // QC (2026-06-01, audit-hardened): a coordinator cell must produce a COMPLETE ranking — a permutation of
+    // ALL residuals. A None/empty OR a PARTIAL order (which would silently index-fill the unranked tail =
+    // partial roundrobin, audit MINOR-5) is a measurement failure → hard-fail → the cell is EXCLUDED (no
+    // silent fallback to index order). A coordinator manifest that exists thus provably ranked every residual.
+    if args.policy == "coordinator" && !residual.is_empty() {
+        let covers_all = coord_order.as_ref().map_or(false, |o|
+            o.iter().copied().collect::<std::collections::BTreeSet<usize>>().len() == residual.len());
+        if !covers_all {
+            return Err("coordinator ranking missing/partial (did not cover ALL residuals) — cell EXCLUDED (no silent index-fill)".into());
+        }
+    }
+
     // ── PHASE 3: order residual by the ARM's policy, spend reasoner repair budget B ──
     let mut order: Vec<usize> = (0..residual.len()).collect();
     match args.policy.as_str() {
-        "market" => order.sort_by(|&a, &b| price_pm[b].cmp(&price_pm[a])),         // price-descending (the economy)
+        // market = confidence-weighted price; flatbid = constant-bid price (vote-fraction). BOTH order by
+        // their own price_pm — distinct arms (different stakes → different pools → different price).
+        "market" | "flatbid" => order.sort_by(|&a, &b| price_pm[b].cmp(&price_pm[a])),
         "shuffled" => { let mut p = price_pm.clone(); for i in (1..p.len()).rev() { let j = rng.gen_range(0..=i); p.swap(i,j); } order.sort_by(|&a,&b| p[b].cmp(&p[a])); } // price permuted → causality probe
         "random" => { for i in (1..order.len()).rev() { let j = rng.gen_range(0..=i); order.swap(i,j); } } // no price
         "confgreedy" => order.sort_by(|&a, &b| conf_sum[b].cmp(&conf_sum[a])),       // raw confidence, no market
         // skeptic-rerank: order by the SINGLE reasoner-bettor's raw p_success (a strong critic, NO capital,
         // NO market). Rules out "a strong judge helped, not the market" — market must beat THIS too.
         "skeptic_rerank" => order.sort_by(|&a, &b| reasoner_conf[b].cmp(&reasoner_conf[a])),
+        // COORDINATOR (central planner): repair in the coordinator's chosen order, then any it omitted.
+        "coordinator" => { if let Some(co) = &coord_order { let mut seen = std::collections::BTreeSet::new(); let mut o: Vec<usize> = co.iter().copied().filter(|i| seen.insert(*i)).collect(); for i in 0..residual.len() { if seen.insert(i) { o.push(i); } } order = o; } }
         _ => {} // roundrobin = index order
     }
     let frontier_h = short_hash(&format!("{:?}{:?}", order, price_pm));
@@ -1377,6 +1435,11 @@ async fn main() -> Result<(), String> {
     // (het6/het8 conjunctions). The decisive price-causality test (research + strategy converged here).
     if args.task.starts_with("het") {
         return run_probe_alloc(&args, &llm, &lean_bin, &lp).await;
+    }
+    // SHARED-STATE T2 mode: free-bank + betting + repair computed ONCE; all 6 arms allocate over the
+    // IDENTICAL state (isolates routing; one invocation emits all arms' manifests). The confound-free path.
+    if args.task.starts_with("shared") {
+        return run_alloc_shared(&args, &llm, &lean_bin, &lp).await;
     }
     // LEAN-ALLOC mode: price allocates the scarce reasoner-repair budget over a real theorem pool.
     if args.task.starts_with("pool") {
