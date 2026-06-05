@@ -19,6 +19,8 @@ const BROAD_MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manif
 const TRUE_SUITE_ROOT: &str = "handover/evidence/true_suite";
 const FULL_SYSTEM_SCHEMA: &str = "turingosv4.true_suite.full_system_participation.v1";
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
+const HISTORICAL_FINAL_CLOSURE_WITNESS: &str =
+    "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-05-27.md";
 const SOURCE_TREE_COMMIT_POINTERS: &[&str] = &[
     "/source_tree/commit",
     "/source_tree/head_commit",
@@ -1158,6 +1160,57 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
         assert!(
             !non_closing_receipts.is_empty() || !blocker_bearing_bindings.is_empty(),
             "REAUDIT manifests must keep final_closure_claimed=false until source receipts are closure-capable and blocker inventories are empty"
+        );
+    }
+}
+
+#[test]
+fn final_closure_claim_requires_fresh_current_tree_witness_binding() {
+    let manifest = parse_toml(RECONCILIATION_MANIFEST);
+    let final_closure_claimed = manifest
+        .get("final_closure_claimed")
+        .and_then(toml::Value::as_bool)
+        .unwrap_or(false);
+    let witness_path = manifest
+        .get("fresh_final_closure_witness_path")
+        .and_then(toml::Value::as_str)
+        .unwrap_or_else(|| {
+            panic!(
+                "{RECONCILIATION_MANIFEST} must explicitly bind fresh_final_closure_witness_path"
+            )
+        })
+        .trim();
+
+    if final_closure_claimed {
+        assert!(
+            !witness_path.is_empty(),
+            "final_closure_claimed=true requires a fresh current-tree final closure witness path"
+        );
+        assert_ne!(
+            witness_path, HISTORICAL_FINAL_CLOSURE_WITNESS,
+            "final_closure_claimed=true cannot reuse the historical 2026-05-27 witness"
+        );
+        let text = fs::read_to_string(witness_path)
+            .unwrap_or_else(|err| panic!("read fresh final closure witness {witness_path}: {err}"));
+        let lower = text.to_ascii_lowercase();
+        for required in [
+            "obl-005",
+            "current-tree",
+            "no-zombie",
+            "no drift",
+            "chaintape",
+            "cas",
+            "no historical evidence",
+        ] {
+            assert!(
+                lower.contains(&required.to_ascii_lowercase()),
+                "fresh final closure witness {witness_path} missing required closure scope text `{required}`"
+            );
+        }
+    } else {
+        assert!(
+            witness_path.is_empty(),
+            "fresh_final_closure_witness_path must stay empty while final_closure_claimed=false; got {witness_path}"
         );
     }
 }
