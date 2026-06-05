@@ -17,12 +17,14 @@ commit git-history closure; PR #286 binds any future final closure to a fresh
 current-tree witness path; PR #287-#291 synchronize the guard state, keep
 web/CLI spec generation on shared runtime helpers, bind active ToolBench and
 Mind2Web production liveness refs to fresh true-suite runs, and guard the
-R-022 enforcement log against committed conflict markers. No final closure is
-claimed.
+R-022 enforcement log against committed conflict markers; PR #292 syncs this
+derived handover after PR #291; PR #293 clarifies the OBL-010 historical G0
+receipt vs current OBL-005 single-node/core-scope Market A/B runner boundary.
+No final closure is claimed.
 
-**Last synchronized base**: `4a883d3c` (PR #291 — R-022 enforcement-log
-conflict-marker guard). Verify the current tip with `git rev-parse origin/main`;
-this handover file is derived, not authority.
+**Last synchronized base**: `a0343685` (PR #293 — OBL-010 historical/current
+G0 boundary clarification). Verify the current tip with
+`git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -33,7 +35,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #291 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #293 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -45,8 +47,9 @@ Current state:
   guard-state synchronization, G0 historical/current-runner boundary guard,
   Market A/B single-node/core-scope stage-2 guard, source-tree commit
   git-history guard, fresh final closure witness binding guard, web/CLI shared
-  spec runtime kernel guards, production liveness fresh-run binding, and
-  R-022 enforcement-log conflict-marker guard.
+  spec runtime kernel guards, production liveness fresh-run binding,
+  R-022 enforcement-log conflict-marker guard, and OBL-010 historical/current
+  G0 boundary clarification.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -117,12 +120,24 @@ Current state:
   `tests/constitution_rules_ci_mirror.rs::enforcement_log_has_no_conflict_markers`
   prevents committed `rules/enforcement.log` conflict markers from surviving
   constitution gates. This is a hygiene guard only and does not close OBL-005.
-- Current-binary boundary added 2026-06-05: OBL-010's 11/11 `g0run5`
+- Current-binary boundary added by PR #293 on 2026-06-05: OBL-010's 11/11 `g0run5`
   capability receipt is historical evidence anchored to commit `418d8a7d`.
   Current `src/bin/g0_market_activation_current_kernel.rs` was deliberately
   narrowed by PR #258 / commit `7b12e9f1` into the OBL-005 Market A/B
   single-node/core-scope runner. Do not cite the current retained binary as
   current c4/c5/c10/c11 proof without fresh multi-node replay evidence.
+- Current blocker audit on 2026-06-05 re-derived the active reconciliation
+  counts from `tests/fixtures/liveness/true_suite_evidence_reconciliation.toml`:
+  `fresh_final_closure_witness_missing=21`,
+  `domain_receipt_final_closure_false=14`,
+  `benchmark_capability_not_solved=10`, and zero source/tree/domain-missing or
+  market-NO blockers. Focused gates
+  `constitution_production_module_liveness`,
+  `constitution_true_suite_evidence_reconciliation`, and
+  `constitution_obl005_final_closure_witness` passed locally. Headless AGY and
+  Claude Sonnet read-only audits found no unregistered zombie in the inspected
+  liveness/reconciliation gates; both agree final OBL-005 closure is not allowed
+  without explicit scope ratification and a fresh current-tree final witness.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
