@@ -508,6 +508,31 @@ fn value_has_benchmark_failure(value: &Value) -> bool {
     }
 }
 
+fn value_has_market_stage2_constraint(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => map.iter().any(|(key, child)| {
+            let key = key.to_ascii_lowercase();
+            if matches!(
+                key.as_str(),
+                "c4_c5_constraint_note" | "c10_c11_stage2_note" | "final_closure_blocker"
+            ) {
+                let text = child.as_str().unwrap_or_default().to_ascii_lowercase();
+                if text.contains("stage-2")
+                    || text.contains("stage2")
+                    || text.contains("c4_c5")
+                    || text.contains("c10_c11")
+                    || text.contains("priced-dag")
+                {
+                    return true;
+                }
+            }
+            value_has_market_stage2_constraint(child)
+        }),
+        Value::Array(items) => items.iter().any(value_has_market_stage2_constraint),
+        _ => false,
+    }
+}
+
 fn value_has_single_sample_benchmark_success(value: &Value) -> bool {
     match value {
         Value::Object(map) => map.iter().any(|(key, child)| {
@@ -969,6 +994,38 @@ fn source_tree_fingerprint_detector_rejects_replay_head_as_source_proof() {
         "runtime replay HEAD is not a source-tree fingerprint"
     );
     assert!(source_tree_fingerprint_present(&source_commit));
+}
+
+#[test]
+fn market_ab_g0_stage2_constraints_must_remain_non_closing() {
+    let contracts = contract_rows(REALWORLD_MANIFEST, "task");
+    let binding = reconciliation_rows("coverage_task")
+        .into_iter()
+        .find(|binding| binding.id == "market_ab_performance_fresh")
+        .expect("market_ab_performance_fresh reconciliation binding missing");
+    let row = contracts
+        .get(&binding.id)
+        .unwrap_or_else(|| panic!("binding `{}` missing realworld task row", binding.id));
+    let report = read_full_system_report(&binding, row);
+
+    assert!(
+        value_has_market_stage2_constraint(&report),
+        "market_ab G0 receipt must explicitly carry the c4/c5 or c10/c11 stage-2 constraint before it can be reconciled as non-closing evidence"
+    );
+    assert_eq!(
+        report
+            .pointer("/domain_manifest/final_closure_possible")
+            .and_then(Value::as_bool),
+        Some(false),
+        "market_ab G0 core receipt must not claim final closure while c4/c5 priced-DAG and c10/c11 settlement are stage-2"
+    );
+    assert!(
+        binding
+            .blockers
+            .iter()
+            .any(|blocker| blocker == "domain_receipt_final_closure_false"),
+        "market_ab stage-2 receipt must declare domain_receipt_final_closure_false in reconciliation blockers"
+    );
 }
 
 #[test]
