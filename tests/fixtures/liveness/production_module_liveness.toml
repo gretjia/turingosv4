@@ -93,6 +93,90 @@ path = "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194
 families = ["market_ab", "market", "current_kernel", "full_system_participation", "fc3"]
 evidence = ["ChainTape", "CAS", "audit_tape", "market_ab_full_system_receipts", "packaged_restore", "full_system_participation"]
 
+[[real_world_suite]]
+id = "obl005_fresh_market_20260604T235308Z"
+path = "handover/evidence/true_suite/obl005_fresh_market_20260604T235308Z"
+families = ["market", "external_agent", "current_kernel", "full_system_participation", "fc3"]
+evidence = ["ChainTape", "CAS", "BuyWithCoinRouterTx", "YES_NO", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_market_ab_20260604T232500Z"
+path = "handover/evidence/true_suite/obl005_fresh_market_ab_20260604T232500Z"
+families = ["market_ab", "market", "current_kernel", "full_system_participation", "fc3"]
+evidence = ["ChainTape", "CAS", "YES_NO", "ChallengeTx", "price_discovery", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_generate_20260604T232500Z"
+path = "handover/evidence/true_suite/obl005_fresh_generate_20260604T232500Z"
+families = ["generate_artifact", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["ChainTape", "CAS", "ArtifactBundleManifest", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_swebench_20260604T192100Z"
+path = "handover/evidence/true_suite/obl005_fresh_swebench_20260604T192100Z"
+families = ["swebench", "coding_repair", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_swebench_lite_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_osworld_20260604T171857Z"
+path = "handover/evidence/true_suite/obl005_fresh_osworld_20260604T171857Z"
+families = ["osworld", "computer_use", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["offline_osworld_style_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_cybench_20260604T164533Z"
+path = "handover/evidence/true_suite/obl005_fresh_cybench_20260604T164533Z"
+families = ["cybench", "security_sandbox", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["offline_cybench_style_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_fc3_20260604T150936Z"
+path = "handover/evidence/true_suite/obl005_fresh_fc3_20260604T150936Z"
+families = ["fc3", "governance", "reinit", "current_kernel", "full_system_participation", "market"]
+evidence = ["ChainTape", "CAS", "typed_fc3_feedback_archive", "ArchitectProposalTx", "VetoDecisionTx", "ReinitBootTx", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_boot_replay_20260604T231500Z"
+path = "handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z"
+families = ["replay_cas", "tamper", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["ChainTape", "CAS", "replay", "restore_replay", "tamper_detection", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_boot_replay_20260604T143328Z"
+path = "handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z"
+families = ["boot_cli", "current_kernel", "full_system_participation", "replay", "market", "fc3"]
+evidence = ["ChainTape", "CAS", "turingos_init", "verify_chaintape", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_gpqa_20260604T183931Z"
+path = "handover/evidence/true_suite/obl005_fresh_gpqa_20260604T183931Z"
+families = ["gpqa", "science_reasoning", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_gpqa_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_math_20260604T191000Z"
+path = "handover/evidence/true_suite/obl005_fresh_math_20260604T191000Z"
+families = ["math", "competition_reasoning", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_math_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_webarena_20260604T200738Z"
+path = "handover/evidence/true_suite/obl005_fresh_webarena_20260604T200738Z"
+families = ["webarena", "web_agent", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_webarena_config", "offline_browser_observation", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "browser_action_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_mind2web_20260604T224409Z"
+path = "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z"
+families = ["mind2web", "browser_action", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_mind2web_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "browser_action_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
+[[real_world_suite]]
+id = "obl005_fresh_toolbench_20260604T224409Z"
+path = "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z"
+families = ["toolbench", "api_tool_use", "current_kernel", "full_system_participation", "market", "fc3"]
+evidence = ["public_toolbench_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "tool_call_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
+
 [[group]]
 id = "axiom_boot_trust_root"
 classification = "required_substrate"
