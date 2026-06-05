@@ -41,7 +41,7 @@ Current state:
   receipts from
   `obl005_fresh_boot_replay_20260604T143328Z` and
   `obl005_fresh_fc3_20260604T150936Z`, plus
-  `obl005_fresh_market_20260604T153500Z` market evidence and
+  `obl005_fresh_market_20260604T235308Z` market evidence and
   `obl005_fresh_generate_20260604T232500Z` generate/artifact closure-status
   evidence, plus
   `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
@@ -59,10 +59,10 @@ Current state:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
   `fresh_final_closure_witness_missing=21`,
-  `domain_receipt_final_closure_false=16`,
+  `domain_receipt_final_closure_false=14`,
   `benchmark_capability_not_solved=10`,
   `domain_receipt_final_closure_missing=0`, and
-  `market_no_or_short_side_missing=2`.
+  `market_no_or_short_side_missing=0`.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -80,15 +80,20 @@ Current state:
   returned `NO-VIOLATION` for the Class 2 reconciliation/evidence update.
 - Fresh market evidence added this session: `market_external_agent_fresh` and
   `market_economy_polymarket` now point at
-  `handover/evidence/true_suite/obl005_fresh_market_20260604T153500Z/`.
+  `handover/evidence/true_suite/obl005_fresh_market_20260604T235308Z/`.
   The receipt is `final_closure_possible=true` with source commit
-  `33d88be8b7835f6bde7eb2fc2e5f0301996efcab`, signed router/WorkTx evidence,
-  packaged restore replay artifacts, and replay indicators green. The live
-  external model chose `direction=yes`, so `market_no_or_short_side_missing`
-  deliberately remains; both market rows also keep domain/fresh-witness
-  blockers. Clean-context Claude witness
+  `ff5d109e3ae17a0f1ca929398d04504d4da8e610`, two role-separated external LLM
+  market participants, signed YES+NO `BuyWithCoinRouterTx` evidence
+  (`buy_yes_count=1`, `buy_no_count=1`, `no_side_market_action_txs=1`), exactly
+  one WorkTx for the task reward path (`work_tx_count_for_task=1`), packaged
+  restore replay artifacts, `FULL_SYSTEM_LIT`, `missing=[]`, and replay/restore
+  indicators green. This removes the market rows'
+  `market_no_or_short_side_missing` and `domain_receipt_final_closure_false`
+  blockers while deliberately keeping `fresh_final_closure_witness_missing`.
+  Clean-context Claude witness
   `handover/audits/OBL005_FRESH_MARKET_SOURCE_EVIDENCE_CLEAN_CONTEXT_AUDIT_2026-06-04.md`
-  returned `NO-VIOLATION`.
+  covered the earlier single-direction run; this follow-up branch still needs a
+  fresh clean-context witness before merge. No final OBL-005 closure is claimed.
 - Fresh market A/B closure-status evidence merged by PR #272:
   `market_ab_performance_fresh` now points at
   `handover/evidence/true_suite/obl005_fresh_market_ab_20260604T232500Z/`.

@@ -12,11 +12,9 @@ notes = [
 
 [[coverage_task]]
 id = "market_external_agent_fresh"
-evidence_run = "obl005_fresh_market_20260604T153500Z"
+evidence_run = "obl005_fresh_market_20260604T235308Z"
 evidence_subdir = "market_action"
 blockers = [
-  "domain_receipt_final_closure_false",
-  "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
 ]
 
@@ -190,11 +188,9 @@ blockers = [
 
 [[broad_family]]
 id = "market_economy_polymarket"
-evidence_run = "obl005_fresh_market_20260604T153500Z"
+evidence_run = "obl005_fresh_market_20260604T235308Z"
 evidence_subdir = "market_action"
 blockers = [
-  "domain_receipt_final_closure_false",
-  "market_no_or_short_side_missing",
   "fresh_final_closure_witness_missing",
 ]
 
