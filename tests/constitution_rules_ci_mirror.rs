@@ -232,3 +232,15 @@ fn engine_py_and_hook_still_present() {
         ".claude/hooks/judge.sh must remain (entry point for engine.py)"
     );
 }
+
+#[test]
+fn enforcement_log_has_no_conflict_markers() {
+    let log =
+        fs::read_to_string("rules/enforcement.log").expect("rules/enforcement.log must exist");
+    for marker in ["<<<<<<<", "=======", ">>>>>>>"] {
+        assert!(
+            !log.contains(marker),
+            "rules/enforcement.log contains unresolved conflict marker `{marker}`"
+        );
+    }
+}
