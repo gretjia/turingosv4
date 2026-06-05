@@ -11,13 +11,14 @@
 
 ## Current Snapshot (2026-06-05)
 
-**Session**: OBL-005 reopened re-audit on current main; PR #278 synchronized
-the PR #277 executable closure-scope ratification guard state after PR #276
-merged the closure-scope decision packet and PR #275 merged the benchmark
-single-sample closure guard.
+**Session**: OBL-005 reopened re-audit on current main; PR #279 separated the
+historical G0 `g0run5` 11/11 receipt from the current retained
+`g0_market_activation_current_kernel` single-node/core-scope runner boundary,
+after PR #278 synchronized the PR #277 executable closure-scope ratification
+guard state.
 
-**Last synchronized base**: `dbfbe52c` (PR #278 — OBL-005 PR #277 guard-state
-sync). Verify the current tip with `git rev-parse origin/main`;
+**Last synchronized base**: `d319a3f3` (PR #279 — OBL-005 G0 receipt/current
+runner boundary sync). Verify the current tip with `git rev-parse origin/main`;
 this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -29,7 +30,7 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #278 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #279 hardened OBL-005 final-closure accounting: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -38,7 +39,7 @@ Current state:
   evidence, plus two-sided YES/NO external market evidence, the single-sample
   benchmark overclaim guard, the closure-scope decision packet, and the
   executable closure-scope ratification guard plus derived handover/ledger
-  guard-state synchronization.
+  guard-state synchronization and G0 historical/current-runner boundary guard.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.

@@ -177,8 +177,8 @@ fn closure_scope_ratification_guard_is_current_handover_state() {
 
     let latest = read_text(LATEST_PATH);
     for required in [
-        "PR #278",
-        "dbfbe52c",
+        "PR #279",
+        "d319a3f3",
         "executable closure-scope ratification guard",
         "Current-binary boundary",
         "418d8a7d",
