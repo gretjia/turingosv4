@@ -116,6 +116,11 @@ fn flush_jsonl_record(
     let shadow = JsonlRecord::from(record);
     let line = serde_json::to_string(&shadow)
         .map_err(|e| RejectionEvidenceError::Io(format!("serialize record: {e}")))?;
+    let pre_append_len = match std::fs::metadata(path) {
+        Ok(metadata) => metadata.len(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(e) => return Err(RejectionEvidenceError::Io(format!("metadata {path:?}: {e}"))),
+    };
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -134,10 +139,9 @@ fn flush_jsonl_record(
     // append, when env var `TURINGOS_CHAINTAPE_PATH` points at the same
     // runtime_repo. Per CR-A3-HEAD-T-C2.5 the ref IS the canonical L4.E
     // pointer; the JSONL file remains the public-summary backing store
-    // for backward compatibility. Best-effort: a ref-update failure does
-    // NOT roll back the durable JSONL append. Per FR-A3-HEAD-T-C2.6 the
-    // pre-Stage-A3 evidence (JSONL-only) remains replayable via existing
-    // tooling.
+    // for backward compatibility. A canonical-ref failure is a failed
+    // append: the caller must not accept the record into the in-memory
+    // rejection chain.
     if let Ok(repo_path) = std::env::var("TURINGOS_CHAINTAPE_PATH") {
         let repo_path = std::path::PathBuf::from(&repo_path);
         // Synthesize a deterministic commit OID that anchors the L4.E
@@ -145,13 +149,30 @@ fn flush_jsonl_record(
         // record; commit message references submit_id; author/committer
         // time = submit_id (deterministic, no wall-clock leakage).
         let blob_bytes = line.as_bytes();
-        let _ = advance_l4e_ref_for_record(&repo_path, record, blob_bytes);
+        if let Err(e) = advance_l4e_ref_for_record(&repo_path, record, blob_bytes) {
+            file.set_len(pre_append_len).map_err(|rollback| {
+                RejectionEvidenceError::Io(format!(
+                    "advance {}: {e}; rollback truncate to {pre_append_len}: {rollback}",
+                    crate::bottom_white::ledger::transition_ledger::CHAINTAPE_L4E_REF
+                ))
+            })?;
+            file.sync_data().map_err(|rollback| {
+                RejectionEvidenceError::Io(format!(
+                    "advance {}: {e}; rollback sync: {rollback}",
+                    crate::bottom_white::ledger::transition_ledger::CHAINTAPE_L4E_REF
+                ))
+            })?;
+            return Err(RejectionEvidenceError::Io(format!(
+                "advance {}: {e}",
+                crate::bottom_white::ledger::transition_ledger::CHAINTAPE_L4E_REF
+            )));
+        }
     }
 
     Ok(())
 }
 
-/// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 R3.5; SG-A3.2 under-load): advance `refs/chaintape/l4e` to a new commit anchoring the just-flushed L4.E record. Best-effort; failures are logged but do not propagate. The L4.E commit chain is a parallel attestation to the JSONL backing store. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.2 + CR-A3-HEAD-T-C2.5.
+/// TRACE_MATRIX § 3 orphan (Stage A3 / HEAD_t C2 R3.5; SG-A3.2 under-load): advance `refs/chaintape/l4e` to a new commit anchoring the just-flushed L4.E record. The L4.E commit chain is a canonical attestation for the JSONL backing store; failures propagate to the append caller. Constitutional Justification: STAGE_A3_HEAD_T_C2_charter_2026-05-07.md FR-A3-HEAD-T-C2.2 + CR-A3-HEAD-T-C2.5.
 fn advance_l4e_ref_for_record(
     repo_path: &std::path::Path,
     record: &RejectedSubmissionRecord,
