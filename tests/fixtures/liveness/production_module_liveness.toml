@@ -622,6 +622,25 @@ real_world_evidence = [
 evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 
 [[group]]
+id = "workload_adapter_boundary"
+classification = "product_workload"
+status = "smoke_only"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = ["workloads"]
+paths = ["src/workloads"]
+constitutional_anchors = ["FC3:audit", "L8:workload_adapters", "L9:reports"]
+necessity = "Workload adapters classify user workload evidence and report claims without becoming kernel, sequencer, or benchmark authority."
+smoke_gates = [
+  "tests/workload_adapter_claim_boundary.rs::structural_smoke_cannot_claim_task_pass",
+  "tests/market_preregistration_contract.rs::all_market_tracks_validate_when_preregistered",
+]
+real_world_evidence = []
+evidence_requires = ["adapter claim boundary", "market preregistration", "no FC authority"]
+closure_action = "Remain smoke-only until future workload adapters bind fresh verifier-backed evidence manifests and clean-context audits."
+
+[[group]]
 id = "role_economic_learning_sidecars"
 classification = "product_workload"
 status = "historical_real_world_candidate"
