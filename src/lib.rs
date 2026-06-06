@@ -14,6 +14,8 @@ pub mod memory_kernel;
 pub mod runtime;
 pub mod sdk;
 pub mod state;
+/// TRACE_MATRIX FC3: L8 workload adapters are claim-boundary helpers, not kernel authority.
+pub mod workloads;
 /// TRACE_MATRIX FC1a-output_edge: TDMA-Bounded-RC1 state-first prefix parser (Atom 2).
 pub mod state_update;
 /// TRACE_MATRIX FC1a-budget_gate: TDMA-Bounded-RC1 tokenizer (Atom 3).
