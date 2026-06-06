@@ -31,6 +31,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -162,6 +163,20 @@ def parse_removed_trace_lines(diff: str) -> list[tuple[str, str]]:
         if line.startswith("--- a/"):
             cur_file = line[6:]
         elif line.startswith("-") and not line.startswith("---"):
+            text = line[1:]
+            if "/// TRACE_MATRIX " in text and cur_file:
+                out.append((cur_file, text))
+    return out
+
+
+def parse_added_trace_lines(diff: str) -> list[tuple[str, str]]:
+    """Yield (file, added_line_text) for each '+' line that contained '/// TRACE_MATRIX '."""
+    out: list[tuple[str, str]] = []
+    cur_file = None
+    for line in diff.splitlines():
+        if line.startswith("+++ b/"):
+            cur_file = line[6:]
+        elif line.startswith("+") and not line.startswith("+++"):
             text = line[1:]
             if "/// TRACE_MATRIX " in text and cur_file:
                 out.append((cur_file, text))
@@ -311,6 +326,7 @@ def mode_check(mode: str, base_ref: str | None, message_file: str | None = None)
     diff = git_diff(mode, base_ref)
     added = parse_added_lines(diff)
     removed_traces = parse_removed_trace_lines(diff)
+    moved_trace_budget = Counter(parse_added_trace_lines(diff))
 
     msg = commit_message(mode, message_file)
     skip_ok, skip_reason = skip_token_justification(msg)
@@ -366,6 +382,18 @@ def mode_check(mode: str, base_ref: str | None, message_file: str | None = None)
     # Removal detection (§ 2.1 step + I-REMOVAL)
     for path, removed_line in removed_traces:
         if not path.startswith(SRC_PREFIX):
+            continue
+        moved_key = (path, removed_line)
+        if moved_trace_budget[moved_key] > 0:
+            moved_trace_budget[moved_key] -= 1
+            log_event(
+                "PASS",
+                path,
+                0,
+                "trace_removal",
+                f"same-file TRACE_MATRIX move preserved: {removed_line.strip()[:80]}",
+                tree_hash,
+            )
             continue
         if skip_ok:
             log_event("SKIP", path, 0, "trace_removal", skip_reason, tree_hash)

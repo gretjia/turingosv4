@@ -142,6 +142,30 @@ class CommitMsgHookEndToEndTest(unittest.TestCase):
         (self.repo / "src" / "lib.rs").write_text("// (mod removed)\n")
         self._git("add", "src/lib.rs")
 
+    def _stage_same_file_move(self):
+        """Stage a rustfmt-style reorder where TRACE_MATRIX doc blocks move
+        with their pub items. This must not count as backlink removal."""
+        seed = (
+            "/// TRACE_MATRIX FC1-N4: zeta module.\n"
+            "pub mod zeta;\n"
+            "/// TRACE_MATRIX FC1-N4: alpha module.\n"
+            "pub mod alpha;\n"
+        )
+        (self.repo / "src" / "lib.rs").write_text(seed)
+        (self.repo / "src" / "alpha.rs").write_text("pub fn noop() {}\n")
+        (self.repo / "src" / "zeta.rs").write_text("pub fn noop() {}\n")
+        self._git("add", "src/lib.rs", "src/alpha.rs", "src/zeta.rs")
+        self._git("commit", "-q", "-m", "seed two traced modules")
+
+        moved = (
+            "/// TRACE_MATRIX FC1-N4: alpha module.\n"
+            "pub mod alpha;\n"
+            "/// TRACE_MATRIX FC1-N4: zeta module.\n"
+            "pub mod zeta;\n"
+        )
+        (self.repo / "src" / "lib.rs").write_text(moved)
+        self._git("add", "src/lib.rs")
+
     def _write_msg(self, body):
         msg_path = Path(self.tmp) / "msg.txt"
         msg_path.write_text(body)
@@ -170,6 +194,12 @@ class CommitMsgHookEndToEndTest(unittest.TestCase):
         rc, stderr = self._run_check(msg)
         self.assertEqual(rc, 2, msg=f"expected BLOCK (rc=2), got rc={rc}")
         self.assertIn("R-022", stderr)
+
+    def test_same_file_trace_block_move_without_skip_token_passes(self):
+        self._stage_same_file_move()
+        msg = self._write_msg("rustfmt reorder, no skip token\n")
+        rc, stderr = self._run_check(msg)
+        self.assertEqual(rc, 0, msg=f"expected PASS, got rc={rc} stderr={stderr}")
 
     def test_removal_with_invalid_skip_ref_blocks(self):
         """A skip token whose justification ref doesn't resolve must NOT

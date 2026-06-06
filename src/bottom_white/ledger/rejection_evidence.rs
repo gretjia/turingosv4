@@ -119,7 +119,11 @@ fn flush_jsonl_record(
     let pre_append_len = match std::fs::metadata(path) {
         Ok(metadata) => metadata.len(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
-        Err(e) => return Err(RejectionEvidenceError::Io(format!("metadata {path:?}: {e}"))),
+        Err(e) => {
+            return Err(RejectionEvidenceError::Io(format!(
+                "metadata {path:?}: {e}"
+            )))
+        }
     };
     let mut file = std::fs::OpenOptions::new()
         .create(true)
