@@ -38,9 +38,12 @@ bindings, and
 `handover/audits/MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md` records the current
 read-only mainline baseline at `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae`.
 
-**Last synchronized base**: `4af83627` (PR #311 — OBL-005 CI source-tree
-reachability repair on GitHub main). Verify the current tip with
-`git rev-parse origin/main`; this handover file is derived, not authority.
+**Last synchronized base / snapshot source baseline**: `4af83627` (PR #311 —
+OBL-005 CI source-tree reachability repair on GitHub main). This is the
+source/evidence baseline captured by `MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md`,
+not a self-updating current-HEAD pointer; the snapshot sync itself landed as
+PR #312 / `f599be29`. Verify the current tip with `git rev-parse origin/main`;
+this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,

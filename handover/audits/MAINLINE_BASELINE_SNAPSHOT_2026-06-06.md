@@ -16,12 +16,16 @@
   `/home/zephryj/projects/turingosv4-mainline-baseline-snapshot`
 - Branch: `codex/mainline-baseline-snapshot`
 - Base: `origin/main`
-- Main commit:
+- Source baseline commit:
   `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae`
 - Merged source: PR #311, `Class 2: repair OBL005 CI source reachability`
 - PR #311 merge time: `2026-06-06T15:17:02Z`
 - PR #311 merge commit:
   `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae`
+- Snapshot sync PR: PR #312, `Class 0: record mainline baseline snapshot`
+- PR #312 merge time: `2026-06-06T23:27:10Z`
+- PR #312 merge commit:
+  `f599be295ceffd24c5e9fba03eccbdb10bc78d0e`
 
 ## Truth-Tier Reading
 
@@ -31,7 +35,7 @@
   roots remain the authority. This snapshot does not rewrite historical
   evidence or create new evidence roots.
 - Tier 3 derived pointers: `OBLIGATIONS.md` is already closed with an exact
-  `OBL-ALL-CLOSED` status, and this PR updates `handover/ai-direct/LATEST.md`
+  `OBL-ALL-CLOSED` status, and PR #312 updated `handover/ai-direct/LATEST.md`
   from the stale PR #310 pointer to the PR #311 GitHub-main baseline.
 
 ## Current State
