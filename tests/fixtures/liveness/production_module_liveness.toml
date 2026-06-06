@@ -307,10 +307,15 @@ allowed_as_fc_authority = true
 restricted_surface = true
 module_ids = [
   "economy",
+  "economy::conservation",
   "economy::escrow_vault",
+  "economy::events",
   "economy::ledger",
   "economy::monetary_invariant",
   "economy::money",
+  "economy::price_broadcast",
+  "economy::projections",
+  "economy::settlement",
   "sdk::tools",
   "sdk::tools::wallet",
 ]
@@ -318,6 +323,10 @@ paths = ["src/economy", "src/sdk/tools", "src/state/router_quote.rs", "src/state
 constitutional_anchors = ["Law:1Coin=1YES+1NO", "Art.0.2", "FC1:wtool", "market:Coin/YES/NO"]
 necessity = "The market/economy activates agents while preserving integer conservation and no ghost liquidity."
 smoke_gates = [
+  "tests/economy_conservation.rs",
+  "tests/economy_no_parallel_ledger.rs",
+  "tests/economy_predicate_price_blindness.rs",
+  "tests/economy_tape_replay.rs",
   "tests/constitution_polymarket_smoke.rs",
   "tests/constitution_router_buy_with_coin.rs",
 ]
@@ -335,7 +344,7 @@ real_world_evidence = [
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/arm_D/full_system_augmentation_manifest.json",
   "handover/evidence/true_suite/market_ab_full_system_evidence_20260526T194445Z/market_ab/full_system_participation.json",
 ]
-evidence_requires = ["integer money", "market tx", "wallet projection", "no ghost liquidity"]
+evidence_requires = ["integer money", "market tx", "wallet projection", "market projection", "replay", "no price-as-truth", "no ghost liquidity"]
 
 [[group]]
 id = "runtime_replay_evidence_audit"
