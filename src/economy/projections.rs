@@ -16,6 +16,7 @@ use crate::economy::events::{economy_event_from_tape, EconomyEvent};
 use crate::economy::money::MicroCoin;
 use crate::economy::settlement::{settlement_projection_from_receipt, SettlementProjection};
 use crate::runtime::predicate_receipt::PredicateReceipt;
+use crate::runtime::projection::{ProjectionCache, ProjectionCacheKey};
 use crate::runtime::tape_event::{TapeEventEnvelope, TapeEventError, TapeEventKind};
 use crate::state::price_index::{compute_price_index, NodeMarketEntry};
 use crate::state::q_state::{
@@ -31,6 +32,50 @@ use crate::state::typed_tx::{
 pub const ECONOMY_PROJECTION_ID: &str = "economy.v0";
 /// TRACE_MATRIX Art.0.2 + FC2-N21/N28: schema version for the replay-only L6 economy projection.
 pub const ECONOMY_PROJECTION_VERSION: u32 = 0;
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: A10 in-memory cache for replay-derived economy projections.
+pub type EconomyProjectionCache = ProjectionCache<EconomyProjection>;
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: cache key is exactly projection id/version plus current ChainTape GitOid.
+pub fn economy_projection_cache_key(tape_head_oid: &str) -> ProjectionCacheKey {
+    ProjectionCacheKey::new(
+        ECONOMY_PROJECTION_ID,
+        ECONOMY_PROJECTION_VERSION,
+        tape_head_oid,
+    )
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: result of economy projection derivation with optional cache acceleration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EconomyProjectionCacheResult {
+    pub projection: EconomyProjection,
+    pub status: EconomyProjectionCacheStatus,
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: cache use decision; cache hit/delta never changes canonical replay semantics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EconomyProjectionCacheStatus {
+    CacheHit {
+        head_oid: String,
+    },
+    DeltaApplied {
+        from_head_oid: String,
+        to_head_oid: String,
+        delta_event_count: usize,
+    },
+    FullReplay {
+        reason: EconomyProjectionCacheReplayReason,
+    },
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: why cache acceleration was bypassed in favor of full tape replay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EconomyProjectionCacheReplayReason {
+    EmptyCache,
+    EmptyTape,
+    TamperedCurrentEntry,
+    NoAncestorForStaleCache,
+}
 
 /// TRACE_MATRIX Art.0.2 + FC2-N21/N28: replay-only economy projection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,6 +131,141 @@ pub fn derive_economy_projection(
     let mut projection = EconomyProjection::empty_for_tape_head(String::new(), 0);
     let mut work_task_by_tx: BTreeMap<TxId, TaskId> = BTreeMap::new();
 
+    apply_events_to_projection(cas, &mut projection, &mut work_task_by_tx, events)?;
+    finalize_projection(&mut projection)?;
+    Ok(projection)
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: derive economy projection with GitOid-watermarked cache acceleration only.
+pub fn derive_economy_projection_with_cache(
+    cas: &CasStore,
+    events: &[TapeEventEnvelope],
+    cache: &mut EconomyProjectionCache,
+) -> Result<EconomyProjectionCacheResult, EconomyProjectionError> {
+    validate_projection_events(events)?;
+    let Some((current_head, current_logical_t)) = current_tape_watermark(events) else {
+        let projection = derive_economy_projection(cas, events)?;
+        return Ok(EconomyProjectionCacheResult {
+            projection,
+            status: EconomyProjectionCacheStatus::FullReplay {
+                reason: EconomyProjectionCacheReplayReason::EmptyTape,
+            },
+        });
+    };
+
+    let current_key = economy_projection_cache_key(&current_head);
+    if let Some(candidate) = cache.get(&current_key) {
+        if cache_entry_matches(candidate, &current_head, current_logical_t) {
+            return Ok(EconomyProjectionCacheResult {
+                projection: candidate.clone(),
+                status: EconomyProjectionCacheStatus::CacheHit {
+                    head_oid: current_head,
+                },
+            });
+        }
+
+        let projection = derive_economy_projection(cas, events)?;
+        cache.insert(current_key, projection.clone());
+        return Ok(EconomyProjectionCacheResult {
+            projection,
+            status: EconomyProjectionCacheStatus::FullReplay {
+                reason: EconomyProjectionCacheReplayReason::TamperedCurrentEntry,
+            },
+        });
+    }
+
+    if let Some((ancestor_index, ancestor)) = find_cache_ancestor(events, cache) {
+        let from_head = ancestor.derived_from_tape_head.clone();
+        let projection =
+            derive_economy_projection_delta(cas, ancestor, &events[(ancestor_index + 1)..])?;
+        cache.insert(current_key, projection.clone());
+        return Ok(EconomyProjectionCacheResult {
+            projection,
+            status: EconomyProjectionCacheStatus::DeltaApplied {
+                from_head_oid: from_head,
+                to_head_oid: current_head,
+                delta_event_count: events.len() - ancestor_index - 1,
+            },
+        });
+    }
+
+    let reason = if cache.is_empty() {
+        EconomyProjectionCacheReplayReason::EmptyCache
+    } else {
+        EconomyProjectionCacheReplayReason::NoAncestorForStaleCache
+    };
+    let projection = derive_economy_projection(cas, events)?;
+    cache.insert(current_key, projection.clone());
+    Ok(EconomyProjectionCacheResult {
+        projection,
+        status: EconomyProjectionCacheStatus::FullReplay { reason },
+    })
+}
+
+fn validate_projection_events(events: &[TapeEventEnvelope]) -> Result<(), EconomyProjectionError> {
+    for event in events {
+        event.validate()?;
+    }
+    Ok(())
+}
+
+fn current_tape_watermark(events: &[TapeEventEnvelope]) -> Option<(String, u64)> {
+    events
+        .last()
+        .map(|event| (event.tape_ref.head_oid_hex().to_string(), event.logical_t))
+}
+
+fn cache_entry_matches(projection: &EconomyProjection, head_oid: &str, logical_t: u64) -> bool {
+    projection.projection_id == ECONOMY_PROJECTION_ID
+        && projection.projection_version == ECONOMY_PROJECTION_VERSION
+        && projection.derived_from_tape_head == head_oid
+        && projection.last_applied_logical_t == logical_t
+}
+
+fn find_cache_ancestor<'a>(
+    events: &[TapeEventEnvelope],
+    cache: &'a EconomyProjectionCache,
+) -> Option<(usize, &'a EconomyProjection)> {
+    for (idx, event) in events.iter().enumerate().rev() {
+        let head = event.tape_ref.head_oid_hex();
+        let key = economy_projection_cache_key(head);
+        if let Some(candidate) = cache.get(&key) {
+            if cache_entry_matches(candidate, head, event.logical_t) {
+                return Some((idx, candidate));
+            }
+        }
+    }
+    None
+}
+
+fn derive_economy_projection_delta(
+    cas: &CasStore,
+    cached_projection: &EconomyProjection,
+    delta_events: &[TapeEventEnvelope],
+) -> Result<EconomyProjection, EconomyProjectionError> {
+    let mut projection = cached_projection.clone();
+    let mut work_task_by_tx = work_task_index_from_projection(&projection);
+    apply_events_to_projection(cas, &mut projection, &mut work_task_by_tx, delta_events)?;
+    finalize_projection(&mut projection)?;
+    Ok(projection)
+}
+
+fn work_task_index_from_projection(projection: &EconomyProjection) -> BTreeMap<TxId, TaskId> {
+    let mut index = BTreeMap::new();
+    for position in projection.node_positions.values() {
+        if position.kind == PositionKind::FirstLong {
+            index.insert(position.source_tx.clone(), position.task_id.clone());
+        }
+    }
+    index
+}
+
+fn apply_events_to_projection(
+    cas: &CasStore,
+    projection: &mut EconomyProjection,
+    work_task_by_tx: &mut BTreeMap<TxId, TaskId>,
+    events: &[TapeEventEnvelope],
+) -> Result<(), EconomyProjectionError> {
     for event in events {
         event.validate()?;
         projection.derived_from_tape_head = event.tape_ref.head_oid_hex().to_string();
@@ -113,16 +293,19 @@ pub fn derive_economy_projection(
         if let Some(economy_event) = economy_event_from_tape(event, &tx, None)? {
             projection.accepted_events.push(economy_event);
         }
-        apply_typed_tx(&mut projection, &mut work_task_by_tx, &tx, event.logical_t)?;
+        apply_typed_tx(projection, work_task_by_tx, &tx, event.logical_t)?;
     }
+    Ok(())
+}
 
-    let econ = projection_to_economic_state(&projection);
+fn finalize_projection(projection: &mut EconomyProjection) -> Result<(), EconomyProjectionError> {
+    let econ = projection_to_economic_state(projection);
     projection.price_index = compute_price_index(&econ);
     projection.conservation_root =
-        crate::economy::conservation::conservation_report_from_projection(&projection)
+        crate::economy::conservation::conservation_report_from_projection(projection)
             .map_err(|e| EconomyProjectionError::Conservation(e.to_string()))?
             .conservation_root;
-    Ok(projection)
+    Ok(())
 }
 
 fn apply_typed_tx(
