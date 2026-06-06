@@ -3,6 +3,8 @@
 //! Projection code consumes `TapeEventEnvelope` slices. It does not read
 //! dashboards, stdout, reports, benchmark manifests, or TDMA-only tape state.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::bottom_white::ledger::transition_ledger::{LedgerWriter, LedgerWriterError};
@@ -22,6 +24,80 @@ pub struct ProjectionOutput<T> {
     pub projection_id: String,
     pub source_head_oid: String,
     pub value: T,
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: materialized projection cache key, scoped by projection identity and ChainTape head.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ProjectionCacheKey {
+    pub projection_id: String,
+    pub projection_version: u32,
+    pub tape_head_oid: String,
+}
+
+impl ProjectionCacheKey {
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: build a cache key from projection id/version plus current GitTape head.
+    pub fn new(
+        projection_id: impl Into<String>,
+        projection_version: u32,
+        tape_head_oid: impl Into<String>,
+    ) -> Self {
+        Self {
+            projection_id: projection_id.into(),
+            projection_version,
+            tape_head_oid: tape_head_oid.into(),
+        }
+    }
+}
+
+/// TRACE_MATRIX Art.0.2 + FC1-N13: in-memory materialized projection cache; never a source of truth.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProjectionCache<T> {
+    entries: BTreeMap<ProjectionCacheKey, T>,
+}
+
+impl<T> Default for ProjectionCache<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> ProjectionCache<T> {
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: create an empty derived-view cache.
+    pub fn new() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+        }
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: insert or replace a materialized projection under its watermark key.
+    pub fn insert(&mut self, key: ProjectionCacheKey, value: T) -> Option<T> {
+        self.entries.insert(key, value)
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: read a cached projection candidate by watermark key.
+    pub fn get(&self, key: &ProjectionCacheKey) -> Option<&T> {
+        self.entries.get(key)
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: remove a cached projection without affecting canonical replay.
+    pub fn remove(&mut self, key: &ProjectionCacheKey) -> Option<T> {
+        self.entries.remove(key)
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: report whether the cache has any materialized projection candidates.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: count materialized projection candidates.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// TRACE_MATRIX Art.0.2 + FC1-N13: iterate cache candidates for ancestry checks; caller still validates watermarks.
+    pub fn entries(&self) -> impl Iterator<Item = (&ProjectionCacheKey, &T)> {
+        self.entries.iter()
+    }
 }
 
 /// TRACE_MATRIX Art.0.2 + FC1-N13: typed projection failure domain; derived-view inputs fail closed.
