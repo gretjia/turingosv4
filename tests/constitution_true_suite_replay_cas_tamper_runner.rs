@@ -248,9 +248,7 @@ fn replay_cas_tamper_runner_verifies_current_kernel_and_detects_tamper() {
         Some(true)
     );
     assert_eq!(
-        tamper_json
-            .get("closure_scope")
-            .and_then(Value::as_str),
+        tamper_json.get("closure_scope").and_then(Value::as_str),
         Some("replay_cas_tamper_detection_current_kernel")
     );
     assert_eq!(
