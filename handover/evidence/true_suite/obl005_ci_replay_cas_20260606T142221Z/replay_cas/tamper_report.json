@@ -1,0 +1,32 @@
+{
+  "all_detected": true,
+  "closure_scope": "replay_cas_tamper_detection_current_kernel",
+  "detected_count": 3,
+  "expected": 3,
+  "final_closure_possible": true,
+  "full_system_participation_required": true,
+  "schema_version": "v1/audit_tape_tamper",
+  "tamper_results": [
+    {
+      "detail": "destructively truncated 266 bytes from largest L4-reachable loose object a29d53d4de815f58fdd75e9d77b209c0ac244430 (\"/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_replay_cas_20260606T142221Z/replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git/objects/a2/9d53d4de815f58fdd75e9d77b209c0ac244430\") — forces git2 zlib decode failure when audit_tape next reads",
+      "detected": true,
+      "label": "flip_l4_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "destructively truncated 693 bytes from largest CAS object \"/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_replay_cas_20260606T142221Z/replay_cas/tamper_work/flip_cas_byte/cas/.git/objects/c4/747c590295dcb03d684f31d92dd7e874e24568\"",
+      "detected": true,
+      "label": "flip_cas_byte",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    },
+    {
+      "detail": "zeroed last 4 hex chars in 2 chain ref(s): refs/chaintape/l4, refs/transitions/main",
+      "detected": true,
+      "label": "truncate_l4_ref",
+      "schema_version": "v1/audit_tape_tamper",
+      "verdict": null
+    }
+  ]
+}

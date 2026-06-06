@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launch Plan Decision Matrix</title>
+<style>
+  :root {
+    --accent: #4e8b7a;
+    --accent-light: #6bb09c;
+    --bg: #f8f6f1;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #d6d2cb;
+    --card-bg: #ffffff;
+    --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --text: #f0eee8;
+      --muted: #a09e96;
+      --border: #3a3a3a;
+      --card-bg: #262626;
+      --shadow: 0 2px 8px rgba(0,0,0,0.4);
+      --accent: #6bb09c;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+  }
+  h1, h2, h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h1 { font-size: 2.25rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.5rem; margin-bottom: 0.75rem; }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  header {
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 0.75rem;
+  }
+  header p {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .matrix-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+    border-radius: var(--radius);
+    overflow: hidden;
+    min-width: 600px;
+  }
+  th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  th {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  th:first-child { min-width: 140px; }
+  th.plan-header { min-width: 130px; }
+  tr:last-child td { border-bottom: none; }
+  .criteria-name {
+    font-weight: 500;
+  }
+  .weight-cell {
+    text-align: center;
+  }
+  .weight-input {
+    width: 4rem;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.9rem;
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .weight-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+  .score-input {
+    width: 4rem;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.9rem;
+    background: var(--bg);
+    color: var(--text);
+    text-align: center;
+    transition: border-color 0.15s;
+  }
+  .score-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(78,139,122,0.2);
+  }
+  .score-input::placeholder {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .weighted-cell {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.9rem;
+    text-align: center;
+    color: var(--muted);
+  }
+  .total-row td {
+    font-weight: 700;
+    border-top: 2px solid var(--accent);
+    background: rgba(78,139,122,0.06);
+  }
+  .total-row .weighted-cell {
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+  .recommendation {
+    margin-top: 1.5rem;
+    padding: 1rem 1.5rem;
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    box-shadow: var(--shadow);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 1.1rem;
+  }
+  .recommendation strong {
+    color: var(--accent);
+  }
+  .recommendation .plan-name {
+    font-weight: 700;
+  }
+  .footer-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn:hover, .btn:focus-visible {
+    background: var(--accent);
+    color: #fff;
+    outline: none;
+  }
+  .btn:focus-visible {
+    box-shadow: 0 0 0 3px rgba(78,139,122,0.3);
+  }
+  .btn-reset {
+    border-color: var(--muted);
+    color: var(--muted);
+  }
+  .btn-reset:hover, .btn-reset:focus-visible {
+    background: var(--muted);
+    color: #fff;
+  }
+  .plan-name-input {
+    width: 100%;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: transparent;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  .plan-name-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg);
+  }
+  .criteria-edit-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .criteria-edit-group .criteria-name {
+    flex: 1;
+  }
+  .criteria-edit-group .weight-cell {
+    flex-shrink: 0;
+  }
+  @media (max-width: 700px) {
+    body { padding: 1rem 0.5rem; }
+    h1 { font-size: 1.75rem; }
+    th, td { padding: 0.5rem 0.6rem; }
+    .weight-input, .score-input { width: 3.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Launch Plan Decision Matrix</h1>
+    <p>Compare up to three plans. Edit scores (1–5) and criteria weights. Weighted totals update instantly.</p>
+  </header>
+
+  <div class="matrix-wrapper">
+    <table id="matrix">
+      <thead>
+        <tr id="header-row">
+          <th>Criteria</th>
+          <th>Weight</th>
+          <th class="plan-header" data-plan="0"><input class="plan-name-input" type="text" value="Plan A" placeholder="Plan name"></th>
+          <th class="plan-header" data-plan="1"><input class="plan-name-input" type="text" value="Plan B" placeholder="Plan name"></th>
+          <th class="plan-header" data-plan="2"><input class="plan-name-input" type="text" value="Plan C" placeholder="Plan name"></th>
+        </tr>
+      </thead>
+      <tbody id="criteria-body">
+        <!-- rows injected by JS -->
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td><strong>Weighted Total</strong></td>
+          <td></td>
+          <td class="weighted-cell" id="total-0">0.00</td>
+          <td class="weighted-cell" id="total-1">0.00</td>
+          <td class="weighted-cell" id="total-2">0.00</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="recommendation" id="recommendation">
+    <span id="rec-text">Adjust scores and weights to see a recommendation.</span>
+  </div>
+
+  <div class="footer-actions">
+    <button class="btn" id="add-criteria-btn">+ Add Criteria</button>
+    <button class="btn btn-reset" id="reset-btn">Reset to Default</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ---------- default data ----------
+  const DEFAULT_CRITERIA = [
+    { name: 'Market Size', weight: 3 },
+    { name: 'Technical Feasibility', weight: 4 },
+    { name: 'Revenue Potential', weight: 5 },
+    { name: 'Team Readiness', weight: 2 },
+    { name: 'Risk Level', weight: 3 },
+  ];
+  const DEFAULT_PLANS = ['Plan A', 'Plan B', 'Plan C'];
+  const NUM_PLANS = 3;
+
+  // ---------- state ----------
+  let criteria = [];        // array of { name, weight }
+  let planNames = [];       // array of strings
+  let scores = [];          // 2D: scores[critIdx][planIdx] = number or null
+
+  // DOM refs
+  const tbody = document.getElementById('criteria-body');
+  const headerRow = document.getElementById('header-row');
+  const totalCells = [0,1,2].map(i => document.getElementById(`total-${i}`));
+  const recText = document.getElementById('rec-text');
+
+  // ---------- helpers ----------
+  function parseScore(val) {
+    if (val === '' || val === null || val === undefined) return null;
+    const n = Number(val);
+    if (isNaN(n)) return null;
+    return n;
+  }
+
+  function clampWeight(w) {
+    let n = parseFloat(w);
+    if (isNaN(n) || n < 0) return 0;
+    return Math.round(n * 100) / 100;
+  }
+
+  // ---------- render ----------
+  function render() {
+    // --- header plan names ---
+    const planInputs = headerRow.querySelectorAll('.plan-header .plan-name-input');
+    planInputs.forEach((inp, idx) => {
+      inp.value = planNames[idx] || `Plan ${String.fromCharCode(65 + idx)}`;
+    });
+
+    // --- body rows ---
+    tbody.innerHTML = '';
+    criteria.forEach((c, ci) => {
+      const tr = document.createElement('tr');
+      tr.dataset.criteriaIndex = ci;
+
+      // criteria name (editable)
+      const nameTd = document.createElement('td');
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'plan-name-input'; // reuse style
+      nameInput.value = c.name;
+      nameInput.placeholder = 'Criteria name';
+      nameInput.addEventListener('input', () => {
+        criteria[ci].name = nameInput.value;
+        // no re-render needed
+      });
+      nameTd.appendChild(nameInput);
+
+      // weight
+      const weightTd = document.createElement('td');
+      weightTd.className = 'weight-cell';
+      const weightInput = document.createElement('input');
+      weightInput.type = 'text';
+      weightInput.inputMode = 'decimal';
+      weightInput.className = 'weight-input';
+      weightInput.value = c.weight;
+      weightInput.addEventListener('input', () => {
+        criteria[ci].weight = clampWeight(weightInput.value);
+        weightInput.value = criteria[ci].weight;
+        updateTotals();
+      });
+      weightTd.appendChild(weightInput);
+
+      tr.appendChild(nameTd);
+      tr.appendChild(weightTd);
+
+      // score cells
+      for (let p = 0; p < NUM_PLANS; p++) {
+        const td = document.createElement('td');
+        td.className = 'weighted-cell';
+        const scoreInput = document.createElement('input');
+        scoreInput.type = 'text';
+        scoreInput.inputMode = 'numeric';
+        scoreInput.className = 'score-input';
+        const val = scores[ci]?.[p];
+        scoreInput.value = (val !== null && val !== undefined) ? val : '';
+        scoreInput.placeholder = '1–5';
+        scoreInput.addEventListener('input', () => {
+          const parsed = parseScore(scoreInput.value);
+          if (!scores[ci]) scores[ci] = [null, null, null];
+          scores[ci][p] = parsed;
+          updateTotals();
+        });
+        td.appendChild(scoreInput);
+        tr.appendChild(td);
+      }
+
+      tbody.appendChild(tr);
+    });
+
+    updateTotals();
+  }
+
+  // ---------- totals & recommendation ----------
+  function updateTotals() {
+    const totals = [0, 0, 0];
+    let totalWeight = 0;
+
+    criteria.forEach((c, ci) => {
+      const w = c.weight;
+      if (w <= 0) return;
+      totalWeight += w;
+      for (let p = 0; p < NUM_PLANS; p++) {
+        const s = scores[ci]?.[p];
+        if (s !== null && s !== undefined && !isNaN(s)) {
+          totals[p] += w * s;
+        }
+      }
+    });
+
+    // normalize by totalWeight (if > 0)
+    const normalized = totals.map(t => (totalWeight > 0 ? t / totalWeight : 0));
+    const display = normalized.map(n => n.toFixed(2));
+
+    totalCells.forEach((cell, idx) => {
+      cell.textContent = display[idx];
+    });
+
+    // recommendation
+    let maxVal = -1;
+    let maxIdx = -1;
+    let tie = false;
+    normalized.forEach((v, idx) => {
+      if (v > maxVal) {
+        maxVal = v;
+        maxIdx = idx;
+        tie = false;
+      } else if (v === maxVal && v >= 0) {
+        tie = true;
+      }
+    });
+
+    if (totalWeight === 0 || maxIdx === -1) {
+      recText.innerHTML = 'Add criteria weights and scores to see a recommendation.';
+    } else if (tie) {
+      recText.innerHTML = 'There is a tie between plans. Adjust scores or weights to break it.';
+    } else {
+      const name = planNames[maxIdx] || `Plan ${String.fromCharCode(65 + maxIdx)}`;
+      recText.innerHTML = `Recommended: <strong class="plan-name">${escapeHtml(name)}</strong> (weighted score: ${display[maxIdx]})`;
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------- add criteria ----------
+  function addCriteria() {
+    criteria.push({ name: 'New Criteria', weight: 1 });
+    scores.push([null, null, null]);
+    render();
+  }
+
+  // ---------- reset ----------
+  function resetToDefault() {
+    criteria = DEFAULT_CRITERIA.map(c => ({ name: c.name, weight: c.weight }));
+    planNames = [...DEFAULT_PLANS];
+    scores = criteria.map(() => [null, null, null]);
+    render();
+  }
+
+  // ---------- init ----------
+  function init() {
+    resetToDefault();
+
+    // wire plan name inputs (delegated)
+    headerRow.addEventListener('input', (e) => {
+      const inp = e.target.closest('.plan-name-input');
+      if (!inp) return;
+      const th = inp.closest('.plan-header');
+      if (!th) return;
+      const idx = parseInt(th.dataset.plan, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < NUM_PLANS) {
+        planNames[idx] = inp.value;
+        updateTotals();
+      }
+    });
+
+    document.getElementById('add-criteria-btn').addEventListener('click', addCriteria);
+    document.getElementById('reset-btn').addEventListener('click', resetToDefault);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

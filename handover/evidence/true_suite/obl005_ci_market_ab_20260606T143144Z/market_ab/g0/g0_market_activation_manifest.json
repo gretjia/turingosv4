@@ -1,0 +1,78 @@
+{
+  "schema_version": "turingosv4.g0.market_activation.v3",
+  "run_id": "obl005_ci_market_ab_20260606T143144Z-g0-market-activation",
+  "market_task_id": "g0-market-obl005_ci_market_ab_20260606T143144Z-g0-market-activation",
+  "participating_agents": [
+    "Agent_user_0",
+    "Agent_user_1",
+    "Agent_0",
+    "Agent_1",
+    "Agent_2",
+    "Agent_3",
+    "Agent_4",
+    "Agent_5",
+    "Agent_6",
+    "Agent_7",
+    "Agent_8",
+    "Agent_9"
+  ],
+  "distinct_roles": [
+    "BullTrader",
+    "BearTrader",
+    "Solver",
+    "Challenger"
+  ],
+  "yes_trade_count": 1,
+  "no_trade_count": 1,
+  "buy_yes_count": 1,
+  "buy_no_count": 1,
+  "pool_before_first_trade": {
+    "yes": 100000,
+    "no": 100000,
+    "k": 10000000000
+  },
+  "pool_after_last_trade": {
+    "yes": 100910,
+    "no": 99100,
+    "k": 10000181000
+  },
+  "worktx_count": 1,
+  "challengetx_count": 1,
+  "dag_edges": [],
+  "max_branching_factor": 0,
+  "non_latest_parent_edge": null,
+  "boltzmann_selected_parent": null,
+  "priced_nodes": [
+    {
+      "node_tx": "worktx-g0-node0-obl005_ci_market_ab_20260606T143144Z-g0-market-activation-g0",
+      "parent_tx": null,
+      "price_yes_num": 1000,
+      "price_yes_den": 1500
+    }
+  ],
+  "conditions": {
+    "c1_genesis_market_initialized": true,
+    "c2_at_least_5_agents": true,
+    "c3_at_least_3_roles": true,
+    "c4_c5_constraint_note": "constrained: current G0 uses one rewardable WorkTx on one task escrow; multi-node priced-DAG branching/non-latest parent selection needs M2/M3 settlement redesign or an explicit multi-task model and is not claimed here",
+    "c4_branching_diagnostic_observed": false,
+    "c5_non_latest_parent_diagnostic_observed": false,
+    "c6_yes_and_no_trades": true,
+    "c7_price_changed": true,
+    "c8_reconstructable_note": "verify via: turingos verify chaintape --repo <runtime_repo> --cas <cas> (replay reconstructs EconomicState + per-node price_index from L4)",
+    "c9_shielding_structural": true,
+    "c10_c11_stage2_note": "stage-2: EventResolve is observed on tape as a diagnostic, but M2/M3 reward-claim settlement closure is not claimed by this G0 receipt",
+    "stage2_event_resolve_observed": true
+  },
+  "final_state_root_hex": "7ed7457216bcbcbc7417763f49eed661cc0a385d4de47ec2861a0a3e3943c7e7",
+  "genesis_report_written": true,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/g0/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/g0/cas",
+  "closure_scope": "g0_core_market_price_discovery_conditions_1_2_3_6_7_8_9",
+  "notes": [
+    "deterministic agents (no live LLM); real ChainTape L4 + CAS + CPMM + single WorkTx node",
+    "single WorkTx node + ChallengeTx Short → compute_price_index per-node price_yes; no same-task reward fan-out is claimed",
+    "c4/c5 priced-DAG branching/non-latest parent selection are constrained/stage-2, not current OBL-005 closure",
+    "c10/c11 reward-claim settlement closure is stage-2; EventResolve(No) is only a tape-visible diagnostic"
+  ]
+}

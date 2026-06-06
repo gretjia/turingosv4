@@ -1,0 +1,7 @@
+artifact_bundle_cid=84a78bd6cb89b2906713ff186ad84d1520c22f19e34f5287acab0159143d84d7
+
+Generated 1 file(s) under /home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/artifacts/
+  index.html
+
+Open the entry file in your browser or run the entry script:
+  xdg-open /home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/artifacts/index.html

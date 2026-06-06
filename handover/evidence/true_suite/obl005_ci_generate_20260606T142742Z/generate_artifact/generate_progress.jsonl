@@ -1,0 +1,3 @@
+{"agent":"worker-alpha","artifact_cid":null,"session_id":"default","stage":"worker_start","t_unix_ms":1780756246420}
+{"agent":"worker-alpha","artifact_cid":"84a78bd6cb89b2906713ff186ad84d1520c22f19e34f5287acab0159143d84d7","session_id":"default","stage":"worker_done","t_unix_ms":1780756280057}
+{"agent":"worker-alpha","artifact_cid":null,"session_id":"default","stage":"market_settled","t_unix_ms":1780756281457}

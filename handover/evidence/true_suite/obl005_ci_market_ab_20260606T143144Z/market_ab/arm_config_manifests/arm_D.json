@@ -1,0 +1,30 @@
+{
+  "arm_id": "D",
+  "evidence_dir": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/arm_D",
+  "problem_set_hash": "274fb834a3f0091b9ecf93f2541bf83fe18e4d70b272405f33ea1845e94341ff",
+  "model_assignment_hash": "41c3e270b26bbc602ddde4ccfdf588c74a02f76fdbbe91cd5976ba6abe287000",
+  "budget_hash": "a07ea661823dc23c56e8d022e0292cd5c7bbc58304abb44ea6ab9cc7e54215d3",
+  "prompt_template_hash": "c4204337dd05b09b6269b4a9c3d4e3c188a4ec9b90e564a458c1950ce4c8e757",
+  "runtime_config_hash": "9328ffa0b3cb34f4037e0d156865dd1aa01ee709796579f582efd3b01e36fbb8",
+  "audit_tape_verdict": "PROCEED",
+  "e2_verifier_verdict": "VETO",
+  "e2_verifier_failure_reasons": [
+    "matched tx router-Agent_1-full-system-augment has no EVDecisionTrace/economic rationale",
+    "matched tx router-Agent_1-full-system-augment has no MarketOpportunityTrace",
+    "matched tx router-Agent_1-full-system-augment has no PromptCapsule/visible-context linkage",
+    "matched tx router-Agent_1-full-system-augment actor is not a live trader-like agent role"
+  ],
+  "metric_source": "ChainTapeCasVerifier",
+  "market_pressure_enabled": true,
+  "task_count": 1,
+  "solved_count": 0,
+  "verified_pput_micro": 0,
+  "wasted_attempt_count": 1,
+  "verification_latency_ms_total": 0,
+  "failed_branch_count": 0,
+  "cost_per_solved_proof_tokens": null,
+  "exact_join_count": 1,
+  "ev_to_action_conversion_bps": 10000,
+  "role_diversity_bps": 0,
+  "market_tx_count": 7
+}

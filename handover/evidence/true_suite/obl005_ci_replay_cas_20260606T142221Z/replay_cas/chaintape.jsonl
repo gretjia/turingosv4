@@ -1,0 +1,11 @@
+{"logical_t":1,"tx_kind":"TaskOpen","tx_id":"taskopen-fc3-governance-reinit-work-true-suite-fc3","tx_payload_cid":"029caa37d44d61517af2d9caaa452445d0251c5adfcd8118918a9ac3a72fece4"}
+{"logical_t":2,"tx_kind":"EscrowLock","tx_id":"escrowlock-fc3-governance-reinit-work-true-suite-fc3","tx_payload_cid":"f4479685f96cd46ba1089a399e9dde1ccce122358162a9551f82320cc79399f1"}
+{"logical_t":3,"tx_kind":"Work","tx_id":"worktx-fc3-governance-reinit-work-true-suite-fc3","tx_payload_cid":"a4df05c8c173193f03e6d5d7cc96ef28d9c554773a776328a722bfd935a32d68"}
+{"logical_t":4,"tx_kind":"MapReduceTick","tx_id":"system-map-reduce-tick-1-4","tx_payload_cid":"3d0afab6e8b69f7774ae487a2f7d831b9383070eea49eed83764ce02934f21fd"}
+{"logical_t":5,"tx_kind":"LogFeedbackArchive","tx_id":"system-log-feedback-archive-1-5","tx_payload_cid":"ca206e82318b9c41a4a34f167c9af80c0d3b8fe77068c4bb73f4329467962a3b"}
+{"logical_t":6,"tx_kind":"ArchitectProposal","tx_id":"system-architect-proposal-1-6","tx_payload_cid":"de856f2297d40880a3358b23acf1176cb2d714122a2b8b45c283fe1be902d7f2"}
+{"logical_t":7,"tx_kind":"VetoDecision","tx_id":"system-veto-decision-1-7","tx_payload_cid":"6489e5ccd2bf3ff4532f47413ca3c5e9374459836829247c95b728e7b275d587"}
+{"logical_t":8,"tx_kind":"ArchitectCommit","tx_id":"system-architect-commit-1-8","tx_payload_cid":"bd490f0af9cf5156e49b720f54e6ede0d22aee34349c3fd960168b3cdb4fcb5e"}
+{"logical_t":9,"tx_kind":"TerminalSummary","tx_id":"system-terminal-summary-1-9","tx_payload_cid":"8defbc96a1f55d06769e804c3babcc9de0d94446e2dccb15113e48dc36076442"}
+{"logical_t":10,"tx_kind":"ReinitRequest","tx_id":"system-reinit-request-1-10","tx_payload_cid":"d58ad66e6c3b48eaf7802514c4521b8cde460bd6fc756a6b1aa2413b501f3288"}
+{"logical_t":11,"tx_kind":"ReinitBoot","tx_id":"system-reinit-boot-1-11","tx_payload_cid":"df8161d8b6bac473fdcfd76459de1e7fde6a7a1c489127ddad5925c60ca3fe85"}

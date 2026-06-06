@@ -100,14 +100,14 @@ families = ["market", "external_agent", "current_kernel", "full_system_participa
 evidence = ["ChainTape", "CAS", "BuyWithCoinRouterTx", "YES_NO", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "obl005_fresh_market_ab_20260604T232500Z"
-path = "handover/evidence/true_suite/obl005_fresh_market_ab_20260604T232500Z"
+id = "obl005_ci_market_ab_20260606T143144Z"
+path = "handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z"
 families = ["market_ab", "market", "current_kernel", "full_system_participation", "fc3"]
 evidence = ["ChainTape", "CAS", "YES_NO", "ChallengeTx", "price_discovery", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "obl005_fresh_generate_20260604T232500Z"
-path = "handover/evidence/true_suite/obl005_fresh_generate_20260604T232500Z"
+id = "obl005_ci_generate_20260606T142742Z"
+path = "handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z"
 families = ["generate_artifact", "current_kernel", "full_system_participation", "market", "fc3"]
 evidence = ["ChainTape", "CAS", "ArtifactBundleManifest", "ProposalTelemetry", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
@@ -136,8 +136,8 @@ families = ["fc3", "governance", "reinit", "current_kernel", "full_system_partic
 evidence = ["ChainTape", "CAS", "typed_fc3_feedback_archive", "ArchitectProposalTx", "VetoDecisionTx", "ReinitBootTx", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "obl005_fresh_boot_replay_20260604T231500Z"
-path = "handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T231500Z"
+id = "obl005_ci_replay_cas_20260606T142221Z"
+path = "handover/evidence/true_suite/obl005_ci_replay_cas_20260606T142221Z"
 families = ["replay_cas", "tamper", "current_kernel", "full_system_participation", "market", "fc3"]
 evidence = ["ChainTape", "CAS", "replay", "restore_replay", "tamper_detection", "packaged_restore", "full_system_participation"]
 
@@ -166,14 +166,14 @@ families = ["webarena", "web_agent", "current_kernel", "full_system_participatio
 evidence = ["public_webarena_config", "offline_browser_observation", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "browser_action_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "obl005_fresh_mind2web_20260604T224409Z"
-path = "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z"
+id = "obl005_ci_mind2web_20260606T143633Z"
+path = "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z"
 families = ["mind2web", "browser_action", "current_kernel", "full_system_participation", "market", "fc3"]
 evidence = ["public_mind2web_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "browser_action_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
 [[real_world_suite]]
-id = "obl005_fresh_toolbench_20260604T224409Z"
-path = "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z"
+id = "obl005_ci_toolbench_20260606T143903Z"
+path = "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z"
 families = ["toolbench", "api_tool_use", "current_kernel", "full_system_participation", "market", "fc3"]
 evidence = ["public_toolbench_sample", "local_openai_proxy", "ChainTape", "CAS", "ProposalTelemetry", "tool_call_trace", "replay", "restore_replay", "packaged_restore", "full_system_participation"]
 
@@ -468,16 +468,16 @@ real_world_evidence = [
   "handover/evidence/true_suite/fc3_full_system_evidence_20260526T174426Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/restore_replay_report.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/tdma/tdma_restore_report.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/toolbench_api_tool_use_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/replay_report.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/restore_replay_report.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/full_system_participation.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/evidence_package_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/mind2web_browser_action_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/replay_report.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/restore_replay_report.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/full_system_participation.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/replay_report.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/restore_replay_report.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/evidence_package_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/mind2web_browser_action_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/replay_report.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/restore_replay_report.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/evidence_package_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/replay_report.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/restore_replay_report.json",
@@ -608,10 +608,10 @@ real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/generate_artifact/generate_artifact_run_manifest.json",
   "handover/evidence/true_suite/generate_artifact_full_system_20260526T170808Z/generate_artifact/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/gpqa/gpqa_science_reasoning_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/toolbench_api_tool_use_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_toolbench_20260604T224409Z/toolbench/full_system_participation.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/mind2web_browser_action_manifest.json",
-  "handover/evidence/true_suite/obl005_fresh_mind2web_20260604T224409Z/mind2web/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/full_system_participation.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/mind2web_browser_action_manifest.json",
+  "handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z/mind2web/full_system_participation.json",
   "handover/evidence/true_suite/broad_agi_math_20260526T042841Z/math/math_competition_reasoning_manifest.json",
   "handover/evidence/true_suite/broad_agi_swebench_20260526T052213Z/swebench/swebench_live_coding_repair_manifest.json",
   "handover/evidence/true_suite/broad_agi_cybench_20260527T032017Z/cybench/cybench_security_sandbox_manifest.json",

@@ -1,0 +1,158 @@
+{
+  "package_count": 16,
+  "packages": [
+    {
+      "archive_bytes": 65583,
+      "archive_path": "replay_cas/cas.dotgit.tar.gz",
+      "archive_sha256": "0113abce87cdc42fa9d621495834791b8e3668a83c44fc1eee4db57c5b22f3a9",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/cas",
+      "source_path": "replay_cas/cas/.git"
+    },
+    {
+      "archive_bytes": 3681,
+      "archive_path": "replay_cas/cas.worktree.tar.gz",
+      "archive_sha256": "d8984c4c9d287939a09789986426327d403cfbbfd6bfd640716c06e5dbd4ccb8",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/cas",
+      "source_path": "replay_cas/cas"
+    },
+    {
+      "archive_bytes": 23903,
+      "archive_path": "replay_cas/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "134d345e3c976f78aa0dd7e7b63a0d9dbe3190e02002dbe3c2b017a2c9603450",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/runtime_repo",
+      "source_path": "replay_cas/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1343,
+      "archive_path": "replay_cas/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "8b3de251e05a16da6efc31ee728a6525854dfb5be339fc251f043e5279959657",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/runtime_repo",
+      "source_path": "replay_cas/runtime_repo"
+    },
+    {
+      "archive_bytes": 64895,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "dfaac2a63c46714f9e970816258b17bd45ebf164fe809cb5aaa2936245288a0f",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 3681,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/cas.worktree.tar.gz",
+      "archive_sha256": "d8984c4c9d287939a09789986426327d403cfbbfd6bfd640716c06e5dbd4ccb8",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/cas"
+    },
+    {
+      "archive_bytes": 23903,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "134d345e3c976f78aa0dd7e7b63a0d9dbe3190e02002dbe3c2b017a2c9603450",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1343,
+      "archive_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "8b3de251e05a16da6efc31ee728a6525854dfb5be339fc251f043e5279959657",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/flip_cas_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_cas_byte/runtime_repo"
+    },
+    {
+      "archive_bytes": 65583,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/cas.dotgit.tar.gz",
+      "archive_sha256": "0113abce87cdc42fa9d621495834791b8e3668a83c44fc1eee4db57c5b22f3a9",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/cas/.git"
+    },
+    {
+      "archive_bytes": 3681,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/cas.worktree.tar.gz",
+      "archive_sha256": "d8984c4c9d287939a09789986426327d403cfbbfd6bfd640716c06e5dbd4ccb8",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/cas",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/cas"
+    },
+    {
+      "archive_bytes": 23657,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "1b0c6d0d8fe650728c20e8f885e9919736ac0449a0a8481eef66669897e81136",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1343,
+      "archive_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "8b3de251e05a16da6efc31ee728a6525854dfb5be339fc251f043e5279959657",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/flip_l4_byte/runtime_repo",
+      "source_path": "replay_cas/tamper_work/flip_l4_byte/runtime_repo"
+    },
+    {
+      "archive_bytes": 65583,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/cas.dotgit.tar.gz",
+      "archive_sha256": "0113abce87cdc42fa9d621495834791b8e3668a83c44fc1eee4db57c5b22f3a9",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/cas",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/cas/.git"
+    },
+    {
+      "archive_bytes": 3681,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/cas.worktree.tar.gz",
+      "archive_sha256": "d8984c4c9d287939a09789986426327d403cfbbfd6bfd640716c06e5dbd4ccb8",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/cas",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/cas"
+    },
+    {
+      "archive_bytes": 23905,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "ece9e9448ddd1be7f85a7fbfe99c092e4e6697f4c4f453e8c7d587ee0cf77c70",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1343,
+      "archive_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "8b3de251e05a16da6efc31ee728a6525854dfb5be339fc251f043e5279959657",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo",
+      "source_path": "replay_cas/tamper_work/truncate_l4_ref/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_replay_cas_20260606T142221Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

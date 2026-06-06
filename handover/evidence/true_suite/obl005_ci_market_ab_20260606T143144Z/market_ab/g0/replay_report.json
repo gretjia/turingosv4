@@ -1,0 +1,21 @@
+{
+  "l4_entries": 13,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "obl005_ci_market_ab_20260606T143144Z-g0-market-activation",
+  "epoch": 1,
+  "detail": {
+    "final_state_root_hex": "7ed7457216bcbcbc7417763f49eed661cc0a385d4de47ec2861a0a3e3943c7e7",
+    "final_ledger_root_hex": "15d6fe44fda94ca395a161875567e055ae77e352c713882f0d8533f20eef2a9d",
+    "head_commit_oid_hex": "0dc4733166d70d5014e381354eecc3bdbe18b614",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

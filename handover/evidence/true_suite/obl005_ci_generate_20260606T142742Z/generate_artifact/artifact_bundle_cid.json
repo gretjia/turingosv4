@@ -1,0 +1,13 @@
+{
+  "schema_version": "turingosv4.true_suite.generate_artifact_bundle_cid.v1",
+  "run_id": "obl005_ci_generate_20260606T142742Z",
+  "chain_run_id": "polymarket-default-1780756246",
+  "spec_capsule_cid": "be1101549806d2571784c53f94811609f56db19cf3f7c5246444da192498558c",
+  "artifact_bundle_cid": "84a78bd6cb89b2906713ff186ad84d1520c22f19e34f5287acab0159143d84d7",
+  "closure_scope": "generate_artifact_chain_current_kernel",
+  "full_system_participation_required": true,
+  "final_closure_possible": true,
+  "workspace": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact",
+  "runtime_repo": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/cas"
+}

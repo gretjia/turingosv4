@@ -1,0 +1,28 @@
+{
+  "schema_version": "turingosv4.true_suite.toolbench_api_tool_use_run.v1",
+  "run_id": "obl005_ci_toolbench_20260606T143903Z",
+  "git_head": "e81c8a968c9b00723c2b4cd015368e3eb70dc58c",
+  "entrypoint": "scripts/run_true_suite_toolbench_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "toolbench_dataset_url": "https://huggingface.co/datasets/tuandunghcmut/toolbench-v1/resolve/main/benchmark/g1_instruction-00000-of-00001.parquet",
+  "toolbench_source_split": "benchmark/g1_instruction",
+  "toolbench_sample_index": 0,
+  "runtime_repo": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/runtime_repo",
+  "cas": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/cas",
+  "genesis_report": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/genesis_report.json",
+  "toolbench_manifest": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/toolbench_api_tool_use_manifest.json",
+  "fc_trace_report": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/fc_trace_report.json",
+  "failure_taxonomy": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/failure_taxonomy.json",
+  "full_system_augmentation_manifest": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/full_system_augmentation_manifest.json",
+  "governance_capsule_index": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/governance_capsule_index.json",
+  "replay_report": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z/toolbench/full_system_participation.json",
+  "notes": [
+    "ToolBench data comes from the public tuandunghcmut/toolbench-v1 benchmark parquet unless TOOLBENCH_SAMPLE_JSON is explicitly supplied",
+    "DeepSeek/SiliconFlow access is outside the kernel through the local LLM proxy",
+    "raw provider prompt and response are not written to evidence",
+    "this runner records API selection and structural tool-call hashes, not live third-party API side effects",
+    "benchmark exact-match is not treated as liveness closure"
+  ]
+}

@@ -1,0 +1,9 @@
+
+Spec interview complete.
+  spec.md            -> /home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/spec.md
+  spec_transcript    -> /home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact/spec_transcript.jsonl
+  CAS capsule CID    -> be1101549806d2571784c53f94811609f56db19cf3f7c5246444da192498558c
+                       (schema: turingos-spec-capsule-v1)
+  LLM total tokens   -> 3994
+
+Next step: turingos generate --workspace /home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_generate_20260606T142742Z/generate_artifact

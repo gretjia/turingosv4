@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 73691,
+      "archive_path": "mind2web/cas.dotgit.tar.gz",
+      "archive_sha256": "9a74c4eecdfc20c2d45d86335067e24e1c21c15fc3ad98cde7ad1765700e0ac5",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "mind2web/cas",
+      "source_path": "mind2web/cas/.git"
+    },
+    {
+      "archive_bytes": 3781,
+      "archive_path": "mind2web/cas.worktree.tar.gz",
+      "archive_sha256": "3e82949f6d8f9426d549afd64d6e0f317657cd3a1ea4a45cd35ba063412965d0",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "mind2web/cas",
+      "source_path": "mind2web/cas"
+    },
+    {
+      "archive_bytes": 24812,
+      "archive_path": "mind2web/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "11d4e6fd13c780be578f308871efa00dc1863d12c0410a5c6f5e179f2d1e2840",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "mind2web/runtime_repo",
+      "source_path": "mind2web/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1430,
+      "archive_path": "mind2web/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "b77a72800eb95ebc85b6f57e21ba970a143fdba56620c633d6957edda59c71e7",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "mind2web/runtime_repo",
+      "source_path": "mind2web/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_mind2web_20260606T143633Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}
