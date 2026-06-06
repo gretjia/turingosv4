@@ -9,21 +9,24 @@
 
 ---
 
-## Current Snapshot (2026-06-05)
+## Current Snapshot (2026-06-06)
 
-**Session**: OBL-005 reopened re-audit on current main. PR #284 keeps Market
-A/B G0 at single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree
-commit git-history closure; PR #286 binds any future final closure to a fresh
-current-tree witness path; PR #287-#291 synchronize the guard state, keep
-web/CLI spec generation on shared runtime helpers, bind active ToolBench and
-Mind2Web production liveness refs to fresh true-suite runs, and guard the
-R-022 enforcement log against committed conflict markers; PR #292 syncs this
-derived handover after PR #291; PR #293 clarifies the OBL-010 historical G0
-receipt vs current OBL-005 single-node/core-scope Market A/B runner boundary.
-No final closure is claimed.
+**Session**: OBL-005 remains reopened, while the Agentic OS pivot wave has now
+landed through PR #307. PR #284 keeps Market A/B G0 at
+single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree commit
+git-history closure; PR #286 binds any future final closure to a fresh
+current-tree witness path; PR #287-#291 synchronize guard state, shared
+web/CLI spec helpers, fresh ToolBench/Mind2Web liveness refs, and R-022
+enforcement-log hygiene; PR #292 and PR #294 sync derived handover state;
+PR #293 clarifies the OBL-010 historical G0 receipt vs current OBL-005
+single-node/core-scope Market A/B runner boundary; PR #295 records the
+Agentic OS pivot execution plan; PR #296-#306 land A04 through A14 substrate
+and workload-boundary atoms; PR #307 fixes the final acceptance formatting /
+trust-root / R-022 landing blocker. No final OBL-005 or global
+OBL-ALL-CLOSED claim is current.
 
-**Last synchronized base**: `a0343685` (PR #293 — OBL-010 historical/current
-G0 boundary clarification). Verify the current tip with
+**Last synchronized base**: `a35e6a4e` (PR #307 — final acceptance format,
+trust-root, and R-022 landing fix). Verify the current tip with
 `git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -35,7 +38,8 @@ Current state:
 - `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
   OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
   OBL-005 remains `in_progress (reopened 2026-06-04)`.
-- PR #245 through #293 hardened OBL-005 final-closure accounting: closure
+- PR #245 through #307 hardened OBL-005 final-closure accounting and landed the
+  Agentic OS pivot wave through A14 plus final acceptance cleanup: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
   blockers, source-tree fingerprint blockers, source-tree receipt identity, and
   source-receipt final-closure eligibility, plus fresh boot/replay, FC3,
@@ -48,8 +52,11 @@ Current state:
   Market A/B single-node/core-scope stage-2 guard, source-tree commit
   git-history guard, fresh final closure witness binding guard, web/CLI shared
   spec runtime kernel guards, production liveness fresh-run binding,
-  R-022 enforcement-log conflict-marker guard, and OBL-010 historical/current
-  G0 boundary clarification.
+  R-022 enforcement-log conflict-marker guard, OBL-010 historical/current G0
+  boundary clarification, ChainTape-L4/TapeEvent/ExternalCall/AgentView/
+  PredicateReceipt/Economy/ProjectionCache/Scheduler/UniversalWitness/OS-v0/
+  WorkloadBoundary atoms, and the #307 R-022 same-file TRACE_MATRIX move
+  preservation fix.
 - PR #250 did **not** rewrite historical true-suite evidence. It makes future
   source-tree-bound current reruns produce closure-eligible source receipts
   when replay and source identity are green.
@@ -138,6 +145,22 @@ Current state:
   Claude Sonnet read-only audits found no unregistered zombie in the inspected
   liveness/reconciliation gates; both agree final OBL-005 closure is not allowed
   without explicit scope ratification and a fresh current-tree final witness.
+- Agentic OS pivot landing status on 2026-06-06: PR #296 A04, #297 A05,
+  #298 A06, #299 A07, #300 A08, #301 A09, #302 A10, #303 A11, #304 A12,
+  #305 A13, and #306 A14 merged through PR-only workflow; #307 then fixed the
+  post-A14 final acceptance blocker (`cargo fmt --check` drift), rehashed only
+  the two affected trust-root pins, and fixed R-022 so same-file
+  `TRACE_MATRIX` moves are not false-positive removals. #307 verification:
+  GitHub Constitution gate suite, Feature freeze check, `r022_check`, and
+  sidecar-contamination check all passed; local evidence included
+  `cargo fmt --check`, `git diff --check`, `cargo check --workspace`,
+  `cargo test -j1 --workspace --no-fail-fast`, focused R-022/matrix/rules/
+  hygiene tests, and `bash scripts/run_constitution_gates.sh`
+  (`[k-1-5] total=167 failed=0`). Clean-context AGY witness returned
+  `NO-VIOLATION` in
+  `handover/audits/FINAL_ACCEPTANCE_FORMAT_TRUSTROOT_CLEAN_CONTEXT_AUDIT_2026-06-06.md`.
+  This does not close OBL-005 because the obligation witness is still
+  intentionally not `OBL-ALL-CLOSED`.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -603,13 +626,17 @@ PR #250 checks
 
 Next steps:
 
-- Continue generating fresh current-source true-suite evidence for the 14
-  remaining source-blocked rows, without mutating historical evidence.
-- Attack remaining domain/benchmark blockers honestly: a row may close only
-  when its domain manifest, benchmark result, market NO/short side, replay/CAS
-  evidence, and fresh witness all agree.
-- Keep OBL-005 open until a current final-closure witness proves every retained
-  module/script group is replay-lit, necessary support, or removed/superseded.
+- Do not author a fresh OBL-005 final-closure witness or flip
+  `final_closure_claimed` until the architect/user explicitly ratifies the
+  scope with `APPROVED-OBL005-NO-ZOMBIE-SCOPE`.
+- After that ratification, prepare a Class 2 fresh current-tree final-closure
+  witness scoped only to no-zombie/no-drift/no-unconstitutional-retained-
+  substrate proof, preserving benchmark/domain failures as capability-pending
+  facts and leaving historical ChainTape/CAS evidence immutable.
+- Keep OBL-005 open until that scoped current final-closure witness proves every
+  retained module/script group is replay-lit, necessary support, or
+  removed/superseded, and the separate obligation witness can emit
+  `OBL-ALL-CLOSED`.
 
 ## Previous Snapshot
 
