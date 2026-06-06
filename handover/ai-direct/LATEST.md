@@ -12,7 +12,7 @@
 ## Current Snapshot (2026-06-06)
 
 **Session**: OBL-005 remains reopened, while the Agentic OS pivot wave has now
-landed through PR #307. PR #284 keeps Market A/B G0 at
+landed through PR #308. PR #284 keeps Market A/B G0 at
 single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree commit
 git-history closure; PR #286 binds any future final closure to a fresh
 current-tree witness path; PR #287-#291 synchronize guard state, shared
@@ -22,11 +22,11 @@ PR #293 clarifies the OBL-010 historical G0 receipt vs current OBL-005
 single-node/core-scope Market A/B runner boundary; PR #295 records the
 Agentic OS pivot execution plan; PR #296-#306 land A04 through A14 substrate
 and workload-boundary atoms; PR #307 fixes the final acceptance formatting /
-trust-root / R-022 landing blocker. No final OBL-005 or global
-OBL-ALL-CLOSED claim is current.
+trust-root / R-022 landing blocker; PR #308 syncs this derived handover view.
+No final OBL-005 or global OBL-ALL-CLOSED claim is current.
 
-**Last synchronized base**: `a35e6a4e` (PR #307 — final acceptance format,
-trust-root, and R-022 landing fix). Verify the current tip with
+**Last synchronized base**: `9adbe7e` (PR #308 — derived handover sync after
+the Agentic OS pivot wave). Verify the current tip with
 `git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -161,6 +161,16 @@ Current state:
   `handover/audits/FINAL_ACCEPTANCE_FORMAT_TRUSTROOT_CLEAN_CONTEXT_AUDIT_2026-06-06.md`.
   This does not close OBL-005 because the obligation witness is still
   intentionally not `OBL-ALL-CLOSED`.
+- A03 boundary note: `handover/directives/2026-06-05_A03_BOOT_TRUST_ROOT_MANIFEST_PREFLIGHT_AND_SECTION8_REQUEST.md`
+  is a preflight/Section-8 packet, not an implemented runtime module. It records
+  that live boot trust-root authority remains `src/boot.rs::verify_trust_root`
+  with existing witnesses in `tests/fc_alignment_conformance.rs`,
+  `tests/constitution_fc2_boot.rs`, `tests/constitution_art_v3_amendment_log.rs`,
+  `tests/constitution_predicate_gate.rs`, and
+  `tests/constitution_flowchart_livenow.rs`. The planned A03 paths
+  `src/bin/turingos/cmd_boot.rs`, `src/runtime/boot_trust_root_manifest.rs`,
+  and `tests/constitution_tc_boot_trust_root_manifest.rs` remain absent by
+  design until an exact A03 ratification phrase authorizes runtime work.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -629,6 +639,12 @@ Next steps:
 - Do not author a fresh OBL-005 final-closure witness or flip
   `final_closure_claimed` until the architect/user explicitly ratifies the
   scope with `APPROVED-OBL005-NO-ZOMBIE-SCOPE`.
+- Do not start A03 runtime trust-root manifest work unless the architect/user
+  gives one exact phrase from the A03 preflight:
+  `APPROVE-A03-SECTION8-KEEP-SRC-BOOT`,
+  `APPROVE-A03-SECTION8-WRAPPER-MODULE`,
+  `APPROVE-A03-SECTION8-DEFER-TO-TC002`, or
+  `REJECT-A03-RUNTIME-FOR-NOW`.
 - After that ratification, prepare a Class 2 fresh current-tree final-closure
   witness scoped only to no-zombie/no-drift/no-unconstitutional-retained-
   substrate proof, preserving benchmark/domain failures as capability-pending
