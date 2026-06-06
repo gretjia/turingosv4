@@ -856,11 +856,13 @@ module_ids = [
   "bin::turingos::cmd_audit_tamper",
   "bin::turingos::cmd_audit_tape",
   "bin::turingos::cmd_batch",
+  "bin::turingos::cmd_boot",
   "bin::turingos::cmd_config",
   "bin::turingos::cmd_export_evidence",
   "bin::turingos::cmd_generate",
   "bin::turingos::cmd_init",
   "bin::turingos::cmd_llm",
+  "bin::turingos::cmd_os",
   "bin::turingos::cmd_preflight",
   "bin::turingos::cmd_render",
   "bin::turingos::cmd_replay",
@@ -892,6 +894,9 @@ smoke_gates = [
   "tests/constitution_true_suite_replay_cas_tamper_runner.rs",
   "tests/constitution_true_suite_tdma_runner.rs",
   "tests/generate_emits_work_tx_smoke.rs",
+  "tests/os_agent_view_e2e.rs",
+  "tests/os_boot_to_replay_e2e.rs",
+  "tests/os_market_settlement_e2e.rs",
 ]
 real_world_evidence = [
   "handover/evidence/true_suite/broad_agi_installed_20260526T001843Z/boot_cli/boot_cli_current_kernel_manifest.json",

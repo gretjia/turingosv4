@@ -46,6 +46,8 @@ mod cmd_audit_tamper;
 mod cmd_audit_tape;
 #[path = "turingos/cmd_batch.rs"]
 mod cmd_batch;
+#[path = "turingos/cmd_boot.rs"]
+mod cmd_boot;
 #[path = "turingos/cmd_config.rs"]
 mod cmd_config;
 #[path = "turingos/cmd_export_evidence.rs"]
@@ -54,6 +56,8 @@ mod cmd_export_evidence;
 mod cmd_generate;
 #[path = "turingos/cmd_llm.rs"]
 mod cmd_llm;
+#[path = "turingos/cmd_os.rs"]
+mod cmd_os;
 #[path = "turingos/cmd_preflight.rs"]
 mod cmd_preflight;
 #[path = "turingos/cmd_render.rs"]
@@ -109,6 +113,26 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "init",
         short_help: cmd_init::SHORT_HELP,
         run: cmd_init::run,
+    },
+    Subcommand {
+        name: "boot",
+        short_help: cmd_boot::SHORT_HELP,
+        run: cmd_boot::run,
+    },
+    Subcommand {
+        name: "os run",
+        short_help: cmd_os::RUN_SHORT_HELP,
+        run: cmd_os::run,
+    },
+    Subcommand {
+        name: "os replay",
+        short_help: cmd_os::REPLAY_SHORT_HELP,
+        run: cmd_os::replay,
+    },
+    Subcommand {
+        name: "os audit",
+        short_help: cmd_os::AUDIT_SHORT_HELP,
+        run: cmd_os::audit,
     },
     Subcommand {
         name: "report run",
