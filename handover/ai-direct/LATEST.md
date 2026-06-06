@@ -34,8 +34,8 @@ returns `NO-VIOLATION`. `handover/audits/OBLIGATION_COMPLETENESS_WITNESS_2026-06
 contains an exact `OBL-ALL-CLOSED` line for the obligation ledger. This does
 not claim A03 runtime implementation or full Agentic OS plan completion.
 
-**Last synchronized base**: `731f487e` (PR #309 — A03/OBL-005 gate
-clarification before the fresh OBL-005 closure PR). Verify the current tip with
+**Last synchronized base**: `e81c8a96` (PR #310 — scoped OBL-005 no-zombie
+closure). Verify the current tip with
 `git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -72,22 +72,21 @@ Current state:
   when replay and source identity are green.
 - Current reconciliation fixture binds all 21 rows to fresh current-source
   receipts from
-  `obl005_fresh_boot_replay_20260604T143328Z` and
-  `obl005_fresh_fc3_20260604T150936Z`, plus
-  `obl005_fresh_market_20260604T235308Z` market evidence and
-  `obl005_fresh_generate_20260604T232500Z` generate/artifact closure-status
-  evidence, plus
-  `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
-  `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence, and
-  `obl005_fresh_market_ab_20260604T232500Z` market A/B closure-status
-  evidence, plus
-  `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence and
-  `obl005_fresh_math_20260604T191000Z` Math evidence, plus
-  `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence, plus
-  `obl005_fresh_toolbench_20260604T224409Z` ToolBench evidence,
-  `obl005_fresh_webarena_20260604T200738Z` WebArena evidence, and
+  `obl005_fresh_boot_replay_20260604T143328Z` boot/CLI evidence,
+  `obl005_ci_replay_cas_20260606T142221Z` replay/CAS evidence, and
+  `obl005_fresh_fc3_20260604T150936Z` FC3 evidence, plus
+  `obl005_fresh_market_20260604T235308Z` market evidence,
+  `obl005_ci_generate_20260606T142742Z` generate/artifact evidence, and
+  `obl005_ci_market_ab_20260606T143144Z` market A/B closure-status evidence,
+  plus `obl005_fresh_cybench_20260604T164533Z` Cybench evidence,
+  `obl005_fresh_osworld_20260604T171857Z` OSWorld evidence,
+  `obl005_fresh_gpqa_20260604T183931Z` GPQA evidence,
+  `obl005_fresh_math_20260604T191000Z` Math evidence,
+  `obl005_fresh_swebench_20260604T192100Z` SWE-bench evidence,
+  `obl005_ci_toolbench_20260606T143903Z` ToolBench evidence,
+  `obl005_fresh_webarena_20260604T200738Z` WebArena evidence,
   `obl005_fresh_tdma_20260604T203708Z` TDMA evidence,
-  `obl005_fresh_mind2web_20260604T224409Z` Mind2Web evidence, and
+  `obl005_ci_mind2web_20260606T143633Z` Mind2Web evidence, and
   `obl005_fresh_gaia_20260604T213500Z` GAIA evidence:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
@@ -97,6 +96,24 @@ Current state:
   `domain_receipt_final_closure_missing=0`, and
   `market_no_or_short_side_missing=0`. The remaining domain/benchmark rows
   are capability-pending annotations, not OBL-005 no-zombie closure blockers.
+- Post-#310 CI reachability repair on 2026-06-06: GitHub CI showed that some
+  final-closure bindings cited source-tree commits that existed in the local
+  object store but were not reachable from GitHub `main`. The follow-up repair
+  changes the source-tree guard from local `cat-file` presence to
+  `git merge-base --is-ancestor <commit> HEAD`, then rebinds
+  generate/artifact, replay/CAS, Market A/B, Mind2Web, and ToolBench rows to
+  fresh `e81c8a968c9b00723c2b4cd015368e3eb70dc58c` evidence roots:
+  `obl005_ci_generate_20260606T142742Z`,
+  `obl005_ci_replay_cas_20260606T142221Z`,
+  `obl005_ci_market_ab_20260606T143144Z`,
+  `obl005_ci_mind2web_20260606T143633Z`, and
+  `obl005_ci_toolbench_20260606T143903Z`. This repair does not rewrite
+  historical evidence, does not claim A03 runtime implementation, and preserves
+  benchmark/domain failures as capability-pending annotations. Clean-context
+  repair audit
+  `handover/audits/OBL005_CI_SOURCE_TREE_REACHABILITY_CLEAN_CONTEXT_AUDIT_2026-06-06.md`
+  returned `NO-VIOLATION`; its evidence-root tracking finding was resolved by
+  explicitly staging all five new roots (`git ls-files` returned 162 files).
 - Class 0 scope note added 2026-06-05:
   `handover/directives/2026-06-05_OBL005_CLOSURE_SCOPE_DECISION_PACKET.md`
   records the closure-scope decision fork. The user selected the recommended

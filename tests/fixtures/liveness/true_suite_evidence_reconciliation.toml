@@ -21,7 +21,7 @@ blockers = [
 
 [[coverage_task]]
 id = "market_ab_performance_fresh"
-evidence_run = "obl005_fresh_market_ab_20260604T232500Z"
+evidence_run = "obl005_ci_market_ab_20260606T143144Z"
 evidence_subdir = "market_ab"
 blockers = [
   "domain_receipt_final_closure_false",
@@ -29,7 +29,7 @@ blockers = [
 
 [[coverage_task]]
 id = "generate_artifact_chain_fresh"
-evidence_run = "obl005_fresh_generate_20260604T232500Z"
+evidence_run = "obl005_ci_generate_20260606T142742Z"
 evidence_subdir = "generate_artifact"
 blockers = [
 ]
@@ -78,7 +78,7 @@ blockers = [
 
 [[coverage_task]]
 id = "replay_cas_tamper_repair_current"
-evidence_run = "obl005_fresh_boot_replay_20260604T231500Z"
+evidence_run = "obl005_ci_replay_cas_20260606T142221Z"
 evidence_subdir = "replay_cas"
 blockers = [
 ]
@@ -135,7 +135,7 @@ blockers = [
 
 [[broad_family]]
 id = "mind2web_open_web"
-evidence_run = "obl005_fresh_mind2web_20260604T224409Z"
+evidence_run = "obl005_ci_mind2web_20260606T143633Z"
 evidence_subdir = "mind2web"
 blockers = [
   "domain_receipt_final_closure_false",
@@ -153,7 +153,7 @@ blockers = [
 
 [[broad_family]]
 id = "toolbench_api_tool_use"
-evidence_run = "obl005_fresh_toolbench_20260604T224409Z"
+evidence_run = "obl005_ci_toolbench_20260606T143903Z"
 evidence_subdir = "toolbench"
 blockers = [
   "domain_receipt_final_closure_false",

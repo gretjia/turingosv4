@@ -1,0 +1,50 @@
+{
+  "package_count": 4,
+  "packages": [
+    {
+      "archive_bytes": 68562,
+      "archive_path": "toolbench/cas.dotgit.tar.gz",
+      "archive_sha256": "e391177ff47ab4d9a0b4f162e7f9135e2349be70161a6784ccff6806a1d125b1",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "toolbench/cas",
+      "source_path": "toolbench/cas/.git"
+    },
+    {
+      "archive_bytes": 3536,
+      "archive_path": "toolbench/cas.worktree.tar.gz",
+      "archive_sha256": "9a742aa34bb7ae7cd542ab2a206056f0f57cb5da375c8debddb7e0c3fc26c363",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "toolbench/cas",
+      "source_path": "toolbench/cas"
+    },
+    {
+      "archive_bytes": 24841,
+      "archive_path": "toolbench/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "a0e012d2e0b8b9d7e97b0d96389e8f6f077a2b95043332531eff3b19c3424b9c",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "toolbench/runtime_repo",
+      "source_path": "toolbench/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1408,
+      "archive_path": "toolbench/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "926adf3193b3fc0a76edb67a5ffaf61cb1928dbecac1782bbb6b3d6447821879",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "toolbench/runtime_repo",
+      "source_path": "toolbench/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_toolbench_20260606T143903Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

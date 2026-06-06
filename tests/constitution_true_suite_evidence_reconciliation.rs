@@ -178,6 +178,19 @@ fn source_tree_commit_object_exists(commit: &str) -> bool {
     }
 }
 
+fn source_tree_commit_reachable_from_head(commit: &str) -> bool {
+    if !source_tree_commit_object_exists(commit) {
+        return false;
+    }
+    match Command::new("git")
+        .args(["merge-base", "--is-ancestor", commit, "HEAD"])
+        .status()
+    {
+        Ok(status) => status.success(),
+        Err(_) => false,
+    }
+}
+
 fn packaged_git_store_for(path: &Path) -> Option<PathBuf> {
     let name = path.file_name()?.to_str()?;
     let parent = path.parent()?;
@@ -1049,11 +1062,11 @@ fn final_closure_source_tree_commits_must_exist_in_git_history() {
                 )
             });
 
-            if !source_tree_commit_object_exists(&commit) {
+            if !source_tree_commit_reachable_from_head(&commit) {
                 missing.push(format!("{binding_key}:{}:{commit}", binding.id));
                 assert!(
                     !binding.blockers.is_empty(),
-                    "{binding_key}:{} binds source-tree commit `{commit}` that is not present in git history and has no unresolved blocker",
+                    "{binding_key}:{} binds source-tree commit `{commit}` that is not reachable from HEAD and has no unresolved blocker",
                     binding.id
                 );
             }
@@ -1067,7 +1080,7 @@ fn final_closure_source_tree_commits_must_exist_in_git_history() {
     if final_closure_claimed {
         assert!(
             missing.is_empty(),
-            "final_closure_claimed=true cannot cite source-tree commits absent from git history: {missing:?}"
+            "final_closure_claimed=true cannot cite source-tree commits unreachable from HEAD: {missing:?}"
         );
     }
 }

@@ -1,0 +1,30 @@
+{
+  "schema_version": "turingosv4.true_suite.market_ab_current_kernel_run.v1",
+  "run_id": "obl005_ci_market_ab_20260606T143144Z",
+  "git_head": "e81c8a968c9b00723c2b4cd015368e3eb70dc58c",
+  "entrypoint": "scripts/run_true_suite_market_ab_current_kernel.sh",
+  "llm_proxy_url": "http://localhost:8080",
+  "active_model": "deepseek-chat",
+  "problem_set_hash": "274fb834a3f0091b9ecf93f2541bf83fe18e4d70b272405f33ea1845e94341ff",
+  "model_assignment_hash": "41c3e270b26bbc602ddde4ccfdf588c74a02f76fdbbe91cd5976ba6abe287000",
+  "budget_hash": "a07ea661823dc23c56e8d022e0292cd5c7bbc58304abb44ea6ab9cc7e54215d3",
+  "prompt_template_hash": "c4204337dd05b09b6269b4a9c3d4e3c188a4ec9b90e564a458c1950ce4c8e757",
+  "runtime_config_hash": "9328ffa0b3cb34f4037e0d156865dd1aa01ee709796579f582efd3b01e36fbb8",
+  "arm_a": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/arm_A",
+  "arm_d": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/arm_D",
+  "real16_report": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/REAL16_MARKET_PERFORMANCE_REPORT.json",
+  "real16_verifier_exit_code": 1,
+  "closure_scope": "market_ab_candidate_only_g0_core_conditions_1_2_3_6_7_8_9",
+  "full_system_participation_required": true,
+  "final_closure_possible": false,
+  "final_closure_blocker": "c4_c5_priced_dag_and_c10_c11_reward_settlement_stage2",
+  "g0_market_activation_manifest": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/g0/g0_market_activation_manifest.json",
+  "g0_replay_report": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/g0/replay_report.json",
+  "full_system_participation": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z/market_ab/full_system_participation.json",
+  "notes": [
+    "candidate-only market performance report; no E4 achieved claim",
+    "both arms are fresh current-kernel ChainTape/CAS runs",
+    "G0 market activation is deterministic current-kernel evidence for YES+NO trades, one single WorkTx node, ChallengeShort, and price changes; c4/c5 priced-DAG branching and c10/c11 settlement closure remain constrained/stage-2",
+    "root full_system_participation uses arm D as the market-pressure representative sample"
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "package_count": 12,
+  "packages": [
+    {
+      "archive_bytes": 70226,
+      "archive_path": "market_ab/arm_A/cas.dotgit.tar.gz",
+      "archive_sha256": "12cf48a94239a1459d9c2bd6be1e7c8db33ddf4ee9e71aa3261b1ebed57dc4ae",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_A/cas",
+      "source_path": "market_ab/arm_A/cas/.git"
+    },
+    {
+      "archive_bytes": 3864,
+      "archive_path": "market_ab/arm_A/cas.worktree.tar.gz",
+      "archive_sha256": "d9777c95b2b335c77c3fe9120572b4c4e3352c45f05f7bed22236549ee0d6f0e",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_A/cas",
+      "source_path": "market_ab/arm_A/cas"
+    },
+    {
+      "archive_bytes": 28403,
+      "archive_path": "market_ab/arm_A/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "3a307bf08624bd9deddab4bcba1d75863ed7c5aad5a277c981103265ba8bd138",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_A/runtime_repo",
+      "source_path": "market_ab/arm_A/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1510,
+      "archive_path": "market_ab/arm_A/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "eb08896d2997ab94c5f4ef0408955a6b9707df8927ce89a76746ceca7ec490cb",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_A/runtime_repo",
+      "source_path": "market_ab/arm_A/runtime_repo"
+    },
+    {
+      "archive_bytes": 70000,
+      "archive_path": "market_ab/arm_D/cas.dotgit.tar.gz",
+      "archive_sha256": "c59c585578a64ec22afcda55aeb0c2e39a285a9931bd39fd778592d633e2030e",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_D/cas",
+      "source_path": "market_ab/arm_D/cas/.git"
+    },
+    {
+      "archive_bytes": 3848,
+      "archive_path": "market_ab/arm_D/cas.worktree.tar.gz",
+      "archive_sha256": "89831ca3beb544ac701114074476a2a8388f65b5e938ff8935052d3b8b441642",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_D/cas",
+      "source_path": "market_ab/arm_D/cas"
+    },
+    {
+      "archive_bytes": 28204,
+      "archive_path": "market_ab/arm_D/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "2071e1ccc4a61564bbaf3009bc10485f5ecca868dcad6c1aa61db4e99dba8d9c",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/arm_D/runtime_repo",
+      "source_path": "market_ab/arm_D/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1511,
+      "archive_path": "market_ab/arm_D/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "db22ed930fa2147c3f82c7b2cfb374a837f7836c9e69ec5a6677b60516c19625",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/arm_D/runtime_repo",
+      "source_path": "market_ab/arm_D/runtime_repo"
+    },
+    {
+      "archive_bytes": 38531,
+      "archive_path": "market_ab/g0/cas.dotgit.tar.gz",
+      "archive_sha256": "7fdb542b9eb777c8370f2be137803078f0e3c60a5dab636e629add4230247d62",
+      "kind": "cas_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/g0/cas",
+      "source_path": "market_ab/g0/cas/.git"
+    },
+    {
+      "archive_bytes": 1985,
+      "archive_path": "market_ab/g0/cas.worktree.tar.gz",
+      "archive_sha256": "f9323ecb6d8b44e48ddc637a82bc446fe5305d8b23098a18ed58fe5930434155",
+      "kind": "cas_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/g0/cas",
+      "source_path": "market_ab/g0/cas"
+    },
+    {
+      "archive_bytes": 22053,
+      "archive_path": "market_ab/g0/runtime_repo.dotgit.tar.gz",
+      "archive_sha256": "3ca6aaf34aa483138ae23550380c6ca4d8db1332984d517e4c621ddf63a965fd",
+      "kind": "runtime_repo_dotgit",
+      "removed_loose_store": true,
+      "restore_into": "market_ab/g0/runtime_repo",
+      "source_path": "market_ab/g0/runtime_repo/.git"
+    },
+    {
+      "archive_bytes": 1724,
+      "archive_path": "market_ab/g0/runtime_repo.worktree.tar.gz",
+      "archive_sha256": "7d570e030e2b99fc702d68576ec916b7bbbe0056849739b7d0e01bbc22b43af9",
+      "kind": "runtime_repo_worktree",
+      "removed_loose_store": false,
+      "restore_into": "market_ab/g0/runtime_repo",
+      "source_path": "market_ab/g0/runtime_repo"
+    }
+  ],
+  "restore_notes": [
+    "Extract runtime_repo.worktree.tar.gz into the corresponding runtime_repo directory.",
+    "Extract runtime_repo.dotgit.tar.gz into the corresponding runtime_repo directory.",
+    "Extract cas.worktree.tar.gz into the corresponding cas directory.",
+    "Extract cas.dotgit.tar.gz into the corresponding cas directory.",
+    "Create tdma_tape.git then extract tdma_tape.git.tar.gz into it."
+  ],
+  "run_root": "/home/zephryj/projects/turingosv4-a14-workload-adapter-boundary/handover/evidence/true_suite/obl005_ci_market_ab_20260606T143144Z",
+  "schema_version": "turingosv4.true_suite.evidence_package_manifest.v1"
+}

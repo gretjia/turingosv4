@@ -1,0 +1,21 @@
+{
+  "l4_entries": 20,
+  "l4e_entries": 0,
+  "ledger_root_verified": true,
+  "system_signatures_verified": true,
+  "state_reconstructed": true,
+  "economic_state_reconstructed": true,
+  "cas_payloads_retrievable": true,
+  "agent_signatures_verified": true,
+  "proposal_telemetry_cas_retrievable": true,
+  "run_id": "obl005_ci_market_ab_20260606T143144Z-arm-D",
+  "epoch": 2,
+  "detail": {
+    "final_state_root_hex": "93fa64b069c702c11abf57af2583aaa0ac19e001bbaacc3caf06397b19cdd57c",
+    "final_ledger_root_hex": "2291f6380d8518dd75944da95d531e358ae8e5e113b5a8c255f8d7f8d3baca3e",
+    "head_commit_oid_hex": "218e35ece235c1da1f921d31723df5dc53e9b14b",
+    "l4e_last_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+    "replay_failure": null,
+    "initial_q_state_loaded_from_disk": true
+  }
+}

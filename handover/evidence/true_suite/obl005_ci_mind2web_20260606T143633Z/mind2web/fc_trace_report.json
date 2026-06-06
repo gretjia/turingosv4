@@ -1,0 +1,21 @@
+{
+  "schema_version": "turingosv4.true_suite.mind2web_fc_trace_report.v1",
+  "run_id": "obl005_ci_mind2web_20260606T143633Z",
+  "family_id": "mind2web_open_web",
+  "fc_blocks_seen": [
+    "FC1",
+    "FC3"
+  ],
+  "input_capsule_cid": "3104879aa2f922e3fa86ee38728b9bd8891013d5d520d8119949b038ec9e6ece",
+  "answer_claim_capsule_cid": "9e5671269dcf4276cebe5774d7432ddfdd04eace14ee7f8b4960476ef67b1131",
+  "browser_action_trace_cid": "5381e355e680714b408859c0722a69055a6d7793a730117653cb4ab9712fc6cd",
+  "evaluation_capsule_cid": "c35422d99bb8e9b1b2f4e09336384901cf3fc8a49c638a907e8dcd5a4c9aeab5",
+  "proposal_telemetry_cid": "4b46dab3aea97a21c16b6fbf2f14ab57931b873d9b1a5d6031de8b2ef5a08e33",
+  "work_tx_id": "worktx-mind2web:7bda9645-0b5f-470a-8dd7-6af0bff4da68-true-suite-mind2web",
+  "work_tx_landed": true,
+  "selected_candidate_available": false,
+  "browser_action_exact_match": false,
+  "closure_scope": "domain_adapter_smoke_only",
+  "full_system_participation_required": true,
+  "final_closure_possible": false
+}
