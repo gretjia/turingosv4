@@ -7,13 +7,13 @@
 //!
 //! Spec authority:
 //! - STATE_TRANSITION_SPEC v1.3 § 1 typed schemas — all monetary fields are MicroCoin
-//! - § 2 hidden-input table: f64 BANNED in `src/economy/`
+//! - § 2 hidden-input table: binary floating-point BANNED in `src/economy/`
 //! - § 3.4 finalize_reward stage 3c royalty math: `royalty_micro = reward_micro * weight_micro / 1_000_000` (integer floor)
 //!
 //! Unit: 1 MicroCoin = 10⁻⁶ base coin. Range: i64 = ±9.2 × 10¹⁸ micro = ±9.2 × 10¹² base coin.
 //!
 //! Design:
-//! - Newtype around i64 to prevent accidental mixing with u64/u32/f64
+//! - Newtype around i64 to prevent accidental mixing with other numeric units
 //! - All arithmetic returns Option (checked); panics not allowed in production paths
 //! - Display formats as base.fraction (e.g., "12.345678 coin")
 //! - serde-compatible for L4 transition_tx serialization
