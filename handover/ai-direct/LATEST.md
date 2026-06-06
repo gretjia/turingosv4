@@ -33,9 +33,13 @@ Clean-context audit
 returns `NO-VIOLATION`. `handover/audits/OBLIGATION_COMPLETENESS_WITNESS_2026-06-06.md`
 contains an exact `OBL-ALL-CLOSED` line for the obligation ledger. This does
 not claim A03 runtime implementation or full Agentic OS plan completion.
+PR #311 then repaired GitHub-main source-tree reachability for OBL-005 CI
+bindings, and
+`handover/audits/MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md` records the current
+read-only mainline baseline at `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae`.
 
-**Last synchronized base**: `e81c8a96` (PR #310 — scoped OBL-005 no-zombie
-closure). Verify the current tip with
+**Last synchronized base**: `4af83627` (PR #311 — OBL-005 CI source-tree
+reachability repair on GitHub main). Verify the current tip with
 `git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -114,6 +118,16 @@ Current state:
   `handover/audits/OBL005_CI_SOURCE_TREE_REACHABILITY_CLEAN_CONTEXT_AUDIT_2026-06-06.md`
   returned `NO-VIOLATION`; its evidence-root tracking finding was resolved by
   explicitly staging all five new roots (`git ls-files` returned 162 files).
+- Mainline baseline snapshot on 2026-06-06: local branch
+  `codex/mainline-baseline-snapshot` was created from `origin/main` at
+  `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae` after PR #311 merged. GitHub
+  checks for PR #311 were green, `OBLIGATIONS.md` reported
+  `OBL-ALL-CLOSED`, the reconciliation fixture reported
+  `OBL005_FINAL_CLOSURE_VERIFIED`, and `bash scripts/run_constitution_gates.sh`
+  passed locally with `[k-1-5] total=167 failed=0`. Snapshot record:
+  `handover/audits/MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md`. This is a
+  read-only derived-view sync and still does not authorize or implement A03
+  runtime work.
 - Class 0 scope note added 2026-06-05:
   `handover/directives/2026-06-05_OBL005_CLOSURE_SCOPE_DECISION_PACKET.md`
   records the closure-scope decision fork. The user selected the recommended
