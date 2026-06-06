@@ -1,7 +1,7 @@
 schema_version = "turingosv4.production_module_liveness.v1"
 authority = "constitution.md + ChainTape/CAS evidence"
 policy = "real_world_required_for_final"
-final_closure_status = "OBL005_REAUDIT_IN_PROGRESS"
+final_closure_status = "OBL005_FINAL_CLOSURE_VERIFIED"
 smoke_is_not_final_evidence = true
 constitution_blocks = [
   "constitution.md:455-509",
@@ -624,7 +624,7 @@ evidence_requires = ["CAS", "prompt", "role view", "no raw private leakage"]
 [[group]]
 id = "workload_adapter_boundary"
 classification = "product_workload"
-status = "smoke_only"
+status = "claim_boundary_support"
 risk_class = 2
 allowed_as_fc_authority = false
 restricted_surface = false
@@ -637,8 +637,13 @@ smoke_gates = [
   "tests/market_preregistration_contract.rs::all_market_tracks_validate_when_preregistered",
 ]
 real_world_evidence = []
-evidence_requires = ["adapter claim boundary", "market preregistration", "no FC authority"]
-closure_action = "Remain smoke-only until future workload adapters bind fresh verifier-backed evidence manifests and clean-context audits."
+support_evidence = [
+  "handover/reports/A14_WORKLOAD_ADAPTER_BOUNDARY_2026-06-06.md",
+  "handover/audits/A14_WORKLOAD_ADAPTER_BOUNDARY_CLEAN_CONTEXT_AUDIT_2026-06-06.md",
+  "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-06-06.md",
+]
+evidence_requires = ["adapter claim boundary", "market preregistration", "no FC authority", "clean-context audit", "no benchmark capability claim"]
+closure_action = "Closed for OBL-005 no-zombie accounting as retained claim-boundary support; support evidence is not benchmark/domain capability evidence."
 
 [[group]]
 id = "role_economic_learning_sidecars"

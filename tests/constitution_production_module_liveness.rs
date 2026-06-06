@@ -14,7 +14,6 @@ use std::path::{Path, PathBuf};
 const MANIFEST_PATH: &str = "tests/fixtures/liveness/production_module_liveness.toml";
 const RECONCILIATION_MANIFEST_PATH: &str =
     "tests/fixtures/liveness/true_suite_evidence_reconciliation.toml";
-const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 const VERIFIED_CLOSURE_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 
 #[derive(Debug, Clone)]
@@ -29,6 +28,7 @@ struct Group {
     paths: Vec<String>,
     smoke_gates: Vec<String>,
     real_world_evidence: Vec<String>,
+    support_evidence: Vec<String>,
     evidence_requires: Vec<String>,
     closure_action: Option<String>,
 }
@@ -67,6 +67,23 @@ fn as_string(table: &toml::value::Table, key: &str) -> String {
         .to_string()
 }
 
+fn optional_str_array(table: &toml::value::Table, key: &str) -> Vec<String> {
+    table
+        .get(key)
+        .and_then(toml::Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|v| {
+                    v.as_str()
+                        .unwrap_or_else(|| panic!("array `{key}` contains non-string: {v:?}"))
+                        .to_string()
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 fn groups() -> Vec<Group> {
     let manifest = manifest();
     manifest
@@ -100,6 +117,7 @@ fn groups() -> Vec<Group> {
                 paths: as_str_array(table, "paths"),
                 smoke_gates: as_str_array(table, "smoke_gates"),
                 real_world_evidence: as_str_array(table, "real_world_evidence"),
+                support_evidence: optional_str_array(table, "support_evidence"),
                 evidence_requires: as_str_array(table, "evidence_requires"),
                 closure_action: table
                     .get("closure_action")
@@ -502,8 +520,8 @@ fn liveness_manifest_policy_is_real_world_first() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some(REAUDIT_STATUS),
-        "OBL-005 stays in reaudit until a fresh final closure witness verifies every retained group"
+        Some(VERIFIED_CLOSURE_STATUS),
+        "OBL-005 no-zombie closure must stay bound to the fresh final-closure witness"
     );
 }
 
@@ -697,7 +715,10 @@ fn every_exported_module_has_exactly_one_liveness_group() {
 fn candidate_groups_have_real_world_chaintape_or_cas_evidence() {
     for group in groups() {
         match group.status.as_str() {
-            "historical_real_world_candidate" | "legacy_quarantined" | "smoke_only" => {}
+            "historical_real_world_candidate"
+            | "legacy_quarantined"
+            | "smoke_only"
+            | "claim_boundary_support" => {}
             other => panic!("unknown liveness status `{other}` in `{}`", group.id),
         }
         assert!(
@@ -785,6 +806,67 @@ fn candidate_groups_have_real_world_chaintape_or_cas_evidence() {
             );
         }
     }
+}
+
+#[test]
+fn claim_boundary_support_closes_accounting_without_domain_capability_evidence() {
+    let groups = groups();
+    let boundary = group_by_id(&groups, "workload_adapter_boundary");
+    assert_eq!(
+        boundary.status, "claim_boundary_support",
+        "`workload_adapter_boundary` must not remain smoke_only after OBL-005 no-zombie closure"
+    );
+    assert_eq!(
+        boundary.classification, "product_workload",
+        "workload adapters are retained product workload support, not FC authority"
+    );
+    assert!(
+        !boundary.allowed_as_fc_authority,
+        "claim-boundary support cannot be cited as flowchart authority"
+    );
+    assert!(
+        boundary.real_world_evidence.is_empty(),
+        "claim-boundary support evidence is not benchmark/domain capability evidence"
+    );
+    assert!(
+        boundary
+            .support_evidence
+            .iter()
+            .any(|path| path == "handover/reports/A14_WORKLOAD_ADAPTER_BOUNDARY_2026-06-06.md"),
+        "workload adapter boundary must bind its current A14 boundary report as support evidence"
+    );
+    assert!(
+        boundary.support_evidence.iter().any(|path| {
+            path == "handover/audits/A14_WORKLOAD_ADAPTER_BOUNDARY_CLEAN_CONTEXT_AUDIT_2026-06-06.md"
+        }),
+        "workload adapter boundary must bind its clean-context audit as support evidence"
+    );
+    for path in &boundary.support_evidence {
+        assert_existing_path(path);
+        assert!(
+            !path.ends_with(".stdout") && !path.ends_with(".stderr"),
+            "support evidence must not be raw stdout/stderr: {path}"
+        );
+    }
+    assert!(
+        boundary
+            .evidence_requires
+            .iter()
+            .any(|kind| kind == "clean-context audit")
+            && boundary
+                .evidence_requires
+                .iter()
+                .any(|kind| kind == "no benchmark capability claim"),
+        "claim-boundary support must require audit and explicit no-capability-claim evidence"
+    );
+    assert!(
+        boundary
+            .closure_action
+            .as_deref()
+            .unwrap_or_default()
+            .contains("not benchmark/domain capability evidence"),
+        "closure action must state that support evidence is not capability evidence"
+    );
 }
 
 #[test]

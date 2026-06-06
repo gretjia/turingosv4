@@ -11,8 +11,9 @@
 
 ## Current Snapshot (2026-06-06)
 
-**Session**: OBL-005 remains reopened, while the Agentic OS pivot wave has now
-landed through PR #308. PR #284 keeps Market A/B G0 at
+**Session**: OBL-005 is now closed under the ratified no-zombie/no-drift
+scope, while the Agentic OS pivot wave has landed through PR #309 and still
+has an A03 runtime Section-8 decision outstanding. PR #284 keeps Market A/B G0 at
 single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree commit
 git-history closure; PR #286 binds any future final closure to a fresh
 current-tree witness path; PR #287-#291 synchronize guard state, shared
@@ -23,10 +24,18 @@ single-node/core-scope Market A/B runner boundary; PR #295 records the
 Agentic OS pivot execution plan; PR #296-#306 land A04 through A14 substrate
 and workload-boundary atoms; PR #307 fixes the final acceptance formatting /
 trust-root / R-022 landing blocker; PR #308 syncs this derived handover view.
-No final OBL-005 or global OBL-ALL-CLOSED claim is current.
+The user ratified `APPROVED-OBL005-NO-ZOMBIE-SCOPE` on 2026-06-06, and
+`handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-06-06.md` now closes
+OBL-005 only for no-zombie/no-drift/no-unconstitutional-retained-substrate
+proof. Current scoped status token: `OBL005_FINAL_CLOSURE_VERIFIED`.
+Clean-context audit
+`handover/audits/OBL005_NO_ZOMBIE_FINAL_CLOSURE_CLEAN_CONTEXT_AUDIT_2026-06-06.md`
+returns `NO-VIOLATION`. `handover/audits/OBLIGATION_COMPLETENESS_WITNESS_2026-06-06.md`
+contains an exact `OBL-ALL-CLOSED` line for the obligation ledger. This does
+not claim A03 runtime implementation or full Agentic OS plan completion.
 
-**Last synchronized base**: `9adbe7e` (PR #308 — derived handover sync after
-the Agentic OS pivot wave). Verify the current tip with
+**Last synchronized base**: `731f487e` (PR #309 — A03/OBL-005 gate
+clarification before the fresh OBL-005 closure PR). Verify the current tip with
 `git rev-parse origin/main`; this handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
@@ -35,9 +44,10 @@ trust those sources first.
 
 Current state:
 
-- `OBLIGATIONS.md` is **not globally complete**. OBL-001, OBL-004, OBL-006,
-  OBL-007, OBL-008, and OBL-009 are satisfied in the current ledger, while
-  OBL-005 remains `in_progress (reopened 2026-06-04)`.
+- `OBLIGATIONS.md` is **globally closed for Level=must obligations** after
+  the 2026-06-06 scoped OBL-005 witness. OBL-001 through OBL-013 are
+  satisfied in the current ledger. This obligation closure is not an A03
+  runtime implementation claim.
 - PR #245 through #307 hardened OBL-005 final-closure accounting and landed the
   Agentic OS pivot wave through A14 plus final acceptance cleanup: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
@@ -81,20 +91,21 @@ Current state:
   `obl005_fresh_gaia_20260604T213500Z` GAIA evidence:
   `source_receipt_final_closure_false=0`,
   `source_tree_fingerprint_missing=0`,
-  `fresh_final_closure_witness_missing=21`,
+  `fresh_final_closure_witness_missing=0`,
   `domain_receipt_final_closure_false=14`,
   `benchmark_capability_not_solved=10`,
   `domain_receipt_final_closure_missing=0`, and
-  `market_no_or_short_side_missing=0`.
+  `market_no_or_short_side_missing=0`. The remaining domain/benchmark rows
+  are capability-pending annotations, not OBL-005 no-zombie closure blockers.
 - Class 0 scope note added 2026-06-05:
   `handover/directives/2026-06-05_OBL005_CLOSURE_SCOPE_DECISION_PACKET.md`
-  records the remaining decision fork. Recommended scope is no-zombie/no-drift
-  closure for OBL-005, with benchmark/domain failures kept as honest
-  capability-pending facts. No final closure is claimed.
+  records the closure-scope decision fork. The user selected the recommended
+  no-zombie/no-drift closure scope with `APPROVED-OBL005-NO-ZOMBIE-SCOPE`,
+  with benchmark/domain failures kept as honest capability-pending facts.
 - Class 2 guard added by PR #277: `tests/constitution_obl005_final_closure_witness.rs`
   now requires the scope packet, the explicit ratification phrase, and
-  no-final-closure language before any later final witness can proceed. This is
-  a guard only; it does not ratify the scope and does not close OBL-005.
+  no-final-closure language before any later final witness can proceed. The
+  2026-06-06 fresh witness consumes that guard under the exact user phrase.
 - Class 2 source-tree commit guard added by PR #285:
   `tests/constitution_true_suite_evidence_reconciliation.rs::final_closure_source_tree_commits_must_exist_in_git_history`
   prevents any future final closure from citing source-tree commits absent from
@@ -102,13 +113,14 @@ Current state:
   guard only; it does not close OBL-005.
 - Class 2 fresh final closure witness guard added by PR #286:
   `tests/fixtures/liveness/true_suite_evidence_reconciliation.toml` declares
-  `fresh_final_closure_witness_path = ""`, and
+  `fresh_final_closure_witness_path =
+  "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-06-06.md"`, and
   `tests/constitution_true_suite_evidence_reconciliation.rs::final_closure_claim_requires_fresh_current_tree_witness_binding`
-  requires any future `final_closure_claimed=true` to bind a fresh current-tree
+  requires `final_closure_claimed=true` to bind a fresh current-tree
   witness through `fresh_final_closure_witness_path`. The historical 2026-05-27
   witness remains immutable history, not reusable current closure authority. The
-  PR #286 guard landed at `e13fb9d5`; this is a guard only and does not close
-  OBL-005.
+  PR #286 guard landed at `e13fb9d5`; the 2026-06-06 witness is now the current
+  binding.
 - Class 2 guard-state sync added by PR #287:
   `tests/constitution_obl005_final_closure_witness.rs` keeps the derived
   handover/ledger guard language aligned with the fresh witness and scope
@@ -159,8 +171,9 @@ Current state:
   (`[k-1-5] total=167 failed=0`). Clean-context AGY witness returned
   `NO-VIOLATION` in
   `handover/audits/FINAL_ACCEPTANCE_FORMAT_TRUSTROOT_CLEAN_CONTEXT_AUDIT_2026-06-06.md`.
-  This does not close OBL-005 because the obligation witness is still
-  intentionally not `OBL-ALL-CLOSED`.
+  The later 2026-06-06 OBL-005 closure does not claim A03 runtime
+  implementation, benchmark capability closure, or full Agentic OS plan
+  completion.
 - A03 boundary note: `handover/directives/2026-06-05_A03_BOOT_TRUST_ROOT_MANIFEST_PREFLIGHT_AND_SECTION8_REQUEST.md`
   is a preflight/Section-8 packet, not an implemented runtime module. It records
   that live boot trust-root authority remains `src/boot.rs::verify_trust_root`
@@ -636,23 +649,15 @@ PR #250 checks
 
 Next steps:
 
-- Do not author a fresh OBL-005 final-closure witness or flip
-  `final_closure_claimed` until the architect/user explicitly ratifies the
-  scope with `APPROVED-OBL005-NO-ZOMBIE-SCOPE`.
 - Do not start A03 runtime trust-root manifest work unless the architect/user
   gives one exact phrase from the A03 preflight:
   `APPROVE-A03-SECTION8-KEEP-SRC-BOOT`,
   `APPROVE-A03-SECTION8-WRAPPER-MODULE`,
   `APPROVE-A03-SECTION8-DEFER-TO-TC002`, or
   `REJECT-A03-RUNTIME-FOR-NOW`.
-- After that ratification, prepare a Class 2 fresh current-tree final-closure
-  witness scoped only to no-zombie/no-drift/no-unconstitutional-retained-
-  substrate proof, preserving benchmark/domain failures as capability-pending
-  facts and leaving historical ChainTape/CAS evidence immutable.
-- Keep OBL-005 open until that scoped current final-closure witness proves every
-  retained module/script group is replay-lit, necessary support, or
-  removed/superseded, and the separate obligation witness can emit
-  `OBL-ALL-CLOSED`.
+- OBL-005 is closed only under the ratified no-zombie scope. Keep
+  benchmark/domain failures as capability-pending facts unless a separate
+  capability/domain witness closes them.
 
 ## Previous Snapshot
 

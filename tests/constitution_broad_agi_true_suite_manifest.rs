@@ -10,7 +10,7 @@ use std::fs;
 
 const MANIFEST: &str = "tests/fixtures/liveness/broad_agi_true_suite_manifest.toml";
 const SCHEMA: &str = "turingosv4.broad_agi_true_suite_manifest.v1";
-const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
+const VERIFIED_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 const REQUIRED_FAILURE_CLASSES: &[&str] = &[
     "kernel_invariant_failure",
     "model_task_failure",
@@ -165,7 +165,7 @@ fn declares_cas_bound_raw_observation(family: &Family) -> bool {
 }
 
 #[test]
-fn broad_true_suite_manifest_is_reaudit_bound_and_constitution_bound() {
+fn broad_true_suite_manifest_is_no_zombie_closure_bound_and_constitution_bound() {
     let manifest = parse_manifest();
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -177,8 +177,8 @@ fn broad_true_suite_manifest_is_reaudit_bound_and_constitution_bound() {
     );
     assert_eq!(
         manifest.get("closure_status").and_then(toml::Value::as_str),
-        Some(REAUDIT_STATUS),
-        "broad manifest is a verified evidence contract, but current OBL-005 closure is reopened pending production/script liveness reconciliation"
+        Some(VERIFIED_STATUS),
+        "broad manifest is closed for OBL-005 no-zombie scope while capability failures remain explicit"
     );
     assert_eq!(
         manifest

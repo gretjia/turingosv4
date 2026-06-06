@@ -21,6 +21,7 @@ const FULL_SYSTEM_SCHEMA: &str = "turingosv4.true_suite.full_system_participatio
 const REAUDIT_STATUS: &str = "OBL005_REAUDIT_IN_PROGRESS";
 const HISTORICAL_FINAL_CLOSURE_WITNESS: &str =
     "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-05-27.md";
+const VERIFIED_STATUS: &str = "OBL005_FINAL_CLOSURE_VERIFIED";
 const SOURCE_TREE_COMMIT_POINTERS: &[&str] = &[
     "/source_tree/commit",
     "/source_tree/head_commit",
@@ -602,6 +603,13 @@ fn allowed_blocker_classes() -> BTreeSet<&'static str> {
     ])
 }
 
+fn is_capability_pending_blocker(blocker: &str) -> bool {
+    matches!(
+        blocker,
+        "domain_receipt_final_closure_false" | "benchmark_capability_not_solved"
+    )
+}
+
 fn assert_blocker_classes_are_receipt_derived(
     binding_key: &str,
     binding: &EvidenceBinding,
@@ -1097,16 +1105,16 @@ fn market_ab_g0_stage2_constraints_must_remain_non_closing() {
 }
 
 #[test]
-fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
+fn final_no_zombie_closure_allows_only_capability_pending_annotations() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     let final_closure_claimed = manifest
         .get("final_closure_claimed")
         .and_then(toml::Value::as_bool)
         .unwrap_or(false);
 
-    let mut non_closing_receipts = Vec::new();
+    let mut source_non_closing_receipts = Vec::new();
     let mut closure_receipts_without_source_tree = Vec::new();
-    let mut blocker_bearing_bindings = Vec::new();
+    let mut unresolved_closure_blockers = Vec::new();
     for (binding_key, contract_path, contract_key) in [
         ("coverage_task", REALWORLD_MANIFEST, "task"),
         ("broad_family", BROAD_MANIFEST, "family"),
@@ -1121,14 +1129,18 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
                 .pointer("/verdict/final_closure_possible")
                 .and_then(Value::as_bool)
                 == Some(true);
-            if !binding.blockers.is_empty() {
-                blocker_bearing_bindings.push(format!(
-                    "{binding_key}:{}:{:?}",
-                    binding.id, binding.blockers
-                ));
+            let closure_blockers: Vec<_> = binding
+                .blockers
+                .iter()
+                .filter(|blocker| !is_capability_pending_blocker(blocker))
+                .cloned()
+                .collect();
+            if !closure_blockers.is_empty() {
+                unresolved_closure_blockers
+                    .push(format!("{binding_key}:{}:{closure_blockers:?}", binding.id));
             }
             if !closure_possible {
-                non_closing_receipts.push(format!(
+                source_non_closing_receipts.push(format!(
                     "{binding_key}:{}:{}",
                     binding.id,
                     full_system_report_path(&binding, row).display()
@@ -1145,21 +1157,21 @@ fn final_closure_claim_requires_all_bound_receipts_to_be_closing_receipts() {
 
     if final_closure_claimed {
         assert!(
-            non_closing_receipts.is_empty(),
-            "final_closure_claimed=true cannot cite non-closing receipts: {non_closing_receipts:?}"
+            source_non_closing_receipts.is_empty(),
+            "final_closure_claimed=true cannot cite source-non-closing receipts: {source_non_closing_receipts:?}"
         );
         assert!(
             closure_receipts_without_source_tree.is_empty(),
             "final_closure_claimed=true cannot cite receipts without source-tree fingerprints: {closure_receipts_without_source_tree:?}"
         );
         assert!(
-            blocker_bearing_bindings.is_empty(),
-            "final_closure_claimed=true cannot cite bindings with unresolved blockers: {blocker_bearing_bindings:?}"
+            unresolved_closure_blockers.is_empty(),
+            "final_closure_claimed=true cannot cite unresolved no-zombie closure blockers: {unresolved_closure_blockers:?}"
         );
     } else {
         assert!(
-            !non_closing_receipts.is_empty() || !blocker_bearing_bindings.is_empty(),
-            "REAUDIT manifests must keep final_closure_claimed=false until source receipts are closure-capable and blocker inventories are empty"
+            !source_non_closing_receipts.is_empty() || !unresolved_closure_blockers.is_empty(),
+            "manifests must keep final_closure_claimed=false until source receipts are closure-capable and no unresolved no-zombie closure blockers remain"
         );
     }
 }
@@ -1424,7 +1436,7 @@ fn assert_bindings_cover_contract(
 }
 
 #[test]
-fn reconciliation_manifest_is_reaudit_candidate_no_evidence_rewrite() {
+fn reconciliation_manifest_is_current_no_zombie_closure_no_evidence_rewrite() {
     let manifest = parse_toml(RECONCILIATION_MANIFEST);
     assert_eq!(
         manifest.get("schema_version").and_then(toml::Value::as_str),
@@ -1434,14 +1446,14 @@ fn reconciliation_manifest_is_reaudit_candidate_no_evidence_rewrite() {
         manifest
             .get("reconciliation_status")
             .and_then(toml::Value::as_str),
-        Some(REAUDIT_STATUS)
+        Some(VERIFIED_STATUS)
     );
     assert_eq!(
         manifest
             .get("final_closure_claimed")
             .and_then(toml::Value::as_bool),
-        Some(false),
-        "current OBL-005 final closure must not be claimed while production/script liveness inventories remain in reaudit"
+        Some(true),
+        "OBL-005 no-zombie final closure must bind a fresh current-tree witness after scope ratification"
     );
     assert_eq!(
         manifest
@@ -1455,8 +1467,8 @@ fn reconciliation_manifest_is_reaudit_candidate_no_evidence_rewrite() {
     ] {
         assert_eq!(
             parse_toml(path).get(key).and_then(toml::Value::as_str),
-            Some(REAUDIT_STATUS),
-            "{path} must stay in OBL005_REAUDIT_IN_PROGRESS until a fresh current-tree final closure witness exists"
+            Some(VERIFIED_STATUS),
+            "{path} must carry OBL005_FINAL_CLOSURE_VERIFIED after the fresh current-tree final closure witness exists"
         );
     }
 }
