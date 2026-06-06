@@ -1,0 +1,14 @@
+{
+  "schema": "turingos.agentic_os.fixture.v1",
+  "task_id": "a13-hello-agentic-os",
+  "prompt": "Produce the smallest network-off Agentic OS run witness.",
+  "agent_id": "fixture-agent-alpha",
+  "private_oracle": "SHOULD_NOT_LEAK_A13_PRIVATE_ORACLE",
+  "expected_public_result": "hello-agentic-os",
+  "budget_microcredits": 1000,
+  "market": {
+    "enabled": true,
+    "clearing_price_microcredits": 100,
+    "supply_microcredits": 1000
+  }
+}
