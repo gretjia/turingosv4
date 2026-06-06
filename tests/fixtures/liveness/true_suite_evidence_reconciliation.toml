@@ -1,14 +1,15 @@
 schema_version = "turingosv4.true_suite.evidence_reconciliation.v1"
 authority = "constitution.md + immutable true-suite evidence roots"
-reconciliation_status = "OBL005_REAUDIT_IN_PROGRESS"
-final_closure_claimed = false
-fresh_final_closure_witness_path = ""
+reconciliation_status = "OBL005_FINAL_CLOSURE_VERIFIED"
+final_closure_claimed = true
+fresh_final_closure_witness_path = "handover/audits/OBL005_FINAL_CLOSURE_WITNESS_2026-06-06.md"
 rewrites_historical_evidence = false
 required_full_system_schema = "turingosv4.true_suite.full_system_participation.v1"
 notes = [
   "This manifest reconciles distributed evidence roots after runner PRs were merged.",
   "It must not rewrite or aggregate into historical evidence directories.",
-  "The prior witness is historical; current OBL-005 closure remains reopened until production and script liveness inventories are reconciled against the current tree.",
+  "The prior witness is historical; current OBL-005 closure is scoped by APPROVED-OBL005-NO-ZOMBIE-SCOPE to no-zombie/no-drift/no-unconstitutional-retained-substrate proof.",
+  "Domain and benchmark failures remain capability-pending annotations, not OBL-005 no-zombie closure blockers.",
 ]
 
 [[coverage_task]]
@@ -16,7 +17,6 @@ id = "market_external_agent_fresh"
 evidence_run = "obl005_fresh_market_20260604T235308Z"
 evidence_subdir = "market_action"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -25,7 +25,6 @@ evidence_run = "obl005_fresh_market_ab_20260604T232500Z"
 evidence_subdir = "market_ab"
 blockers = [
   "domain_receipt_final_closure_false",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -33,7 +32,6 @@ id = "generate_artifact_chain_fresh"
 evidence_run = "obl005_fresh_generate_20260604T232500Z"
 evidence_subdir = "generate_artifact"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -43,7 +41,6 @@ evidence_subdir = "swebench"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -53,7 +50,6 @@ evidence_subdir = "osworld"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -63,7 +59,6 @@ evidence_subdir = "cybench"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -72,7 +67,6 @@ evidence_run = "obl005_fresh_tdma_20260604T203708Z"
 evidence_subdir = "tdma"
 blockers = [
   "domain_receipt_final_closure_false",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -80,7 +74,6 @@ id = "fc3_governance_reinit_fresh"
 evidence_run = "obl005_fresh_fc3_20260604T150936Z"
 evidence_subdir = "fc3"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -88,7 +81,6 @@ id = "replay_cas_tamper_repair_current"
 evidence_run = "obl005_fresh_boot_replay_20260604T231500Z"
 evidence_subdir = "replay_cas"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[coverage_task]]
@@ -96,7 +88,6 @@ id = "boot_cli_current_kernel_fresh"
 evidence_run = "obl005_fresh_boot_replay_20260604T143328Z"
 evidence_subdir = "boot_cli"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -106,7 +97,6 @@ evidence_subdir = "gaia"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -115,7 +105,6 @@ evidence_run = "obl005_fresh_gpqa_20260604T183931Z"
 evidence_subdir = "gpqa"
 blockers = [
   "domain_receipt_final_closure_false",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -124,7 +113,6 @@ evidence_run = "obl005_fresh_math_20260604T191000Z"
 evidence_subdir = "math"
 blockers = [
   "domain_receipt_final_closure_false",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -134,7 +122,6 @@ evidence_subdir = "swebench"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -144,7 +131,6 @@ evidence_subdir = "webarena"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -154,7 +140,6 @@ evidence_subdir = "mind2web"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -164,7 +149,6 @@ evidence_subdir = "osworld"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -174,7 +158,6 @@ evidence_subdir = "toolbench"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -184,7 +167,6 @@ evidence_subdir = "cybench"
 blockers = [
   "domain_receipt_final_closure_false",
   "benchmark_capability_not_solved",
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -192,7 +174,6 @@ id = "market_economy_polymarket"
 evidence_run = "obl005_fresh_market_20260604T235308Z"
 evidence_subdir = "market_action"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]
 
 [[broad_family]]
@@ -200,5 +181,4 @@ id = "memory_feedback_reinit"
 evidence_run = "obl005_fresh_fc3_20260604T150936Z"
 evidence_subdir = "fc3"
 blockers = [
-  "fresh_final_closure_witness_missing",
 ]

@@ -337,7 +337,7 @@ fn osworld_runner_calls_proxy_records_sandbox_action_and_replays_worktx() {
             .and_then(|v| v.get("final_closure_possible"))
             .and_then(Value::as_bool),
         Some(true),
-        "OSWorld source receipt can be closure-eligible when source identity and replay are green; OBL-005 remains open via suite/domain blockers"
+        "OSWorld source receipt can be closure-eligible when source identity and replay are green; aggregate OBL-005 closure remains scoped by the fresh witness"
     );
 }
 

@@ -197,8 +197,8 @@ fn script_inventory_policy_is_final_closure_witness() {
         manifest
             .get("final_closure_status")
             .and_then(toml::Value::as_str),
-        Some("OBL005_REAUDIT_IN_PROGRESS"),
-        "script inventory is classification accounting; OBL-005 final closure requires production-module ChainTape/CAS reaudit too"
+        Some("OBL005_FINAL_CLOSURE_VERIFIED"),
+        "script inventory must close only under the OBL-005 no-zombie final-closure scope"
     );
 }
 

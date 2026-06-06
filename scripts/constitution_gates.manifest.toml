@@ -838,7 +838,7 @@ added = "2026-05-21"
 
 [[gate]]
 name = "constitution_obl005_final_closure_witness"
-authority = "OBL-005 final closure witness: verify OBL-005 satisfied, OBL-001 open, final closure audit file contains OBL005-FINAL-CLOSURE-VERIFIED, all five manifests closed, and witness does not claim global project closure"
+authority = "OBL-005 final closure witness: verify OBL-005 satisfied under APPROVED-OBL005-NO-ZOMBIE-SCOPE, fresh 2026-06-06 audit file contains OBL005-FINAL-CLOSURE-VERIFIED, all five manifests closed, historical evidence remains immutable, capability failures stay annotated, and no A03/runtime/Agentic-OS completion claim is made"
 added = "2026-05-27"
 
 [[gate]]
