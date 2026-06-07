@@ -1,56 +1,57 @@
-//! PENDING GATE (G3 / M07) — zero-root admission is verdict-trusting, not oracle.
+//! LIVE CONSTITUTION GATE (G3 / M07) — zero-root admission is verdict-trusting,
+//! not oracle; an OS-qualified run must REFUSE it.
+//! TRACE_MATRIX FC1a-predicates: G3 oracle-not-verdict-trust kill-condition.
 //!
-//! STATUS: PENDING / EXPECTED-RED until the Class-4 src/ admission change lands
-//! under the user's §8 token `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE`.
+//! STATUS: LIVE / GREEN. Promoted from `tests/pending/` after the Class-4 src/
+//! change landed under the user's §8 token
+//! `APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD` (2026-06-07). G3 needed a run-level
+//! `os_qualified` signal INDEPENDENT of `predicate_registry_root_t` — under the
+//! old `os_qualified = (registry_root != ZERO)` derivation the refuse-path was
+//! structurally dead inside the zero-root branch (the root IS zero there). The
+//! field `QState::os_qualified_t` (folded into `state_root_t`, replayable from
+//! tape; flipped `false→true` by the system-only `PredicateBindingActivate`
+//! accept) makes the refuse-path live, so the post-fix invariant below holds and
+//! this gate is GREEN.
+//!
+//! Triple-coupled: registered in `scripts/constitution_gates.manifest.toml`
+//! (`constitution_predicate_zero_root_is_not_oracle`) and referenced in
+//! `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`. Discovered by the flat
+//! `ls tests/constitution_*.rs` glob in `scripts/run_constitution_gates.sh` and
+//! built by `cargo test --workspace`.
 //!
 //! ── WHAT THIS GATE PROVES ────────────────────────────────────────────────
-//! `src/state/sequencer.rs:1231` — `verify_work_predicates` zero-root branch:
+//! `src/state/sequencer.rs` — `verify_work_predicates` zero-root branch:
 //!
 //!     if q.predicate_registry_root_t == Hash::ZERO {
-//!         for (pid, bwp) in work.predicate_results.acceptance.iter() {
-//!             if !bwp.value { return Err(AcceptancePredicateFailed(pid)); }
-//!         }
-//!         ... return Ok(());   // <- trusts the SELF-REPORTED booleans
+//!         let os_qualified = q.os_qualified_t;   // M07 G3: run-level field
+//!         decide_admission(zero_root_hex, claims, os_qualified) ...
 //!     }
 //!
-//! When `predicate_registry_root_t == Hash::ZERO`, admission TRUSTS the
-//! agent-supplied `BoolWithProof.value` booleans verbatim. It does NOT bind a
-//! `PredicateRegistry`, does NOT load any proof from CAS, and does NOT
-//! re-execute the predicate against the work. A submitter can therefore self-
-//! assert `acceptance = {pid: true}` and be ADMITTED with zero oracle re-
-//! execution. Only when `predicate_registry_root_t != Hash::ZERO` (line ~1245)
-//! does the sequencer re-execute against the bound registry + CAS proofs.
-//!
-//! For an OS-qualified run this is the wrong default: admission must be an
-//! ORACLE (re-execute the predicate), not a verdict-trusting pass-through of an
-//! agent's own boolean. The desired M07 invariant: an OS-qualified run cannot
-//! admit / oracle-replay with `predicate_registry_root_t == Hash::ZERO`; it must
-//! carry a NON-ZERO bound registry root so the sequencer re-executes (the
-//! line-1245 branch).
+//! When `predicate_registry_root_t == Hash::ZERO`, the legacy branch TRUSTS the
+//! agent-supplied `BoolWithProof.value` booleans verbatim — it binds no
+//! `PredicateRegistry`, loads no CAS proof, and does NOT re-execute the
+//! predicate. A submitter can self-assert `acceptance = {pid: true}` and be
+//! ADMITTED with zero oracle re-execution. For an OS-qualified run that is the
+//! wrong default: admission must be an ORACLE, not a verdict-trusting
+//! pass-through. The enforced M07 invariant: an OS-qualified run
+//! (`os_qualified_t == true`) cannot admit at `predicate_registry_root_t ==
+//! Hash::ZERO`; it must carry a NON-ZERO bound registry root so the sequencer
+//! re-executes against the bound registry + CAS proofs.
 //!
 //! ── HOW THE GATE OBSERVES IT (public behavior only) ──────────────────────
-//! We submit a `WorkTx` under a genesis `QState` (`predicate_registry_root_t ==
-//! Hash::ZERO`) whose acceptance predicate is a SELF-ASSERTED `true` with NO
-//! proof (`proof_cid: None`). Today the sequencer ADMITS it (zero-root verdict-
-//! trust). The post-fix invariant we assert is the DESIRED state: such a run is
-//! NOT OS-qualified, i.e. admission under a zero registry root must be REFUSED
-//! (forcing a non-zero bound root + real re-execution). Today admission
-//! succeeds, so the assertion that "zero-root admission was refused" FAILS
-//! (expected-red), cleanly proving the verdict-trust bypass.
+//! We submit a `WorkTx` under an OS-qualified `QState` (`os_qualified_t == true`,
+//! `predicate_registry_root_t == Hash::ZERO`) whose acceptance predicate is a
+//! SELF-ASSERTED `true` with NO proof (`proof_cid: None`). With the field live,
+//! `decide_admission` returns `ZeroRootRefusedForOsQualifiedRun` → the sequencer
+//! maps it to `PredicateRegistryRootMismatch` → the WorkTx is REJECTED. The
+//! assertion "zero-root admission was refused" therefore holds (GREEN). If the
+//! field were ever rewired back to `registry_root != ZERO`, the run would be
+//! admitted and this gate would flip RED.
 //!
 //! As a paired positive control we also show that the SAME claim under a
-//! NON-ZERO bound registry root routes through the oracle branch (line ~1245):
-//! with an empty bound registry, an unexpected self-asserted predicate key is
-//! REJECTED (`AcceptancePredicateUnexpected`) — i.e. the bound path does not
-//! blindly trust the booleans. This control documents the exact branch the M07
-//! fix must make mandatory for OS-qualified runs.
-//!
-//! ── EXCLUSION MECHANISM (same as G1/G2) ──────────────────────────────────
-//! Under `tests/pending/` (not auto-compiled; no Cargo.toml edit — Cargo.toml is
-//! Trust-Root-pinned), not `constitution_*.rs` at top level, not in the
-//! constitution gates manifest → invisible to `cargo test --workspace`,
-//! `run_constitution_gates.sh`, and `constitution_matrix_drift`. Run on demand
-//! by `scripts/run_pending_agentic_os_kill_conditions.sh` via `rustc --test`.
+//! NON-ZERO bound registry root routes through the oracle branch: with an empty
+//! bound registry, an unexpected self-asserted predicate key is REJECTED — i.e.
+//! the bound path does not blindly trust the booleans.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, RwLock};
@@ -197,8 +198,18 @@ fn make_self_asserted_worktx(task: &str, agent: &str, parent: Hash) -> TypedTx {
 /// Fund a task and submit a self-asserted-true WorkTx; return whether it was
 /// ADMITTED. `bind_registry_root == true` sets `q.predicate_registry_root_t` to
 /// the sequencer's (non-zero) empty-registry root, exercising the oracle branch.
+///
+/// M07 G3 (2026-06-07; §8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD): the run
+/// is marked OS-qualified via `q.os_qualified_t = true` — the run-level field the
+/// shared admission contract reads (independent of `predicate_registry_root_t`,
+/// so a zero-root OS-qualified run is reachable and refused). The system-only
+/// `PredicateBindingActivate` accept is what flips this field on a real boot;
+/// this test seeds it directly in the initial QState to exercise the refuse-path
+/// without a full activation dance.
 fn admits_self_asserted(task: &str, sponsor: &str, solver: &str, bind_registry_root: bool) -> bool {
     let mut q = genesis_with_balances(&[(sponsor, 100), (solver, 10)]);
+    // OS-qualified run: the field that makes zero-root admission a REFUSE.
+    q.os_qualified_t = true;
     // Build first so we know the registry root; then re-build with the bound
     // root in the initial QState if requested.
     let probe = fresh_seq(q.clone());

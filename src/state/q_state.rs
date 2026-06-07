@@ -922,13 +922,17 @@ pub struct AutopsyIndex(
 );
 
 // ────────────────────────────────────────────────────────────────────────────
-// QState — § 1.1 verbatim, 9 fields.
+// QState — § 1.1 verbatim, 10 fields (9 WP § 4 + os_qualified_t M07 G3).
 // ────────────────────────────────────────────────────────────────────────────
 
 /// TRACE_MATRIX § 1.1 — system state Q_t. 9 fields per WP § 4 + economic § 2 amendment.
+/// M07 G3 (2026-06-07, §8 token `APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD`) adds a 10th
+/// top-level field `os_qualified_t` beyond the WP § 4 baseline (own backlink below).
 ///
 /// Reconstructibility: every field is derivable from L4 transition ledger replay
-/// (Art IV Boot 公理).
+/// (Art IV Boot 公理). `os_qualified_t` flips `false→true` on the system-only
+/// `PredicateBindingActivate` accept (see `sequencer.rs`), so it is folded into
+/// `state_root_t` and replayable from tape.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct QState {
     /// Agent swarm sub-state (tape head per agent + per-agent reputation snapshots).
@@ -949,6 +953,25 @@ pub struct QState {
     pub economic_state_t: EconomicState,
     /// Global budget snapshot.
     pub budget_state_t: BudgetSnapshot,
+    /// M07 G3 run-level OS-qualification flag (2026-06-07, §8 token
+    /// `APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD`). `false` at genesis/default,
+    /// preserving every legacy zero-root suite. Flipped to `true` by the
+    /// system-only `PredicateBindingActivate` accept; once `true`, the shared
+    /// admission contract REFUSES a zero predicate-registry root
+    /// (`AdmissionFailReason::ZeroRootRefusedForOsQualifiedRun`), forcing a
+    /// non-zero bound root so the oracle re-executes instead of verdict-trusting
+    /// self-reported booleans. Independent of `predicate_registry_root_t` so the
+    /// G3 refuse-path is reachable; the field is folded into `state_root_t` and
+    /// is therefore reconstructable from tape by replay.
+    ///
+    /// `#[serde(default)]` for backward-compat with pre-M07-G3 chain snapshots:
+    /// historical `initial_q` JSON (e.g. the M0 P01 evidence fixture) predates
+    /// this field, so an absent key deserializes to `false` — the legacy
+    /// (not-OS-qualified) value, preserving replay of every existing tape. New
+    /// in-tree snapshots serialize the field explicitly (10 top-level fields).
+    /// TRACE_MATRIX FC1a-predicates + FC2-boot_loop: run-level OS-qualification.
+    #[serde(default)]
+    pub os_qualified_t: bool,
 }
 
 impl QState {
@@ -978,17 +1001,23 @@ mod tests {
         assert!(g.q_t.agents.is_empty());
         assert_eq!(g.head_t, NodeId::default());
         assert_eq!(g.state_root_t, Hash::ZERO);
+        // M07 G3: genesis is NOT OS-qualified — preserves every legacy zero-root
+        // suite (zero root + os_qualified_t=false → verdict-trusting admit).
+        assert!(!g.os_qualified_t);
     }
 
     #[test]
-    fn nine_field_count_via_serde_json() {
-        // Sanity that QState has exactly 9 top-level fields.
+    fn ten_field_count_via_serde_json() {
+        // Sanity that QState has exactly 10 top-level fields: 9 per WP § 4 plus
+        // `os_qualified_t` (M07 G3, 2026-06-07; §8 token
+        // APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD). The count moved 9→10 with the
+        // run-level OS-qualification flag.
         let s = serde_json::to_value(QState::genesis()).unwrap();
         let obj = s.as_object().expect("object");
         assert_eq!(
             obj.len(),
-            9,
-            "QState must have exactly 9 fields per WP § 4; got {}",
+            10,
+            "QState must have exactly 10 fields (9 WP § 4 + os_qualified_t M07 G3); got {}",
             obj.len()
         );
         for k in &[
@@ -1001,6 +1030,7 @@ mod tests {
             "tool_registry_root_t",
             "economic_state_t",
             "budget_state_t",
+            "os_qualified_t",
         ] {
             assert!(obj.contains_key(*k), "QState missing field {}", k);
         }
