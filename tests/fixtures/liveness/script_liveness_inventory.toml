@@ -316,3 +316,22 @@ paths = [
 covered_by = [
   "tests/constitution_script_liveness_inventory.rs",
 ]
+
+[[script_group]]
+# PRE-§8 dev-only runner for the M07 pending kill-condition gates (OBL-016).
+# Runs the tests/pending/ gates that are DELIBERATELY excluded from default CI
+# and EXPECTED-RED until the Class-4 single-admission predicate gate lands under
+# §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE. Not a constitution
+# gate; does not run inside scripts/run_constitution_gates.sh; does not count
+# toward OBL-005 final closure.
+id = "pending_agentic_os_kill_condition_runner"
+classification = "dev_harness"
+status = "dev_only"
+counts_for_obl005_script_closure = false
+paths = [
+  "scripts/run_pending_agentic_os_kill_conditions.sh",
+]
+covered_by = [
+  "OBLIGATIONS.md",
+  "tests/constitution_script_liveness_inventory.rs",
+]
