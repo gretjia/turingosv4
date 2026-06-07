@@ -18,6 +18,21 @@ use crate::runtime::market_decision_trace::NoTradeReason;
 use crate::state::q_state::{AgentId, TaskId, TxId};
 use crate::state::typed_tx::EventId;
 
+// FC3 observable + canary runtime, nested here as submodules of `real5_roles`
+// (the semantic FC3-role / MetricEstimate home) to avoid a Trust-Root pin
+// rehash on the genesis-pinned `src/runtime/mod.rs`. `real5_roles.rs` is NOT
+// pinned in genesis_payload.toml, so declaring these here needs no rehash.
+// Explicit `#[path]` keeps Rust 2018 module resolution and the production
+// module-liveness scanner agreed on the on-disk `real5_roles/<mod>.rs` layout.
+/// TRACE_MATRIX FC3-N33: FC3 observable proposer runtime (REAL ArchitectProposal
+/// capsule synthesis; observe-only, never commits/vetoes/re-inits).
+#[path = "real5_roles/fc3_proposer.rs"]
+pub mod fc3_proposer;
+/// TRACE_MATRIX FC3-N33: FC3 canary runtime (predicate-driven integer
+/// MetricEstimate to tape; terminal status stays `sandbox:canary_only`).
+#[path = "real5_roles/fc3_canary.rs"]
+pub mod fc3_canary;
+
 pub const ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID: &str = "real5.role_assignment_manifest.v1";
 pub const ROLE_TURN_TRACE_SCHEMA_ID: &str = "real5.role_turn_trace.v1";
 

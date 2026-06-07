@@ -567,6 +567,33 @@ real_world_evidence = [
 evidence_requires = ["L4", "CAS", "replay", "LogFeedbackArchive", "ArchitectAI", "Veto-AI", "Reinit"]
 
 [[group]]
+id = "fc3_observable_canary_half"
+classification = "required_substrate"
+status = "claim_boundary_support"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+# Nested under `real5_roles` (`src/runtime/real5_roles/{fc3_proposer,fc3_canary}.rs`,
+# declared as `#[path]` submodules in the UNPINNED `src/runtime/real5_roles.rs`) to
+# avoid a Trust-Root pin rehash on the genesis-pinned `src/runtime/mod.rs`. The
+# no-zombie `declared_inventory()` scan is FLAT over the module roots, so it does
+# not surface these nested submodule ids; the parent `runtime::real5_roles` module
+# is already owned by its own liveness group. This group therefore claims no
+# top-level module id and is accounted for purely by its owned `paths` + smoke_gates.
+module_ids = []
+paths = [
+  "src/runtime/real5_roles/fc3_proposer.rs",
+  "src/runtime/real5_roles/fc3_canary.rs",
+]
+smoke_gates = [
+  "tests/constitution_fc3_proposer_canary_observable.rs::fc3_proposer_emits_real_spec_on_tape",
+  "tests/constitution_fc3_proposer_canary_observable.rs::fc3_canary_writes_metric_and_loop_stays_open",
+]
+real_world_evidence = []
+evidence_requires = ["L4", "CAS", "ArchitectProposalTx", "MetricEstimate", "replay"]
+closure_action = "Observable + safety-evaluation half of the FC3 self-evolution loop (token APPROVE-FC3-OBSERVABLE-CANARY-HALF): the proposer emits a real ArchitectProposal capsule and the canary writes a MetricEstimate; both are tape-anchored and exercised by the live constitution_fc3_proposer_canary_observable gate. This is NOT FC authority and carries NO historical real-world AGI evidence: the irreversible Veto-gate/trust-root-recompute/re-init leg is unimplemented and G5 (tests/pending/constitution_fc3_meta_loop_closure.rs) stays standing-pending §8 Class-4. Smoke-gate evidence is not capability evidence."
+
+[[group]]
 id = "agent_prompt_model_boundary"
 classification = "product_workload"
 status = "historical_real_world_candidate"
