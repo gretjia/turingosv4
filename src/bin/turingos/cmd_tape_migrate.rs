@@ -70,13 +70,28 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     }
     match args[0].as_str() {
-        "export" => match run_export(&args[1..]) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("turingos tape-migrate export: {}", e);
-                ExitCode::from(3)
+        "export" => {
+            // Conformance #3 (boot-trust-root; §8 APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT).
+            // `tape-migrate export` opens a GitTapeLedger (canonical write). Verify the
+            // boot Trust Root against the source repo (CWD holds genesis_payload.toml)
+            // BEFORE any write, reusing the src/main.rs:14 abort-on-tamper semantics.
+            if let Err(e) = std::env::current_dir()
+                .map_err(|e| format!("trust-root cwd: {e}"))
+                .and_then(|repo| {
+                    turingosv4::boot::verify_trust_root(&repo).map_err(|e| format!("{e}"))
+                })
+            {
+                eprintln!("turingos tape-migrate export: TRUST_ROOT_TAMPERED: {e}");
+                return ExitCode::from(3);
             }
-        },
+            match run_export(&args[1..]) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("turingos tape-migrate export: {}", e);
+                    ExitCode::from(3)
+                }
+            }
+        }
         "-h" | "--help" => {
             println!("{FULL_HELP}");
             ExitCode::SUCCESS

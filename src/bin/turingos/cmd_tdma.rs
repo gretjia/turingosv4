@@ -301,6 +301,17 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
 
 /// TRACE_MATRIX FC2-N16: `tdma run` action handler.
 fn run_run(args: &[String]) -> ExitCode {
+    // Conformance #3 (boot-trust-root; §8 APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT).
+    // `tdma run` opens a GitTapeLedger (canonical write). Verify the boot Trust Root
+    // against the source repo (CWD holds genesis_payload.toml) BEFORE any write,
+    // reusing the src/main.rs:14 abort-on-tamper semantics.
+    if let Err(e) = std::env::current_dir()
+        .map_err(|e| format!("trust-root cwd: {e}"))
+        .and_then(|repo| turingosv4::boot::verify_trust_root(&repo).map_err(|e| format!("{e}")))
+    {
+        eprintln!("turingos tdma run: TRUST_ROOT_TAMPERED: {e}");
+        return ExitCode::from(2);
+    }
     let mut workspace: Option<PathBuf> = None;
     let mut judge_name = "nesbitt".to_string();
     let mut role = "meta".to_string();

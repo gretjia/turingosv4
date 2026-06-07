@@ -1,15 +1,17 @@
-//! PENDING GATE (#3 / conformance sweep 2026-06-07) — every canonical-write
+//! PROMOTED GATE (#3 / conformance sweep 2026-06-07) — every canonical-write
 //! binary entry verifies the boot Trust Root BEFORE doing any work.
 //!
-//! STATUS: **STANDING PENDING — EXPECTED RED.** Gated on a USER §8 Class-4
-//! RATIFICATION (token `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`,
-//! packet
+//! STATUS: **GREEN / LANDED under §8 Class-4 ratification** (token
+//! `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`, packet
 //! `handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md`).
-//! The fix touches the trust-root AUTHORITY surface and EVERY canonical-write
-//! binary entry — it is Class-4 and MUST NOT be wired without per-atom §8
-//! sign-off (AGENTS.md §5/§6, the same boundary that keeps src/boot.rs the sole
-//! verifier). Until that ratification this gate stays RED by design and is NOT
-//! auto-promoted to a top-level `constitution_*.rs` gate.
+//! The fix touched the trust-root AUTHORITY boundary and EVERY canonical-write
+//! binary entry — Class-4, ratified per-atom §8 (AGENTS.md §5/§6, the same
+//! boundary that keeps src/boot.rs the sole verifier). On landing this gate was
+//! promoted from `tests/pending/` to this top-level `constitution_*.rs` gate and
+//! triple-coupled (manifest entry + CONSTITUTION_EXECUTION_MATRIX.md row + the
+//! `tests/constitution_*.rs` glob). src/boot.rs::verify_trust_root remains the
+//! SOLE verifier — writers CALL it, they do not re-implement a hash check
+//! (KEEP-SRC-BOOT preserved).
 //!
 //! ── WHY THIS GATE EXISTS (the M07-class bypass it catches) ─────────────────
 //! Source: `handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md` §2 #3
@@ -58,35 +60,36 @@
 //! `turingos` dispatcher (`src/bin/turingos.rs`) — so P is satisfied if either
 //! the submodule itself or the dispatcher entry verifies the Trust Root.
 //!
-//! EXPECTED RESULT AT PRE-§8: **RED.** Today the canonical-write set is
-//! ~21 files and NONE of them (nor the `turingos` dispatcher) call
-//! `verify_trust_root`; `rg verify_trust_root src/` lands only on
-//! `src/boot.rs` (the verifier itself), `src/main.rs:14`, and
-//! `src/bin/turingos/cmd_boot.rs:66`. So every discovered canonical writer is a
-//! P-violation and the gate asserts RED.
+//! EXPECTED RESULT (post-§8, LANDED): **GREEN.** The canonical-write set is
+//! ~21 files and EACH of them (or its owning binary) now calls
+//! `verify_trust_root` before any canonical write. `rg verify_trust_root src/`
+//! lands on `src/boot.rs` (the verifier itself), `src/main.rs:14`,
+//! `src/bin/turingos/cmd_boot.rs:66`, and every discovered canonical-write
+//! binary entry. The mutation-proof witness still holds: deleting one writer's
+//! `verify_trust_root(` call re-adds it to the unguarded set and turns this gate
+//! RED, so it cannot be satisfied by `assert!(true)`.
 //!
-//! ── THE RATIFIED FIX (post-§8, do NOT apply now) ──────────────────────────
-//! Insert one `turingosv4::boot::verify_trust_root(&repo_root)?` at the shared
-//! runner factory `build_chaintape_sequencer_with_initial_q`
-//! (`src/runtime/mod.rs:724`) — or at the top of each canonical-write `main` —
-//! and abort on failure, reusing the `src/main.rs:14` semantics. The existing
-//! 2-site gate `tests/constitution_tc_boot_trust_root_manifest.rs` must then be
-//! EXTENDED from its 2 hand-picked sites to this all-sites enumeration. When the
-//! fix lands under §8, every discovered writer verifies and this gate flips
-//! GREEN and is promoted to a top-level `constitution_*.rs` gate + manifest +
-//! matrix triple-coupling.
+//! ── THE RATIFIED FIX (LANDED) ─────────────────────────────────────────────
+//! Per the §8 packet's allowed engineering actions: each canonical-write binary
+//! entry inserts one `turingosv4::boot::verify_trust_root(&repo_root)` at the
+//! top of its `run`/`main` (the `turingos` dispatcher submodules guard their
+//! canonical-write action handler), resolving `repo_root` from the source repo
+//! (CWD holding `genesis_payload.toml`, matching `src/bin/turingos/cmd_boot.rs`)
+//! and aborting on failure, reusing the `src/main.rs:14` abort-on-tamper
+//! semantics. The check is NOT placed in the shared factory
+//! `build_chaintape_sequencer_with_initial_q` because that factory is exercised
+//! by tests that construct sequencers in temp repos WITHOUT a valid trust root;
+//! verifying inside it would break those tests. The 2-site gate
+//! `tests/constitution_tc_boot_trust_root_manifest.rs` stays as the focused
+//! KEEP-SRC-BOOT witness; THIS gate is the all-sites enumeration extension.
 //!
-//! ── EXCLUSION MECHANISM (same as the M07 G4/G5 pending gates) ──────────────
-//! Lives under `tests/pending/` (cargo does NOT auto-discover .rs in tests/
-//! SUBDIRECTORIES — only flat tests/*.rs are integration targets), so it is
-//! invisible to `cargo test --workspace`. It is NOT added to Cargo.toml as a
-//! `[[test]]` target — Cargo.toml is Trust-Root pinned (`genesis_payload.toml`),
-//! so any edit would itself trip `verify_trust_root` (TRUST_ROOT_TAMPERED),
-//! which is forbidden PRE-§8. It is NOT in
-//! `scripts/constitution_gates.manifest.toml`, so neither
-//! `scripts/run_constitution_gates.sh` nor `tests/constitution_matrix_drift.rs`
-//! sees it. It is compiled + run on demand by
-//! `scripts/run_pending_agentic_os_kill_conditions.sh` via `rustc --test`.
+//! ── DISCOVERY MECHANISM (top-level constitution gate) ──────────────────────
+//! This file is a flat `tests/constitution_*.rs` integration target, so cargo
+//! auto-discovers it under `cargo test --workspace` and
+//! `scripts/run_constitution_gates.sh`. It is triple-coupled: registered in
+//! `scripts/constitution_gates.manifest.toml` and referenced by a row in
+//! `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md` (the
+//! `tests/constitution_matrix_drift.rs` drift gate enforces that coupling).
 //!
 //! This gate imports nothing from the crate — it reads the source tree with
 //! `std::fs` only, so it links trivially against the cargo-built rlib.
@@ -106,15 +109,20 @@ const CANONICAL_WRITE_MARKERS: &[&str] = &[
     "emit_system_tx(",
 ];
 
-/// The repository root (the worktree the gate runs in). `rustc --test` does not
-/// set `CARGO_MANIFEST_DIR`, so resolve from the source file's compile-time
-/// path: this file is `<repo>/tests/pending/<name>.rs`, two levels under root.
+/// The repository root (the worktree the gate runs in). As a flat
+/// `tests/constitution_*.rs` cargo integration target, `CARGO_MANIFEST_DIR` is
+/// set to the crate root and is the authoritative source. Fall back to the
+/// compile-time file path (`<repo>/tests/<name>.rs`, one level under root) and
+/// finally to CWD for robustness against non-cargo invocations.
 fn repo_root() -> PathBuf {
+    if let Some(dir) = option_env!("CARGO_MANIFEST_DIR") {
+        let p = PathBuf::from(dir);
+        if p.join("src/boot.rs").exists() {
+            return p;
+        }
+    }
     let here = PathBuf::from(file!());
-    // file!() may be relative to the repo root (rustc invoked from there) — walk
-    // up from tests/pending/, falling back to CWD which the pending runner sets
-    // to the repo root before invoking rustc.
-    if let Some(p) = here.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
+    if let Some(p) = here.parent().and_then(|p| p.parent()) {
         if p.join("src/boot.rs").exists() {
             return p.to_path_buf();
         }
@@ -122,8 +130,8 @@ fn repo_root() -> PathBuf {
     let cwd = std::env::current_dir().expect("cwd");
     assert!(
         cwd.join("src/boot.rs").exists(),
-        "cannot locate repo root: neither {here:?} nor cwd {cwd:?} resolves to a \
-         tree containing src/boot.rs"
+        "cannot locate repo root: neither CARGO_MANIFEST_DIR, {here:?}, nor cwd \
+         {cwd:?} resolves to a tree containing src/boot.rs"
     );
     cwd
 }
@@ -185,10 +193,11 @@ fn owning_binary_closure(root: &Path, file: &Path) -> Vec<PathBuf> {
 /// #3 — EVERY canonical-write binary entry verifies the boot Trust Root before
 /// work.
 ///
-/// EXPECTED RESULT AT PRE-§8: **RED.** The canonical-write set is non-empty and
-/// at least one (today: ALL) of its members' owning binaries do not call
-/// `verify_trust_root`. PROMOTION requires §8 Class-4 ratification (token
-/// `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`).
+/// EXPECTED RESULT (post-§8, LANDED): **GREEN.** The canonical-write set is
+/// non-empty and EACH of its members' owning binaries calls `verify_trust_root`
+/// before any canonical write. LANDED under §8 Class-4 ratification (token
+/// `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`). Any new canonical-write
+/// binary that forgets the check is auto-discovered and turns this gate RED.
 #[test]
 fn all_canonical_writers_verify_trust_root() {
     let root = repo_root();
@@ -235,22 +244,21 @@ fn all_canonical_writers_verify_trust_root() {
 
     assert!(
         unguarded.is_empty(),
-        "conformance #3 boot-trust-root BYPASS (PENDING / STANDING / EXPECTED-RED): \
+        "conformance #3 boot-trust-root BYPASS (REGRESSION — this gate is GREEN/LANDED): \
          {} of {} canonical-write binary entries do NOT verify the boot Trust Root \
          before doing work. Each listed file advances canonical state (CAS \
          put_json / GitTapeLedger / build_chaintape_sequencer_with_initial_q / \
          SystemEmitCommand) yet neither it nor its owning binary calls \
          `verify_trust_root`, so a tampered constitution.md / pinned-hash manifest \
-         does NOT halt it. The existing gate \
-         tests/constitution_tc_boot_trust_root_manifest.rs asserts ONLY src/main.rs \
-         + cmd_boot.rs (the M07 single-site illusion). \
-         RATIFIED FIX (post-§8, do NOT apply now): insert one \
-         `verify_trust_root(&repo_root)?` at the shared factory \
-         build_chaintape_sequencer_with_initial_q (src/runtime/mod.rs:724) or each \
-         main top, abort on failure (reuse src/main.rs:14 semantics), and EXTEND \
-         the 2-site gate to this all-sites enumeration. PROMOTION requires §8 \
+         does NOT halt it. The all-canonical-writers invariant landed under §8 \
          Class-4 token APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT (packet \
-         handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md). \
+         handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md); \
+         a new writer must call `turingosv4::boot::verify_trust_root(&repo_root)` at \
+         the top of its run/main (resolve repo_root from CWD holding \
+         genesis_payload.toml), aborting on failure (reuse src/main.rs:14 \
+         semantics) — do NOT add the check to the shared factory \
+         build_chaintape_sequencer_with_initial_q (it is exercised by temp-repo \
+         tests without a valid trust root). \
          Unguarded canonical writers:\n  {}",
         unguarded.len(),
         writers.len(),

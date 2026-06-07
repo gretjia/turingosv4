@@ -135,6 +135,12 @@ fn stake_from_balance(balance_micro: i64) -> i64 {
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
+    // Conformance #3 (boot-trust-root; §8 APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT).
+    // Verify the boot Trust Root against the source repo (CWD holds genesis_payload.toml)
+    // BEFORE any canonical write, reusing the src/main.rs:14 abort-on-tamper semantics.
+    let trust_root_repo = std::env::current_dir().map_err(|e| format!("trust-root cwd: {e}"))?;
+    turingosv4::boot::verify_trust_root(&trust_root_repo)
+        .map_err(|e| format!("TRUST_ROOT_TAMPERED: {e}"))?;
     let args = parse_args()?;
     let t0 = Instant::now();
 

@@ -253,6 +253,20 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
         print!("{FULL_HELP}");
         return ExitCode::SUCCESS;
     }
+    // Conformance #3 (boot-trust-root; §8 APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT).
+    // `generate` opens a GitTapeLedger and builds the live Sequencer
+    // (build_chaintape_sequencer_with_initial_q) — both canonical writes. Verify the
+    // boot Trust Root against the source repo (CWD holds genesis_payload.toml) BEFORE
+    // any write, reusing the src/main.rs:14 abort-on-tamper semantics.
+    if let Err(e) = std::env::current_dir()
+        .map_err(|e| format!("trust-root cwd: {e}"))
+        .and_then(|repo| {
+            turingosv4::boot::verify_trust_root(&repo).map_err(|e| format!("{e}"))
+        })
+    {
+        eprintln!("turingos generate: TRUST_ROOT_TAMPERED: {e}");
+        return ExitCode::from(2);
+    }
     match run_inner(args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

@@ -21,6 +21,11 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_OVERALL_§8_SIGN_
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_all_canonical_writers_verify_trust_root"
+authority = "handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md (§8 token APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT)"
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_aggregate_report"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"

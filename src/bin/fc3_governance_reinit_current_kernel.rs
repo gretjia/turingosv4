@@ -161,6 +161,12 @@ async fn main() -> ExitCode {
 }
 
 async fn run(args: Args) -> Result<(), String> {
+    // Conformance #3 (boot-trust-root; §8 APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT).
+    // Verify the boot Trust Root against the source repo (CWD holds genesis_payload.toml)
+    // BEFORE any canonical write, reusing the src/main.rs:14 abort-on-tamper semantics.
+    let trust_root_repo = std::env::current_dir().map_err(|e| format!("trust-root cwd: {e}"))?;
+    turingosv4::boot::verify_trust_root(&trust_root_repo)
+        .map_err(|e| format!("TRUST_ROOT_TAMPERED: {e}"))?;
     std::fs::create_dir_all(&args.runtime_repo).map_err(|e| format!("runtime repo dir: {e}"))?;
     std::fs::create_dir_all(&args.cas).map_err(|e| format!("cas dir: {e}"))?;
     std::fs::create_dir_all(&args.out_dir).map_err(|e| format!("out dir: {e}"))?;
