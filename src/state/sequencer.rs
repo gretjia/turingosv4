@@ -1234,13 +1234,17 @@ fn verify_work_predicates(
         // `predicate_admission::decide_admission`, so there is exactly one home
         // for the verdict-trusting logic (anti-duplication invariant).
         //
-        // `os_qualified` is derived from the bound registry root per the M07
-        // spec's recommended definition: a run that has bound a registry
-        // (`predicate_registry_root_t != Hash::ZERO`) is OS-qualified. Inside
-        // this branch the root IS zero, so the flag is `false` and the legacy
-        // verdict-trusting behavior is preserved byte-for-byte (acceptance then
-        // settlement, fail on the first false, same `BTreeMap` iteration order).
-        let os_qualified = q.predicate_registry_root_t != Hash::ZERO;
+        // M07 G3 (2026-06-07; §8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD):
+        // `os_qualified` is the run-level QState field, NOT `registry_root !=
+        // ZERO`. Under the old derivation this flag was ALWAYS false inside the
+        // zero-root branch (the root IS zero here), so the G3 refuse-path was
+        // dead. Reading `q.os_qualified_t` makes it live: a genesis/legacy run
+        // (`os_qualified_t == false`) still verdict-trusts the zero-root booleans
+        // byte-for-byte (acceptance then settlement, fail on first false, same
+        // `BTreeMap` order), while an OS-qualified run (`os_qualified_t == true`,
+        // set by the system-only PredicateBindingActivate accept) is REFUSED at a
+        // zero root and must carry a non-zero bound root so the oracle re-executes.
+        let os_qualified = q.os_qualified_t;
         let claims = work_tx_to_claim_set(work);
         return match crate::predicate_admission::decide_admission(
             &crate::predicate_admission::zero_root_hex(),
@@ -1339,9 +1343,9 @@ fn admission_fail_to_transition(
             TransitionError::SettlementPredicateFailed(PredicateId(failed_predicate.to_string()))
         }
         // A zero registry root under an OS-qualified run is a root-mismatch: the
-        // run must carry a NON-ZERO bound root so the oracle re-executes. (Not
-        // reachable from the sequencer's zero-root branch, where os_qualified is
-        // always false; mapped for totality.)
+        // run must carry a NON-ZERO bound root so the oracle re-executes. LIVE as
+        // of M07 G3 — reachable from the zero-root branch when `q.os_qualified_t`
+        // is true (PredicateBindingActivate has flipped the run OS-qualified).
         R::ZeroRootRefusedForOsQualifiedRun => TransitionError::PredicateRegistryRootMismatch,
     }
 }
@@ -3100,6 +3104,13 @@ pub(crate) fn dispatch_transition(
             }
             let mut q_next = q.clone();
             q_next.predicate_registry_root_t = activate.registry_merkle_root;
+            // M07 G3 (2026-06-07; §8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD):
+            // binding a predicate registry via this system-only tx marks the run
+            // OS-qualified. From here on the shared admission contract REFUSES a
+            // zero predicate-registry root (the run carries a non-zero bound root,
+            // so the oracle re-executes). The flag folds into `state_root_t` below
+            // and is replayable from tape.
+            q_next.os_qualified_t = true;
             q_next.state_root_t = predicate_binding_activate_state_root(&q.state_root_t, tx);
             Ok((q_next, SignalBundle::empty()))
         }

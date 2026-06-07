@@ -325,17 +325,17 @@ Two independent decisions are requested. Each needs an explicit token.
 
 **(A) `M07_GREEN` v2 + G2 behavioral gate** (test-only; within existing token
 scope, recorded here for the matrix):
-- [ ] Approve `M07_GREEN_v2` (§4): G3 removed from M07_GREEN; G2 proven by
+- [x] Approve `M07_GREEN_v2` (§4): G3 removed from M07_GREEN; G2 proven by
       structural + behavioral gates.
-- [ ] Approve adding `tests/constitution_single_admission_behavioral.rs` (§5)
+- [x] Approve adding `tests/constitution_single_admission_behavioral.rs` (§5)
       and retiring the self-contradictory pending G2.
 
-`> Architect token / verbatim: ____________________`
+`> Architect token / verbatim: GRANTED by user 2026-06-07 ("全部批准：(A) 批准 M07_GREEN_v2 ... + 加一个正确的 G2 行为门 (test-only，现 token 覆盖)"); within existing APPROVE-M07-A4 scope.`
 
 **(B) G3 run-level `os_qualified` field — NEW Class-4 §8** (`src/state/q_state.rs`
 schema + `genesis_payload.toml` rehash + signed tag):
-- [ ] Approve the `QState::os_qualified_t` design (§6), OR
-- [ ] Direct the descope fallback (§6, last bullet).
+- [x] Approve the `QState::os_qualified_t` design (§6).
+- [ ] ~~Direct the descope fallback~~ (not taken).
 
-`> Architect token / verbatim (Class-4, e.g. APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD): ____________________`
-`> Signed-tag applied (scripts/check_tr_ratification_chain.sh): ____________________`
+`> Architect token / verbatim (Class-4): APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD — GRANTED by user 2026-06-07 ("(B) 新 Class-4 §8：G3 ... token：APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD"). Self-sign delegation for the ratification tag confirmed by the user the same session.`
+`> Signed-tag applied (scripts/check_tr_ratification_chain.sh): v4-ratify-2026-06-07 tag applied over the committed G3 change (q_state.rs pin 281 + sequencer.rs pin 282 rehash); check_tr_ratification_chain.sh → RATIFIED (see OBLIGATIONS.md OBL-016 evidence for the exact tag + commit).`

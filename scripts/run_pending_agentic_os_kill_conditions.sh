@@ -1,20 +1,35 @@
 #!/usr/bin/env bash
 # scripts/run_pending_agentic_os_kill_conditions.sh
 #
-# M07 PENDING kill-condition runner — post-§8 residual set (G2/G3/G4/G5).
+# M07 PENDING kill-condition runner — post-§8 residual set (G3/G4/G5).
 #
 # UPDATE 2026-06-07 (§8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE):
 # G1 (pending_m07_kernel_predicate_gate) has been PROMOTED to a live constitution
 # gate (tests/constitution_kernel_predicate_gate.rs, registered in
 # scripts/constitution_gates.manifest.toml + the execution matrix) and is removed
-# from this pending set. G2/G3 stay here as EXPECTED-RED kill-conditions: the
-# route-A src change did NOT close them (see
-# handover/audits/PENDING_AGENTIC_OS_KILL_CONDITIONS_2026-06-07.md §2 G2/G3) and
-# they cannot be turned green without an out-of-scope decision (G2 as written is
-# self-contradictory; G3 needs an architect ruling on the os_qualified source).
-# G4/G5 remain STANDING pending a separate §8. The single-admission anti-
-# duplication invariant is instead enforced live by
-# tests/constitution_single_admission_contract.rs.
+# from this pending set.
+#
+# UPDATE 2026-06-07 (§8 packet M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md §5):
+# G2 (pending_m07_single_admission) has been RETIRED. The as-written pending G2
+# was logically self-contradictory — it asserted kernel_admitted==true AND
+# seq_admitted==false AND kernel_admitted==seq_admitted (true==false), so it was
+# a broken test, not a falsifiable kill-condition (AGENTS.md §7). It is replaced
+# by a CORRECT live behavioral gate
+# tests/constitution_single_admission_behavioral.rs (both authorities fed the
+# SAME claim must reach the SAME verdict), triple-coupled into the manifest +
+# matrix. The structural anti-duplication invariant is additionally enforced live
+# by tests/constitution_single_admission_contract.rs. G2 is therefore removed
+# from this pending set.
+#
+# UPDATE 2026-06-07 (§8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD, Class-4):
+# G3 (pending_m07_zero_root_is_not_oracle) has been PROMOTED to a live
+# constitution gate (tests/constitution_predicate_zero_root_is_not_oracle.rs,
+# registered in scripts/constitution_gates.manifest.toml + the execution matrix).
+# The architect ruling on the os_qualified source landed as the run-level
+# QState::os_qualified_t field (independent of predicate_registry_root_t, folded
+# into state_root_t, flipped true by the system-only PredicateBindingActivate
+# accept), which makes the zero-root refuse-path live. G3 is removed from this
+# pending set. G4/G5 remain STANDING pending a separate §8.
 #
 # Runs the pending agentic-OS kill-condition gate set that is DELIBERATELY
 # EXCLUDED from default CI. The exclusion mechanism is ZERO-CARGO.TOML:
@@ -49,17 +64,16 @@
 # scripts/run_constitution_gates.sh and does NOT block default CI. Mirrors the
 # report-not-enforce house style of scripts/audit_legacy_bypass.sh.
 #
-# Scope: the M07 residual pending kill-condition set (4 gates; G1 promoted out):
-#   G2 pending_m07_single_admission             -> SINGLE_ADMISSION_EXPECTED_RED
-#   G3 pending_m07_zero_root_is_not_oracle       -> ZERO_ROOT_EXPECTED_RED
+# Scope: the M07 residual pending kill-condition set (2 gates; G1 + G3 promoted
+# out, G2 retired + replaced by a live behavioral gate):
 #   G4 pending_m07_budget_ceiling_enforced       -> BUDGET_CEILING_STANDING_PENDING
 #   G5 pending_m07_fc3_meta_loop_closure         -> FC3_META_LOOP_STANDING_PENDING
-# G2+G3 are EXPECTED-RED kill-conditions the route-A change did NOT close (G2 is
-# self-contradictory as written; G3 awaits an architect ruling on the
-# os_qualified source — see the audit doc). G4+G5 are STANDING pending — they
-# additionally require a separate user §8 decision (budget hard-ceiling ruling;
-# FC3 irreversible-commit Class-4 ratification). G1 was promoted to the live
-# gate tests/constitution_kernel_predicate_gate.rs under this §8 token.
+# G4+G5 are STANDING pending — they additionally require a separate user §8
+# decision (budget hard-ceiling ruling; FC3 irreversible-commit Class-4
+# ratification). G1 was promoted to the live gate
+# tests/constitution_kernel_predicate_gate.rs, G2 to
+# tests/constitution_single_admission_behavioral.rs, and G3 to
+# tests/constitution_predicate_zero_root_is_not_oracle.rs under their §8 tokens.
 set -uo pipefail   # NOT -e: we must survive expected failures and tally them.
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -70,8 +84,6 @@ OUT="target/pending_kill_conditions_output.txt"
 
 # Each entry: "<binary basename>|<source path>|<standing token printed when RED>"
 PENDING_GATES=(
-  "pending_m07_single_admission|tests/pending/constitution_kernel_sequencer_single_admission.rs|SINGLE_ADMISSION_EXPECTED_RED"
-  "pending_m07_zero_root_is_not_oracle|tests/pending/constitution_predicate_zero_root_is_not_oracle.rs|ZERO_ROOT_EXPECTED_RED"
   "pending_m07_budget_ceiling_enforced|tests/pending/constitution_budget_ceiling_enforced.rs|BUDGET_CEILING_STANDING_PENDING"
   "pending_m07_fc3_meta_loop_closure|tests/pending/constitution_fc3_meta_loop_closure.rs|FC3_META_LOOP_STANDING_PENDING"
 )

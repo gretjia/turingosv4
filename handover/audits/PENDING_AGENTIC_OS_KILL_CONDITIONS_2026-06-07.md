@@ -57,6 +57,69 @@ the FC3 irreversible-commit path).
 > (`expected-red=4, unexpected-pass=0, compile-break=0`). G1 no longer appears
 > in the pending runner — it is a live constitution gate.
 
+> ## POST-§8 UPDATE 2 (2026-06-07) — G2 retired + replaced by a live behavioral gate
+>
+> Per §8 packet `handover/section8/M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md`
+> §5 (under the existing `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE` token,
+> test-only): the pending G2 file
+> `tests/pending/constitution_kernel_sequencer_single_admission.rs` was
+> **logically self-contradictory** — it asserted `kernel_admitted == true` AND
+> `sequencer_admitted == false` AND `kernel_admitted == sequencer_admitted`
+> (i.e. `true == false`). That is a broken test, not a falsifiable kill-condition
+> (AGENTS.md §7): its kernel leg fed the empty 3-arg `step_forward` (zero-root
+> PASS → admit) while its sequencer leg submitted a false-predicate WorkTx
+> (reject), so the two legs decided DIFFERENT claims and were then asserted to
+> agree.
+>
+> - **G2 — RETIRED.** The self-contradictory pending file was DELETED and removed
+>   from `scripts/run_pending_agentic_os_kill_conditions.sh`.
+> - **G2 (behavioral) — NEW, LIVE, GREEN.** Replaced by a CORRECT behavioral gate
+>   `tests/constitution_single_admission_behavioral.rs`: feed BOTH authorities the
+>   SAME claim and assert they AGREE. A FALSE acceptance claim is rejected by both
+>   (`!kernel_admitted && !seq_admitted && kernel_admitted == seq_admitted`); a
+>   TRUE claim is admitted by both (positive control). The kernel leg now drives
+>   `step_forward_with_claims` with a real failing claim → `decide_admission` →
+>   `Fail` → `handle_rejection` (no head advance). Triple-coupled into
+>   `scripts/constitution_gates.manifest.toml`
+>   (`constitution_single_admission_behavioral`) and the execution matrix.
+>
+> Net pending runner after this turn: **G3/G4/G5** EXPECTED-RED, exit 0
+> (`expected-red=3, unexpected-pass=0, compile-break=0`). G1 and G2 no longer
+> appear in the pending runner — both are live constitution gates.
+
+> ## POST-§8 UPDATE 3 (2026-06-07) — G3 promoted under a NEW Class-4 §8 token
+>
+> Per §8 packet `handover/section8/M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md`
+> §6 and the user's **new Class-4** token
+> `APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD` (separate from the route-A token, which
+> scoped itself to "no schema surface"): the architect ruling on the
+> `os_qualified` source landed as a **run-level QState field**.
+>
+> - **Field**: `QState::os_qualified_t: bool` (`src/state/q_state.rs`, a
+>   trust-root-pinned surface — pin rehashed in the same commit). `false` at
+>   genesis/default, preserving every legacy zero-root suite (tb_8 et al. still
+>   admit zero-root WorkTx with true predicates). It is **independent of**
+>   `predicate_registry_root_t`, so the previously-dead refuse-path is reachable;
+>   it is folded into `state_root_t` and replayable from tape. Flipped
+>   `false→true` by the system-only `PredicateBindingActivate` accept in
+>   `src/state/sequencer.rs`.
+> - **Rewire**: both admission legs now read the field, not `registry_root !=
+>   ZERO` — `src/state/sequencer.rs` zero-root branch (`q.os_qualified_t`) and
+>   `src/memory_kernel.rs` Proceed branch (kernel `os_qualified_t`). For an
+>   OS-qualified run (`os_qualified_t == true`) a zero registry root →
+>   `decide_admission` → `Fail(ZeroRootRefusedForOsQualifiedRun)` → REFUSED.
+> - **G3 — PROMOTED + GREEN.** Moved to
+>   `tests/constitution_predicate_zero_root_is_not_oracle.rs`, registered in
+>   `scripts/constitution_gates.manifest.toml`
+>   (`constitution_predicate_zero_root_is_not_oracle`) and the execution matrix.
+>   The test marks the run OS-qualified (`q.os_qualified_t = true`) and asserts the
+>   zero-root self-asserted WorkTx is refused. G3 no longer appears in the pending
+>   runner.
+>
+> Net pending runner after this turn: **G4/G5** EXPECTED-RED, exit 0
+> (`expected-red=2, unexpected-pass=0, compile-break=0`). G1, G2, and G3 are all
+> live constitution gates.
+
 > **This is PRE-§8 prep only.** These gates are kill-conditions that *demonstrate
 > on a real run* the Class-4 admission-topology gaps M07 must close. They are
 > DELIBERATELY EXCLUDED from default CI and EXPECTED TO FAIL (red). The fixes
@@ -71,7 +134,7 @@ the FC3 irreversible-commit path).
 | Gate | FC node | The bypass it demonstrates | Source line |
 |------|---------|----------------------------|-------------|
 | G1 kernel-predicate | FC1 runtime loop (`Q_t → … → wtool → Q_{t+1}`) | `MemoryKernel` advances `verified_head` purely on `success + Proceed`, predicate-blind | `src/memory_kernel.rs:171-188` |
-| G2 single-admission | FC1 ⨯ FC2 admission | TWO admission authorities (kernel vs sequencer) reach DIFFERENT predicate verdicts for the same claim | `src/memory_kernel.rs:171-188` vs `src/state/sequencer.rs:1225` |
+| G2 single-admission (RETIRED → live `constitution_single_admission_behavioral`) | FC1 ⨯ FC2 admission | TWO admission authorities (kernel vs sequencer) must reach the SAME predicate verdict for the same claim | `src/memory_kernel.rs` Proceed branch vs `src/state/sequencer.rs` zero-root branch |
 | G3 zero-root-not-oracle | FC2 predicate/verifier (L1) | zero registry root trusts self-reported booleans instead of re-executing the oracle | `src/state/sequencer.rs:1231` |
 | G4 budget ceiling | FC2 boot budget (Art. V.2) | no admission gate compares `budget_state_t` against any ceiling; over-budget runs admit | `src/state/q_state.rs:153-160`; `constitution.md:796-797` |
 | G5 FC3 meta-loop | FC3 meta-architecture | substrate live but runtime engine missing: proposer inert, loop dead-ends at sandbox canary, never re-inits | `src/runtime/real5_roles.rs:464-469,1077-1091`; `fc3_governance_reinit_current_kernel.rs` |
@@ -106,18 +169,30 @@ gap, not a harness/precondition failure.
   `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE`.
 - **Standing token**: `M07_EXPECTED_RED`.
 
-### G2 — `tests/pending/constitution_kernel_sequencer_single_admission.rs`
-**Test**: `m07_kernel_and_sequencer_must_share_one_predicate_admission_contract`
-- **Proves**: feeds one logical "failing-predicate" claim to BOTH authorities.
-  The kernel ADMITS (advances `verified_head`) on a bare `Proceed`; the
-  sequencer REJECTS the equivalent `WorkTx` whose acceptance predicate is
-  `false` (zero-root branch, `sequencer.rs:1231-1235`). `kernel_admitted=true`,
-  `sequencer_admitted=false`.
-- **Current red**: the invariant `kernel_admitted == sequencer_admitted` fails
-  (`true != false`) — two admission authorities, two verdicts.
-- **Promotes when**: both paths route through ONE shared predicate-admission
-  contract. §8 token `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE`.
-- **Standing token**: `SINGLE_ADMISSION_EXPECTED_RED`.
+### G2 — RETIRED (was `tests/pending/constitution_kernel_sequencer_single_admission.rs`)
+> **RETIRED 2026-06-07** per §8 packet
+> `handover/section8/M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md` §5 — see
+> POST-§8 UPDATE 2 above. The as-written pending G2 was logically
+> self-contradictory (asserted `kernel_admitted==true` ∧ `seq_admitted==false` ∧
+> `kernel_admitted==seq_admitted`, i.e. `true==false`): its kernel leg fed the
+> empty 3-arg `step_forward` (zero-root PASS) while the sequencer leg submitted a
+> false-predicate WorkTx, so the legs decided DIFFERENT claims then asserted
+> agreement. That is documentation, not a falsifiable gate (AGENTS.md §7). The
+> file was DELETED. The single-admission invariant is now enforced LIVE by the
+> behavioral gate `tests/constitution_single_admission_behavioral.rs` (both
+> authorities fed the SAME claim must agree) plus the structural anti-duplication
+> gate `tests/constitution_single_admission_contract.rs`.
+
+The original (broken) intent and why it could not be promoted as written:
+- **Intended to prove**: feeds one logical "failing-predicate" claim to BOTH
+  authorities and asserts they agree.
+- **Why broken**: the kernel leg drove the 3-arg `step_forward` with an EMPTY
+  claim set (zero-root PASS → admit=true) instead of a failing claim, so it
+  asserted `true == false`. No source can satisfy that.
+- **Correct replacement**: `tests/constitution_single_admission_behavioral.rs`
+  feeds the kernel a real failing claim via `step_forward_with_claims` → both
+  authorities reject → `kernel_admitted == seq_admitted == false`. §8 token
+  `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE`.
 
 ### G3 — `tests/pending/constitution_predicate_zero_root_is_not_oracle.rs`
 **Test**: `m07_os_qualified_run_must_not_admit_under_zero_predicate_registry_root`
@@ -229,8 +304,15 @@ It is explicitly NOT a constitution gate, does NOT run inside
 
 ## 4. Verification (this turn, verbatim)
 
+> NOTE 2026-06-07 (POST-§8 UPDATE 2): the verbatim runner output below is the
+> ORIGINAL Phase-1 capture (5 pending gates, all EXPECTED-RED). After G1 was
+> promoted and G2 retired + replaced by a live behavioral gate, the residual
+> pending set is **G3/G4/G5** and the runner reports `expected-red: 3,
+> unexpected-pass: 0, compile-break: 0` (still exit 0). Historical capture
+> preserved (no retroactive evidence rewrite, AGENTS.md §8).
+
 ```text
-# Pending runner — all 5 red as expected, exit 0
+# Pending runner — all 5 red as expected, exit 0 (ORIGINAL Phase-1 capture)
 $ bash scripts/run_pending_agentic_os_kill_conditions.sh
   ...
   M07_EXPECTED_RED                 (gate red as expected — standing pending §8)
