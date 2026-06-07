@@ -107,6 +107,14 @@ pub struct MemoryKernel<L: ImmutableTapeLedger> {
     pub predicate_registry: Arc<PredicateRegistry>,
     pub predicate_registry_root_t: Hash,
     pub predicate_cas: Arc<dyn PredicateCasView + Send + Sync>,
+    /// M07 G3 (2026-06-07; §8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD):
+    /// run-level OS-qualification, the kernel analogue of `QState::os_qualified_t`.
+    /// `false` for every legacy 3-arg `new` call site (zero-root verdict-trusting
+    /// admit preserved); set `true` for an OS-qualified run that binds a non-zero
+    /// predicate registry via `new_with_predicates`. When `true`, the shared
+    /// admission contract REFUSES a zero registry root, mirroring the sequencer.
+    /// TRACE_MATRIX FC1a-predicates + FC2-boot_loop: kernel run OS-qualification.
+    pub os_qualified_t: bool,
 }
 
 /// Trivial newtype to satisfy `Arc<L: ImmutableTapeLedger>` lifetime in Rtool.
@@ -190,6 +198,10 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         let adapter: Arc<MemoryKernelTape<L>> =
             Arc::new(MemoryKernelTape(std::marker::PhantomData));
         let rtool = Rtool::new(adapter, tokenizer.clone());
+        // M07 G3: a kernel that binds a non-zero predicate registry is an
+        // OS-qualified run. The defaulting `new` passes `Hash::ZERO` here, so the
+        // legacy zero-root path stays `os_qualified_t == false`.
+        let os_qualified_t = predicate_registry_root_t != Hash::ZERO;
         Self {
             tape,
             run_id: run_id.into(),
@@ -199,6 +211,7 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             predicate_registry,
             predicate_registry_root_t,
             predicate_cas,
+            os_qualified_t,
         }
     }
 
@@ -245,7 +258,10 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                 // receipt and only THEN advance the verified head; on FAIL we
                 // route to the existing non-advancing rejection path.
                 let root_hex = hash_to_hex(&self.predicate_registry_root_t);
-                let os_qualified = self.predicate_registry_root_t != Hash::ZERO;
+                // M07 G3: read the run-level OS-qualification field, NOT
+                // `registry_root != ZERO`. For a legacy kernel both are false; for
+                // an OS-qualified kernel the field gates the zero-root refuse-path.
+                let os_qualified = self.os_qualified_t;
                 let verdict = decide_admission(&root_hex, &claims, os_qualified);
 
                 match verdict {

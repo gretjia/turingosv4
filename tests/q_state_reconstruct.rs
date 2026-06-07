@@ -67,7 +67,10 @@ fn balances_index_insertion_order_independence() {
 }
 
 #[test]
-fn nine_top_level_fields() {
+fn ten_top_level_fields() {
+    // WP § 4 mandates 9 fields; M07 G3 (2026-06-07, §8 token
+    // APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD) adds `os_qualified_t`, moving the
+    // count 9→10. The new field is folded into state_root_t (replayable).
     let v = serde_json::to_value(QState::genesis()).unwrap();
     let obj = v.as_object().unwrap();
     let expected = [
@@ -80,8 +83,13 @@ fn nine_top_level_fields() {
         "tool_registry_root_t",
         "economic_state_t",
         "budget_state_t",
+        "os_qualified_t",
     ];
-    assert_eq!(obj.len(), 9, "WP § 4 mandates exactly 9 fields");
+    assert_eq!(
+        obj.len(),
+        10,
+        "WP § 4 (9) + os_qualified_t (M07 G3) = exactly 10 fields"
+    );
     for k in expected.iter() {
         assert!(obj.contains_key(*k), "missing field {}", k);
     }

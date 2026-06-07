@@ -286,8 +286,18 @@ authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-
 added = "2026-06-07"
 
 [[gate]]
+name = "constitution_single_admission_behavioral"
+authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE (2026-06-07); handover/section8/M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md §5 (G2 behavioral witness — both admission authorities reach the same verdict for the same claim; replaces the retired self-contradictory pending G2)"
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_kernel_predicate_receipt_replay"
 authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE (2026-06-07); handover/design/M07_SINGLE_ADMISSION_IMPLEMENTATION_SPEC_2026-06-07.md §10 (replay/reconstruction witness — receipt verdict matches re-execution of decide_admission from dump_all_nodes alone)"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_predicate_zero_root_is_not_oracle"
+authority = "M07 G3 oracle-not-verdict-trust: user §8 token APPROVE-M07-G3-OS-QUALIFIED-RUN-FIELD (2026-06-07, Class-4); handover/section8/M07_G2_G3_GATE_REDESIGN_DECISION_2026-06-07.md §6 (G3 promotion — run-level QState::os_qualified_t makes the zero-root refuse-path live; promoted from tests/pending after the field landed)"
 added = "2026-06-07"
 
 [[gate]]
