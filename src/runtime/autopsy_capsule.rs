@@ -25,6 +25,15 @@
 //! (read-view scoping) + CR-15.3 (autopsy SUGGESTS via
 //! `suggested_policy_patch: Option<Cid>`; never mutates predicates).
 
+// Tier-1 SkillCapsule (SYSTEM-authored, AGENT-read-only distilled memory).
+// Nested here as a `#[path]` submodule because `autopsy_capsule.rs` is an
+// UNPINNED file already declared in the trust-root-pinned `runtime/mod.rs`;
+// nesting avoids editing the pinned `mod.rs`. Access path:
+// `crate::runtime::autopsy_capsule::skill_capsule::*`.
+/// TRACE_MATRIX FC3-N43 + Art. 0.2: Tier-1 SkillCapsule memory (system-authored, agent read-only).
+#[path = "skill_capsule.rs"]
+pub mod skill_capsule;
+
 use serde::{Deserialize, Serialize};
 
 use crate::bottom_white::cas::schema::Cid;
