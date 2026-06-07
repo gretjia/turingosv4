@@ -96,6 +96,9 @@ struct GaiaAnswerClaimCapsule {
     prompt_sha256: String,
     provider_response_sha256: String,
     raw_provider_response_persisted: bool,
+    // CONFORMANCE FIX #2 (evidence-cas-anchor): always-anchor parse-failure
+    // field, mirroring swebench's parse_patch_claim. None on success.
+    parse_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -332,14 +335,16 @@ async fn run(args: Args) -> Result<(), String> {
         .await
         .map_err(|e| format!("llm proxy generation failed: {e}"))?;
     let provider_response_sha256 = sha256_hex(&response.content);
-    let parsed = parse_answer_claim(&response.content)?;
-    let rationale_guard_passed = parsed.rationale.trim().chars().count() >= MIN_RATIONALE_CHARS;
-    if !rationale_guard_passed {
-        return Err(format!(
-            "GAIA answer rejected before WorkTx: rationale too short ({} chars, need >= {MIN_RATIONALE_CHARS})",
-            parsed.rationale.trim().chars().count()
-        ));
-    }
+    // CONFORMANCE FIX #2 (evidence-cas-anchor): capture parse result and ALWAYS
+    // anchor the answer-claim capsule before any abort; mirror swebench.
+    let parsed_result = parse_answer_claim(&response.content);
+    let parse_error = parsed_result.as_ref().err().cloned();
+    let parsed = parsed_result.unwrap_or(ParsedAnswerClaim {
+        final_answer: String::new(),
+        rationale: String::new(),
+    });
+    let rationale_guard_passed =
+        parse_error.is_none() && parsed.rationale.trim().chars().count() >= MIN_RATIONALE_CHARS;
 
     let answer_claim = GaiaAnswerClaimCapsule {
         schema_version: "turingosv4.true_suite.gaia_answer_claim_capsule.v1",
@@ -351,6 +356,7 @@ async fn run(args: Args) -> Result<(), String> {
         prompt_sha256: prompt_sha256.clone(),
         provider_response_sha256: provider_response_sha256.clone(),
         raw_provider_response_persisted: false,
+        parse_error: parse_error.clone(),
     };
     let answer_claim_cid = put_json(
         &args.cas,
@@ -360,6 +366,20 @@ async fn run(args: Args) -> Result<(), String> {
         2,
         "turingosv4.true_suite.gaia_answer_claim_capsule.v1",
     )?;
+
+    if let Some(err) = parse_error {
+        return Err(format!(
+            "GAIA answer failed to parse (answer-claim capsule {} anchored): {err}",
+            answer_claim_cid.hex()
+        ));
+    }
+    if !rationale_guard_passed {
+        return Err(format!(
+            "GAIA answer rejected before WorkTx: rationale too short ({} chars, need >= {MIN_RATIONALE_CHARS}) (answer-claim capsule {} anchored)",
+            parsed.rationale.trim().chars().count(),
+            answer_claim_cid.hex()
+        ));
+    }
 
     let answer_correct =
         normalize_answer(&parsed.final_answer) == normalize_answer(&sample.expected_answer);

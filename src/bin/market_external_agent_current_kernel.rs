@@ -147,8 +147,18 @@ struct MarketDecisionCapsule {
     model_returned: String,
     prompt_sha256: String,
     agent_response_sha256: String,
-    direction: ParsedDirection,
-    amount_micro: i64,
+    // CONFORMANCE FIX #2 (evidence-cas-anchor): `direction` / `amount_micro` are
+    // now optional and the capsule carries `parse_error` / `direction_mismatch`
+    // so that EVERY completed external LLM call (token already spent) is anchored
+    // in CAS — including the failure branch — mirroring swebench's
+    // `parse_patch_claim` which captures `parse_error` and ALWAYS writes its
+    // claim capsule. `expected_direction` records the role's required side for
+    // the mismatch case. See tests/constitution_external_attempt_anchored_on_failure.rs.
+    direction: Option<ParsedDirection>,
+    amount_micro: Option<i64>,
+    expected_direction: ParsedDirection,
+    parse_error: Option<String>,
+    direction_mismatch: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -468,7 +478,7 @@ fn build_agent_prompt(
     role: &str,
     required_direction: ParsedDirection,
 ) -> String {
-    format!(
+    let prompt = format!(
         "You are an external TuringOS market participant, not kernel code.\n\
          Role: {role}.\n\
          Public event: task `{event_task_id}` has an active YES/NO constant-product market pool.\n\
@@ -480,7 +490,15 @@ fn build_agent_prompt(
         ,
         direction_token(required_direction),
         direction_token(required_direction),
-    )
+    );
+    // CONFORMANCE FIX #5 (goodhart-shield): runtime PPUT-context-leak guard at
+    // the market prompt-delivery boundary (Art. III.4), before this prompt
+    // crosses the external-LLM call. Defense-in-depth: no PPUT scalar may enter
+    // agent context even if a future template change or interpolated field leaks
+    // one. Guard lives in the trust-root-pinned `prompt_guard.rs` (unchanged).
+    // Gate: tests/constitution_metric_leak_guard_wired.rs.
+    turingosv4::sdk::prompt_guard::assert_no_metric_leak(&prompt);
+    prompt
 }
 
 async fn ask_external_agent(args: &Args, prompt: String) -> Result<(String, String), String> {
@@ -645,13 +663,30 @@ async fn run(args: Args) -> Result<(), String> {
         let prompt_sha256 = sha256_hex(&prompt);
         let (agent_content, model_returned) = ask_external_agent(&args, prompt).await?;
         let agent_response_sha256 = sha256_hex(&agent_content);
-        let decision = parse_decision(&agent_content)?;
-        if decision.direction != plan.required_direction {
-            return Err(format!(
+
+        // CONFORMANCE FIX #2 (evidence-cas-anchor): the external LLM call above
+        // has ALREADY completed — tokens are spent and the response is the
+        // run's externalized attempt. Previously `parse_decision(..)?` and the
+        // direction-mismatch `return Err` short-circuited BEFORE the first
+        // `put_json`, so a parse/guard failure left NO CAS object, NO L4 WorkTx,
+        // and NO L4.E — the spent attempt was unreconstructable from tape. We now
+        // capture the parse/direction error into capsule fields and ALWAYS write
+        // the `MarketDecisionCapsule` (mirroring swebench's `parse_patch_claim`,
+        // which records `parse_error` and always anchors its claim capsule). Only
+        // AFTER the capsule is anchored do we decide whether to abort.
+        let parsed = parse_decision(&agent_content);
+        let parse_error = parsed.as_ref().err().cloned();
+        let (decision_direction, decision_amount_micro) = match parsed.as_ref() {
+            Ok(d) => (Some(d.direction), Some(d.amount_micro)),
+            Err(_) => (None, None),
+        };
+        let direction_mismatch = match decision_direction {
+            Some(dir) if dir != plan.required_direction => Some(format!(
                 "external agent {} returned {:?}, expected {:?} for role {}",
-                plan.external_agent_id, decision.direction, plan.required_direction, plan.role
-            ));
-        }
+                plan.external_agent_id, dir, plan.required_direction, plan.role
+            )),
+            _ => None,
+        };
 
         let decision_capsule = MarketDecisionCapsule {
             schema_version: "turingosv4.true_suite.market_decision_capsule.v1",
@@ -661,8 +696,11 @@ async fn run(args: Args) -> Result<(), String> {
             model_returned: model_returned.clone(),
             prompt_sha256: prompt_sha256.clone(),
             agent_response_sha256: agent_response_sha256.clone(),
-            direction: decision.direction,
-            amount_micro: decision.amount_micro,
+            direction: decision_direction,
+            amount_micro: decision_amount_micro,
+            expected_direction: plan.required_direction,
+            parse_error: parse_error.clone(),
+            direction_mismatch: direction_mismatch.clone(),
         };
         let decision_capsule_cid = put_json(
             &args.cas,
@@ -672,6 +710,23 @@ async fn run(args: Args) -> Result<(), String> {
             plan.decision_logical_t,
             "turingosv4.true_suite.market_decision_capsule.v1",
         )?;
+
+        // The completed attempt is now anchored in CAS. Abort the run only AFTER
+        // the evidence is durable — never before.
+        if let Some(err) = parse_error {
+            return Err(format!(
+                "external agent {} response failed to parse (decision capsule {} anchored): {err}",
+                plan.external_agent_id,
+                decision_capsule_cid.hex()
+            ));
+        }
+        if let Some(mismatch) = direction_mismatch {
+            return Err(format!(
+                "{mismatch} (decision capsule {} anchored)",
+                decision_capsule_cid.hex()
+            ));
+        }
+        let decision = parsed.expect("parse_error handled above");
 
         let pre_router_q = seq
             .q_snapshot()

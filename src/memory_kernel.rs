@@ -566,6 +566,16 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             task = task_text,
         );
 
+        // CONFORMANCE FIX #5 (goodhart-shield): runtime PPUT-context-leak guard
+        // at the O(1) prompt-assembly boundary (Art. III.4). The BBS / session
+        // digest / charter are tape-derived surfaces; this RUNTIME call ensures a
+        // PPUT scalar can never reach the worker prompt even if a future state
+        // surface injects one. The sweep confirmed no current scoring-to-prompt
+        // flow, so this passes on current content (defense-in-depth). Guard lives
+        // in the trust-root-pinned `prompt_guard.rs` (unchanged). Gate:
+        // tests/constitution_metric_leak_guard_wired.rs.
+        crate::sdk::prompt_guard::assert_no_metric_leak(&prompt);
+
         prompt
     }
 

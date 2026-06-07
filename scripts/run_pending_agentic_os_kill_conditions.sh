@@ -31,6 +31,21 @@
 # accept), which makes the zero-root refuse-path live. G3 is removed from this
 # pending set. G4/G5 remain STANDING pending a separate §8.
 #
+# ADDED 2026-06-07 (constitution conformance sweep, finding #3 boot-trust-root,
+# Class-4, NO §8 token yet):
+#   pending_conformance_all_canonical_writers_verify_trust_root
+#     -> ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_STANDING_PENDING
+#   tests/pending/constitution_all_canonical_writers_verify_trust_root.rs is an
+#   ENUMERATE-ALL-SITES completeness gate: it walks src/bin/** and asserts EVERY
+#   canonical-write binary entry (CAS put_json / GitTapeLedger / live Sequencer /
+#   SystemEmitCommand) verifies the boot Trust Root before work. RED today (~21
+#   writers, none verify; only src/main.rs + cmd_boot.rs do — the M07 single-site
+#   illusion). The fix touches the trust-root AUTHORITY surface + every
+#   canonical-write entry → Class-4, STANDING PENDING §8 token
+#   APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT (packet
+#   handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md).
+#   Source: handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2 #3.
+#
 # Runs the pending agentic-OS kill-condition gate set that is DELIBERATELY
 # EXCLUDED from default CI. The exclusion mechanism is ZERO-CARGO.TOML:
 #
@@ -64,10 +79,13 @@
 # scripts/run_constitution_gates.sh and does NOT block default CI. Mirrors the
 # report-not-enforce house style of scripts/audit_legacy_bypass.sh.
 #
-# Scope: the M07 residual pending kill-condition set (2 gates; G1 + G3 promoted
-# out, G2 retired + replaced by a live behavioral gate):
+# Scope: the M07 residual pending kill-condition set + the 2026-06-07 conformance
+# sweep boot-trust-root gate (3 gates; G1 + G3 promoted out, G2 retired +
+# replaced by a live behavioral gate):
 #   G4 pending_m07_budget_ceiling_enforced       -> BUDGET_CEILING_STANDING_PENDING
 #   G5 pending_m07_fc3_meta_loop_closure         -> FC3_META_LOOP_STANDING_PENDING
+#   #3 pending_conformance_all_canonical_writers_verify_trust_root
+#                                                -> ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_STANDING_PENDING
 # G4+G5 are STANDING pending — they additionally require a separate user §8
 # decision (budget hard-ceiling ruling; FC3 irreversible-commit Class-4
 # ratification). G1 was promoted to the live gate
@@ -86,6 +104,7 @@ OUT="target/pending_kill_conditions_output.txt"
 PENDING_GATES=(
   "pending_m07_budget_ceiling_enforced|tests/pending/constitution_budget_ceiling_enforced.rs|BUDGET_CEILING_STANDING_PENDING"
   "pending_m07_fc3_meta_loop_closure|tests/pending/constitution_fc3_meta_loop_closure.rs|FC3_META_LOOP_STANDING_PENDING"
+  "pending_conformance_all_canonical_writers_verify_trust_root|tests/pending/constitution_all_canonical_writers_verify_trust_root.rs|ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_STANDING_PENDING"
 )
 
 unexpected_pass=0
