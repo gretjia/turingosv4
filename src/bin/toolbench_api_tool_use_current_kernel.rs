@@ -89,6 +89,9 @@ struct ToolBenchAnswerClaimCapsule {
     prompt_sha256: String,
     provider_response_sha256: String,
     raw_provider_response_persisted: bool,
+    // CONFORMANCE FIX #2 (evidence-cas-anchor): always-anchor parse-failure
+    // field, mirroring swebench's parse_patch_claim. None on success.
+    parse_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -348,21 +351,21 @@ async fn run(args: Args) -> Result<(), String> {
         .await
         .map_err(|e| format!("llm proxy generation failed: {e}"))?;
     let provider_response_sha256 = sha256_hex(&response.content);
-    let parsed = parse_tool_claim(&response.content, &available_api_ids)?;
-    let rationale_guard_passed = parsed.rationale.trim().chars().count() >= MIN_RATIONALE_CHARS;
-    if !rationale_guard_passed {
-        return Err(format!(
-            "ToolBench answer rejected before WorkTx: rationale too short ({} chars, need >= {MIN_RATIONALE_CHARS})",
-            parsed.rationale.trim().chars().count()
-        ));
-    }
-    let selected_apis_available = parsed
-        .selected_api_ids
-        .iter()
-        .all(|id| available_api_ids.contains(id));
-    if !selected_apis_available {
-        return Err("ToolBench selected API outside available API set".to_string());
-    }
+    // CONFORMANCE FIX #2 (evidence-cas-anchor): capture parse result and ALWAYS
+    // anchor the answer-claim capsule before any abort; mirror swebench.
+    let parsed_result = parse_tool_claim(&response.content, &available_api_ids);
+    let parse_error = parsed_result.as_ref().err().cloned();
+    let parsed = parsed_result.unwrap_or(ParsedToolClaim {
+        selected_api_ids: Vec::new(),
+        rationale: String::new(),
+    });
+    let rationale_guard_passed =
+        parse_error.is_none() && parsed.rationale.trim().chars().count() >= MIN_RATIONALE_CHARS;
+    let selected_apis_available = parse_error.is_none()
+        && parsed
+            .selected_api_ids
+            .iter()
+            .all(|id| available_api_ids.contains(id));
 
     let answer_claim = ToolBenchAnswerClaimCapsule {
         schema_version: "turingosv4.true_suite.toolbench_answer_claim_capsule.v1",
@@ -374,6 +377,7 @@ async fn run(args: Args) -> Result<(), String> {
         prompt_sha256: prompt_sha256.clone(),
         provider_response_sha256: provider_response_sha256.clone(),
         raw_provider_response_persisted: false,
+        parse_error: parse_error.clone(),
     };
     write_pretty_json(
         &args.out_dir.join("tool_capsules").join("answer_claim.json"),
@@ -387,6 +391,26 @@ async fn run(args: Args) -> Result<(), String> {
         2,
         "turingosv4.true_suite.toolbench_answer_claim_capsule.v1",
     )?;
+
+    if let Some(err) = parse_error {
+        return Err(format!(
+            "ToolBench answer failed to parse (answer-claim capsule {} anchored): {err}",
+            answer_claim_cid.hex()
+        ));
+    }
+    if !rationale_guard_passed {
+        return Err(format!(
+            "ToolBench answer rejected before WorkTx: rationale too short ({} chars, need >= {MIN_RATIONALE_CHARS}) (answer-claim capsule {} anchored)",
+            parsed.rationale.trim().chars().count(),
+            answer_claim_cid.hex()
+        ));
+    }
+    if !selected_apis_available {
+        return Err(format!(
+            "ToolBench selected API outside available API set (answer-claim capsule {} anchored)",
+            answer_claim_cid.hex()
+        ));
+    }
 
     let exact_match = same_set(&parsed.selected_api_ids, &expected_api_ids);
     let benchmark_verdict = if exact_match {

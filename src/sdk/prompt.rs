@@ -329,6 +329,17 @@ pub fn build_agent_prompt(
         "    Use when no proof, verify, challenge, or market action has a perceived edge.\n",
     );
 
+    // CONFORMANCE FIX #5 (goodhart-shield): runtime PPUT-context-leak guard at
+    // the final prompt-assembly boundary (Art. III.4). The static B5 gate only
+    // scans this source; this RUNTIME call defends against any state surface
+    // (tape contents, team board, search hits, learned memory) injecting a PPUT
+    // scalar into the assembled prompt at runtime. The sweep confirmed no current
+    // scoring-to-prompt data flow, so this passes on current content; it is a
+    // defense-in-depth layer against future regressions. Guard lives in the
+    // trust-root-pinned `prompt_guard.rs` (unchanged). Gate:
+    // tests/constitution_metric_leak_guard_wired.rs.
+    crate::sdk::prompt_guard::assert_no_metric_leak(&prompt);
+
     prompt
 }
 

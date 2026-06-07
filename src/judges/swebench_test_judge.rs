@@ -343,11 +343,42 @@ fn harness_failure_reason(
             );
         }
     }
-    let tail = tail_chars(&String::from_utf8_lossy(stderr), 400);
-    format!(
-        "swebench harness error (exit {:?}); stderr tail: {}",
-        exit_code, tail
-    )
+    // CONFORMANCE FIX #4 (raw-diagnostic-shield): do NOT pass the raw subprocess
+    // stderr tail into `Fail.reason`. That string reaches the LLM retry prompt
+    // verbatim (via deterministic_trace_slicer → BBS → assemble_o1_prompt), so an
+    // unbounded `tail_chars(stderr, 400)` leaked raw Python tracebacks / harness
+    // internals into agent context. Replace it with a bounded, deterministic
+    // CLASS label derived from the stderr by classification only — never the raw
+    // text. Gate: tests/constitution_judge_reason_no_raw_subprocess_stderr.rs.
+    let class = classify_harness_error(&String::from_utf8_lossy(stderr));
+    format!("swebench harness error (exit {exit_code:?}): {class}")
+}
+
+/// TRACE_MATRIX FC1a-judge_pi: Map raw harness stderr to a bounded structured
+/// class string. This is a SHIELD, not a passthrough: the return value is one of
+/// a small fixed set of class labels (plus the deterministic exit code), so no
+/// raw subprocess text crosses into the agent retry prompt. The labels are
+/// actionable enough for the model to know the failure was environmental (its
+/// patch never ran), without leaking gold/test/traceback content.
+fn classify_harness_error(stderr: &str) -> &'static str {
+    let s = stderr.to_ascii_lowercase();
+    if s.contains("no such image")
+        || s.contains("image not found")
+        || s.contains("manifest unknown")
+        || s.contains("pull access denied")
+    {
+        "prebuilt instance image missing or unpullable — build the SWE-bench image first"
+    } else if s.contains("out of memory") || s.contains("oomkilled") || s.contains("killed") {
+        "harness ran out of memory (OOM) — the evaluation container was killed"
+    } else if s.contains("timed out") || s.contains("timeout") {
+        "harness timed out before the hidden tests completed"
+    } else if s.contains("permission denied") || s.contains("docker") {
+        "harness container/runtime error (docker or permissions) — environment not ready"
+    } else if s.trim().is_empty() {
+        "harness produced no report.json and no diagnostic (unknown environmental error)"
+    } else {
+        "harness internal error before the hidden tests ran (environmental, not your patch)"
+    }
 }
 
 /// TRACE_MATRIX FC1a-output_edge: char-safe truncation to at most `max` chars.

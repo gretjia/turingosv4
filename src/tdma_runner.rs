@@ -599,6 +599,38 @@ where
                         0,
                         format!("llm-error: {}", e),
                     ));
+                    // CONFORMANCE FIX #1 (append-only-rubber): the LLM transport
+                    // error is a FC1-canonical externalized attempt outcome
+                    // (`AttemptOutcome::LlmErr` / `RejectionClass::LlmError`). Every
+                    // SIBLING failure class (judge-reject / parse_fail / escalate)
+                    // lands a verified=false `AgentProposal` on tape via
+                    // `handle_rejection`; only this arm used to short-circuit before
+                    // entering the kernel, so the durable tape recorded ZERO rows for
+                    // the call and FC1's
+                    // `completed_llm_calls = step + parse_fail + llm_err` became
+                    // non-reconstructable from tape. We now route the failure through
+                    // the SAME `step_forward_with_claims` path with a `success=false`
+                    // `EnvironmentResult` carrying a `reject_class="llm_err"` header,
+                    // committing a verified=false node BEFORE `break`. The verified
+                    // head is NOT advanced (handle_rejection never advances), so this
+                    // only restores evidence-completeness — it does not change state.
+                    // Gate: tests/constitution_llm_err_lands_on_tape.rs.
+                    let llm_err_header = format!(
+                        r#"{{"schema_version":"tdma-state-update/v1","status":"Retry","task_id":"{}","action":"RETRY_LLM_ERROR","failed_predicate":"llm_call_transport","reject_class":"llm_err"}}"#,
+                        task_id
+                    );
+                    let _ = kernel.step_forward_with_claims(
+                        &task,
+                        EnvironmentResult {
+                            raw_output: llm_err_header,
+                            raw_stderr: format!("llm-error: {}", e),
+                            success: false,
+                        },
+                        crate::predicate_admission::PredicateClaimSet {
+                            acceptance: vec![],
+                            settlement: vec![],
+                        },
+                    );
                     break 'outer;
                 }
             };

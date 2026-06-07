@@ -880,3 +880,23 @@ added = "2026-06-05"
 name = "constitution_tc_boot_trust_root_manifest"
 authority = "A03 Boot Trust Root Manifest Gate KEEP-SRC-BOOT: user ratified APPROVE-A03-SECTION8-KEEP-SRC-BOOT; keep src/boot.rs::verify_trust_root authoritative, use existing turingos boot --verify-manifest CLI hook, and reject mismatch/missing manifest states without wrapper, rehash, env bypass, or second authority"
 added = "2026-06-06"
+
+[[gate]]
+name = "constitution_llm_err_lands_on_tape"
+authority = "Constitution conformance sweep remediation #1 (handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2/§3 Gate 1, append-only-rubber): every llm_call failure arm in src/tdma_runner.rs must land a verified=false reject_class=llm_err tape commit before break, so FC1 completed_llm_calls = step + parse_fail + llm_err is reconstructable from tape"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_external_attempt_anchored_on_failure"
+authority = "Constitution conformance sweep remediation #2 (handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2/§3 Gate 2, evidence-cas-anchor): every src/bin/*_current_kernel.rs external-LLM runner must anchor its completed attempt-evidence capsule in CAS before any parse/guard abort (swebench parse_patch_claim reference); no parse_*(..)? or return Err between LLM completion and first put_json"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_judge_reason_no_raw_subprocess_stderr"
+authority = "Constitution conformance sweep remediation #4 (handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2/§3 Gate 4, raw-diagnostic-shield): no src/judges/*.rs may pipe a raw subprocess stderr tail (tail_chars over stderr) into a Fail reason that reaches the LLM retry prompt; swebench harness errors route through the bounded classify_harness_error class label"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_metric_leak_guard_wired"
+authority = "Constitution conformance sweep remediation #5 (handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2/§3 Gate 5, goodhart-shield): the trust-root-pinned runtime guard assert_no_metric_leak must be CALLED at every final prompt-assembly site (assemble_o1_prompt, sdk build_agent_prompt, market bin prompt), closing the Art. III.4 pinned-but-dead vacuum"
+added = "2026-06-07"
