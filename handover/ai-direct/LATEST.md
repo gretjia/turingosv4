@@ -12,8 +12,9 @@
 ## Current Snapshot (2026-06-06)
 
 **Session**: OBL-005 is now closed under the ratified no-zombie/no-drift
-scope, while the Agentic OS pivot wave has landed through PR #309 and still
-has an A03 runtime Section-8 decision outstanding. PR #284 keeps Market A/B G0 at
+scope, while the Agentic OS pivot wave has landed through PR #309 and A03
+KEEP-SRC-BOOT has consumed its Section-8 ratification as a focused boot
+manifest gate. A03 status token: `A03_KEEP_SRC_BOOT_LANDED`. PR #284 keeps Market A/B G0 at
 single-WorkTx-node/core-scope stage-2; PR #285 hardens source-tree commit
 git-history closure; PR #286 binds any future final closure to a fresh
 current-tree witness path; PR #287-#291 synchronize guard state, shared
@@ -31,19 +32,20 @@ proof. Current scoped status token: `OBL005_FINAL_CLOSURE_VERIFIED`.
 Clean-context audit
 `handover/audits/OBL005_NO_ZOMBIE_FINAL_CLOSURE_CLEAN_CONTEXT_AUDIT_2026-06-06.md`
 returns `NO-VIOLATION`. `handover/audits/OBLIGATION_COMPLETENESS_WITNESS_2026-06-06.md`
-contains an exact `OBL-ALL-CLOSED` line for the obligation ledger. This does
-not claim A03 runtime implementation or full Agentic OS plan completion.
+contains an exact `OBL-ALL-CLOSED` line for the obligation ledger. The later
+A03 KEEP-SRC-BOOT landing keeps `src/boot.rs::verify_trust_root`
+authoritative and does not claim wrapper-module migration, trust-root rehash,
+or full Agentic OS plan completion.
 PR #311 then repaired GitHub-main source-tree reachability for OBL-005 CI
 bindings, and
 `handover/audits/MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md` records the current
 read-only mainline baseline at `4af83627ef013b65a4764b4b9c4fffb93ea0a8ae`.
 
-**Last synchronized base / snapshot source baseline**: `4af83627` (PR #311 —
-OBL-005 CI source-tree reachability repair on GitHub main). This is the
-source/evidence baseline captured by `MAINLINE_BASELINE_SNAPSHOT_2026-06-06.md`,
-not a self-updating current-HEAD pointer; the snapshot sync itself landed as
-PR #312 / `f599be29`. Verify the current tip with `git rev-parse origin/main`;
-this handover file is derived, not authority.
+**Last synchronized base / snapshot source baseline**: `03564886` (PR #313 —
+baseline snapshot semantics clarification on GitHub main, after PR #312
+recorded the read-only snapshot from PR #311). This is not a self-updating
+current-HEAD pointer; verify the current tip with `git rev-parse origin/main`.
+This handover file is derived, not authority.
 
 **Truth boundary**: this file is a derived handover view. If it conflicts with
 `constitution.md`, ChainTape/CAS, deterministic replay, or executable gates,
@@ -52,9 +54,11 @@ trust those sources first.
 Current state:
 
 - `OBLIGATIONS.md` is **globally closed for Level=must obligations** after
-  the 2026-06-06 scoped OBL-005 witness. OBL-001 through OBL-013 are
-  satisfied in the current ledger. This obligation closure is not an A03
-  runtime implementation claim.
+  the 2026-06-06 scoped OBL-005 witness and the later A03/cache cleanup
+  branch work. OBL-001 through OBL-015 are satisfied in the current ledger.
+  The A03 closure is KEEP-SRC-BOOT only: no wrapper-module migration, no
+  trust-root authority move, and no `build.rs` / `genesis_payload.toml`
+  rehash.
 - PR #245 through #307 hardened OBL-005 final-closure accounting and landed the
   Agentic OS pivot wave through A14 plus final acceptance cleanup: closure
   blocker inventory, replay-artifact GREEN checks, missing domain-closure
@@ -209,15 +213,15 @@ Current state:
   implementation, benchmark capability closure, or full Agentic OS plan
   completion.
 - A03 boundary note: `handover/directives/2026-06-05_A03_BOOT_TRUST_ROOT_MANIFEST_PREFLIGHT_AND_SECTION8_REQUEST.md`
-  is a preflight/Section-8 packet, not an implemented runtime module. It records
-  that live boot trust-root authority remains `src/boot.rs::verify_trust_root`
-  with existing witnesses in `tests/fc_alignment_conformance.rs`,
-  `tests/constitution_fc2_boot.rs`, `tests/constitution_art_v3_amendment_log.rs`,
-  `tests/constitution_predicate_gate.rs`, and
-  `tests/constitution_flowchart_livenow.rs`. The planned A03 paths
-  `src/bin/turingos/cmd_boot.rs`, `src/runtime/boot_trust_root_manifest.rs`,
-  and `tests/constitution_tc_boot_trust_root_manifest.rs` remain absent by
-  design until an exact A03 ratification phrase authorizes runtime work.
+  was a preflight/Section-8 packet; on 2026-06-06 the user supplied the exact
+  ratification phrase `APPROVE-A03-SECTION8-KEEP-SRC-BOOT`. The landed A03
+  marker is `A03_KEEP_SRC_BOOT_LANDED`. The implementation keeps live boot
+  trust-root authority at `src/boot.rs::verify_trust_root`, uses the existing
+  A13 public CLI hook `src/bin/turingos/cmd_boot.rs`, and adds the focused
+  gate `tests/constitution_tc_boot_trust_root_manifest.rs`. No
+  `src/runtime/boot_trust_root_manifest.rs` wrapper, `build.rs` edit,
+  `genesis_payload.toml` rehash, or `src/main.rs` boot-call edit is part of
+  this A03 landing.
 - Fresh deterministic evidence added this session: `boot_cli_current_kernel_fresh`
   and `replay_cas_tamper_repair_current` now point at
   `handover/evidence/true_suite/obl005_fresh_boot_replay_20260604T143328Z/`.
@@ -683,12 +687,10 @@ PR #250 checks
 
 Next steps:
 
-- Do not start A03 runtime trust-root manifest work unless the architect/user
-  gives one exact phrase from the A03 preflight:
-  `APPROVE-A03-SECTION8-KEEP-SRC-BOOT`,
-  `APPROVE-A03-SECTION8-WRAPPER-MODULE`,
-  `APPROVE-A03-SECTION8-DEFER-TO-TC002`, or
-  `REJECT-A03-RUNTIME-FOR-NOW`.
+- A03 KEEP-SRC-BOOT is consumed and landed as `A03_KEEP_SRC_BOOT_LANDED`.
+  Do not start wrapper-module migration, TC-002 deferral extraction,
+  trust-root rehash, or boot authority relocation unless the architect/user
+  gives a new exact A03/TC-002 Section-8 phrase.
 - OBL-005 is closed only under the ratified no-zombie scope. Keep
   benchmark/domain failures as capability-pending facts unless a separate
   capability/domain witness closes them.

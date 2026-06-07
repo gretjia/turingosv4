@@ -850,3 +850,8 @@ added = "2026-06-05"
 name = "constitution_router_name_matches_mechanism"
 authority = "A05 Tape Event Envelope and Projection Trait: mechanism names must match implementation; softmax labels over argmax-like routers are rejected as claim drift"
 added = "2026-06-05"
+
+[[gate]]
+name = "constitution_tc_boot_trust_root_manifest"
+authority = "A03 Boot Trust Root Manifest Gate KEEP-SRC-BOOT: user ratified APPROVE-A03-SECTION8-KEEP-SRC-BOOT; keep src/boot.rs::verify_trust_root authoritative, use existing turingos boot --verify-manifest CLI hook, and reject mismatch/missing manifest states without wrapper, rehash, env bypass, or second authority"
+added = "2026-06-06"

@@ -12,18 +12,55 @@ not authorize runtime, trust-root, genesis, or build-script edits by itself.
 
 ## Decision
 
-A03 must not proceed as a normal implementation atom until the implementation
-surface is ratified. The plan-listed paths do not match the current repository
-shape, and the actual boot trust-root surface is a trust-root / constitution
-authority surface under `AGENTS.md`.
+A03 originally could not proceed as a normal implementation atom until the
+implementation surface was ratified. The plan-listed paths did not match the
+then-current repository shape, and the actual boot trust-root surface is a
+trust-root / constitution authority surface under `AGENTS.md`.
 
-Safe work now:
+## A03 KEEP-SRC-BOOT Landing Receipt
+
+Status token: `A03_KEEP_SRC_BOOT_LANDED`
+
+Ratification consumed:
+
+```text
+APPROVE-A03-SECTION8-KEEP-SRC-BOOT
+```
+
+User supplied this exact phrase on 2026-06-06. The ratified implementation
+shape is KEEP-SRC-BOOT only:
+
+- `src/boot.rs::verify_trust_root` remains the single authoritative boot
+  Trust Root verifier.
+- Existing A13 public CLI wiring in `src/bin/turingos/cmd_boot.rs` is used as
+  the public boot API.
+- The focused A03 gate is
+  `tests/constitution_tc_boot_trust_root_manifest.rs`.
+- No `src/runtime/boot_trust_root_manifest.rs` wrapper module was added.
+- No `src/boot.rs`, `src/main.rs`, `build.rs`, or `genesis_payload.toml`
+  trust-root authority edit is part of this landing.
+
+TDD receipt:
+
+```text
+cargo test --test constitution_tc_boot_trust_root_manifest --no-fail-fast -- --test-threads=1
+RED: 7 passed, 1 failed; the only failure was the missing A03_KEEP_SRC_BOOT_LANDED
+     marker in LATEST.md.
+GREEN: 8 passed, 0 failed after this landing receipt and derived handover
+       state were updated.
+```
+
+The runtime restrictions below remain active for any future A03 alternative
+(`WRAPPER-MODULE`, `DEFER-TO-TC002`, trust-root rehash, or authority move).
+
+Safe work before ratification was:
 
 - docs-only preflight
 - test-design notes
 - clean-context audit prompt preparation
 
-Blocked until explicit per-atom authorization:
+Blocked until explicit per-atom authorization, and still blocked for future
+non-KEEP-SRC-BOOT variants:
 
 - editing `src/boot.rs`
 - changing trust-root manifest semantics
@@ -43,6 +80,12 @@ Blocked until explicit per-atom authorization:
   bypass a trust-root mismatch.
 
 ## Current-State Facts
+
+Historical note: the existence check below records the 2026-06-05 preflight
+snapshot. After later mainline work and this A03 KEEP-SRC-BOOT landing,
+`src/bin/turingos/cmd_boot.rs` exists as the A13 public CLI hook and
+`tests/constitution_tc_boot_trust_root_manifest.rs` exists as the focused A03
+gate. `src/runtime/boot_trust_root_manifest.rs` remains intentionally absent.
 
 Planned A03 allowed paths from the parent plan:
 
