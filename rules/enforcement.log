@@ -4001,3 +4001,4 @@
 2026-06-07T08:36:15Z R-022-PASS commit=dff2cdc92a2e0dbb993910d7eaeb32b700d53fdf file=src/predicate_admission.rs line=63 symbol=pub_enum_AdmissionVerdict reason="doc-block backlink found"
 2026-06-07T08:36:15Z R-022-PASS commit=dff2cdc92a2e0dbb993910d7eaeb32b700d53fdf file=src/predicate_admission.rs line=75 symbol=pub_enum_AdmissionFailReason reason="doc-block backlink found"
 2026-06-07T08:36:15Z R-022-PASS commit=dff2cdc92a2e0dbb993910d7eaeb32b700d53fdf file=src/predicate_admission.rs line=97 symbol=pub_fn_decide_admission reason="doc-block backlink found"
+2026-06-07T11:34:11Z R-022-BLOCK commit=9317655efc3c5988272276254815d3f347d0416d file=src/state/q_state.rs line=0 symbol=trace_removal reason="removed: /// TRACE_MATRIX § 1.1 — system state Q_t. 9 fields per WP § 4 + economic § 2 am"
