@@ -19,6 +19,10 @@ pub mod ledger;
 /// branch are implemented now; handle_rejection is a deliberate `unimplemented!`
 /// stub until Atom 7.
 pub mod memory_kernel;
+/// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}: M07 shared predicate-admission
+/// contract — ONE oracle called by both the sequencer WorkTx leg and the kernel
+/// header leg (single-admission invariant).
+pub mod predicate_admission;
 /// TRACE_MATRIX FC1a-rtool: TDMA-Bounded-RC1 rtool checkout_digest (Atom 6).
 pub mod rtool;
 /// TRACE_MATRIX FC3-N1: production-path ChainTape runtime — connects evaluator binary to Sequencer + Git2LedgerWriter so LLM-driven runs produce on-disk LedgerEntry chain (TB-6).

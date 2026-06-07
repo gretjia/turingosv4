@@ -276,6 +276,21 @@ authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_kernel_predicate_gate"
+authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE (2026-06-07); handover/design/M07_SINGLE_ADMISSION_IMPLEMENTATION_SPEC_2026-06-07.md §9 (G1 promotion)"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_single_admission_contract"
+authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE (2026-06-07); handover/design/M07_SINGLE_ADMISSION_IMPLEMENTATION_SPEC_2026-06-07.md §6 (structural anti-duplication witness)"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_kernel_predicate_receipt_replay"
+authority = "M07 single-admission predicate gate: user §8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE (2026-06-07); handover/design/M07_SINGLE_ADMISSION_IMPLEMENTATION_SPEC_2026-06-07.md §10 (replay/reconstruction witness — receipt verdict matches re-execution of decide_admission from dump_all_nodes alone)"
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_predicate_binding_activation"
 authority = "handover/tracer_bullets/TB-PREDICATE-REGISTRY-BIND_charter_2026-05-24.md (§8 APPROVED v8 ALL-IN-ONE)"
 added = "2026-05-24"

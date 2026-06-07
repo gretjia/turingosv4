@@ -639,7 +639,20 @@ where
                 raw_stderr: raw_stderr.clone(),
                 success,
             };
-            let step = kernel.step_forward(&task, env);
+            // M07 single-admission: stamp the judge verdict into a predicate
+            // claim set so the kernel head advance is gated on the SAME logical
+            // claim the sequencer's zero-root branch checks. The acceptance
+            // claim value IS the `success` bool the env carries — intentional;
+            // the single-admission invariant relies on them being identical.
+            let claims = crate::predicate_admission::PredicateClaimSet {
+                acceptance: vec![crate::predicate_admission::PredicateClaim {
+                    id: crate::state::typed_tx::PredicateId(format!("judge::{}", judge_class_str)),
+                    value: success,
+                    proof_cid: None,
+                }],
+                settlement: vec![],
+            };
+            let step = kernel.step_forward_with_claims(&task, env, claims);
 
             let bbs = kernel
                 .tape

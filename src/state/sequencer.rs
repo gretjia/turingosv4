@@ -1229,17 +1229,30 @@ fn verify_work_predicates(
     predicate_cas: &dyn PredicateCasView,
 ) -> Result<(), TransitionError> {
     if q.predicate_registry_root_t == Hash::ZERO {
-        for (pid, bwp) in work.predicate_results.acceptance.iter() {
-            if !bwp.value {
-                return Err(TransitionError::AcceptancePredicateFailed(pid.clone()));
-            }
-        }
-        for (pid, bwp) in work.predicate_results.settlement.iter() {
-            if !bwp.value {
-                return Err(TransitionError::SettlementPredicateFailed(pid.clone()));
-            }
-        }
-        return Ok(());
+        // M07 single-admission: the zero-root boolean scan is the SHARED
+        // contract — both the sequencer and the memory kernel route through
+        // `predicate_admission::decide_admission`, so there is exactly one home
+        // for the verdict-trusting logic (anti-duplication invariant).
+        //
+        // `os_qualified` is derived from the bound registry root per the M07
+        // spec's recommended definition: a run that has bound a registry
+        // (`predicate_registry_root_t != Hash::ZERO`) is OS-qualified. Inside
+        // this branch the root IS zero, so the flag is `false` and the legacy
+        // verdict-trusting behavior is preserved byte-for-byte (acceptance then
+        // settlement, fail on the first false, same `BTreeMap` iteration order).
+        let os_qualified = q.predicate_registry_root_t != Hash::ZERO;
+        let claims = work_tx_to_claim_set(work);
+        return match crate::predicate_admission::decide_admission(
+            &crate::predicate_admission::zero_root_hex(),
+            &claims,
+            os_qualified,
+        ) {
+            crate::predicate_admission::AdmissionVerdict::Pass { .. } => Ok(()),
+            crate::predicate_admission::AdmissionVerdict::Fail {
+                failed_predicate,
+                reason,
+            } => Err(admission_fail_to_transition(&failed_predicate, reason)),
+        };
     }
 
     if registry.merkle_root_hash() != q.predicate_registry_root_t {
@@ -1277,6 +1290,60 @@ fn verify_work_predicates(
     }
 
     Ok(())
+}
+
+/// M07: adapt the WorkTx `predicate_results` bundle into the claim-level
+/// abstraction the shared admission contract decides over. `BTreeMap` iteration
+/// order (lexicographic by `PredicateId`) is preserved into the `Vec`, so the
+/// zero-root scan in `decide_admission` fails on the same predicate the inline
+/// scan did.
+fn work_tx_to_claim_set(work: &WorkTx) -> crate::predicate_admission::PredicateClaimSet {
+    crate::predicate_admission::PredicateClaimSet {
+        acceptance: work
+            .predicate_results
+            .acceptance
+            .iter()
+            .map(|(pid, bwp)| crate::predicate_admission::PredicateClaim {
+                id: pid.clone(),
+                value: bwp.value,
+                proof_cid: bwp.proof_cid,
+            })
+            .collect(),
+        settlement: work
+            .predicate_results
+            .settlement
+            .iter()
+            .map(|(pid, bwp)| crate::predicate_admission::PredicateClaim {
+                id: pid.clone(),
+                value: bwp.value,
+                proof_cid: bwp.proof_cid,
+            })
+            .collect(),
+    }
+}
+
+/// M07: map a shared-contract `AdmissionVerdict::Fail` back onto the existing
+/// `TransitionError` variants at the sequencer boundary. Keeping `TransitionError`
+/// inside `sequencer.rs` means no error type crosses the trust-root pin and the
+/// L4.E rejection routing is identical to the pre-M07 inline scan.
+fn admission_fail_to_transition(
+    failed_predicate: &str,
+    reason: crate::predicate_admission::AdmissionFailReason,
+) -> TransitionError {
+    use crate::predicate_admission::AdmissionFailReason as R;
+    match reason {
+        R::AcceptancePredicateFalse => {
+            TransitionError::AcceptancePredicateFailed(PredicateId(failed_predicate.to_string()))
+        }
+        R::SettlementPredicateFalse => {
+            TransitionError::SettlementPredicateFailed(PredicateId(failed_predicate.to_string()))
+        }
+        // A zero registry root under an OS-qualified run is a root-mismatch: the
+        // run must carry a NON-ZERO bound root so the oracle re-executes. (Not
+        // reachable from the sequencer's zero-root branch, where os_qualified is
+        // always false; mapped for totality.)
+        R::ZeroRootRefusedForOsQualifiedRun => TransitionError::PredicateRegistryRootMismatch,
+    }
 }
 
 fn verify_predicate_key_set(

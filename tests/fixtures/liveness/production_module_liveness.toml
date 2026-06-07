@@ -839,13 +839,14 @@ module_ids = [
   "judges::shared_output_adapter",
   "ledger",
   "memory_kernel",
+  "predicate_admission",
   "rtool",
   "state_update",
   "tdma_runner",
   "token_budget",
   "tokenizer",
 ]
-paths = ["src/ledger.rs", "src/memory_kernel.rs", "src/tdma_runner.rs", "src/judges", "src/git_tape_ledger.rs"]
+paths = ["src/ledger.rs", "src/memory_kernel.rs", "src/predicate_admission.rs", "src/tdma_runner.rs", "src/judges", "src/git_tape_ledger.rs"]
 constitutional_anchors = ["FC1:agent delta", "FC1:rtool", "FC3:replay"]
 necessity = "The bounded solver is an AGI work loop candidate; it must be lit by real proof/code tasks, not only unit tests."
 smoke_gates = [
