@@ -26,7 +26,7 @@ use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, RetryConstraint,
 };
 use crate::predicate_admission::{
-    decide_admission, hash_to_hex, AdmissionVerdict, PredicateClaimSet,
+    decide_admission_with_taint, hash_to_hex, AdmissionVerdict, ArgTaintFinding, PredicateClaimSet,
 };
 use crate::rtool::{Rtool, SessionDigest, WorkspaceView};
 use crate::state::q_state::Hash;
@@ -247,6 +247,30 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         claims: PredicateClaimSet,
         workspace: &WorkspaceView,
     ) -> KernelStep {
+        // No arg-taint findings on the legacy entry — every existing caller
+        // routes through here with the empty findings set, so the admission
+        // hard-gate is a no-op for them and behaviour is unchanged.
+        self.step_forward_with_taint(task, env_result, claims, workspace, &[])
+    }
+
+    /// arg-taint sub-article entry: identical to [`Self::step_forward_with_workspace`]
+    /// but threads the value-level taint findings (from
+    /// `predicate_admission::arg_taint::arg_taint_v1`) into the admission oracle.
+    /// A non-empty findings set (any tainted-arg → privileged-sink flow) makes the
+    /// SHARED admission contract REFUSE the advance — the confused-deputy
+    /// hard-gate — and routes to the existing non-advancing rejection path, with a
+    /// tape-recorded `arg_taint_v1[...]` rejection receipt. This is the UNPINNED
+    /// kernel seam that wires the hard-gate without editing any genesis-pinned
+    /// file.
+    /// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}: arg-taint hard-gate at FC1 wtool.
+    pub fn step_forward_with_taint(
+        &mut self,
+        task: &Task,
+        env_result: EnvironmentResult,
+        claims: PredicateClaimSet,
+        workspace: &WorkspaceView,
+        taint_findings: &[ArgTaintFinding],
+    ) -> KernelStep {
         let verified_head = self.tape.get_verified_head();
         let parsed_header = parse_prefix_json(&env_result.raw_output, B_HEADER_SCAN, B_HEADER);
 
@@ -262,7 +286,10 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                 // `registry_root != ZERO`. For a legacy kernel both are false; for
                 // an OS-qualified kernel the field gates the zero-root refuse-path.
                 let os_qualified = self.os_qualified_t;
-                let verdict = decide_admission(&root_hex, &claims, os_qualified);
+                // arg-taint sub-article HARD-GATE: refuse a tainted-arg →
+                // privileged-sink flow BEFORE the self-reported predicate booleans.
+                let verdict =
+                    decide_admission_with_taint(&root_hex, &claims, os_qualified, taint_findings);
 
                 match verdict {
                     AdmissionVerdict::Pass { registry_root_hex } => {
@@ -306,6 +333,20 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                         // non-advancing rejection path. The verified head stays
                         // frozen (handle_rejection commits AgentProposal
                         // verified:false and never advances the head).
+                        //
+                        // arg-taint sub-article: a tainted-arg → privileged-sink
+                        // rejection is stamped with the `arg_taint_v1[...]`
+                        // failed-predicate marker and a distinct reject_class so
+                        // an auditor reconstructs the confused-deputy gate from
+                        // the rejection receipt alone.
+                        let is_arg_taint = failed_predicate.starts_with(
+                            crate::predicate_admission::ARG_TAINT_FAILED_PREDICATE_PREFIX,
+                        );
+                        let reject_class = if is_arg_taint {
+                            "ArgTaintIntoPrivilegedSink"
+                        } else {
+                            "PredicateAdmissionFailed"
+                        };
                         let rej_header = StateUpdate {
                             status: StateStatus::Retry,
                             failed_predicate: Some(if failed_predicate.is_empty() {
@@ -313,7 +354,7 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                             } else {
                                 failed_predicate
                             }),
-                            reject_class: Some("PredicateAdmissionFailed".into()),
+                            reject_class: Some(reject_class.into()),
                             ..header
                         };
                         self.handle_rejection(

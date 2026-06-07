@@ -67,11 +67,17 @@ fn both_authorities_call_the_shared_admission_contract() {
     );
 
     let kernel = memory_kernel_src();
+    // The kernel gates its head advance on the shared contract, either directly
+    // (`decide_admission(`) or via the arg-taint-aware wrapper
+    // (`decide_admission_with_taint(`), which itself calls `decide_admission`
+    // (defined ONLY in src/predicate_admission.rs — asserted below). Both are the
+    // ONE shared contract; the kernel must call one of them, not an inline scan.
     assert!(
-        kernel.contains("decide_admission("),
+        kernel.contains("decide_admission(") || kernel.contains("decide_admission_with_taint("),
         "M07 single-admission violation: src/memory_kernel.rs does not call \
-         `decide_admission(` in its Proceed branch. The kernel leg must gate its \
-         head advance on the shared predicate-admission contract."
+         `decide_admission(` (or its arg-taint wrapper `decide_admission_with_taint(`) \
+         in its Proceed branch. The kernel leg must gate its head advance on the \
+         shared predicate-admission contract."
     );
 }
 
@@ -82,9 +88,13 @@ fn both_authorities_call_the_shared_admission_contract() {
 #[test]
 fn kernel_decides_admission_before_advancing_head() {
     let kernel = memory_kernel_src();
+    // Match the shared-contract call site (direct `decide_admission(` or the
+    // arg-taint wrapper `decide_admission_with_taint(`, which calls it). Both
+    // gate the advance on the shared verdict.
     let decide_at = kernel
-        .find("decide_admission(")
-        .expect("kernel must call decide_admission(");
+        .find("decide_admission_with_taint(")
+        .or_else(|| kernel.find("decide_admission("))
+        .expect("kernel must call decide_admission( (or decide_admission_with_taint()");
     let advance_at = kernel
         .find("self.tape.set_verified_head(")
         .expect("kernel must advance head via self.tape.set_verified_head(");

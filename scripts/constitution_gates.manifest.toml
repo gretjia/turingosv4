@@ -26,6 +26,11 @@ authority = "handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2
 added = "2026-06-07"
 
 [[gate]]
+name = "constitution_arg_taint_admission"
+authority = "arg-taint sub-article: §8 token APPROVE-ARG-TAINT-ADMISSION-SUBARTICLE — value-level wtool-argument taint (ArgTaint Trusted/AgentGenerated/ToolOutput/UntrustedExternal + join propagation, src/predicate_admission/arg_taint.rs, nested as a #[path] submodule of the UNPINNED src/predicate_admission.rs) plus the admission HARD-GATE: a tainted (non-Trusted) argument value flowing into a privileged sink (economic-wallet/system-only/oracle/sandboxed/external-side-effect tool, or a wallet//system/ write-set namespace) is REJECTED by the shared admission contract via decide_admission_with_taint, routed from the UNPINNED memory-kernel leg (MemoryKernel::step_forward_with_taint) so the verified head does NOT advance (no Q_{t+1}); a Trusted-arg call is ADMITTED (non-vacuous positive control). ZERO genesis-pinned-file edits — the taint reject reuses the existing AcceptancePredicateFalse reason (no new AdmissionFailReason variant) so the pinned sequencer.rs exhaustive match stays valid, and the pinned sequencer adapter keeps calling the unchanged decide_admission."
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_aggregate_report"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
