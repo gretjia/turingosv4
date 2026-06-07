@@ -1,10 +1,13 @@
 # §8 Decision Packet — All Canonical-Write Binary Entries Verify Trust Root
 
 **Status**: **GRANTED by user 2026-06-07** (token `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`
-+ self-sign delegation; see §7). This document is **Class-0** (a decision record);
-it describes a Class-4 trust-root-authority change. Implementation lands in a
-SEPARATE Class-4 PR — NOT in this conformance-remediation PR (which ships only the
-pending RED gate + this record).
++ self-sign delegation; see §7). **IMPLEMENTATION LANDED 2026-06-07** on branch
+`claude/all-writers-verify-trust-root` (base `origin/main`): every canonical-write
+binary entry now calls `turingosv4::boot::verify_trust_root` before work, and the
+pending gate was promoted (git mv) to the top-level GREEN gate
+`tests/constitution_all_canonical_writers_verify_trust_root.rs` + triple-coupled.
+This document is **Class-0** (a decision record); it describes a Class-4
+trust-root-authority change implemented in the separate Class-4 PR referenced above.
 
 **Date**: 2026-06-07
 **Source finding**: `handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md`
@@ -263,10 +266,10 @@ Reject / defer:
 
 - Verbatim quote: user 2026-06-07 — `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT` (under the directive "使用 workflow 严格按宪法进行修复 … 任何导致宪法无法落地的行为").
 - Token consumed: `APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT`
-- Implementation: SEPARATE Class-4 PR — wire `verify_trust_root` into all ~18 canonical-write binary entries + shared `build_chaintape_sequencer_with_initial_q`, abort on tamper; promote `constitution_all_canonical_writers_verify_trust_root` to an all-sites GREEN gate; signed `v4-ratify` tag if any genesis pin is touched.
-- Date: `<pending>`
-- Branch at ratification: `claude/conformance-remediation`
-- Parent commit: `<origin/main HEAD at ratification>`
+- Implementation (LANDED): SEPARATE Class-4 PR on branch `claude/all-writers-verify-trust-root` — wired `turingosv4::boot::verify_trust_root(&repo_root)` into all 21 canonical-write binary entries (18 standalone `src/bin/**` runners at the top of `run`/`main` + the 3 `turingos` dispatcher canonical-write action handlers `cmd_generate` / `cmd_tdma run` / `cmd_tape_migrate export`), `repo_root` resolved from CWD (holds `genesis_payload.toml`, matching `cmd_boot.rs`), abort on tamper reusing `src/main.rs:14` semantics. Per the design decision the check is NOT placed in the shared factory `build_chaintape_sequencer_with_initial_q` because that factory is exercised by temp-repo tests without a valid trust root (verifying inside it would break those tests); it lives at each binary entry, which is also what the all-sites gate enumerates. Promoted `constitution_all_canonical_writers_verify_trust_root` (git mv `tests/pending/` → top-level `tests/`) to an all-sites GREEN gate + triple-coupled (manifest + `CONSTITUTION_EXECUTION_MATRIX.md` row + `tests/constitution_*.rs` glob). NO genesis pin touched — none of the edited files is `genesis_payload.toml`-pinned, so no `v4-ratify` signed tag is required for this atom.
+- Date: `2026-06-07`
+- Branch at ratification: `claude/conformance-remediation`; implementation branch `claude/all-writers-verify-trust-root`
+- Parent commit: `7d64ea132ab5694d00bdd8a6f195bfd7c0a1f162` (origin/main HEAD at ratification)
 - Sign-off doc (created at user verbatim §8): `handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_§8_SIGN_OFF_2026-06-XX.md`
 
 ---
