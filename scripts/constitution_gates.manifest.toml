@@ -276,6 +276,11 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_pending_gates_compile"
+authority = "S6 conformance-harness Phase 2 (CI bit-rot tripwire for tests/pending/*.rs); handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md + handover/design/CONSTITUTION_CONFORMANCE_HARNESS_2026-06-07.md"
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_predicate_gate"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
@@ -904,4 +909,9 @@ added = "2026-06-07"
 [[gate]]
 name = "constitution_metric_leak_guard_wired"
 authority = "Constitution conformance sweep remediation #5 (handover/audits/CONSTITUTION_CONFORMANCE_SWEEP_2026-06-07.md §2/§3 Gate 5, goodhart-shield): the trust-root-pinned runtime guard assert_no_metric_leak must be CALLED at every final prompt-assembly site (assemble_o1_prompt, sdk build_agent_prompt, market bin prompt), closing the Art. III.4 pinned-but-dead vacuum"
+added = "2026-06-07"
+
+[[gate]]
+name = "constitution_agentic_os_minimum_qualification"
+authority = "S6 Agentic-OS minimum-qualification acceptance suite (research report §5 operational definition; handover/reports/AGENTIC_OS_MINIMUM_QUALIFICATION_PACKET_2026-06-07.md): SOURCE-STRUCTURAL Class-2 meta-gate that makes the OS-qualifying CONJUNCTION explicit + falsifiable — asserts every OS-qualifying gate is present in tests/ AND registered in this manifest, so removing/disabling any one leg (tape-canonicality, predicate-gated advance, trust-root anchoring, FC1 tape-reconstructable attempt accounting, read-view shield, money conservation, clean-context closure witness) turns the meta-gate RED; non-vacuous (fails LOUD on empty set or missing name)"
 added = "2026-06-07"
