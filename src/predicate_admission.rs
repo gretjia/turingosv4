@@ -18,6 +18,39 @@ use crate::bottom_white::cas::schema::Cid;
 use crate::state::q_state::Hash;
 use crate::state::typed_tx::PredicateId;
 
+// arg-taint sub-article — value-level taint labelling + tainted-arg →
+// privileged-sink detection. Nested here as a `#[path]` submodule of THIS
+// UNPINNED parent (mirroring `src/runtime/real5_roles.rs`) so the taint findings
+// reach the ONE admission oracle (`decide_admission`) with ZERO genesis-pinned
+// file edits. Declaring it under the pinned `src/lib.rs` / predicate registry
+// would force a Trust-Root pin rehash (out-of-scope Class-4).
+/// TRACE_MATRIX FC1a-predicates: value-level argument taint module.
+#[path = "predicate_admission/arg_taint.rs"]
+pub mod arg_taint;
+
+pub use arg_taint::{ArgTaintFinding, WtoolCall};
+
+/// Stable prefix the arg-taint hard-gate stamps into the admission
+/// `failed_predicate` field. A receipt whose failed-predicate name starts with
+/// this prefix was rejected by the tainted-arg → privileged-sink gate (not an
+/// ordinary acceptance predicate). The gate test + auditors branch on this.
+/// TRACE_MATRIX FC1a-predicates: arg-taint rejection receipt marker.
+pub const ARG_TAINT_FAILED_PREDICATE_PREFIX: &str = "arg_taint_v1";
+
+/// Fold the arg-taint findings into the synthetic `failed_predicate` name carried
+/// in the admission receipt. Format: `arg_taint_v1[<reason>;<reason>;...]`. The
+/// reasons are the redact-safe per-finding strings (labels + sink identity, never
+/// raw value bytes), so the gate is reconstructable from the rejection receipt.
+/// TRACE_MATRIX FC1a-predicates: arg-taint rejection receipt encoding.
+pub fn arg_taint_failed_predicate(findings: &[ArgTaintFinding]) -> String {
+    let joined = findings
+        .iter()
+        .map(|f| f.reason())
+        .collect::<Vec<_>>()
+        .join(";");
+    format!("{ARG_TAINT_FAILED_PREDICATE_PREFIX}[{joined}]")
+}
+
 /// Lowercase-hex of a 32-byte [`Hash`] — the canonical string form a receipt
 /// embeds and `decide_admission` branches on. `Hash` exposes no hex method, so
 /// this is the single conversion site.
@@ -49,6 +82,15 @@ pub struct PredicateClaim {
 }
 
 /// The abstract claim set an admission decision is taken over.
+///
+/// NOTE (arg-taint sub-article): the taint findings are deliberately NOT a field
+/// here. `PredicateClaimSet` is constructed with an all-fields-named struct
+/// literal by the genesis-pinned `sequencer.rs::work_tx_to_claim_set` (a
+/// Trust-Root-pinned file we must not edit / rehash); adding a field would break
+/// that literal and force a pin rehash. The taint findings instead flow as a
+/// SEPARATE argument into [`decide_admission_with_taint`], which the UNPINNED
+/// memory-kernel leg calls. The pinned sequencer keeps calling the original
+/// [`decide_admission`] unchanged.
 /// TRACE_MATRIX FC1a-predicates: claim set both admission legs decide over.
 #[derive(Debug, Clone, Default)]
 pub struct PredicateClaimSet {
@@ -81,6 +123,16 @@ pub enum AdmissionFailReason {
     ZeroRootRefusedForOsQualifiedRun,
     // Bound-root variants land when the kernel bound path is wired (out of
     // route-A scope; the bound oracle stays in sequencer.rs today).
+    //
+    // NOTE (arg-taint sub-article): the tainted-arg → privileged-sink hard-gate
+    // does NOT add a new variant here. `AdmissionFailReason` is matched
+    // EXHAUSTIVELY by the genesis-pinned `sequencer.rs::admission_fail_to_transition`
+    // (a Trust-Root-pinned file we must not edit / rehash), so a new variant
+    // would break that match and force a pin rehash. Instead the taint reject
+    // reuses `AcceptancePredicateFalse` with `failed_predicate == "arg_taint_v1"`
+    // and the per-finding detail folded into that predicate-name string — see
+    // `decide_admission`. This keeps the pinned exhaustive match valid with ZERO
+    // pinned edits while still failing admission (no head advance).
 }
 
 /// THE single admission contract. Pure, deterministic, no I/O on the zero-root
@@ -139,6 +191,42 @@ pub fn decide_admission(
     AdmissionVerdict::Pass {
         registry_root_hex: registry_root_hex.to_string(),
     }
+}
+
+/// arg-taint sub-article HARD-GATE wrapper around [`decide_admission`].
+///
+/// Runs the tainted-arg → privileged-sink check FIRST: if `taint_findings` is
+/// non-empty (any flow surfaced by [`arg_taint::arg_taint_v1`]), admission is
+/// REFUSED outright — independent of, and prior to, the self-reported predicate
+/// booleans and the registry-root branch selection. A clean (empty) findings set
+/// delegates to the unchanged [`decide_admission`], so non-taint admission is
+/// byte-identical.
+///
+/// The reject reuses the EXISTING `AcceptancePredicateFalse` reason (NOT a new
+/// `AdmissionFailReason` variant), so the genesis-pinned
+/// `sequencer.rs::admission_fail_to_transition` exhaustive match stays valid with
+/// ZERO pinned edits. The synthetic `failed_predicate` name
+/// ([`arg_taint_failed_predicate`]) encodes the arg-taint verdict + the
+/// redact-safe per-finding reasons, so a tape auditor reconstructs the gate from
+/// the rejection receipt alone (labels + sink identity, never raw value bytes).
+///
+/// Only the UNPINNED memory-kernel leg calls this; the pinned sequencer keeps
+/// calling [`decide_admission`] directly. That is the deliberate seam that wires
+/// the hard-gate without touching any pinned file.
+/// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}: arg-taint hard-gate admission.
+pub fn decide_admission_with_taint(
+    registry_root_hex: &str,
+    claims: &PredicateClaimSet,
+    os_qualified: bool,
+    taint_findings: &[ArgTaintFinding],
+) -> AdmissionVerdict {
+    if !taint_findings.is_empty() {
+        return AdmissionVerdict::Fail {
+            failed_predicate: arg_taint_failed_predicate(taint_findings),
+            reason: AdmissionFailReason::AcceptancePredicateFalse,
+        };
+    }
+    decide_admission(registry_root_hex, claims, os_qualified)
 }
 
 #[cfg(test)]
