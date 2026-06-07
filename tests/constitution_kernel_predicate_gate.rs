@@ -1,28 +1,21 @@
-//! PENDING GATE (G1 / M07) — kernel predicate-admission bypass demonstrator.
+//! LIVE CONSTITUTION GATE (G1 / M07) — kernel predicate-admission receipt.
 //!
-//! STATUS: PENDING / EXPECTED-RED until the Class-4 src/ admission change lands
-//! under the user's §8 token `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE`.
+//! STATUS: LIVE / GREEN. Promoted from `tests/pending/` after the Class-4 src/
+//! admission change landed under the user's §8 token
+//! `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE` (2026-06-07). The memory
+//! kernel now gates its `verified_head` advance on the shared
+//! `predicate_admission::decide_admission` contract and commits an additive
+//! `predicate_admission` PASS receipt into the advancing `StateAccepted`
+//! payload (see `src/memory_kernel.rs` Proceed branch), so the post-fix
+//! invariant below holds and this gate is GREEN.
 //!
-//! This file lives under `tests/pending/`. Cargo does NOT auto-discover .rs
-//! files in tests/ SUBDIRECTORIES (only flat `tests/*.rs` are integration
-//! targets), so it is excluded from default CI with NO Cargo.toml change at
-//! all. We deliberately do NOT add a `[[test]]` target to `Cargo.toml`, because
-//! on this worktree `Cargo.toml` is pinned in the Trust Root
-//! (`genesis_payload.toml`) and ANY edit to it trips
-//! `src/boot.rs::verify_trust_root` (TRUST_ROOT_TAMPERED, Class-4) — forbidden
-//! PRE-§8. Net effect:
-//!   * `cargo test --workspace` does NOT run it (subdir → not a target),
-//!   * `cargo test --test constitution_matrix_drift` is unaffected (this file
-//!     is NOT in `scripts/constitution_gates.manifest.toml`),
-//!   * `scripts/run_constitution_gates.sh` does NOT discover it (its glob is
-//!     the flat `ls tests/constitution_*.rs`, which never recurses into the
-//!     subdir, and this file is not named `constitution_*.rs` at top level),
-//!   * the dedicated runner `scripts/run_pending_agentic_os_kill_conditions.sh`
-//!     CAN still build+run it: it compiles this file as a STANDALONE test
-//!     binary via `rustc --test --extern turingosv4=<rlib>` and OBSERVES RED,
-//!     touching neither Cargo.toml nor the Trust Root.
+//! Triple-coupled: registered in `scripts/constitution_gates.manifest.toml`
+//! (`constitution_kernel_predicate_gate`) and referenced in
+//! `handover/alignment/CONSTITUTION_EXECUTION_MATRIX.md`. Discovered by the flat
+//! `ls tests/constitution_*.rs` glob in `scripts/run_constitution_gates.sh` and
+//! built by `cargo test --workspace`.
 //!
-//! ── M07 BLOCKER (the bypass this gate demonstrates) ──────────────────────
+//! ── M07 BLOCKER (the bypass this gate now enforces against) ───────────────
 //! `src/memory_kernel.rs:171-188` — `MemoryKernel::step_forward_with_workspace`
 //! routes purely on `(parsed_header, env_result.is_success())`. When the worker
 //! header carries `status == StateStatus::Proceed` AND `env_result.success ==
@@ -35,14 +28,14 @@
 //! verified head, with no oracle predicate re-execution and no admission receipt
 //! on tape.
 //!
-//! ── DESIRED POST-FIX INVARIANT (what this gate asserts) ───────────────────
+//! ── ENFORCED INVARIANT (what this gate asserts) ──────────────────────────
 //! The memory kernel must NOT advance `verified_head` to a new `StateAccepted`
 //! node purely from `env_result.success + status==Proceed`. Advancing the
 //! verified head must be gated on a PREDICATE-ADMISSION PASS that is itself
 //! recorded on the tape as a verifiable admission receipt (so an auditor can
 //! reconstruct, from the tape alone, that predicate admission gated the head
-//! advance). Today no such receipt exists, so this gate FAILS (expected-red),
-//! cleanly proving the M07 bypass.
+//! advance). The M07 fix produces exactly this receipt, so the gate is GREEN;
+//! if the receipt were ever removed it would go RED, re-exposing the bypass.
 
 use turingosv4::charter_core::compile_charter_core;
 use turingosv4::ledger::{ImmutableTapeLedger, MemoryTapeLedger, NodeKind};
@@ -104,10 +97,11 @@ fn tape_has_predicate_admission_receipt(tape: &MemoryTapeLedger) -> bool {
 /// G1 — the kernel must NOT advance `verified_head` on `success + Proceed` alone;
 /// the advance must be gated on a predicate-admission PASS recorded on tape.
 ///
-/// EXPECTED RESULT AT PRE-§8: **RED**. The kernel advances the head with no
-/// predicate hook and writes no admission receipt, so the post-fix invariant
-/// below is violated. When the M07 fix lands (single-admission predicate gate),
-/// this test turns GREEN and is promoted to a real `constitution_*` gate.
+/// LIVE RESULT: **GREEN**. With the M07 fix the kernel routes its head advance
+/// through `predicate_admission::decide_admission` and commits a tape-recorded
+/// `predicate_admission` PASS receipt into the advancing `StateAccepted` node,
+/// so the receipt probe below succeeds. This is a fail-able gate: removing the
+/// receipt (re-introducing the predicate-blind bypass) turns it RED again.
 #[test]
 fn m07_kernel_must_not_advance_verified_head_without_predicate_admission_receipt() {
     let mut k = fresh_kernel();
@@ -132,20 +126,20 @@ fn m07_kernel_must_not_advance_verified_head_without_predicate_admission_receipt
         "M07 precondition: kernel advanced verified_head on the Proceed path."
     );
 
-    // The post-fix invariant: that head advance MUST be backed by a predicate-
-    // admission PASS receipt on the tape. RED today — proves the bypass.
+    // The enforced invariant: that head advance MUST be backed by a predicate-
+    // admission PASS receipt on the tape. GREEN with the M07 fix in place.
     let has_receipt = tape_has_predicate_admission_receipt(&k.tape);
     assert!(
         has_receipt,
-        "M07 BYPASS DEMONSTRATED (PENDING / EXPECTED-RED): memory_kernel advanced \
+        "M07 BYPASS REGRESSION: memory_kernel advanced \
          verified_head from `{head_before}` to `{head_after}` purely on \
          env_result.success + status==Proceed, WITHOUT any predicate-admission \
-         PASS receipt on tape. src/memory_kernel.rs:171-188 commits StateAccepted \
-         and calls set_verified_head() with no call to verify_work_predicates, no \
-         WorkTx, and no PredicateRegistry binding — kernel admission is \
-         predicate-blind. The desired single-admission predicate gate (§8 token \
-         APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE) must make this head \
-         advance conditional on a tape-recorded predicate-admission PASS. Until \
-         that Class-4 src/ change lands, this gate stays RED by design."
+         PASS receipt on tape. The M07 Proceed branch in src/memory_kernel.rs \
+         must route the head advance through \
+         predicate_admission::decide_admission and commit a tape-recorded \
+         `predicate_admission` PASS receipt into the advancing StateAccepted \
+         payload BEFORE calling set_verified_head(). A failure here means that \
+         receipt was removed and the predicate-blind kernel bypass re-opened \
+         (§8 token APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE)."
     );
 }

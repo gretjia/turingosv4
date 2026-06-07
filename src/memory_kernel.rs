@@ -25,8 +25,15 @@ use crate::distiller::{compress_belief_state, deterministic_trace_slicer, TraceV
 use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, RetryConstraint,
 };
+use crate::predicate_admission::{
+    decide_admission, hash_to_hex, AdmissionVerdict, PredicateClaimSet,
+};
 use crate::rtool::{Rtool, SessionDigest, WorkspaceView};
+use crate::state::q_state::Hash;
 use crate::state_update::{parse_prefix_json, StateStatus, StateUpdate};
+use crate::top_white::predicates::registry::{
+    BootPredicateManifest, EmptyPredicateCasView, PredicateCasView, PredicateRegistry,
+};
 use crate::token_budget::{
     B_CTL, B_D, B_DISTILL_IN, B_G, B_H, B_HEADER, B_HEADER_SCAN, B_PROMPT_MAX, B_S, B_T,
     MAX_RETRIES, ZERO_GAIN_K,
@@ -92,6 +99,14 @@ pub struct MemoryKernel<L: ImmutableTapeLedger> {
     pub charter: CharterCore,
     pub tokenizer: Arc<Tokenizer>,
     pub rtool: Rtool<MemoryKernelTape<L>>,
+    // M07 single-admission: the kernel now consults the SAME predicate-admission
+    // contract as the sequencer before advancing the verified head. Legacy
+    // (zero-root) callers get an empty registry / `Hash::ZERO` root / empty CAS
+    // via the defaulting `new`, so the Proceed branch still PASSes — but now WITH
+    // a tape-recorded admission receipt instead of a predicate-blind advance.
+    pub predicate_registry: Arc<PredicateRegistry>,
+    pub predicate_registry_root_t: Hash,
+    pub predicate_cas: Arc<dyn PredicateCasView + Send + Sync>,
 }
 
 /// Trivial newtype to satisfy `Arc<L: ImmutableTapeLedger>` lifetime in Rtool.
@@ -138,6 +153,39 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
     /// CharterCore. The CharterCore must already have been validated for
     /// freshness via `validate_charter_core_freshness` by the caller.
     pub fn new(tape: L, run_id: impl Into<String>, charter: CharterCore) -> Self {
+        // Defaulting constructor: zero-root, empty registry, empty CAS. This
+        // preserves every existing 3-arg call site — the kernel admits via the
+        // shared zero-root branch (`os_qualified == false`) and writes a
+        // `registry_root: ZERO` receipt, behavior-identical to the pre-M07
+        // happy path except for the additive on-tape admission receipt.
+        let registry = Arc::new(
+            PredicateRegistry::from_boot_manifest(BootPredicateManifest::empty())
+                .expect("empty predicate manifest is always constructible"),
+        );
+        Self::new_with_predicates(
+            tape,
+            run_id,
+            charter,
+            registry,
+            Hash::ZERO,
+            Arc::new(EmptyPredicateCasView),
+        )
+    }
+
+    /// M07: explicit constructor for OS-qualified runs that bind a predicate
+    /// registry. The Proceed branch takes its admission decision under
+    /// `predicate_registry_root_t`; a non-zero root selects the bound oracle
+    /// path (sequencer-only in route A — the kernel claim set is always boolean,
+    /// so the kernel stays on the zero-root branch in practice today).
+    /// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}: OS-qualified kernel ctor.
+    pub fn new_with_predicates(
+        tape: L,
+        run_id: impl Into<String>,
+        charter: CharterCore,
+        predicate_registry: Arc<PredicateRegistry>,
+        predicate_registry_root_t: Hash,
+        predicate_cas: Arc<dyn PredicateCasView + Send + Sync>,
+    ) -> Self {
         let tokenizer = Arc::new(Tokenizer::new());
         let adapter: Arc<MemoryKernelTape<L>> =
             Arc::new(MemoryKernelTape(std::marker::PhantomData));
@@ -148,13 +196,33 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             charter,
             tokenizer,
             rtool,
+            predicate_registry,
+            predicate_registry_root_t,
+            predicate_cas,
         }
     }
 
     /// FC1 runtime loop entry-point (directive §5.1).
     /// TRACE_MATRIX FC1a-rtool + FC1a-output_edge + FC1b-wtool.
+    ///
+    /// 3-arg shim: callers with no predicate claims supply an empty
+    /// [`PredicateClaimSet`], which yields a zero-root PASS — behavior-identical
+    /// to the pre-M07 happy path (now with an on-tape admission receipt).
     pub fn step_forward(&mut self, task: &Task, env_result: EnvironmentResult) -> KernelStep {
-        self.step_forward_with_workspace(task, env_result, &WorkspaceView::default())
+        self.step_forward_with_claims(task, env_result, PredicateClaimSet::default())
+    }
+
+    /// M07: FC1 entry-point carrying the predicate claim set the head advance is
+    /// gated on. The judge seam in `tdma_runner` builds a real claim set from the
+    /// verdict and calls through here.
+    /// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}.
+    pub fn step_forward_with_claims(
+        &mut self,
+        task: &Task,
+        env_result: EnvironmentResult,
+        claims: PredicateClaimSet,
+    ) -> KernelStep {
+        self.step_forward_with_workspace(task, env_result, claims, &WorkspaceView::default())
     }
 
     /// Variant with workspace facts for richer SessionDigest cascade.
@@ -163,6 +231,7 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         &mut self,
         task: &Task,
         env_result: EnvironmentResult,
+        claims: PredicateClaimSet,
         workspace: &WorkspaceView,
     ) -> KernelStep {
         let verified_head = self.tape.get_verified_head();
@@ -170,23 +239,76 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
 
         match (parsed_header, env_result.is_success()) {
             (Ok(header), true) if header.status == StateStatus::Proceed => {
-                // Happy path: commit StateAccepted, advance verified_head.
-                let accepted = self.tape.commit(CommitRequest {
-                    kind: NodeKind::StateAccepted,
-                    verified: true,
-                    parent: Some(verified_head.clone()),
-                    scope: None,
-                    attempt_ordinal: None,
-                    reject_class: None,
-                    token_count: None,
-                    payload: serde_json::json!({
-                        "state_update": header,
-                        "output_summary": "accepted",
-                    }),
-                });
-                let evidence_hash = accepted.hash.clone();
-                self.tape.set_verified_head(accepted.hash);
-                KernelStep::Proceed { evidence_hash }
+                // M07 single-admission: the head advance is gated on the SHARED
+                // predicate-admission contract, NOT on `success + Proceed` alone.
+                // On PASS we commit `StateAccepted` WITH a tape-recorded admission
+                // receipt and only THEN advance the verified head; on FAIL we
+                // route to the existing non-advancing rejection path.
+                let root_hex = hash_to_hex(&self.predicate_registry_root_t);
+                let os_qualified = self.predicate_registry_root_t != Hash::ZERO;
+                let verdict = decide_admission(&root_hex, &claims, os_qualified);
+
+                match verdict {
+                    AdmissionVerdict::Pass { registry_root_hex } => {
+                        let acceptance_pids: Vec<&str> =
+                            claims.acceptance.iter().map(|c| c.id.0.as_str()).collect();
+                        let settlement_pids: Vec<&str> =
+                            claims.settlement.iter().map(|c| c.id.0.as_str()).collect();
+                        let accepted = self.tape.commit(CommitRequest {
+                            kind: NodeKind::StateAccepted,
+                            verified: true,
+                            parent: Some(verified_head.clone()),
+                            scope: None,
+                            attempt_ordinal: None,
+                            reject_class: None,
+                            token_count: None,
+                            payload: serde_json::json!({
+                                "state_update": header,
+                                "output_summary": "accepted",
+                                // M07 admission receipt — additive payload field,
+                                // NO NodeKind / wire-schema change. Hash-covered
+                                // (ledger.rs compute_hash folds the whole payload),
+                                // so an auditor reconstructs the gate from tape alone.
+                                "predicate_admission": {
+                                    "verdict": "PASS",
+                                    "registry_root": registry_root_hex,
+                                    "os_qualified": os_qualified,
+                                    "acceptance_pids": acceptance_pids,
+                                    "settlement_pids": settlement_pids,
+                                },
+                            }),
+                        });
+                        let evidence_hash = accepted.hash.clone();
+                        // Advance ONLY after the receipt-bearing StateAccepted commit.
+                        self.tape.set_verified_head(accepted.hash);
+                        KernelStep::Proceed { evidence_hash }
+                    }
+                    AdmissionVerdict::Fail {
+                        failed_predicate, ..
+                    } => {
+                        // Predicate-admission FAIL: route to the existing
+                        // non-advancing rejection path. The verified head stays
+                        // frozen (handle_rejection commits AgentProposal
+                        // verified:false and never advances the head).
+                        let rej_header = StateUpdate {
+                            status: StateStatus::Retry,
+                            failed_predicate: Some(if failed_predicate.is_empty() {
+                                "predicate_admission".into()
+                            } else {
+                                failed_predicate
+                            }),
+                            reject_class: Some("PredicateAdmissionFailed".into()),
+                            ..header
+                        };
+                        self.handle_rejection(
+                            task,
+                            verified_head,
+                            rej_header,
+                            env_result,
+                            workspace,
+                        )
+                    }
+                }
             }
             (Ok(header), _) => {
                 self.handle_rejection(task, verified_head, header, env_result, workspace)

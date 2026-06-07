@@ -10,6 +10,53 @@ Class 0 (this doc). **No `src/` change. No admission behavior change.**
 (plus separate §8 legs for zero-root quarantine, single-admission invariant, and
 the FC3 irreversible-commit path).
 
+> ## POST-§8 UPDATE (2026-06-07) — route-A landed; G1 promoted, G2/G3 stay red
+>
+> Under §8 token `APPROVE-M07-A4-SINGLE-ADMISSION-PREDICATE-GATE` the route-A
+> single-admission src change landed (shared `src/predicate_admission.rs`
+> contract; kernel head advance gated on `decide_admission` + additive
+> `predicate_admission` PASS receipt). Outcome on the kill-conditions:
+>
+> - **G1 — PROMOTED + GREEN.** Moved to
+>   `tests/constitution_kernel_predicate_gate.rs`, registered in
+>   `scripts/constitution_gates.manifest.toml` and the execution matrix. The
+>   advancing `StateAccepted` node now carries a tape-recorded
+>   `predicate_admission` PASS receipt, so the bypass is closed and enforced.
+> - **G6 (NEW) — GREEN.** A structural anti-duplication witness
+>   `tests/constitution_single_admission_contract.rs` (spec §6) was added and
+>   triple-coupled. It proves the verdict-trusting zero-root scan has exactly one
+>   home (`decide_admission`) called by both authorities.
+> - **G2 — STILL RED (not promotable as written).** G2 asserts THREE mutually
+>   exclusive facts simultaneously (`kernel_admitted==true` ∧
+>   `sequencer_admitted==false` ∧ `kernel_admitted==sequencer_admitted`). Its
+>   kernel leg drives the bare 3-arg `step_forward` (empty claims → zero-root
+>   PASS → admits=true) while its sequencer leg submits a FALSE-predicate WorkTx
+>   (rejects → false). No route-A src change can make `true==false` hold; the
+>   gate would have to be REWRITTEN to feed the kernel a failing claim set
+>   (`step_forward_with_claims` with a false acceptance claim) before it can be a
+>   green single-admission witness. That rewrite is out of scope of this §8
+>   token (it changes what the gate asserts). G2 remains an EXPECTED-RED
+>   kill-condition in the pending runner.
+> - **G3 — STILL RED (needs architect ruling).** G3 requires the sequencer to
+>   REFUSE a zero-root self-asserted-true WorkTx. The spec's recommended
+>   `os_qualified = (registry_root != ZERO)` makes genesis zero-root runs
+>   non-qualified → admitted, so G3 stays red. Forcing it green requires
+>   `os_qualified = true` for zero-root runs, which REGRESSES 15+ existing
+>   workspace tests that legitimately admit zero-root WorkTx with true predicates
+>   (e.g. `tests/tb_8_minimal_payout.rs:223` `.expect("work ok")` under a genesis
+>   zero root; also `constitution_fc1_runtime_loop`, `tb_2/3/4`). The HARD
+>   CONSTRAINT "behavior-preserving for the sequencer zero-root branch" forbids
+>   that regression. G3 is the spec's Open Question #1 (os_qualified source):
+>   distinguishing a G3 zero-root run from a legitimate tb_8 zero-root run needs
+>   a NEW run-level OS-qualified field the registry root alone cannot supply.
+>   G3 remains an EXPECTED-RED kill-condition pending that architect decision.
+> - **G4 / G5 — STANDING pending** a separate §8 (budget hard-ceiling ruling;
+>   FC3 irreversible-commit Class-4 ratification). Unchanged.
+>
+> Net pending runner after this turn: G2/G3/G4/G5 EXPECTED-RED, exit 0
+> (`expected-red=4, unexpected-pass=0, compile-break=0`). G1 no longer appears
+> in the pending runner — it is a live constitution gate.
+
 > **This is PRE-§8 prep only.** These gates are kill-conditions that *demonstrate
 > on a real run* the Class-4 admission-topology gaps M07 must close. They are
 > DELIBERATELY EXCLUDED from default CI and EXPECTED TO FAIL (red). The fixes
