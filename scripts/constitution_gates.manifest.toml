@@ -136,6 +136,11 @@ authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_fc3_meta_loop_closure"
+authority = "handover/section8/APPROVE_FC3_RUNTIME_VETO_AND_TRUSTROOT_REINIT_2026-06-07.md (§8 token APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT) — FC3 IRREVERSIBLE leg: runtime Veto-AI deterministic {Accept,Reject} clause-walker (src/runtime/real5_roles/fc3_veto.rs, whitelisted to constitutionality, fail-closed, constitution.md out of range) gating a PASS-only ArchitectCommit + SANDBOX trust-root recompute (src/runtime/real5_roles/fc3_commit_reinit.rs; reuses the sole boot::verify_trust_root over a TEMP-DIR manifest, NEVER the real genesis_payload.toml) + a tape-visible re-init whose terminal status closes_fc3_loop()==true (reinit:committed). Promoted from tests/pending/constitution_fc3_meta_loop_closure.rs (G5 standing-pending); both observations now GREEN: (A) the live fc3_proposer carries a real ArchitectProposalCapsule spec, (B) a Veto-AI PASS reaches the loop-closing committed-reinit terminal. constitution-bound hash asserted UNCHANGED across the recompute; reversibility (prior trust-root + prior Q) recorded per Art. V.2. Canary observable half (sandbox:canary_only, S1 gate) untouched."
+added = "2026-06-08"
+
+[[gate]]
 name = "constitution_g1_2_batch_continuation_manifest"
 authority = "handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md"
 added = "2026-05-20"

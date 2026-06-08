@@ -81,19 +81,21 @@
 # scripts/run_constitution_gates.sh and does NOT block default CI. Mirrors the
 # report-not-enforce house style of scripts/audit_legacy_bypass.sh.
 #
-# Scope: the M07 residual pending kill-condition set (2 gates; G1 + G3 promoted
+# Scope: the M07 residual pending kill-condition set (1 gate; G1 + G3 promoted
 # out, G2 retired + replaced by a live behavioral gate; the 2026-06-07
-# conformance-sweep boot-trust-root gate #3 also promoted out — see PROMOTED OUT
-# note above):
+# conformance-sweep boot-trust-root gate #3 also promoted out; G5 FC3 meta-loop
+# closure PROMOTED OUT 2026-06-08 — see note below):
 #   G4 pending_m07_budget_ceiling_enforced       -> BUDGET_CEILING_STANDING_PENDING
-#   G5 pending_m07_fc3_meta_loop_closure         -> FC3_META_LOOP_STANDING_PENDING
-# G4+G5 are STANDING pending — they additionally require a separate user §8
-# decision (budget hard-ceiling ruling; FC3 irreversible-commit Class-4
-# ratification). G1 was promoted to the live gate
+# G4 is STANDING pending — it additionally requires a separate user §8 decision
+# (budget hard-ceiling ruling). G1 was promoted to the live gate
 # tests/constitution_kernel_predicate_gate.rs, G2 to
 # tests/constitution_single_admission_behavioral.rs, G3 to
-# tests/constitution_predicate_zero_root_is_not_oracle.rs, and conformance #3 to
-# tests/constitution_all_canonical_writers_verify_trust_root.rs under their §8 tokens.
+# tests/constitution_predicate_zero_root_is_not_oracle.rs, conformance #3 to
+# tests/constitution_all_canonical_writers_verify_trust_root.rs, and G5 to the
+# live gate tests/constitution_fc3_meta_loop_closure.rs under the §8 token
+# APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT (FC3 irreversible leg landed: the
+# runtime Veto-AI clause-walker + the PASS-gated SANDBOX trust-root recompute +
+# re-init now close the meta-loop, so both G5 observations flip GREEN).
 set -uo pipefail   # NOT -e: we must survive expected failures and tally them.
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -105,7 +107,6 @@ OUT="target/pending_kill_conditions_output.txt"
 # Each entry: "<binary basename>|<source path>|<standing token printed when RED>"
 PENDING_GATES=(
   "pending_m07_budget_ceiling_enforced|tests/pending/constitution_budget_ceiling_enforced.rs|BUDGET_CEILING_STANDING_PENDING"
-  "pending_m07_fc3_meta_loop_closure|tests/pending/constitution_fc3_meta_loop_closure.rs|FC3_META_LOOP_STANDING_PENDING"
 )
 
 unexpected_pass=0

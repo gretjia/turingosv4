@@ -227,8 +227,25 @@ The original (broken) intent and why it could not be promoted as written:
   "fix-coming" red — it awaits a scoping decision.
 - **Standing token**: `BUDGET_CEILING_STANDING_PENDING`.
 
-### G5 — `tests/pending/constitution_fc3_meta_loop_closure.rs` (STANDING)
-**Test**: `m07_fc3_meta_loop_must_close_with_tape_visible_reinit`
+### G5 — `tests/pending/constitution_fc3_meta_loop_closure.rs` (PROMOTED OUT 2026-06-08)
+> **PROMOTED OUT 2026-06-08** under §8 Class-4 token
+> `APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT`
+> (`handover/section8/APPROVE_FC3_RUNTIME_VETO_AND_TRUSTROOT_REINIT_2026-06-07.md`).
+> The FC3 irreversible leg landed: a deterministic runtime Veto-AI `{Accept,Reject}`
+> clause-walker (`src/runtime/real5_roles/fc3_veto.rs`) gates a PASS-only
+> ArchitectCommit + SANDBOX trust-root recompute + tape-visible re-init
+> (`src/runtime/real5_roles/fc3_commit_reinit.rs`). Both observations now flip
+> GREEN: (A) the live `fc3_proposer` carries a real `ArchitectProposalCapsule`
+> spec, and (B) a Veto-AI PASS reaches the loop-closing `"reinit:committed"`
+> terminal (`closes_fc3_loop == true`). The gate is now the LIVE top-level gate
+> `tests/constitution_fc3_meta_loop_closure.rs`, triple-coupled in the manifest +
+> matrix, and REMOVED from this pending runner's `PENDING_GATES` array. The
+> recompute runs against a TEMP-DIR manifest only (never the real
+> `genesis_payload.toml`); a concrete live boot-manifest re-pin carries its own
+> signed `v4-ratify` tag (G-GUARD-4). The standing-pending description below is
+> the PRE-promotion record (kept for provenance; no longer the current state).
+
+**Test (PRE-promotion record)**: `m07_fc3_meta_loop_must_close_with_tape_visible_reinit`
 - **Proves**: (A) the live role-path proposal payload is
   `ToolProposalPayload::default()` (`proposal_id == None`) — the ArchitectAI
   proposer carries no real spec; (B) the terminal status of an ACCEPTED proposal

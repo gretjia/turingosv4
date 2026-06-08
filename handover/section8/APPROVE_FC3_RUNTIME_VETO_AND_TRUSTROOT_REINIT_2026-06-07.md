@@ -1,9 +1,13 @@
 # §8 Decision Packet — FC3 Runtime Veto-AI Gate + Trust-Root Recompute + Re-init (the IRREVERSIBLE leg)
 
-**Status**: **AWAITING ARCHITECT RATIFICATION.** No implementation happens until
-the architect supplies the exact token in §7. This document is **Class-0
-documentation only** — it describes a Class-4 self-evolution-closure change,
-requests per-atom §8 ratification, and authorizes nothing by itself.
+**Status**: **RATIFIED 2026-06-08** (token supplied verbatim — see §8). The closure
+mechanism is implemented BUILD-ONLY (sandbox trust root; no real
+`genesis_payload.toml` rewrite; no real production re-init), zero pinned-file
+change, clean-context Class-4 audit PROCEED. Any future concrete live re-pin
+activation still requires its own signed `v4-ratify` tag + attended supervision
+(G-GUARD-4/6), un-waived. This document was originally **Class-0 documentation
+only** — it described the Class-4 self-evolution-closure change and requested
+per-atom §8 ratification; it now records the granted ratification.
 
 **Date**: 2026-06-07
 **Branch**: `claude/fc3-observable-canary` (base `origin/main`).
@@ -300,10 +304,15 @@ AVOIDED — the leg drives them via the existing emit paths. Any re-pin of
 
 ## §8. Architect ratification (to be filled at user verbatim)
 
-**Status: AWAITING ARCHITECT RATIFICATION.** No `src/` work begins until the
-architect supplies the exact token below. Per `feedback_no_batch_class4_signoff`,
-a short reply (`go` / `ok` / `continue` / `can` / `完成`) is NOT Class-4 sign-off
-for the HIGHEST-blast-radius leg in the repository.
+**Status: RATIFIED 2026-06-08.** The architect supplied the exact token verbatim
+(see sign-off block below). The closure mechanism is implemented BUILD-ONLY:
+exercised against a SANDBOX/temp trust root, with NO real `genesis_payload.toml`
+rewrite and NO real production re-init. Any future CONCRETE live re-pin/activation
+still carries its own signed `v4-ratify` tag (G-GUARD-4) and the attended-
+supervision posture (G-GUARD-6) — those are NOT performed by this PR. Per
+`feedback_no_batch_class4_signoff`, a short reply (`go` / `ok` / `continue` /
+`can` / `完成`) is NOT Class-4 sign-off for the HIGHEST-blast-radius leg in the
+repository; the exact token below was supplied.
 
 ```text
 Ratify:
@@ -321,15 +330,26 @@ a human in the loop the first times it fires.
 
 **Architect §8 sign-off (FILLED IN AT USER VERBATIM):**
 
-- Verbatim quote: _<to be filled — exact user words>_
+- Verbatim quote: `APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT，以及多LLM上链，预算硬上限留在下一步`
 - Token consumed: `APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT`
-- Supervision posture confirmed: _<attended / explicitly-authorized-unattended>_
-- Date: _<to be filled>_
-- Branch at ratification: `claude/fc3-observable-canary`
-- Parent commit: _<origin/main HEAD at ratification>_
+- Supervision posture confirmed: **N/A for this PR — build-only, no real activation.**
+  The user supplied the token but did not explicitly waive the recommended
+  attended posture. This PR performs NO real production activation (sandbox/temp
+  trust root only; the gate asserts the real `genesis_payload.toml` is
+  byte-unchanged before/after), so G-GUARD-6 is not yet triggered. The attended
+  posture (architect present, abort path ready) REMAINS REQUIRED and un-waived for
+  any future concrete live re-pin activation (which also carries its own signed
+  `v4-ratify` tag per G-GUARD-4).
+- Date: 2026-06-08
+- Branch at ratification: `claude/fc3-irreversible-leg` (implementation under
+  `src/runtime/real5_roles/fc3_veto.rs` + `fc3_commit_reinit.rs`, nested under the
+  UNPINNED `real5_roles.rs` — stricter than the packet's proposed `fc3_*.rs` paths:
+  ZERO pinned-file edits, no trust-root pin rehash, no signed tag needed for this
+  build-only mechanism).
+- Parent commit: `679d80586a01384dda24bdf42cf05ed61866d8de` (origin/main at ratification)
 
 ---
 
 `FC-trace: FC3-N3x/N4x meta-loop closure — runtime Veto-AI {PASS,VETO} clause-walker (FC3-N32/N43, VetoDecisionTx) gating an ArchitectCommit (ArchitectCommitBlockedByVeto) that recomputes the boot Trust Root (Art. V.1.2 ArchitectAI manifest range; constitution.md OUT per V.1.1) and triggers a tape-visible re-init (FC3-N44/N45, ReinitRequestTx/ReinitBootTx) that flips closes_fc3_loop false->true; every activation tape-recorded + reversible to Q_{t-1} per Art. V.2; trust-root re-pin carries its own signed v4-ratify tag. Class-4 HIGHEST blast radius; per-atom §8 required; no implementation until token supplied.`
 
-**End of FC3 Runtime-Veto-and-Trust-Root-Reinit §8 decision packet (AWAITING ARCHITECT RATIFICATION; documentation only).**
+**End of FC3 Runtime-Veto-and-Trust-Root-Reinit §8 decision packet (RATIFIED 2026-06-08; closure mechanism implemented BUILD-ONLY against a sandbox trust root, zero pinned-file change, clean-context audit PROCEED; no real production activation performed).**

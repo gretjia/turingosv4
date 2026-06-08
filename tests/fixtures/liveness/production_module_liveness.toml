@@ -591,7 +591,7 @@ smoke_gates = [
 ]
 real_world_evidence = []
 evidence_requires = ["L4", "CAS", "ArchitectProposalTx", "MetricEstimate", "replay"]
-closure_action = "Observable + safety-evaluation half of the FC3 self-evolution loop (token APPROVE-FC3-OBSERVABLE-CANARY-HALF): the proposer emits a real ArchitectProposal capsule and the canary writes a MetricEstimate; both are tape-anchored and exercised by the live constitution_fc3_proposer_canary_observable gate. This is NOT FC authority and carries NO historical real-world AGI evidence: the irreversible Veto-gate/trust-root-recompute/re-init leg is unimplemented and G5 (tests/pending/constitution_fc3_meta_loop_closure.rs) stays standing-pending §8 Class-4. Smoke-gate evidence is not capability evidence."
+closure_action = "Observable + safety-evaluation half of the FC3 self-evolution loop (token APPROVE-FC3-OBSERVABLE-CANARY-HALF): the proposer emits a real ArchitectProposal capsule and the canary writes a MetricEstimate; both are tape-anchored and exercised by the live constitution_fc3_proposer_canary_observable gate. The irreversible Veto-gate/trust-root-recompute/re-init leg landed 2026-06-08 under §8 token APPROVE-FC3-RUNTIME-VETO-AND-TRUSTROOT-REINIT (src/runtime/real5_roles/fc3_veto.rs + fc3_commit_reinit.rs; live gate tests/constitution_fc3_meta_loop_closure.rs, promoted out of tests/pending/), closing the meta-loop against a SANDBOX temp-dir trust root only. This is NOT FC authority and carries NO historical real-world AGI evidence: no real production re-init has fired (a concrete live boot-manifest re-pin needs its own signed v4-ratify tag + attended supervision). Smoke-gate evidence is not capability evidence."
 
 [[group]]
 id = "agent_prompt_model_boundary"
