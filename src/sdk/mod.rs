@@ -1,4 +1,12 @@
 pub mod actor;
+/// TRACE_MATRIX FC1a-output_edge + FC1 rtool/wtool read-view shielding
+/// (Art. III) — EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08: shared
+/// content-hash ID-handle helper for the render/parse membrane. Renders
+/// explicit canonical ids as opaque sha256 short-prefix HANDLES in
+/// LLM-visible projections, and resolves agent-echoed handles back to
+/// canonical ids by EXACT-membership-or-REJECT. Display/parse seam only —
+/// canonical identity types and state are unchanged.
+pub mod id_handle;
 /// TRACE_MATRIX FC1-N7 + §13: TB-N1-AGENT-ECONOMY A2 (session #35
 /// 2026-05-10) — renderer for the agent-perceived economic position
 /// block embedded in build_agent_prompt under

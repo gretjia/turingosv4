@@ -79,6 +79,52 @@ pub struct AgentAction {
     pub bond_micro: Option<u64>,
 }
 
+impl AgentAction {
+    /// TRACE_MATRIX FC1a-output_edge + FC1 read-view shielding (Art. III) —
+    /// EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #7: resolve the
+    /// agent's free-typed `node` (the `invest`/`challenge` work-tx target)
+    /// against the EXACT candidate set the agent was rendered, returning the
+    /// canonical id string ONLY on exact handle/id membership.
+    ///
+    /// `rendered` is the [`crate::sdk::id_handle::HandleSet`] built from the
+    /// node ids the agent was shown this turn. A fabricated/typoed/unknown
+    /// `node` returns [`MembraneError::NotInCandidateSet`]; an absent `node`
+    /// returns [`MembraneError::MissingId`]. Callers MUST resolve through this
+    /// method BEFORE routing the value to any (pinned) downstream sequencer
+    /// lookup — there is no fuzzy prefix match and no fallback.
+    pub fn resolve_node(
+        &self,
+        rendered: &crate::sdk::id_handle::HandleSet,
+    ) -> Result<String, MembraneError> {
+        let echoed = self.node.as_deref().ok_or(MembraneError::MissingId)?;
+        rendered
+            .resolve(echoed)
+            .ok_or_else(|| MembraneError::NotInCandidateSet(echoed.to_string()))
+    }
+
+    /// TRACE_MATRIX FC1a-output_edge + FC1 read-view shielding (Art. III) —
+    /// EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #8: resolve the
+    /// agent's free-typed `target_work_tx_id` (the `verify_peer` target)
+    /// against the EXACT candidate set the agent was rendered.
+    ///
+    /// Same exact-membership-or-REJECT contract as [`Self::resolve_node`].
+    /// Callers MUST resolve through this method BEFORE building the (pinned)
+    /// `VerifyTx`, so a `verify_peer` target the agent was never shown can
+    /// never reach the sequencer admission lookup.
+    pub fn resolve_target_work_tx(
+        &self,
+        rendered: &crate::sdk::id_handle::HandleSet,
+    ) -> Result<String, MembraneError> {
+        let echoed = self
+            .target_work_tx_id
+            .as_deref()
+            .ok_or(MembraneError::MissingId)?;
+        rendered
+            .resolve(echoed)
+            .ok_or_else(|| MembraneError::NotInCandidateSet(echoed.to_string()))
+    }
+}
+
 /// Parse error with explicit reason. V3L-09: NEVER silently return None.
 #[derive(Debug, Clone)]
 pub enum ParseError {
@@ -98,6 +144,35 @@ impl fmt::Display for ParseError {
 }
 
 impl std::error::Error for ParseError {}
+
+/// TRACE_MATRIX FC1a-output_edge + FC1 read-view shielding (Art. III) —
+/// EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fixes #7/#8: rejection
+/// reason for an agent-echoed id (`node` / `target_work_tx_id`) that is not a
+/// member of the candidate set the agent was rendered. Returned by the
+/// membrane resolvers BEFORE the value can reach any (pinned) downstream
+/// sequencer lookup, closing the free-typed-id affordance at the unpinned
+/// render/parse seam.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MembraneError {
+    /// The action did not carry the required id field at all.
+    MissingId,
+    /// The echoed id/handle is not a member of the rendered candidate set
+    /// (no fuzzy prefix, no fallback — exact membership only).
+    NotInCandidateSet(String),
+}
+
+impl fmt::Display for MembraneError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MembraneError::MissingId => write!(f, "action missing required id field"),
+            MembraneError::NotInCandidateSet(s) => {
+                write!(f, "echoed id/handle '{s}' is not in the rendered candidate set")
+            }
+        }
+    }
+}
+
+impl std::error::Error for MembraneError {}
 
 // ── Parser ──────────────────────────────────────────────────────
 
@@ -389,5 +464,84 @@ mod tests {
     fn test_deduct_negative_amount_rejected() {
         // Codex finding: negative deduct = credit. Must reject.
         // (This is tested in wallet but verified here for completeness)
+    }
+
+    // ── id-hallucination membrane (audit fixes #7/#8) ────────────────
+
+    use crate::sdk::id_handle::HandleSet;
+
+    fn candidate_set() -> HandleSet {
+        let mut set = HandleSet::new("test_node");
+        set.insert("worktx-aaa");
+        set.insert("worktx-bbb");
+        set
+    }
+
+    #[test]
+    fn resolve_node_accepts_exact_handle() {
+        let set = candidate_set();
+        let handle = set.handle_for("worktx-aaa");
+        let raw = format!(r#"<action>{{"tool":"invest","node":"{handle}","amount":50}}</action>"#);
+        let action = parse_agent_output(&raw).unwrap();
+        assert_eq!(action.resolve_node(&set).unwrap(), "worktx-aaa");
+    }
+
+    #[test]
+    fn resolve_node_accepts_exact_canonical_id_membership() {
+        let set = candidate_set();
+        // Agent may echo the canonical id verbatim only if it is a member.
+        let raw = r#"<action>{"tool":"invest","node":"worktx-bbb","amount":50}</action>"#;
+        let action = parse_agent_output(raw).unwrap();
+        assert_eq!(action.resolve_node(&set).unwrap(), "worktx-bbb");
+    }
+
+    #[test]
+    fn resolve_node_rejects_non_member_no_fallback() {
+        let set = candidate_set();
+        // A node the agent was never shown must be REJECTED — no last()/default.
+        let raw = r#"<action>{"tool":"invest","node":"worktx-ccc","amount":50}</action>"#;
+        let action = parse_agent_output(raw).unwrap();
+        assert!(matches!(
+            action.resolve_node(&set),
+            Err(MembraneError::NotInCandidateSet(_))
+        ));
+    }
+
+    #[test]
+    fn resolve_node_rejects_prefix_of_member() {
+        let set = candidate_set();
+        // Loose prefix must NOT bind.
+        let raw = r#"<action>{"tool":"invest","node":"worktx","amount":50}</action>"#;
+        let action = parse_agent_output(raw).unwrap();
+        assert!(matches!(
+            action.resolve_node(&set),
+            Err(MembraneError::NotInCandidateSet(_))
+        ));
+    }
+
+    #[test]
+    fn resolve_node_missing_id_is_membrane_error() {
+        let set = candidate_set();
+        let raw = r#"<action>{"tool":"step","payload":"x"}</action>"#;
+        let action = parse_agent_output(raw).unwrap();
+        assert_eq!(action.resolve_node(&set), Err(MembraneError::MissingId));
+    }
+
+    #[test]
+    fn resolve_target_work_tx_exact_or_reject() {
+        let set = candidate_set();
+        let handle = set.handle_for("worktx-aaa");
+        let ok = format!(
+            r#"<action>{{"tool":"verify_peer","target_work_tx_id":"{handle}","verdict":"confirm"}}</action>"#
+        );
+        let action = parse_agent_output(&ok).unwrap();
+        assert_eq!(action.resolve_target_work_tx(&set).unwrap(), "worktx-aaa");
+
+        let bad = r#"<action>{"tool":"verify_peer","target_work_tx_id":"worktx-zzz","verdict":"confirm"}</action>"#;
+        let bad_action = parse_agent_output(bad).unwrap();
+        assert!(matches!(
+            bad_action.resolve_target_work_tx(&set),
+            Err(MembraneError::NotInCandidateSet(_))
+        ));
     }
 }

@@ -607,6 +607,7 @@ module_ids = [
   "sdk::actor",
   "sdk::econ_position",
   "sdk::error_abstraction",
+  "sdk::id_handle",
   "sdk::market_context",
   "sdk::pending_peer_reviews",
   "sdk::prompt",
@@ -618,7 +619,12 @@ module_ids = [
   "runtime::prompt_capsule",
   "runtime::prompt_promotion",
 ]
-paths = ["src/drivers", "src/sdk/protocol.rs", "src/sdk/prompt.rs", "src/sdk/sanitized_runner.rs", "src/sdk/market_context.rs", "src/runtime/prompt_capsule.rs"]
+# `sdk::id_handle` (EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08): the
+# shared content-hash ID-handle helper for the render/parse membrane. Same
+# product-workload class as `sdk::protocol`/`sdk::your_position` (already in
+# this group) — renders explicit canonical ids as opaque handles in
+# LLM-visible projections and resolves agent-echoed handles exact-or-reject.
+paths = ["src/drivers", "src/sdk/protocol.rs", "src/sdk/prompt.rs", "src/sdk/sanitized_runner.rs", "src/sdk/market_context.rs", "src/sdk/id_handle.rs", "src/runtime/prompt_capsule.rs"]
 constitutional_anchors = ["FC1:input", "FC1:agent delta", "Art.III"]
 necessity = "LLM prompts and process boundaries are product workload surfaces; they must stay shielded and tape-bound."
 smoke_gates = [

@@ -38,7 +38,11 @@ fn read_json(path: &Path) -> Value {
     serde_json::from_str(&std::fs::read_to_string(path).expect("read json")).expect("parse json")
 }
 
-fn start_mock_llm_proxy(expected_event_task_id: String, directions: Vec<&'static str>) -> String {
+fn start_mock_llm_proxy(
+    expected_event_handle: String,
+    raw_event_task_id: String,
+    directions: Vec<&'static str>,
+) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock proxy");
     let addr = listener.local_addr().expect("local addr");
     thread::spawn(move || {
@@ -51,9 +55,15 @@ fn start_mock_llm_proxy(expected_event_task_id: String, directions: Vec<&'static
                 request.starts_with("POST /v1/chat/completions"),
                 "unexpected mock proxy request: {request}"
             );
+            // fix #5: the prompt names the event by its opaque content-hash
+            // HANDLE, and the explicit kernel-fixture id must NOT leak.
             assert!(
-                request.contains(&expected_event_task_id),
-                "prompt should name the market event without using kernel fixtures: {request}"
+                request.contains(&expected_event_handle),
+                "prompt should name the market event by its content-hash handle: {request}"
+            );
+            assert!(
+                !request.contains(&raw_event_task_id),
+                "explicit kernel-fixture task id must NOT leak into the prompt: {request}"
             );
             assert!(
                 request.contains(&format!("direction = yes|no"))
@@ -94,7 +104,14 @@ fn market_external_agent_runner_calls_proxy_and_replays_signed_router_tx() {
 fn assert_market_external_agent_case(run_id: &str) {
     let tmp = TempDir::new().expect("tempdir");
     let run_dir = tmp.path().join("market_action_yes_no");
-    let proxy_url = start_mock_llm_proxy(format!("true-suite-market-{run_id}"), vec!["yes", "no"]);
+    // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #5: the runner
+    // prompt no longer interpolates the explicit `true-suite-market-{run_id}`
+    // kernel fixture id (hallucination bait); it renders an opaque
+    // content-hash HANDLE of the task descriptor. The mock proxy asserts the
+    // prompt names the event by that deterministic handle, NOT the raw id.
+    let event_task_id = format!("true-suite-market-{run_id}");
+    let expected_event_handle = turingosv4::sdk::id_handle::handle("market_event", &event_task_id);
+    let proxy_url = start_mock_llm_proxy(expected_event_handle, event_task_id, vec!["yes", "no"]);
 
     let init = Command::new(bin("turingos"))
         .args([

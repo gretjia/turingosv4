@@ -100,6 +100,13 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
     s.push_str(&format!("Solvency: {solvency_label}\n"));
     s.push_str(&format!("Reputation: {}\n", view.reputation_score));
     s.push_str(&format!("Open positions: {}\n", view.open_positions.len()));
+    // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #9: render each
+    // position by a stable content-hash HANDLE of its canonical id instead of
+    // the explicit `tx_id`/`event_id`/`node_id` string (guessable →
+    // hallucination bait). The viewer reads its own position; it does not echo
+    // these ids back as canonical keys from this block, so the membrane remedy
+    // is display-only. Canonical `TxId`/`EventId`/`NodeId` and `OpenPosition`
+    // are unchanged; the same id deterministically maps to the same handle.
     for pos in view.open_positions.iter().take(OPEN_POS_RENDER_K) {
         match pos {
             OpenPosition::Stake {
@@ -107,14 +114,16 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
                 amount_micro,
             } => s.push_str(&format!(
                 "  - stake on {}: {} \u{03BC}C\n",
-                tx_id.0, amount_micro
+                crate::sdk::id_handle::handle("position_tx", &tx_id.0),
+                amount_micro
             )),
             OpenPosition::Claim {
                 tx_id,
                 amount_micro,
             } => s.push_str(&format!(
                 "  - pending claim on {}: {} \u{03BC}C\n",
-                tx_id.0, amount_micro
+                crate::sdk::id_handle::handle("position_tx", &tx_id.0),
+                amount_micro
             )),
             OpenPosition::ConditionalShare {
                 event_id,
@@ -126,12 +135,13 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
                     crate::state::typed_tx::OutcomeSide::Yes => "YES",
                     crate::state::typed_tx::OutcomeSide::No => "NO",
                 },
-                event_id.0 .0,
+                crate::sdk::id_handle::handle("position_event", &event_id.0 .0),
                 units
             )),
             OpenPosition::LpShare { event_id, units } => s.push_str(&format!(
                 "  - LP shares on event {}: {} units\n",
-                event_id.0 .0, units
+                crate::sdk::id_handle::handle("position_event", &event_id.0 .0),
+                units
             )),
             OpenPosition::NodePosition {
                 node_id,
@@ -145,7 +155,7 @@ pub fn render_your_position(q: &QState, viewer: &AgentId) -> String {
                         crate::state::typed_tx::PositionSide::Long => "Long",
                         crate::state::typed_tx::PositionSide::Short => "Short",
                     },
-                    node_id.0,
+                    crate::sdk::id_handle::handle("position_node", &node_id.0),
                     amount_micro
                 ));
             }
@@ -284,8 +294,20 @@ mod tests {
         );
         let s = render_your_position(&q, &a);
         assert!(s.contains("Open positions: 2"));
-        assert!(s.contains("stake on worktx-1: 50000"));
-        assert!(s.contains("pending claim on claim-1: 30000"));
+        // fix #9: explicit canonical ids are NEVER rendered; the position is
+        // shown by a stable content-hash handle (display-only redaction).
+        let stake_handle = crate::sdk::id_handle::handle("position_tx", "worktx-1");
+        let claim_handle = crate::sdk::id_handle::handle("position_tx", "claim-1");
+        assert!(
+            !s.contains("worktx-1"),
+            "explicit stake tx id must NOT leak; got: {s}"
+        );
+        assert!(
+            !s.contains("claim-1"),
+            "explicit claim tx id must NOT leak; got: {s}"
+        );
+        assert!(s.contains(&format!("stake on {stake_handle}: 50000")));
+        assert!(s.contains(&format!("pending claim on {claim_handle}: 30000")));
     }
 
     /// U6 — reputation surfaces in the block.

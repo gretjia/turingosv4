@@ -98,10 +98,19 @@ fn sg_g3_7_non_default_render_witnessed() {
     );
     let rendered = render_your_position(&q, &a);
     // SG-G3.7 binding: a non-default fixture produces a per-viewer-specific
-    // row identifying the stake by its tx_id.
+    // row identifying the stake. Per
+    // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #9 the row now
+    // identifies the stake by a stable content-hash HANDLE (display-only
+    // redaction of the explicit `worktx-` id, which is hallucination bait);
+    // the explicit id must NOT leak into the agent-visible block.
+    let stake_handle = turingosv4::sdk::id_handle::handle("position_tx", "worktx-witness");
     assert!(
-        rendered.contains("worktx-witness"),
-        "SG-G3.7: non-default fixture must produce per-viewer-specific row; got:\n{rendered}"
+        rendered.contains(&stake_handle),
+        "SG-G3.7: non-default fixture must produce per-viewer-specific row (by handle); got:\n{rendered}"
+    );
+    assert!(
+        !rendered.contains("worktx-witness"),
+        "SG-G3.7 + fix #9: explicit stake tx id must NOT leak into the block; got:\n{rendered}"
     );
     assert!(
         rendered.contains("Open positions: 1"),
