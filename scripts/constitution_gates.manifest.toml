@@ -221,6 +221,11 @@ authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_interop_surface_capsule"
+authority = "S5 interop surface — tape-anchored AgentCard / CapabilityDescriptor + inbound A2A-message capsules (src/runtime/interop_capsule.rs, nested as a #[path] submodule of the UNPINNED src/runtime/markov_capsule.rs). Replaces the HTML-only AgentCard read-view block (src/web/ir.rs) + the bare 'task-a2a' string literal (src/runtime/adapter.rs) with REAL CAS+L4-anchored evidence objects, so external-agent/tool interactions become auditable on the canonical tape (AGENTS.md §1). Triple-coupled gate: (1) an AgentCardCapsule AND an A2aMessageCapsule are reconstructable from CAS/tape (self-addressed round-trip; message links to a resolvable sender card); (2) the inbound message is taint-labelled ArgTaint::UntrustedExternal (ingress shield) — the SAME label the existing arg_taint_v1 admission hard-gate REJECTS at a privileged sink, with a fail-closed UNKNOWN-tag → UntrustedExternal witness; (3) non-vacuous — real multi-tag capability set + real intent/payload, taint label is the SOLE admission discriminator (Trusted-arg positive control is ADMITTED). ZERO genesis-pinned-file edits — ObjectType::Generic + free-form schema_ids (v1/agent_card_capsule, v1/a2a_message_capsule), no pinned cas/schema.rs variant; reuses the skill_capsule/markov CAS+L4 R3 write pattern."
+added = "2026-06-07"
+
+[[gate]]
 name = "constitution_l4e_body_integrity"
 authority = "handover/directives/2026-05-10_TB_N1_AGENT_ECONOMY_PHASE_2_FORWARD_§8_GRANT.md"
 added = "2026-05-20"

@@ -24,6 +24,15 @@ use crate::bottom_white::ledger::transition_ledger::canonical_encode;
 use crate::runtime::autopsy_capsule::TypicalErrorSummary;
 use crate::state::q_state::Hash;
 
+// S5 interop surface (tape-anchored AgentCard + inbound A2A-message capsules).
+// Nested here as a `#[path]` submodule because `markov_capsule.rs` is an
+// UNPINNED file already declared in the trust-root-pinned `runtime/mod.rs`;
+// nesting avoids editing the pinned `mod.rs`. Access path:
+// `crate::runtime::markov_capsule::interop_capsule::*`.
+/// TRACE_MATRIX FC3-N28 + Art. 0.2: S5 interop-surface capsules (tape-anchored AgentCard + inbound A2A message).
+#[path = "interop_capsule.rs"]
+pub mod interop_capsule;
+
 /// TRACE_MATRIX TB-15 (architect §6.2): unresolved OBS identifier.
 /// Opaque string newtype carrying the relative path of an `OBS_*.md`
 /// file under `handover/alignment/` (the project's de-facto observation
