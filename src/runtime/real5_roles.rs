@@ -32,6 +32,14 @@ pub mod fc3_proposer;
 /// MetricEstimate to tape; terminal status stays `sandbox:canary_only`).
 #[path = "real5_roles/fc3_canary.rs"]
 pub mod fc3_canary;
+/// TRACE_MATRIX FC3-N32/N43: FC3 runtime Veto-AI deterministic constitutionality
+/// clause-walker (`{Accept,Reject}`, fail-closed; gates the irreversible leg).
+#[path = "real5_roles/fc3_veto.rs"]
+pub mod fc3_veto;
+/// TRACE_MATRIX FC3-N44/N45: FC3 PASS-gated commit + SANDBOX trust-root recompute
+/// + re-init driver (the loop-closing leg; never touches the real boot manifest).
+#[path = "real5_roles/fc3_commit_reinit.rs"]
+pub mod fc3_commit_reinit;
 
 pub const ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID: &str = "real5.role_assignment_manifest.v1";
 pub const ROLE_TURN_TRACE_SCHEMA_ID: &str = "real5.role_turn_trace.v1";
@@ -1102,6 +1110,33 @@ pub fn proposal_activation_status(
     match decision.verdict {
         VetoVerdict::Reject => "evidence:persist_rejected",
         VetoVerdict::Accept => "sandbox:canary_only",
+    }
+}
+
+/// TRACE_MATRIX FC3-N44/N45: the terminal disposition of a candidate that the
+/// runtime Veto-AI PASSED and that was then driven through the
+/// `ArchitectCommit` + SANDBOX trust-root recompute + re-init leg
+/// (`fc3_commit_reinit`). Unlike `proposal_activation_status` — whose `Accept`
+/// terminal is the dead-end `"sandbox:canary_only"` (the observable+canary half,
+/// which must stay byte-identical) — this terminal CLOSES the FC3 loop:
+/// `fc3_canary::closes_fc3_loop(COMMITTED_REINIT_TERMINAL_STATUS) == true`
+/// because it contains `"reinit"`/`"committed"`. This is the NEW path; it does
+/// NOT repurpose the canary one.
+///
+/// On `VetoVerdict::Reject` the candidate never reaches commit/re-init, so the
+/// loop does NOT close — this returns `"evidence:persist_rejected"` (mirroring
+/// the rejected disposition of `proposal_activation_status`), which is NOT a
+/// loop-closing status.
+pub const COMMITTED_REINIT_TERMINAL_STATUS: &str = "reinit:committed";
+
+/// TRACE_MATRIX FC3-N44/N45: map a runtime Veto-AI verdict to the terminal
+/// status of the IRREVERSIBLE leg. `Accept` -> the loop-closing
+/// `COMMITTED_REINIT_TERMINAL_STATUS`; `Reject` -> a non-closing rejected
+/// disposition. Deterministic + total over the two-valued `VetoVerdict`.
+pub fn committed_reinit_activation_status(verdict: VetoVerdict) -> &'static str {
+    match verdict {
+        VetoVerdict::Accept => COMMITTED_REINIT_TERMINAL_STATUS,
+        VetoVerdict::Reject => "evidence:persist_rejected",
     }
 }
 
