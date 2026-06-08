@@ -15,6 +15,16 @@ use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::transition_ledger::{
     canonical_decode, canonical_encode, CanonicalCodecError,
 };
+
+// S3 — Boltzmann scheduler observe-only selection trace. Nested here as a
+// `#[path]` submodule because `agent_scheduler.rs` is an UNPINNED file already
+// declared in the trust-root-pinned `runtime/mod.rs`; nesting avoids editing
+// the pinned `mod.rs`. Access path:
+// `crate::runtime::agent_scheduler::boltzmann_selection_trace::*`.
+/// TRACE_MATRIX FC2-N29 + FC1-N7: S3 observe-only Boltzmann selection trace
+/// (live `boltzmann_select_parent_v2` over canonical `EconomicState`, CAS-anchored).
+#[path = "boltzmann_selection_trace.rs"]
+pub mod boltzmann_selection_trace;
 use crate::runtime::real5_roles::{AgentRole, HeadT, PriceSignal};
 use crate::state::price_index::RationalPrice;
 use crate::state::q_state::{AgentId, Hash, TxId};

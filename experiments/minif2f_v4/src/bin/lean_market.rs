@@ -541,10 +541,97 @@ fn cmd_view_positions(args: &[String]) {
             println!("    position balances. TB-12 has no trading / price / settlement layer.");
             println!("    NodePosition.amount is NOT a Coin holding and is NOT counted in");
             println!("    total_supply_micro (CR-12.1 + CR-12.2 invariant).");
+
+            // S3 — bring the integer-rational Boltzmann scheduler ONLINE as a
+            // tape-anchored OBSERVE-ONLY selection trace over the LIVE canonical
+            // econ. This mirrors `src/bus.rs:560-563` (policy → price_index →
+            // edges → mask_set) but actually CALLS `boltzmann_select_parent_v2`
+            // and records the result via CAS. No live Sequencer exists in the
+            // read-only view path, so canonical edges are empty
+            // (`CanonicalNodeGraph::default()`); `compute_mask_set` still masks
+            // on open challenge_cases — a valid observe-only computation per the
+            // S3 seam contract. Observe-only: `q.economic_state_t` is borrowed
+            // `&`, nothing is mutated and no head advances; the only persistence
+            // is the CAS object (the L4 anchor).
+            record_observe_only_boltzmann_trace(&q.economic_state_t, &cas_path, l4_count);
         }
         Err(e) => {
             eprintln!("[lean_market] view-positions replay failed: {e}");
             std::process::exit(1);
+        }
+    }
+}
+
+/// S3 — observe-only Boltzmann selection trace over the live canonical
+/// `EconomicState`. Opens a mutable `CasStore` at `cas_path` (the same CAS the
+/// replay reads; `CasStore::put` is content-addressed + idempotent + fail-closed
+/// on `refs/chaintape/cas`, which IS the L4 anchor), then runs the full
+/// derivation chain via `record_boltzmann_selection_over_econ` and prints the
+/// resulting trace Cid + recommended parent. Price is signal, not truth: this
+/// is a non-binding recommendation record, never an admission/predicate input.
+fn record_observe_only_boltzmann_trace(
+    econ: &turingosv4::state::q_state::EconomicState,
+    cas_path: &Path,
+    logical_t: u64,
+) {
+    use turingosv4::runtime::agent_scheduler::boltzmann_selection_trace::{
+        read_boltzmann_selection_from_cas, record_boltzmann_selection_over_econ, SelectionBranch,
+    };
+    use turingosv4::state::price_index::{BoltzmannMaskPolicy, CanonicalNodeGraph};
+
+    println!();
+    println!("  §S3 Boltzmann scheduler recommendation (observe-only; price is signal, not truth)");
+    println!("    non-binding; does NOT change sequencer admission or L4/L4.E predicates");
+
+    let mut cas = match CasStore::open(cas_path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("    (S3 trace skipped: open cas {cas_path:?} failed: {e})");
+            return;
+        }
+    };
+
+    let policy = BoltzmannMaskPolicy::from_env();
+    // Read-only view path has no live Sequencer → empty canonical edge graph.
+    let edges = CanonicalNodeGraph::default();
+    // Deterministic seed bound to the replay head so the recommendation is
+    // replay-reproducible (Art.0.2): identical chaintape → identical seed → cid.
+    let rng_seed: u64 = logical_t;
+
+    match record_boltzmann_selection_over_econ(&mut cas, econ, &edges, &policy, rng_seed, logical_t)
+    {
+        Ok(cid) => {
+            // Reconstruct from CAS alone to prove tape-canonical anchoring.
+            match read_boltzmann_selection_from_cas(&cas, &cid) {
+                Ok(trace) => {
+                    let branch = match trace.selection_branch {
+                        SelectionBranch::EmptyCandidates => "EmptyCandidates",
+                        SelectionBranch::EpsilonExploration => "EpsilonExploration",
+                        SelectionBranch::ArgmaxExploit => "ArgmaxExploit",
+                    };
+                    println!("    trace_cid          = {cid}");
+                    println!("    candidate_nodes    = {}", trace.candidate_nodes.len());
+                    println!("    masked_nodes       = {}", trace.masked_nodes.len());
+                    println!("    selection_branch   = {branch}");
+                    println!(
+                        "    selected_parent    = {}",
+                        trace
+                            .selected_parent
+                            .as_ref()
+                            .map(|t| t.0.as_str())
+                            .unwrap_or("None")
+                    );
+                    println!("    rng_seed           = {}", trace.rng_seed);
+                    println!("    observe_only       = {}", trace.observe_only);
+                }
+                Err(e) => {
+                    println!("    trace_cid          = {cid}");
+                    println!("    (reconstruct from CAS failed: {e})");
+                }
+            }
+        }
+        Err(e) => {
+            println!("    (S3 trace record failed: {e})");
         }
     }
 }
