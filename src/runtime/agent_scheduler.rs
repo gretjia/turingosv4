@@ -46,6 +46,24 @@ pub mod fc_liveness_observer;
 /// integer-only micro-units, ground-truth gated, shielded — never an agent read view).
 #[path = "vpput_reconstruction.rs"]
 pub mod vpput_reconstruction;
+
+// LIVE-FC1 Phase 5 — BUDGET HARD-CEILING admission (the Turing fuel = FC2-HALT).
+// Nested here as a `#[path]` submodule for the SAME reason as the three modules
+// above (`boltzmann_selection_trace` / `fc_liveness_observer` /
+// `vpput_reconstruction`): keep the trust-root-pinned `runtime/mod.rs`
+// byte-identical (this parent file, `agent_scheduler.rs`, is genesis-pinned-count
+// 0). It REUSES the Phase-2 VPPUT `C_i` reconstruction in `vpput_reconstruction`
+// (declared immediately above) for the tape-derived integer spend, the PINNED
+// read-only `BudgetSnapshot.cost_ceiling_microcoin` field for the ceiling, and
+// the PINNED `RejectionClass::BudgetExceeded` discriminant for the reject label —
+// ZERO new pinned discriminants, ZERO genesis-pinned-file edits. Access path:
+// `crate::runtime::agent_scheduler::budget_ceiling::*`.
+/// TRACE_MATRIX FC1a-predicates + FC2-HALT: §8 token
+/// APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST — signed-manifest integer cost
+/// ceiling + tape-derived integer spend (reuses VPPUT C_i) + pure pre-admission
+/// hard-ceiling check (the external Turing fuel that forces termination).
+#[path = "budget_ceiling.rs"]
+pub mod budget_ceiling;
 use crate::runtime::real5_roles::{AgentRole, HeadT, PriceSignal};
 use crate::state::price_index::RationalPrice;
 use crate::state::q_state::{AgentId, Hash, TxId};

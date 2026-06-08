@@ -1,9 +1,16 @@
 # §8 Decision Packet — Budget Hard-Ceiling From a Signed Manifest (admission/economic-state rejecting leg)
 
-**Status**: **AWAITING ARCHITECT RATIFICATION.** No implementation happens until
-the architect supplies the exact token in §8. This document is **Class-0
-documentation only** — it describes a Class-4-candidate economic-safety change,
-requests per-atom §8 ratification, and **authorizes nothing by itself.**
+**Status**: **RATIFIED + SHIPPED 2026-06-08** (token `APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST`
+supplied verbatim; see §8). Implemented as LIVE-FC1 Phase 5 in the
+**unpinned-first ZERO-pinned-diff** form: a signed/user-approved budget-manifest
+reader → integer ceiling → tape-derived spend (reusing the VPPUT C_i) → a
+pre-admission check at the unpinned `step_forward` membrane that, on spend ≥
+ceiling, rejects with the EXISTING `RejectionClass::BudgetExceeded` and does NOT
+advance the head (the FC2-HALT). NO new pinned discriminant; q_state/typed_tx/
+sequencer/genesis UNCHANGED. Integer-only; forward-only (ceiling 0 = unlimited);
+checkpoint-resumable. This is the Turing-completeness fuel: an external integer
+resource bound forces termination. Gate `constitution_budget_hard_ceiling` 6/6;
+clean-context audit PROCEED. The original request text below is preserved verbatim.
 
 **Date**: 2026-06-08
 **Branch**: `claude/s3-economy-boltzmann` (read base
@@ -430,13 +437,13 @@ batch with other economy atoms.
 
 **Architect §8 sign-off (FILLED IN AT USER VERBATIM):**
 
-- Verbatim quote: _<to be filled — exact user words>_
-- Token consumed: `APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST`
-- Scope confirmed (run / per-task / per-agent): _<to be filled>_
-- Pinned-edit posture confirmed (unpinned-first ZERO-pinned-diff / explicitly-authorized-pinned-variant): _<to be filled>_
-- Date: _<to be filled>_
-- Branch at ratification: `claude/s3-economy-boltzmann` (base `origin/main`)
-- Parent commit: _<origin/main HEAD at ratification; read base was a68692de>_
+- Verbatim quote: `APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST，以及把所有需要我APPROVE的都一次性给你授权，我要睡觉了。` — only the explicit budget token is consumed; the blanket "approve everything" is NOT treated as Class-4 sign-off for any other atom (feedback_no_batch_class4_signoff; FC3-live / Tier-2 / capability remain un-ratified).
+- Token consumed: `APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST` (granted 2026-06-08)
+- Scope confirmed: run-scoped cost ceiling (a positive `cost_ceiling_microcoin` per run; spend = tape-derived C_i over all attempts incl failed branches).
+- Pinned-edit posture confirmed: **unpinned-first ZERO-pinned-diff** — implemented WITHOUT editing any pinned file. REUSES the existing `RejectionClass::BudgetExceeded` (typed_tx.rs:174, sources the label from the variant itself so it can't drift) + the existing `BudgetSnapshot.cost_ceiling_microcoin` field (q_state.rs:148, read-only). NO new RejectionClass / RunOutcome / HaltReason discriminant; q_state.rs / typed_tx.rs / sequencer.rs / genesis_payload.toml UNCHANGED. The ceiling source is a SEPARATE unpinned signed/user-approved budget manifest file (NOT the genesis [trust_root]), so no trust-root re-pin or signed `v4-ratify` tag was required. Integer-only (i64/u64 saturating, no f64); forward-only (ceiling 0 = unlimited = today's behavior); on-exceed = `BudgetExceeded` reject with NO head advance = FC2-HALT; checkpoint-resumable (raise the ceiling → halted proposal admits from the same head). Effective risk reduced from the Class-4 candidate to Class-2/3 by the zero-pinned-diff evidence.
+- Date: 2026-06-08
+- Branch at ratification: `claude/livefc1-budget` (LIVE-FC1 Phase 5; the budget atom was folded into LIVE-FC1 per the standing /goal once the token was granted)
+- Parent commit: `5f57a236` (origin/main after LIVE-FC1 Phase 4 #333)
 
 ---
 
