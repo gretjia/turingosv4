@@ -64,6 +64,37 @@ pub mod vpput_reconstruction;
 /// hard-ceiling check (the external Turing fuel that forces termination).
 #[path = "budget_ceiling.rs"]
 pub mod budget_ceiling;
+
+// LIVE-FC1 Phase 6 — brand-GENERIC provider identity on the canonical CAS.
+// Nested here as a `#[path]` submodule for the SAME reason as the four modules
+// above (`boltzmann_selection_trace` / `fc_liveness_observer` /
+// `vpput_reconstruction` / `budget_ceiling`): keep the trust-root-pinned
+// `runtime/mod.rs` byte-identical (this parent file, `agent_scheduler.rs`, is
+// genesis-pinned-count 0). It REUSES the PINNED-FREE `crate::sdk::id_handle`
+// (#328) for the generic sha256 provider handle and mirrors the
+// `boltzmann_selection_trace` observe-only CAS-capsule pattern (ObjectType::Generic
+// + free schema_id + R3 self-addressing + restore/read/cids, no fs-write). The
+// brand→handle mapping stays in an EXTERNAL sidecar, NEVER on the canonical tape.
+// Access path: `crate::runtime::agent_scheduler::provider_handle_capsule::*`.
+/// TRACE_MATRIX FC2-N31 + FC1-N7: LIVE-FC1 Phase 6 brand-generic provider handle
+/// capsule (per-agent generic sha256 model handle on canonical CAS; heterogeneity
+/// provable WITHOUT brands; brand→handle mapping external sidecar only).
+#[path = "provider_handle_capsule.rs"]
+pub mod provider_handle_capsule;
+
+// LIVE-FC1 Phase 6 — from-genesis replay-diff acceptance helper. Nested here as
+// a `#[path]` submodule for the SAME reason as the modules above: keep the
+// trust-root-pinned `runtime/mod.rs` byte-identical (this parent file is
+// genesis-pinned-count 0). It REUSES the PINNED `crate::runtime::verify::verify_chaintape`
+// (TB-6 Atom 4) replay verifier — it does NOT reimplement replay — and reduces
+// the ReplayReport to the from-genesis state_root/ledger_root equality boolean.
+// Access path: `crate::runtime::agent_scheduler::replay_diff_acceptance::*`.
+/// TRACE_MATRIX FC3-N1 + FC1-N34: LIVE-FC1 Phase 6 from-genesis replay-diff
+/// acceptance (reuses the pinned verify_chaintape; asserts reconstructed roots
+/// equal recorded roots).
+#[path = "replay_diff_acceptance.rs"]
+pub mod replay_diff_acceptance;
+
 use crate::runtime::real5_roles::{AgentRole, HeadT, PriceSignal};
 use crate::state::price_index::RationalPrice;
 use crate::state::q_state::{AgentId, Hash, TxId};
