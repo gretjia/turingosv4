@@ -25,10 +25,19 @@ use crate::distiller::{compress_belief_state, deterministic_trace_slicer, TraceV
 use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, RetryConstraint,
 };
+use crate::economy::money::MicroCoin;
 use crate::predicate_admission::{
     decide_admission_with_taint, hash_to_hex, AdmissionVerdict, ArgTaintFinding, PredicateClaimSet,
 };
 use crate::rtool::{Rtool, SessionDigest, WorkspaceView};
+// LIVE-FC1 Phase 5 — BUDGET HARD-CEILING (the Turing fuel = FC2-HALT). The
+// budget-ceiling mechanism lives in an UNPINNED module nested under
+// `runtime/agent_scheduler.rs`; the kernel membrane consults its pure
+// pre-admission check. ZERO genesis-pinned-file edits (this file,
+// `memory_kernel.rs`, is itself pin-count 0).
+use crate::runtime::agent_scheduler::budget_ceiling::{
+    budget_check, live_tape_spend_tokens, reject_class_label, BudgetVerdict,
+};
 use crate::state::q_state::Hash;
 use crate::state_update::{parse_prefix_json, StateStatus, StateUpdate};
 use crate::top_white::predicates::registry::{
@@ -115,6 +124,27 @@ pub struct MemoryKernel<L: ImmutableTapeLedger> {
     /// admission contract REFUSES a zero registry root, mirroring the sequencer.
     /// TRACE_MATRIX FC1a-predicates + FC2-boot_loop: kernel run OS-qualification.
     pub os_qualified_t: bool,
+    /// LIVE-FC1 Phase 5 (§8 token APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST): the
+    /// run-level economic-spend HARD CEILING, in `MicroCoin` micro-units — the
+    /// kernel analogue of the PINNED read-only `BudgetSnapshot.cost_ceiling_microcoin`
+    /// (`q_state.rs:148`). Populated at run init from the signed/user-approved
+    /// budget manifest (`budget_ceiling::BudgetManifest::ceiling_micro`); default
+    /// `MicroCoin::zero()` ⇒ UNLIMITED, so EVERY legacy call site (`new` /
+    /// `new_with_predicates`) preserves today's behavior with NO budget reject.
+    /// A POSITIVE ceiling arms the FC2-HALT: once tape-derived spend reaches it,
+    /// every further proposal is REJECTED with no head advance. INTEGER-ONLY.
+    /// TRACE_MATRIX FC1a-predicates + FC2-HALT: kernel economic-spend ceiling.
+    pub cost_ceiling_microcoin: MicroCoin,
+    /// LIVE-FC1 Phase 5: the integer token cost of the CURRENT externalized
+    /// attempt (prompt+completion+tool tokens), set by the cost-aware membrane
+    /// entry [`MemoryKernel::step_forward_with_budget`] and folded into the
+    /// committed node's `token_count` so the NEXT tick's tape-derived spend
+    /// (`live_tape_spend_tokens`) reflects it — keeping the spend genuinely
+    /// TAPE-DERIVED (not a sidecar counter) and the ceiling check non-vacuous on
+    /// the live FC1 loop. `0` for the legacy cost-blind entries (their nodes keep
+    /// `token_count == None` exactly as before). INTEGER-ONLY.
+    /// TRACE_MATRIX FC1a-tape_t: per-attempt integer token cost (→ node.token_count).
+    pending_step_cost_tokens: usize,
 }
 
 /// Trivial newtype to satisfy `Arc<L: ImmutableTapeLedger>` lifetime in Rtool.
@@ -212,7 +242,28 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             predicate_registry_root_t,
             predicate_cas,
             os_qualified_t,
+            // FORWARD-ONLY default: zero ceiling ⇒ UNLIMITED (today's behavior).
+            // An OS-qualified run arms the hard ceiling via `with_cost_ceiling`
+            // (populated from the signed budget manifest at run init).
+            cost_ceiling_microcoin: MicroCoin::zero(),
+            // Legacy cost-blind default: no per-attempt cost recorded (nodes keep
+            // `token_count == None`). The cost-aware membrane entry sets this.
+            pending_step_cost_tokens: 0,
         }
+    }
+
+    /// LIVE-FC1 Phase 5 (§8 APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST): arm the
+    /// run-level economic-spend HARD CEILING at run init. The `ceiling` is the
+    /// integer `MicroCoin` read from the signed/user-approved budget manifest
+    /// (`budget_ceiling::BudgetManifest::ceiling_micro`) — this is the unpinned
+    /// runner-path population of the ceiling that the PINNED
+    /// `BudgetSnapshot.cost_ceiling_microcoin` field also holds (we do NOT edit
+    /// `q_state`). Builder form so every existing call site stays UNLIMITED
+    /// unless it explicitly opts in. `MicroCoin::zero()` ⇒ UNLIMITED (no-op).
+    /// TRACE_MATRIX FC2-economic-tick: manifest → kernel ceiling at run init.
+    pub fn with_cost_ceiling(mut self, ceiling: MicroCoin) -> Self {
+        self.cost_ceiling_microcoin = ceiling;
+        self
     }
 
     /// FC1 runtime loop entry-point (directive §5.1).
@@ -270,6 +321,55 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings)
     }
 
+    /// LIVE-FC1 Phase 5 — cost-aware FC1 entry-point (§8 token
+    /// APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST). Identical to
+    /// [`Self::step_forward_with_workspace`] but threads the integer token cost of
+    /// THIS externalized attempt (`step_cost_tokens` = prompt+completion+tool
+    /// tokens). The cost is recorded as the committed node's `token_count`, so the
+    /// run's tape-derived spend (`live_tape_spend_tokens`) grows tick-by-tick from
+    /// the TAPE itself — no sidecar counter. The pre-admission budget check at the
+    /// top of [`Self::step_forward_with_taint`] then halts the run once cumulative
+    /// spend reaches the signed-manifest ceiling.
+    ///
+    /// FORWARD-ONLY: with a zero ceiling (the default), this admits exactly like
+    /// the cost-blind entries; the only difference is the additive `token_count`
+    /// stamp on the node (a previously-`None` field), which changes no admission
+    /// decision and no head-advance behavior.
+    /// TRACE_MATRIX FC1a-rtool + FC1a-tape_t + FC2-HALT: cost-aware FC1 entry.
+    pub fn step_forward_with_budget(
+        &mut self,
+        task: &Task,
+        env_result: EnvironmentResult,
+        claims: PredicateClaimSet,
+        workspace: &WorkspaceView,
+        step_cost_tokens: usize,
+    ) -> KernelStep {
+        // Record this attempt's integer cost so the node committed on this tick
+        // carries it (→ next tick's tape-derived spend reflects it).
+        self.pending_step_cost_tokens = step_cost_tokens;
+        let call = crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
+            &env_result.raw_output,
+        );
+        let taint_findings = crate::predicate_admission::arg_taint::arg_taint_v1(&call);
+        let step = self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings);
+        // Reset so a subsequent cost-blind call does not inherit this cost.
+        self.pending_step_cost_tokens = 0;
+        step
+    }
+
+    /// The per-attempt cost stamp for a committed node: `Some(n)` when the
+    /// cost-aware entry supplied a non-zero cost, else `None` (legacy cost-blind
+    /// behavior, byte-identical to before). Centralizes the one place both commit
+    /// sites (accepted advance + rejection evidence) read the pending cost.
+    /// TRACE_MATRIX FC1a-tape_t: per-attempt token_count stamp.
+    fn step_token_count(&self) -> Option<usize> {
+        if self.pending_step_cost_tokens == 0 {
+            None
+        } else {
+            Some(self.pending_step_cost_tokens)
+        }
+    }
+
     /// arg-taint sub-article entry: identical to [`Self::step_forward_with_workspace`]
     /// but threads the value-level taint findings (from
     /// `predicate_admission::arg_taint::arg_taint_v1`) into the admission oracle.
@@ -289,6 +389,58 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         taint_findings: &[ArgTaintFinding],
     ) -> KernelStep {
         let verified_head = self.tape.get_verified_head();
+
+        // LIVE-FC1 Phase 5 — BUDGET HARD-CEILING pre-admission check (the Turing
+        // fuel = FC2-HALT). §8 token APPROVE-BUDGET-HARD-CEILING-FROM-MANIFEST.
+        //
+        // BEFORE the header parse + the self-reported predicate booleans + the
+        // arg-taint gate, refuse the advance when the run is OUT OF FUEL: the
+        // tape-derived integer spend (reused VPPUT `C_i` semantics:
+        // `live_tape_spend_tokens` sums `token_count` over EVERY node — accepted
+        // StateAccepted AND failed-branch AgentProposal) has reached the
+        // signed-manifest ceiling (`self.cost_ceiling_microcoin`).
+        //
+        // FORWARD-ONLY: a zero ceiling is UNLIMITED — `budget_check` returns
+        // `Unlimited` and we fall through to the unchanged admission EXACTLY as
+        // before (every legacy call site keeps `cost_ceiling_microcoin == 0`).
+        //
+        // FC2-HALT (emergent): on a positive-ceiling breach we route to the
+        // existing non-advancing rejection path (`handle_rejection` commits an
+        // AgentProposal verified:false and NEVER advances the verified head),
+        // stamped with the PINNED `RejectionClass::BudgetExceeded` label. Because
+        // the head does not advance and the spend only grows, EVERY subsequent
+        // proposal also rejects — the run halts. CHECKPOINT-RESUME: the tape is
+        // append-only and no head moved, so raising the ceiling (a new approved
+        // manifest) lets the previously-halted proposal admit from the same head.
+        let spend_tokens = live_tape_spend_tokens(&self.tape);
+        if let BudgetVerdict::Exceeded {
+            spend_micro,
+            ceiling_micro,
+        } = budget_check(spend_tokens, self.cost_ceiling_microcoin)
+        {
+            let budget_header = StateUpdate {
+                schema_version: "tdma-state-update/v1".into(),
+                status: StateStatus::Retry,
+                task_id: task.id.clone(),
+                action: "HALT_BUDGET_EXCEEDED".into(),
+                // The synthetic failed-predicate encodes the budget verdict +
+                // integer spend/ceiling micro-units so an auditor reconstructs the
+                // FC2-HALT from the rejection receipt alone (no f64, no raw bytes).
+                failed_predicate: Some(format!(
+                    "budget_hard_ceiling[spend_micro={spend_micro};ceiling_micro={ceiling_micro}]"
+                )),
+                // Reuses the PINNED RejectionClass::BudgetExceeded discriminant
+                // (typed_tx.rs:174) via its canonical label — NO new discriminant.
+                reject_class: Some(reject_class_label()),
+                next_action_hint: Some(
+                    "economic-spend ceiling reached; raise the approved budget manifest to resume"
+                        .into(),
+                ),
+                evidence_hash: None,
+            };
+            return self.handle_rejection(task, verified_head, budget_header, env_result, workspace);
+        }
+
         let parsed_header = parse_prefix_json(&env_result.raw_output, B_HEADER_SCAN, B_HEADER);
 
         match (parsed_header, env_result.is_success()) {
@@ -336,7 +488,10 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                             scope: None,
                             attempt_ordinal: None,
                             reject_class: None,
-                            token_count: None,
+                            // LIVE-FC1 Phase 5: record this attempt's integer token
+                            // cost so the run's tape-derived spend grows from the
+                            // tape itself. `None` for cost-blind callers (legacy).
+                            token_count: self.step_token_count(),
                             payload: serde_json::json!({
                                 "state_update": accepted_header,
                                 "output_summary": "accepted",
@@ -454,7 +609,11 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
             scope: Some(attempt_scope.clone()),
             attempt_ordinal: Some(next_ordinal),
             reject_class: header.reject_class.clone(),
-            token_count: None,
+            // LIVE-FC1 Phase 5: a FAILED branch still cost real tokens — record the
+            // attempt's integer cost so the tape-derived spend counts failed
+            // branches (mirrors VPPUT C_i: failed proposals MUST count). `None`
+            // for cost-blind callers (legacy behavior unchanged).
+            token_count: self.step_token_count(),
             payload: serde_json::json!({
                 "state_update": header,
                 "raw_output": env_result.raw_output,
