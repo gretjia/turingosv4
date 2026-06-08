@@ -27,6 +27,11 @@ use turingosv4::runtime::chain_derived_run_facts::{
 };
 use turingosv4::state::typed_tx::RunOutcome;
 
+use turingosv4::charter_core::compile_charter_core;
+use turingosv4::ledger::{ImmutableTapeLedger, MemoryTapeLedger, NodeKind};
+use turingosv4::memory_kernel::{EnvironmentResult, MemoryKernel, Task};
+use turingosv4::tokenizer::Tokenizer;
+
 /// Build a ChainDerivedRunFacts test fixture mimicking the canonical
 /// P49 / P38 / P23 shapes used in TB-18R R4 invariant tests.
 fn facts(halt: RunOutcome, expected: u64, l4: u64, l4e: u64, aborted: u64) -> ChainDerivedRunFacts {
@@ -243,4 +248,188 @@ fn fc1_attempt_count_equality_under_real_load_p38_p49() {
     //   - P38 + P49 problem set (heldout MiniF2F shapes)
     //   - constitution_gate_report.json producer (TB-C0 task #8)
     panic!("MVP-1 smoke not yet wired; ignore is expected.");
+}
+
+// ── FC1-INV1 CONSTRUCTED-TAPE COUNTERPART (LIVE-FC1 forward-wiring) ────────────
+//
+// The real-LLM-load variant above stays honestly `#[ignore]`'d (it needs API
+// budget + a held-out problem set). This RUNNABLE counterpart proves the SAME
+// canonical FC1 invariant on a CONSTRUCTED tape built by the live `MemoryKernel`
+// FC1 loop — no LLM, no network, deterministic.
+//
+// Canonical FC1 invariant (CLAUDE.md "Canonical FC1 invariant"):
+//   externalized_attempt_count
+//     == tool_dist.step + tool_dist.parse_fail + tool_dist.llm_err
+// where each of {step, parse_fail, llm_err} is ONE externalized LLM-Lean cycle
+// that landed on the durable tape: `step` = a verified `StateAccepted` advance,
+// `parse_fail` = an `AgentProposal` rejected with `MalformedOrMissingStateUpdate`,
+// `llm_err` = an `AgentProposal` rejected with `reject_class == "llm_err"`.
+//
+// The tape is built by driving the PRODUCTION `MemoryKernel::step_forward` with
+// the three FC1-canonical externalized outcomes (success / malformed-header /
+// transport-error-shaped Retry header) and then RECONSTRUCTING the three counts
+// from the tape via `dump_all_nodes()` — NOT from hand-set facts. The equality is
+// asserted against the number of externalized attempts we drove. This is the
+// "constructed-tape gate" the FC1 count-equality always wanted.
+
+/// One distinct task scope per attempt so each `step_forward` is an independent
+/// externalized cycle on the tape.
+fn task(id: &str) -> Task {
+    Task {
+        id: id.into(),
+        prompt: "prove the lemma".into(),
+    }
+}
+
+/// A worker outcome that the kernel admits (verified `StateAccepted` advance) —
+/// the FC1 `step` class. (No `wtool_call` declaration → no arg-taint finding →
+/// admits, per the forward-wired provenance derivation.)
+fn step_env(task_id: &str) -> EnvironmentResult {
+    EnvironmentResult {
+        raw_output: format!(
+            r#"{{"schema_version":"tdma-state-update/v1","status":"Proceed","task_id":"{task_id}","action":"PROCEED"}}
+---BODY---
+done"#
+        ),
+        raw_stderr: String::new(),
+        success: true,
+    }
+}
+
+/// A worker outcome with NO parseable state-update header — the FC1 `parse_fail`
+/// class (routes to the `MalformedOrMissingStateUpdate` rejection).
+fn parse_fail_env() -> EnvironmentResult {
+    EnvironmentResult {
+        raw_output: "this output has no json header at all, just prose".to_string(),
+        raw_stderr: String::new(),
+        success: false,
+    }
+}
+
+/// A worker outcome shaped like the `tdma_runner` LLM-transport-error path: a
+/// parseable Retry header carrying `reject_class == "llm_err"` with
+/// `success == false` — the FC1 `llm_err` class.
+fn llm_err_env(task_id: &str) -> EnvironmentResult {
+    EnvironmentResult {
+        raw_output: format!(
+            r#"{{"schema_version":"tdma-state-update/v1","status":"Retry","task_id":"{task_id}","action":"RETRY_LLM_ERROR","failed_predicate":"llm_call_transport","reject_class":"llm_err"}}"#
+        ),
+        raw_stderr: "llm-error: transport timeout".to_string(),
+        success: false,
+    }
+}
+
+/// Reconstruct the FC1 tool-distribution `(step, parse_fail, llm_err)` from a
+/// built tape. Pure derivation from `dump_all_nodes()` — the canonical evidence.
+fn tool_dist_from_tape(tape: &MemoryTapeLedger) -> (usize, usize, usize) {
+    let mut step = 0usize;
+    let mut parse_fail = 0usize;
+    let mut llm_err = 0usize;
+    for (_id, node) in tape.dump_all_nodes() {
+        match node.kind {
+            // step = a verified head advance.
+            NodeKind::StateAccepted if node.verified => step += 1,
+            NodeKind::AgentProposal => match node.reject_class.as_deref() {
+                Some("MalformedOrMissingStateUpdate") => parse_fail += 1,
+                Some("llm_err") => llm_err += 1,
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+    (step, parse_fail, llm_err)
+}
+
+fn fresh_kernel() -> MemoryKernel<MemoryTapeLedger> {
+    let mut tape = MemoryTapeLedger::new();
+    tape.set_verified_head("H0".into());
+    let charter = compile_charter_core(
+        "# Constitution\n## Art. 0.4 — Q_t version control\nFC1a tape_t.\n".as_bytes(),
+        "v1.0",
+        &Tokenizer::new(),
+    );
+    MemoryKernel::new(tape, "run-fc1-constructed-tape", charter)
+}
+
+/// FC1-INV1 (constructed tape) — drive a known mix of externalized attempts
+/// through the live kernel FC1 loop and prove the canonical count-equality holds
+/// on the resulting tape:
+///   externalized_attempt_count == step + parse_fail + llm_err.
+#[test]
+fn fc1_attempt_count_equality_on_constructed_tape() {
+    let mut k = fresh_kernel();
+
+    // Drive a KNOWN mix: 3 step (success), 2 parse_fail, 4 llm_err.
+    const N_STEP: usize = 3;
+    const N_PARSE_FAIL: usize = 2;
+    const N_LLM_ERR: usize = 4;
+    let externalized = N_STEP + N_PARSE_FAIL + N_LLM_ERR;
+
+    for i in 0..N_STEP {
+        // Distinct task scopes so each success is its own accepted advance.
+        let _ = k.step_forward(&task(&format!("step-{i}")), step_env(&format!("step-{i}")));
+    }
+    for _ in 0..N_PARSE_FAIL {
+        let _ = k.step_forward(&task("pf"), parse_fail_env());
+    }
+    for _ in 0..N_LLM_ERR {
+        let _ = k.step_forward(&task("le"), llm_err_env("le"));
+    }
+
+    let (step, parse_fail, llm_err) = tool_dist_from_tape(&k.tape);
+
+    // Each class landed exactly the attempts we drove (no collapse, no spam).
+    assert_eq!(step, N_STEP, "step (StateAccepted advances) count mismatch");
+    assert_eq!(parse_fail, N_PARSE_FAIL, "parse_fail count mismatch");
+    assert_eq!(llm_err, N_LLM_ERR, "llm_err count mismatch");
+
+    // THE CANONICAL FC1 INVARIANT (CLAUDE.md): every externalized LLM-Lean cycle
+    // is tape-visible and accounted for by exactly one of the three classes.
+    assert_eq!(
+        externalized,
+        step + parse_fail + llm_err,
+        "FC1-INV1 (constructed tape): externalized_attempt_count ({externalized}) != \
+         step ({step}) + parse_fail ({parse_fail}) + llm_err ({llm_err}). An \
+         externalized attempt vanished from (or was double-counted on) the tape."
+    );
+
+    // Feed the SAME counts through the production chain-derived invariant: with
+    // 1 step accepted to L4 and (parse_fail + llm_err) rejected to L4.E, the
+    // 3-term invariant (expected == l4 + l4e) must hold (no negative delta).
+    let l4 = step as u64;
+    let l4e = (parse_fail + llm_err) as u64;
+    let facts = facts(RunOutcome::OmegaAccepted, externalized as u64, l4, l4e, 0);
+    attempt_count_invariant(&facts).expect(
+        "FC1-INV1 (constructed tape): the tape-derived (step→L4, parse_fail+llm_err→L4.E) \
+         counts must satisfy the chain-derived attempt_count_invariant (delta=0)",
+    );
+}
+
+/// FC1-INV1 (constructed-tape NON-VACUITY witness) — if a single externalized
+/// attempt were to VANISH from the tape (the canonical P49 N→1 collapse failure
+/// mode), the equality FAILS. This proves the constructed-tape gate is falsifiable
+/// (it is not `assert!(true)`): we simulate the collapse by under-counting one
+/// llm_err relative to the attempts driven and assert the chain invariant fires.
+#[test]
+fn fc1_constructed_tape_count_equality_is_falsifiable() {
+    // 5 externalized attempts driven, but the tape only retained 4 (one collapsed
+    // into evaluator stdout without a durable tape row). The 3-term invariant
+    // must FIRE on the resulting negative delta.
+    let externalized = 5u64;
+    let l4 = 1u64;
+    let l4e = 3u64; // 1 + 3 = 4 retained < 5 externalized → delta = -1.
+    let collapsed = facts(RunOutcome::OmegaAccepted, externalized, l4, l4e, 0);
+    let result = attempt_count_invariant(&collapsed);
+    assert!(
+        result.is_err(),
+        "FC1-INV1 constructed-tape non-vacuity: a vanished externalized attempt \
+         (5 driven, 4 on tape) MUST fail the count-equality invariant. If this \
+         passes, the constructed-tape gate cannot detect a P49-style collapse."
+    );
+    match result.unwrap_err() {
+        AttemptCountInvariantViolation::NegativeDelta { delta, .. } => {
+            assert_eq!(delta, -1, "the single vanished attempt is delta=-1");
+        }
+        other => panic!("collapse should fire NegativeDelta, got {other:?}"),
+    }
 }
