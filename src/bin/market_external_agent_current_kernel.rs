@@ -478,10 +478,17 @@ fn build_agent_prompt(
     role: &str,
     required_direction: ParsedDirection,
 ) -> String {
+    // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #5: the prompt
+    // previously interpolated the explicit canonical `true-suite-market-{run_id}`
+    // task id (guessable → hallucination bait). The agent outputs only
+    // direction+amount and never echoes this id back as a canonical key, so the
+    // membrane remedy is display-only: render an opaque content-hash HANDLE of
+    // the task descriptor instead of the raw id. Canonical `TaskId` unchanged.
+    let event_handle = turingosv4::sdk::id_handle::handle("market_event", event_task_id);
     let prompt = format!(
         "You are an external TuringOS market participant, not kernel code.\n\
          Role: {role}.\n\
-         Public event: task `{event_task_id}` has an active YES/NO constant-product market pool.\n\
+         Public event `{event_handle}` has an active YES/NO constant-product market pool.\n\
          For this two-sided market liveness probe, your assigned public side is `{}`.\n\
          Decide one small test trade using public information only. Price is a signal, not truth.\n\
          Output exactly one JSON object with fields: direction = yes|no, amount_micro = integer 1..50000.\n\

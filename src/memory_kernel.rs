@@ -297,6 +297,21 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                             claims.acceptance.iter().map(|c| c.id.0.as_str()).collect();
                         let settlement_pids: Vec<&str> =
                             claims.settlement.iter().map(|c| c.id.0.as_str()).collect();
+                        // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08
+                        // fix #1 (HIGHEST RISK): the worker LLM echoes a
+                        // `task_id` in its state-update header that is parsed
+                        // with only an `is_empty()` check (state_update.rs:134).
+                        // The kernel must NOT trust the agent value as
+                        // canonical. Stamp the SYSTEM `task.id` into the header
+                        // before it is persisted to the StateAccepted tape so
+                        // the value on the accepted tape is system-authoritative
+                        // (matching the canonical `AttemptScope.task_id`, which
+                        // already uses `task.id`). Pure additive stamp; no wire
+                        // change, no NodeKind change.
+                        let accepted_header = StateUpdate {
+                            task_id: task.id.clone(),
+                            ..header
+                        };
                         let accepted = self.tape.commit(CommitRequest {
                             kind: NodeKind::StateAccepted,
                             verified: true,
@@ -306,7 +321,7 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                             reject_class: None,
                             token_count: None,
                             payload: serde_json::json!({
-                                "state_update": header,
+                                "state_update": accepted_header,
                                 "output_summary": "accepted",
                                 // M07 admission receipt — additive payload field,
                                 // NO NodeKind / wire-schema change. Hash-covered
@@ -731,6 +746,49 @@ needs another try"#,
             _ => panic!("expected Proceed"),
         }
         assert_ne!(k.tape.get_verified_head(), initial_head);
+    }
+
+    #[test]
+    fn state_accepted_tape_stamps_system_task_id_not_agent_echoed() {
+        // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #1
+        // (non-vacuous gate): the worker echoes a FORGED task_id in its header.
+        // The StateAccepted tape payload MUST record the SYSTEM task.id, never
+        // the agent-echoed value. Without the stamp this test fails (the agent
+        // value would land on the canonical accepted tape).
+        let mut k = fresh_kernel();
+        let task = Task {
+            id: "system-task-42".into(),
+            prompt: "do the thing".into(),
+        };
+        let env = EnvironmentResult {
+            // Agent echoes a DIFFERENT (forged) task_id than the system task.
+            raw_output: ok_header("agent-forged-999"),
+            raw_stderr: String::new(),
+            success: true,
+        };
+        let step = k.step_forward(&task, env);
+        let accepted_hash = match step {
+            KernelStep::Proceed { evidence_hash } => evidence_hash,
+            _ => panic!("expected Proceed"),
+        };
+        let accepted = k
+            .tape
+            .indexes
+            .by_hash
+            .get(&accepted_hash)
+            .expect("StateAccepted node on tape");
+        assert_eq!(accepted.kind, NodeKind::StateAccepted);
+        let persisted_task_id = accepted.payload["state_update"]["task_id"]
+            .as_str()
+            .expect("state_update.task_id present");
+        assert_eq!(
+            persisted_task_id, "system-task-42",
+            "StateAccepted must record the SYSTEM task id"
+        );
+        assert_ne!(
+            persisted_task_id, "agent-forged-999",
+            "agent-echoed task_id must NEVER be persisted as canonical"
+        );
     }
 
     #[test]

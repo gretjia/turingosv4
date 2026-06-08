@@ -422,12 +422,23 @@ async fn run(args: Args) -> Result<(), String> {
             let q = seq.q_snapshot().map_err(|e| format!("{e:?}"))?;
             root = q.state_root_t;
             let pi = compute_price_index(&q.economic_state_t);
-            // Shielded read-view: node ids + prices + recent steps (NO judge internals / other balances).
+            // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #4: build
+            // a render→resolve table mapping each accepted node's canonical
+            // `worktx-` TxId to an opaque content-hash HANDLE. The agent sees
+            // and picks parents by handle; the kernel resolves the echoed
+            // handle back to the canonical TxId by EXACT membership (fix #2).
+            // Canonical TxId on the tape is unchanged; this is the render seam.
+            let mut node_handles = turingosv4::sdk::id_handle::HandleSet::new("g1_node");
+            for t in node_tx_ids.iter() {
+                node_handles.insert(&t.0);
+            }
+            // Shielded read-view: node HANDLES + prices + recent steps (NO judge
+            // internals / other balances; NO raw worktx- TxId strings).
             let mut market = String::new();
             for n in nodes.iter().rev().take(8) {
                 market.push_str(&format!(
                     "- node {} price_yes={}/{}\n",
-                    &n.node_tx[..n.node_tx.len().min(16)],
+                    node_handles.handle_for(&n.node_tx),
                     n.price_yes_num.unwrap_or(0),
                     n.price_yes_den.unwrap_or(1)
                 ));
@@ -439,8 +450,12 @@ async fn run(args: Args) -> Result<(), String> {
                 .cloned()
                 .collect::<Vec<_>>()
                 .join(" | ");
-            // Price-driven parent hint (boltzmann argmax + epsilon over the live price_index) → branching.
-            let parent_hint = {
+            // Price-driven parent hint (boltzmann argmax + epsilon over the live
+            // price_index) → branching. fix #4: render the hint as a HANDLE too,
+            // never a raw TxId; on no-selection the hint is "null" (NO last()
+            // fallback — the membrane never defaults to a node the price signal
+            // did not pick).
+            let parent_hint_handle: Option<String> = {
                 let mut rng = StdRng::seed_from_u64(0xB01 + round as u64 * 31 + ai as u64);
                 boltzmann_select_parent_v2(
                     &pi,
@@ -448,14 +463,22 @@ async fn run(args: Args) -> Result<(), String> {
                     &BoltzmannMaskPolicy::default(),
                     &mut rng,
                 )
-                .map(|t| t.0)
-                .or_else(|| node_tx_ids.last().map(|t| t.0.clone()))
+                .map(|t| node_handles.handle_for(&t.0))
             };
+            // fix #3: render a per-run OPAQUE self-identity handle for the
+            // prompt instead of the sequential `Agent_{i}` token (guessable →
+            // hallucination bait). Canonical `AgentId(Agent_i)` stays internal
+            // for all state writes; the agent only sees its opaque handle.
+            let self_handle = turingosv4::sdk::id_handle::handle(
+                &format!("g1_self::{}", args.run_id),
+                &agent,
+            );
             let prompt = format!(
-                "=== Task ===\n{ZETA_TASK}\n=== Market (price is signal, not truth) ===\n{market}\n=== Recent accepted steps ===\n{recent}\n=== Your turn (round {round}, you are {agent}) ===\n\
+                "=== Task ===\n{ZETA_TASK}\n=== Market (price is signal, not truth) ===\n{market}\n=== Recent accepted steps ===\n{recent}\n=== Your turn (round {round}, you are {self_handle}) ===\n\
 Propose the NEXT proof step that advances toward the result. If the proof is finished, your step_text MUST contain \"[COMPLETE]\" and \"-1/12\".\n\
-suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\":\"<node_tx or null>\",\"step_text\":\"<one concise proof step>\",\"confidence\":0.0-1.0}}",
-                pp = parent_hint.clone().unwrap_or_else(|| "null".into())
+parent_node MUST be one of the node handles shown above (copy it exactly) or null.\n\
+suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\":\"<node handle or null>\",\"step_text\":\"<one concise proof step>\",\"confidence\":0.0-1.0}}",
+                pp = parent_hint_handle.clone().unwrap_or_else(|| "null".into())
             );
             let resp = match llm
                 .generate(&GenerateRequest {
@@ -506,17 +529,19 @@ suggested_parent: {pp}\nReturn EXACTLY: {{\"action\":\"propose\",\"parent_node\"
                 .unwrap_or(0.6)
                 .clamp(0.0, 1.0)
                 * 100.0) as u64;
+            // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #2:
+            // resolve the LLM-echoed `parent_node` by EXACT handle membership
+            // against the rendered candidate set. A fabricated/typoed/unknown
+            // handle resolves to `None` (no parent) — the loose `starts_with`
+            // prefix match AND the `node_tx_ids.last()` silent fallback are
+            // BOTH removed, so the agent can never silently bind the wrong node
+            // or a default node it did not pick.
             let parent_tx: Option<TxId> = v
                 .get("parent_node")
                 .and_then(|x| x.as_str())
                 .filter(|s| *s != "null" && !s.is_empty())
-                .and_then(|s| {
-                    node_tx_ids
-                        .iter()
-                        .find(|t| t.0.starts_with(s) || s.starts_with(&t.0[..t.0.len().min(16)]))
-                        .cloned()
-                })
-                .or_else(|| node_tx_ids.last().cloned());
+                .and_then(|s| node_handles.resolve(s))
+                .map(TxId);
 
             let (pass, claims_complete) = zeta_judge(&step_text);
             if !pass {

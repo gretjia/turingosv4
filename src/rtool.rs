@@ -220,9 +220,17 @@ impl<L: ImmutableTapeLedger> Rtool<L> {
     }
 
     fn level_4(&self, verified_head: &str, task: &Task, _ws: &WorkspaceView) -> String {
+        // EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08 fix #6: the
+        // MinimalHeadOnly fallback previously rendered the bare canonical
+        // `task.id` (an explicit, guessable string — hallucination bait). The
+        // worker does not echo this id back as a canonical key here, so the
+        // membrane remedy is display-only: show a content-hash HANDLE instead
+        // of the raw id. `verified_head` is already a safe hash. (Other levels
+        // never expose the bare id.)
         format!(
-            "[VERIFIED_HEAD]\n{}\n[TASK_ID]\n{}\n",
-            verified_head, task.id
+            "[VERIFIED_HEAD]\n{}\n[TASK_HANDLE]\n{}\n",
+            verified_head,
+            crate::sdk::id_handle::handle("task", &task.id)
         )
     }
 }
