@@ -44,6 +44,13 @@
 //!     outside on_init; strict integer conservation.
 //!       constitution_economy_gate
 //!       constitution_economy_strict_equality
+//!   * **Tape-canonical efficiency (architect North Star — held-out Verified
+//!     PPUT)** — the architect PPUT (`VPPUT_i = 1[GroundTruth] / (C_i × T_i)`) is
+//!     reconstructed FROM THE CANONICAL TAPE (L4 + L4.E + CAS): integer-only
+//!     micro-units, ground-truth gated (Art. I.1), C_i counting all failed
+//!     branches + tool stdout, and a held-out H-VPPUT aggregate — so efficiency is
+//!     a gate-verifiable OS-qualifying dimension, not a sidecar dashboard number.
+//!       constitution_vpput_reconstructed_from_tape
 //!   * **Clean-context closure witness (Art. V / no-zombie)** — the no-zombie /
 //!     final-closure witness binds the derived views to fresh tape evidence and
 //!     refuses unscoped global completion claims.
@@ -115,6 +122,9 @@ const OS_QUALIFYING_GATES: &[&str] = &[
     // Money conservation (Art. 0 / integer-only economy).
     "constitution_economy_gate",
     "constitution_economy_strict_equality",
+    // Tape-canonical efficiency (architect North Star: held-out Verified PPUT
+    // reconstructed from L4 + L4.E + CAS; integer-only, ground-truth gated).
+    "constitution_vpput_reconstructed_from_tape",
     // Clean-context closure witness (Art. V / no-zombie final closure).
     "constitution_obl005_final_closure_witness",
 ];
@@ -272,6 +282,10 @@ fn every_qualification_dimension_is_covered() {
                 "constitution_economy_gate",
                 "constitution_economy_strict_equality",
             ],
+        ),
+        (
+            "tape-canonical-efficiency",
+            &["constitution_vpput_reconstructed_from_tape"],
         ),
         (
             "clean-context-closure-witness",

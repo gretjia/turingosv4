@@ -35,6 +35,17 @@ pub mod boltzmann_selection_trace;
 /// L4 + L4.E + CAS; CAS-anchored, never a source of truth).
 #[path = "fc_liveness_observer.rs"]
 pub mod fc_liveness_observer;
+
+// LIVE-FC1 — tape-canonical Verified-PPUT (VPPUT) reconstruction. Nested here as
+// a `#[path]` submodule for the same reason as the two observers above: keep the
+// trust-root-pinned `runtime/mod.rs` byte-identical (this file, `agent_scheduler.rs`,
+// is genesis-pinned-count 0). Access path:
+// `crate::runtime::agent_scheduler::vpput_reconstruction::*`.
+/// TRACE_MATRIX FC1-N34 + Art.I.1: LIVE-FC1 tape-canonical VPPUT reconstruction
+/// (per-task verified-PPUT + held-out H-VPPUT, reconstructed from L4 + L4.E + CAS;
+/// integer-only micro-units, ground-truth gated, shielded — never an agent read view).
+#[path = "vpput_reconstruction.rs"]
+pub mod vpput_reconstruction;
 use crate::runtime::real5_roles::{AgentRole, HeadT, PriceSignal};
 use crate::state::price_index::RationalPrice;
 use crate::state::q_state::{AgentId, Hash, TxId};
