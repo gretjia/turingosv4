@@ -9,6 +9,27 @@
 
 ---
 
+## Current Snapshot (2026-06-08)
+
+**Session**: Agentic-OS roadmap S1–S6 — **every autonomously-shippable atom
+SHIPPED + merged** under the standing `/goal` (continuous workflows, self-open +
+self-merge PRs, constitution-bounded autonomy). 10 PRs landed #315–#324: M07
+single-admission predicate gate (#315/#316), conformance sweep +5 bypasses
+(#317), all-canonical-writers-verify-trust-root (#318), S6 verification redesign
+(#319), S1 FC3 observable+canary (#320), S4 arg-taint hard-gate (#321), S2 Tier-1
+memory (#322), S5 interop (#323), S3 economy observe-only boltzmann trace (#324).
+Each = Class 0–2, non-vacuous mutation-proven gate, ZERO trust-root/pinned change
+(unpinned-`#[path]`-submodule pattern), clean-context audit PROCEED. Workspace at
+#324: `cargo test --workspace` 2696/0, `run_constitution_gates` total=184
+failed=0, matrix-drift 3/3. **Residual = 4 Class-4 legs blocked on per-atom §8
+user tokens** (FC3-irreversible, Tier-2-agent-writable-memory, budget-hard-ceiling,
+capability-wallet-gating — packets in `handover/section8/`) **+ the multi-LLM-on-
+tape real-evidence obligation** (needs a live API run, flagged not faked). Full
+ledger: `handover/reports/AGENTIC_OS_ROADMAP_S1_S6_FINAL_STATUS_2026-06-08.md` +
+OBL-016 2026-06-08 progress block. The verification critique ("测试到底有没有用?")
+was vindicated + addressed: enumerate-all-sites gates + mutation-proof + recurring
+sweep + pinned≠wired (`feedback_single_site_gate_illusion`).
+
 ## Current Snapshot (2026-06-06)
 
 **Session**: OBL-005 is now closed under the ratified no-zombie/no-drift
