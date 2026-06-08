@@ -247,10 +247,27 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         claims: PredicateClaimSet,
         workspace: &WorkspaceView,
     ) -> KernelStep {
-        // No arg-taint findings on the legacy entry — every existing caller
-        // routes through here with the empty findings set, so the admission
-        // hard-gate is a no-op for them and behaviour is unchanged.
-        self.step_forward_with_taint(task, env_result, claims, workspace, &[])
+        // LIVE-FC1 forward-wiring: DERIVE the real arg-taint findings from the
+        // proposal on the tape, instead of passing the empty `&[]` placeholder.
+        //
+        // The worker's raw_output IS the on-tape state-update header. It MAY carry
+        // an optional `wtool_call` declaration (args + their provenance source +
+        // target tools + write keys); `derive_wtool_call_from_proposal` is a pure,
+        // deterministic, replay-stable function of those bytes — no RNG, no
+        // wall-clock. `arg_taint_v1` then flags only a genuinely external/tool
+        // provenance arg flowing into a PRIVILEGED sink.
+        //
+        // NO FALSE REJECTS (binding): an ordinary proposal carries NO `wtool_call`
+        // declaration (or one with no privileged sink). The derived call is then
+        // empty / sink-free → `arg_taint_v1` returns ZERO findings →
+        // `decide_admission_with_taint` delegates to the unchanged
+        // `decide_admission` and admits EXACTLY as before. Only genuine
+        // external/tool provenance INTO a privileged sink newly produces a finding.
+        let call = crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
+            &env_result.raw_output,
+        );
+        let taint_findings = crate::predicate_admission::arg_taint::arg_taint_v1(&call);
+        self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings)
     }
 
     /// arg-taint sub-article entry: identical to [`Self::step_forward_with_workspace`]

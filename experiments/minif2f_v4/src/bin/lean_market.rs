@@ -569,6 +569,17 @@ fn cmd_view_positions(args: &[String]) {
 /// derivation chain via `record_boltzmann_selection_over_econ` and prints the
 /// resulting trace Cid + recommended parent. Price is signal, not truth: this
 /// is a non-binding recommendation record, never an admission/predicate input.
+///
+/// HONEST LIVE-TICK NOTE (LIVE-FC1 forward-wiring): this view-positions command
+/// is ONE live-tick caller. The production-path live-tick seam is
+/// `turingosv4::runtime::agent_scheduler::tick_boltzmann_selection_over_live_econ`
+/// (a `src/`-side helper any runtime/report loop holding a live `&EconomicState`
+/// can call once per tick + render via `render_boltzmann_tick_section`). There is
+/// still NO per-attempt caller inside a main `src/` runtime LOOP, because the real
+/// per-step scheduler lives in the trust-root-pinned `src/bus.rs` (Class-4, out of
+/// scope here): wiring a per-tick boltzmann recommendation INTO that loop would
+/// require editing a pinned file. This experiments-binary caller + the unpinned
+/// `agent_scheduler.rs` `src/` helper are the honest live-tick surface today.
 fn record_observe_only_boltzmann_trace(
     econ: &turingosv4::state::q_state::EconomicState,
     cas_path: &Path,

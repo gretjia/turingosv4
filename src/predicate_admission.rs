@@ -28,6 +28,16 @@ use crate::state::typed_tx::PredicateId;
 #[path = "predicate_admission/arg_taint.rs"]
 pub mod arg_taint;
 
+// arg-taint PROVENANCE DERIVATION — the production-driven classifier that turns a
+// worker proposal on the tape into the labelled `WtoolCall` the `arg_taint_v1`
+// hard-gate analyses. Nested under THIS unpinned parent so the live kernel seam
+// derives REAL findings with ZERO genesis-pinned file edits. Without it the kernel
+// passed `arg_taint_v1` an empty findings set and no real proposal could ever be
+// flagged (the forward-wiring gap LIVE-FC1 Phase 4 closes).
+/// TRACE_MATRIX FC1a-predicates: production provenance-derivation module.
+#[path = "predicate_admission/arg_taint_provenance.rs"]
+pub mod arg_taint_provenance;
+
 pub use arg_taint::{ArgTaintFinding, WtoolCall};
 
 /// Stable prefix the arg-taint hard-gate stamps into the admission

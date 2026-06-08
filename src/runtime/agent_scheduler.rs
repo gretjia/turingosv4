@@ -859,3 +859,166 @@ pub fn forced_loop_stop_reason(
     }
     None
 }
+
+// ── S3 Boltzmann observe-only LIVE-TICK (LIVE-FC1 forward-wiring) ──────────────
+//
+// `boltzmann_selection_trace::record_boltzmann_selection_over_econ` was
+// proven-but-not-production-driven: its only caller lived in the
+// `experiments/minif2f_v4/src/bin/lean_market.rs` view-positions command. This
+// `src/`-side helper is the production-path LIVE-TICK seam: any runtime/report
+// loop that holds a live canonical `&EconomicState` can call it once per tick to
+// anchor the observe-only Boltzmann recommendation on CAS AND render a bounded
+// report section — without touching the trust-root-pinned `src/bus.rs` (the real
+// scheduler, pinned) or the pinned `runtime/mod.rs` (this file is pin-count 0).
+//
+// HONEST SCOPE: this is an OBSERVE-ONLY recommendation tick, not a binding
+// scheduler step. "Price is signal, not truth." It borrows `&EconomicState`,
+// mutates no `QState`, advances no head, and changes no sequencer admission or
+// L4/L4.E predicate. The CAS write IS the L4 anchor; there is no filesystem
+// side-store. The float `boltzmann_softmax_select_parent` is never called —
+// integer-rational only.
+
+/// TRACE_MATRIX FC2-N29 + FC1-N7: a production-path LIVE-TICK that records the
+/// observe-only Boltzmann selection trace over a LIVE canonical `&EconomicState`
+/// and returns the self-addressed CAS `Cid` of the anchored trace. Deterministic:
+/// identical `(econ, edges, policy, rng_seed, logical_t)` → identical `Cid`
+/// (Art.0.2 replay-stable). The `rng_seed` SHOULD be bound to a tape-derived
+/// value (e.g. the replay head / `logical_t`) by the caller so the recommendation
+/// is replay-reproducible.
+///
+/// Observe-only: `econ` is borrowed `&`; nothing is mutated and no head advances.
+pub fn tick_boltzmann_selection_over_live_econ(
+    cas: &mut CasStore,
+    econ: &crate::state::q_state::EconomicState,
+    edges: &crate::state::price_index::CanonicalNodeGraph,
+    policy: &crate::state::price_index::BoltzmannMaskPolicy,
+    rng_seed: u64,
+    logical_t: u64,
+) -> Result<Cid, CasError> {
+    boltzmann_selection_trace::record_boltzmann_selection_over_econ(
+        cas, econ, edges, policy, rng_seed, logical_t,
+    )
+}
+
+/// TRACE_MATRIX FC2-N29 + FC1-N7: render a bounded, shielded report section for a
+/// Boltzmann live-tick. Emits ONLY integer counts + ids (no raw Lean stderr /
+/// autopsy / float). Reconstructs the just-anchored trace from CAS to prove the
+/// section is a derived view of tape-canonical bytes (Art.0.2), never a source of
+/// truth. The "observe-only / price is signal, not truth" interpretation is
+/// stamped into the section so a reader cannot mistake it for a binding step.
+pub fn render_boltzmann_tick_section(cas: &CasStore, trace_cid: &Cid) -> String {
+    let mut out = String::new();
+    out.push_str("\n## §S3.1 Boltzmann scheduler live-tick (observe-only)\n");
+    out.push_str("  interpretation: non-binding recommendation; price is signal, not truth\n");
+    out.push_str("  does NOT change sequencer admission or L4/L4.E predicates\n");
+    out.push_str(&format!("  trace_cid: {trace_cid}\n"));
+    match boltzmann_selection_trace::read_boltzmann_selection_from_cas(cas, trace_cid) {
+        Ok(trace) => {
+            out.push_str(&format!("  observe_only: {}\n", trace.observe_only));
+            out.push_str(&format!(
+                "  candidate_nodes: {}\n",
+                trace.candidate_nodes.len()
+            ));
+            out.push_str(&format!("  masked_nodes: {}\n", trace.masked_nodes.len()));
+            out.push_str(&format!(
+                "  selection_branch: {}\n",
+                match trace.selection_branch {
+                    boltzmann_selection_trace::SelectionBranch::EmptyCandidates =>
+                        "EmptyCandidates",
+                    boltzmann_selection_trace::SelectionBranch::EpsilonExploration =>
+                        "EpsilonExploration",
+                    boltzmann_selection_trace::SelectionBranch::ArgmaxExploit => "ArgmaxExploit",
+                }
+            ));
+            out.push_str(&format!(
+                "  selected_parent: {}\n",
+                trace
+                    .selected_parent
+                    .as_ref()
+                    .map(|p| p.0.as_str())
+                    .unwrap_or("None")
+            ));
+        }
+        Err(e) => {
+            out.push_str(&format!("  (trace unreadable from CAS: {e})\n"));
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod boltzmann_tick_tests {
+    use super::*;
+    use crate::economy::money::MicroCoin;
+    use crate::state::price_index::{BoltzmannMaskPolicy, CanonicalNodeGraph};
+    use crate::state::q_state::{AgentId, EconomicState, TaskId};
+    use crate::state::typed_tx::{NodePosition, PositionKind, PositionSide};
+    use tempfile::TempDir;
+
+    fn econ_with_two_nodes() -> EconomicState {
+        let mut econ = EconomicState::default();
+        for (pid, node, owner, amt) in [
+            ("p1", "low", "a1", 300_000_i64),
+            ("p2", "high", "a2", 900_000_i64),
+        ] {
+            let p = NodePosition {
+                position_id: TxId(pid.into()),
+                node_id: TxId(node.into()),
+                task_id: TaskId("t1".into()),
+                owner: AgentId(owner.into()),
+                side: PositionSide::Long,
+                kind: PositionKind::FirstLong,
+                amount: MicroCoin::from_micro_units(amt),
+                source_tx: TxId(pid.into()),
+                opened_at_round: 1,
+            };
+            econ.node_positions_t.0.insert(p.position_id.clone(), p);
+        }
+        econ
+    }
+
+    /// The live-tick records a CAS-anchored trace over a borrowed econ and the
+    /// render section is a derived view of the anchored bytes. Observe-only:
+    /// econ is byte-identical before/after.
+    #[test]
+    fn live_tick_records_and_renders_observe_only() {
+        let tmp = TempDir::new().unwrap();
+        let mut cas = CasStore::open(tmp.path()).unwrap();
+        let econ = econ_with_two_nodes();
+        let before = econ.clone();
+        let policy = BoltzmannMaskPolicy {
+            epsilon_exploration_num: 0,
+            epsilon_exploration_den: 1,
+            ..BoltzmannMaskPolicy::default()
+        };
+        let edges = CanonicalNodeGraph::default();
+        let cid =
+            tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 7, 7).unwrap();
+        // Observe-only: borrowing econ mutated nothing.
+        assert_eq!(econ, before, "live-tick must not mutate the borrowed econ");
+        let section = render_boltzmann_tick_section(&cas, &cid);
+        assert!(section.contains("observe_only: true"));
+        assert!(section.contains("candidate_nodes: 2"));
+        assert!(section.contains("price is signal, not truth"));
+        // Shielded + integer-only: the rendered numeric fields are integer counts
+        // and ids; no decimal-pointed float ever appears in the section.
+        assert!(
+            !section.contains("0.") && !section.contains("1."),
+            "live-tick section must be integer-only (no float): {section}"
+        );
+    }
+
+    /// Replay-stable: identical inputs+seed → identical anchored trace Cid.
+    #[test]
+    fn live_tick_is_replay_stable() {
+        let econ = econ_with_two_nodes();
+        let policy = BoltzmannMaskPolicy::default();
+        let edges = CanonicalNodeGraph::default();
+        let run = || {
+            let tmp = TempDir::new().unwrap();
+            let mut cas = CasStore::open(tmp.path()).unwrap();
+            tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 99, 3).unwrap()
+        };
+        assert_eq!(run(), run(), "identical inputs+seed → identical trace Cid");
+    }
+}

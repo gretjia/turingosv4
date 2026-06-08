@@ -31,6 +31,11 @@ authority = "arg-taint sub-article: §8 token APPROVE-ARG-TAINT-ADMISSION-SUBART
 added = "2026-06-07"
 
 [[gate]]
+name = "constitution_arg_taint_provenance_live"
+authority = "arg-taint sub-article forward-wiring (LIVE-FC1 Phase 4): §8 token APPROVE-ARG-TAINT-ADMISSION-SUBARTICLE — the PRODUCTION MemoryKernel::step_forward entry-point now DERIVES real arg-taint findings from the proposal's on-tape raw_output (src/predicate_admission/arg_taint_provenance.rs::derive_wtool_call_from_proposal, nested as a #[path] submodule of the UNPINNED src/predicate_admission.rs), closing the prior empty-`&[]` gap at the UNPINNED src/memory_kernel.rs::step_forward_with_workspace. NO FALSE REJECT: an ordinary proposal (no wtool_call declaration) yields an empty WtoolCall → no findings → admits exactly as before; only a genuinely external/tool-provenance arg flowing into a privileged sink newly produces a finding. Deterministic + replay-stable (pure function of raw_output bytes; no RNG/wall-clock). ZERO genesis-pinned-file edits."
+added = "2026-06-08"
+
+[[gate]]
 name = "constitution_aggregate_report"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
