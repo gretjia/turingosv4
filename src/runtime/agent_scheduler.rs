@@ -25,6 +25,16 @@ use crate::bottom_white::ledger::transition_ledger::{
 /// (live `boltzmann_select_parent_v2` over canonical `EconomicState`, CAS-anchored).
 #[path = "boltzmann_selection_trace.rs"]
 pub mod boltzmann_selection_trace;
+
+// LIVE-FC1 — tape-driven FC-liveness OBSERVER. Nested here as a `#[path]`
+// submodule for the same reason as `boltzmann_selection_trace`: keep the
+// trust-root-pinned `runtime/mod.rs` byte-identical. Access path:
+// `crate::runtime::agent_scheduler::fc_liveness_observer::*`.
+/// TRACE_MATRIX FC1-N34 + FC2-N31 + FC3-N33: LIVE-FC1 observe-only FC-liveness
+/// witness (reconstructs FC1/FC2/FC3 node liveness + no-zombie inventory from
+/// L4 + L4.E + CAS; CAS-anchored, never a source of truth).
+#[path = "fc_liveness_observer.rs"]
+pub mod fc_liveness_observer;
 use crate::runtime::real5_roles::{AgentRole, HeadT, PriceSignal};
 use crate::state::price_index::RationalPrice;
 use crate::state::q_state::{AgentId, Hash, TxId};

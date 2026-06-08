@@ -141,6 +141,11 @@ authority = "handover/section8/APPROVE_FC3_RUNTIME_VETO_AND_TRUSTROOT_REINIT_202
 added = "2026-06-08"
 
 [[gate]]
+name = "constitution_fc_liveness_observer"
+authority = "LIVE-FC1 self-verification keystone (constitution.md Art.0.2 tape-canonical + Art.III shielded read-views). Observe-only FC-liveness OBSERVER: src/runtime/fc_liveness_observer.rs (nested as a #[path] submodule of the UNPINNED src/runtime/agent_scheduler.rs) reconstructs FC1/FC2/FC3 node liveness PURELY from the canonical tape (L4 accepted spine + L4.E rejection chain + CAS payloads) and classifies each FC node Live / ReachableNotFired / Zombie. observe_fc_liveness(tape:&LoadedTape, inventory:&LivenessInventory)->FcLivenessReport takes shared refs only — it mutates no QState/EconomicState, advances no head, changes no admission; the persisted witness anchors via CasStore::put (ObjectType::Generic + free-form schema_id v1/fc_liveness_report), never a filesystem-side store. ANTI-OVERCLAIM binding: FC3 disposition is hard-stamped reached_observable_canary (proposer fired + canary MetricEstimate + sandbox:canary_only terminal); the report NEVER claims FC3 fully-closed / live self-modification. SHIELDED projection: bounded node ids + integer counts + CAS cids only, no raw Lean stderr / autopsy / PPUT metric values. ZERO genesis-pinned-file edits — all touched files pin-count 0; genesis_payload.toml + constitution.md not in diff."
+added = "2026-06-08"
+
+[[gate]]
 name = "constitution_g1_2_batch_continuation_manifest"
 authority = "handover/directives/2026-05-11_TB_G_G1_2_OPTION_B_PLUS_RULING.md"
 added = "2026-05-20"
