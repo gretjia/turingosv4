@@ -51,6 +51,13 @@
 //!     branches + tool stdout, and a held-out H-VPPUT aggregate — so efficiency is
 //!     a gate-verifiable OS-qualifying dimension, not a sidecar dashboard number.
 //!       constitution_vpput_reconstructed_from_tape
+//!   * **Anti-Goodhart PPUT guardrails (Art. III.4 / Gate H + accounting
+//!     integrity)** — the 11 named conformance gates that make held-out Verified
+//!     PPUT NON-GAMEABLE: all model tokens counted, tool stdout hashed on tape,
+//!     no hidden unmetered generation, no hardcoded problem id, failed branches
+//!     count, ground-truth-gated golden path, correct T_i span, held-out ids
+//!     inaccessible, no PPUT/metric in any agent prompt.
+//!       constitution_pput_anti_goodhart_battery
 //!   * **Clean-context closure witness (Art. V / no-zombie)** — the no-zombie /
 //!     final-closure witness binds the derived views to fresh tape evidence and
 //!     refuses unscoped global completion claims.
@@ -125,6 +132,10 @@ const OS_QUALIFYING_GATES: &[&str] = &[
     // Tape-canonical efficiency (architect North Star: held-out Verified PPUT
     // reconstructed from L4 + L4.E + CAS; integer-only, ground-truth gated).
     "constitution_vpput_reconstructed_from_tape",
+    // Anti-Goodhart guardrails — the 11 named conformance gates that make
+    // held-out Verified PPUT NON-GAMEABLE (Art. III.4 / Gate H + accounting
+    // integrity; PPUT_DRIVEN_FULL_PASS_2026-04-25 §10).
+    "constitution_pput_anti_goodhart_battery",
     // Clean-context closure witness (Art. V / no-zombie final closure).
     "constitution_obl005_final_closure_witness",
 ];
@@ -286,6 +297,10 @@ fn every_qualification_dimension_is_covered() {
         (
             "tape-canonical-efficiency",
             &["constitution_vpput_reconstructed_from_tape"],
+        ),
+        (
+            "anti-goodhart-pput-guardrails",
+            &["constitution_pput_anti_goodhart_battery"],
         ),
         (
             "clean-context-closure-witness",
