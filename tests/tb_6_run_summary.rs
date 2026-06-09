@@ -23,6 +23,8 @@ use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChain
 use turingosv4::state::q_state::{AgentId, TxId};
 use turingosv4::state::sequencer::task_open_accept_state_root;
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -43,6 +45,7 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
     )]);
     let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
         .expect("bootstrap with seeded balance");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
@@ -54,17 +57,17 @@ async fn i92_end_to_end_run_summary_aggregates_l4_and_l4e() {
         .state_root_t;
     let task_open = make_synthetic_task_open("task-i92", "sponsor-i92", boot_root, "i92-1");
     let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("submit TaskOpen");
-    bus.submit_typed_tx(make_synthetic_worktx(
+    bus.submit_typed_tx(support::resign(make_synthetic_worktx(
         "task-i92",
         "agent-i92",
         post_task_open_root,
         0,
         "i92-rej",
         true,
-    ))
+    )))
     .await
     .expect("submit zero-stake WorkTx");
 
@@ -118,6 +121,7 @@ async fn i92b_boot_only_chain_produces_boot_run_summary() {
     let cfg = fresh_config(&tmp, "i92b");
     use turingosv4::runtime::build_chaintape_sequencer;
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     bundle.shutdown().await.expect("shutdown");
 
     let summary = RunSummary::from_chaintape(&cfg.runtime_repo_path, &cfg.cas_path, "i92b", 0, 0)

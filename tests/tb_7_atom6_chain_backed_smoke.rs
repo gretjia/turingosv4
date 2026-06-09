@@ -61,6 +61,8 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 use turingosv4::state::typed_tx::TypedTx;
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -98,20 +100,29 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
         bundle.sequencer.clone(),
     );
 
+    // ── Step 2 (moved earlier): open AgentKeypairRegistry + pre-register the
+    // WorkTx agents so the pinned manifest covers them (fail-closed ingress). ──
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
+    for a in ["n1", "swarm_a", "swarm_b"] {
+        reg.get_or_create(&AgentId(a.into())).expect("register agent");
+    }
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin a MERGED manifest — COMMON
+    // deterministic agents (for the synthetic TaskOpen sponsor) + the registry
+    // agents (for the real-signature WorkTx side).
+    support::pin_merged_manifest(&bundle.sequencer, &reg);
+
     // ── Step 1: synthetic TaskOpen seed (mirrors evaluator chaintape bootstrap) ──
     // This guarantees the L4 chain has ≥1 accepted entry (Gate 3).
-    let task_open = make_synthetic_task_open(
+    let task_open = support::resign(make_synthetic_task_open(
         "task-tb7-atom6",
         "tb7-smoke-sponsor",
         Hash::ZERO,
         "atom6-seed",
-    );
+    ));
     bus.submit_typed_tx(task_open)
         .await
         .expect("synthetic TaskOpen submit");
 
-    // ── Step 2: open AgentKeypairRegistry ──
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
     let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
 
     // ── Step 3: submit a sequence of synthetic-agent WorkTx + VerifyTx pairs ──

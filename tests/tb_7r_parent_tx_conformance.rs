@@ -38,6 +38,8 @@ use turingosv4::runtime::{
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 use turingosv4::state::typed_tx::TypedTx;
 
+mod support;
+
 // ── Test fixture helpers ───────────────────────────────────────────────
 
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
@@ -74,15 +76,30 @@ async fn seed_task_and_escrow(bus: &TuringBus, bundle: &ChaintapeBundle, task_id
         .q_snapshot()
         .expect("post-activation q")
         .state_root_t;
-    let task_open = make_synthetic_task_open(task_id, "test-sponsor", boot_root, "test-seed");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest
+    // (idempotent) and re-sign the synthetic + real txs so fail-closed ingress
+    // admits them. The WorkTx agent "Agent_0" and sponsor "test-sponsor" are
+    // both in COMMON_TEST_AGENTS.
+    support::pin_common_manifest(&bundle.sequencer);
+    let task_open = support::resign(make_synthetic_task_open(
+        task_id,
+        "test-sponsor",
+        boot_root,
+        "test-seed",
+    ));
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
     // Wait state_root advance
     let parent_root = wait_state_root_advance(bundle, boot_root).await;
     // EscrowLock
-    let escrow_lock =
-        make_synthetic_escrow_lock(task_id, "test-sponsor", 100_000, parent_root, "test-escrow");
+    let escrow_lock = support::resign(make_synthetic_escrow_lock(
+        task_id,
+        "test-sponsor",
+        100_000,
+        parent_root,
+        "test-escrow",
+    ));
     bus.submit_typed_tx(escrow_lock)
         .await
         .expect("EscrowLock submit");
@@ -179,7 +196,11 @@ async fn submit_worktx(
         TypedTx::Work(w) => w.tx_id.clone(),
         _ => panic!("expected Work variant"),
     };
-    bus.submit_typed_tx(work_tx).await.expect("Work submit");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: re-sign with the deterministic test key
+    // (the agent is in the COMMON manifest pinned by seed_task_and_escrow).
+    bus.submit_typed_tx(support::resign(work_tx))
+        .await
+        .expect("Work submit");
     let new_root = wait_state_root_advance(bundle, parent_state_root).await;
     (work_tx_id, new_root)
 }

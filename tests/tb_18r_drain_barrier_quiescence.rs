@@ -27,6 +27,8 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash};
 use turingosv4::state::sequencer::task_open_accept_state_root;
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -58,6 +60,16 @@ async fn quiescent_post_shutdown_passes() {
         .q_snapshot()
         .expect("post-activation q")
         .state_root_t;
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
+    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pre-register WorkTx agents + pin merged
+    // manifest (COMMON sponsor + reg keys) before any submit.
+    for idx in 0..3 {
+        reg.get_or_create(&AgentId(format!("agent_{idx}")))
+            .expect("register agent");
+    }
+    support::pin_merged_manifest(&bundle.sequencer, &reg);
+
     let task_open = make_synthetic_task_open(
         "task-r4-quiescent",
         "tb18r-r4-sponsor",
@@ -65,12 +77,10 @@ async fn quiescent_post_shutdown_passes() {
         "quiescent-seed",
     );
     let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("TaskOpen submit");
 
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
-    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
     for idx in 0..3 {
         let agent = format!("agent_{idx}");
         let pt = ProposalTelemetry::new_root(

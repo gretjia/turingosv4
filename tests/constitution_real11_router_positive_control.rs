@@ -44,6 +44,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 struct Harness {
     _tmp: TempDir,
     seq: Sequencer,
@@ -108,6 +110,10 @@ fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QSt
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest
+    // (idempotent) and re-sign the economic tx so fail-closed ingress admits it.
+    support::pin_common_manifest(&h.seq);
+    let tx = support::resign(tx);
     h.seq
         .submit_agent_tx(tx)
         .await

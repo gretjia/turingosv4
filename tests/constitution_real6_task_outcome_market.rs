@@ -56,6 +56,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 struct Harness {
     _tmp: TempDir,
     seq: Sequencer,
@@ -139,6 +141,9 @@ fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin manifest (idempotent) + re-sign.
+    support::pin_common_manifest(&h.seq);
+    let tx = support::resign(tx);
     h.seq
         .submit_agent_tx(tx)
         .await

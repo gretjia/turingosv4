@@ -45,6 +45,8 @@ use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChain
 use turingosv4::state::q_state::{AgentId, QState, TaskId};
 use turingosv4::state::typed_tx::EventId;
 
+mod support;
+
 fn cfg(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -116,6 +118,7 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
     let cfg_fresh = cfg(&tmp, "g1_2_5-t0", false);
     let bundle =
         build_chaintape_sequencer_with_initial_q(&cfg_fresh, initial_q.clone()).expect("fresh");
+    support::pin_common_manifest(&bundle.sequencer);
     let seq0 = bundle.sequencer.clone();
     let q_after_activation = seq0
         .q_snapshot()
@@ -128,7 +131,7 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
         q_after_activation.state_root_t,
         "t0-open",
     );
-    bus.submit_typed_tx(open0)
+    bus.submit_typed_tx(support::resign(open0))
         .await
         .expect("submit TaskOpen t0");
     bundle.shutdown().await.expect("shutdown t0");
@@ -139,6 +142,7 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
     let cfg_resume = cfg(&tmp, "g1_2_5-t1", true);
     let bundle_r = build_chaintape_sequencer_with_initial_q(&cfg_resume, initial_q.clone())
         .expect("resume bootstrap");
+    support::pin_common_manifest(&bundle_r.sequencer);
     let seq1 = bundle_r.sequencer.clone();
     let q_after_resume = seq1.q_snapshot().expect("q_snapshot post-resume");
     let kernel1 = Kernel::new();
@@ -150,7 +154,7 @@ async fn run_two_task_escrow_batch() -> (TempDir, QState, Vec<QState>) {
         q_after_resume.state_root_t,
         "t1-lock",
     );
-    bus1.submit_typed_tx(lock1)
+    bus1.submit_typed_tx(support::resign(lock1))
         .await
         .expect("submit EscrowLock t1");
     bundle_r.shutdown().await.expect("shutdown t1");

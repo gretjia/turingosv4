@@ -33,6 +33,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
+mod support;
+
 struct Harness {
     _tmp: TempDir,
     cas: Arc<RwLock<CasStore>>,
@@ -68,6 +70,10 @@ fn harness() -> Harness {
         QState::default(),
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // stale_parent_work_tx re-signs via support::resign so it reaches the
+    // StaleParent dispatch gate (fail-closed ingress admits the signature).
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         cas,
@@ -89,7 +95,7 @@ fn stale_parent_work_tx() -> TypedTx {
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId("fc3-stale-work".to_string()),
         task_id: TaskId("fc3-task".to_string()),
         parent_state_root: Hash([7u8; 32]),
@@ -105,7 +111,7 @@ fn stale_parent_work_tx() -> TypedTx {
         stake: StakeMicroCoin::from_micro_units(1),
         signature: AgentSignature::default(),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn decode_entry_tx(h: &Harness, entry: &LedgerEntry) -> TypedTx {

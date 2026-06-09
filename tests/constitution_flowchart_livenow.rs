@@ -54,6 +54,8 @@ use turingosv4::top_white::predicates::registry::{
 };
 use turingosv4::top_white::predicates::visibility::Visibility;
 
+mod support;
+
 struct MemoryHarness {
     _tmp: TempDir,
     cas: Arc<RwLock<CasStore>>,
@@ -137,6 +139,10 @@ fn memory_harness(initial_q: QState, registry: PredicateRegistry) -> MemoryHarne
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // work_tx builders re-sign via support::resign so fail-closed ingress
+    // admits them (the predicate-admission verdict is what these tests assert).
+    support::pin_common_manifest(&seq);
     MemoryHarness {
         _tmp: tmp,
         cas: cas_for_harness,
@@ -170,7 +176,7 @@ fn work_tx_with_parent_and_proposal(
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId(tx_id.to_string()),
         task_id: TaskId("flow-live-task".to_string()),
         parent_state_root,
@@ -186,7 +192,7 @@ fn work_tx_with_parent_and_proposal(
         stake: StakeMicroCoin::from_micro_units(10),
         signature: AgentSignature::default(),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn write_flow_proposal_telemetry(
@@ -407,12 +413,14 @@ async fn fc2_boot_replay_and_resume_are_live() {
         BusConfig::default(),
         bundle.sequencer.clone(),
     );
-    let open = make_synthetic_task_open(
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin manifest + re-sign for fail-closed.
+    support::pin_common_manifest(&bundle.sequencer);
+    let open = support::resign(make_synthetic_task_open(
         "flowchart-livenow-task",
         "flowchart-livenow-sponsor",
         post_boot_q.state_root_t,
         "flowchart-livenow-open",
-    );
+    ));
     bus.submit_typed_tx(open).await.expect("submit TaskOpen");
     bundle
         .shutdown()

@@ -48,6 +48,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Fixtures (mirror tb_3_rsp1_formal_surface harness pattern)
 // ────────────────────────────────────────────────────────────────────────────
@@ -88,6 +90,9 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // builders re-sign via support::resign so fail-closed ingress admits them.
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         seq,
@@ -108,7 +113,7 @@ fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
 }
 
 fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> TypedTx {
-    TypedTx::TaskOpen(TaskOpenTx {
+    support::resign(TypedTx::TaskOpen(TaskOpenTx {
         tx_id: TxId(format!("taskopen-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -118,7 +123,7 @@ fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> Type
         settlement_rule_hash: Hash::ZERO,
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_escrow_lock(
@@ -128,7 +133,7 @@ fn make_escrow_lock(
     parent: Hash,
     suffix: &str,
 ) -> TypedTx {
-    TypedTx::EscrowLock(EscrowLockTx {
+    support::resign(TypedTx::EscrowLock(EscrowLockTx {
         tx_id: TxId(format!("escrowlock-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -136,7 +141,7 @@ fn make_escrow_lock(
         amount: MicroCoin::from_micro_units(amount_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_worktx(
@@ -155,7 +160,7 @@ fn make_worktx(
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}-{suffix}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -175,7 +180,7 @@ fn make_worktx(
         stake: StakeMicroCoin::from_micro_units(stake_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 async fn apply_taskopen_and_escrowlock(

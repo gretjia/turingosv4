@@ -36,6 +36,8 @@ use turingosv4::runtime::{
 };
 use turingosv4::state::q_state::{AgentId, Hash};
 
+mod support;
+
 fn cfg_resume(tmp: &TempDir, run_id: &str, resume: bool) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -142,7 +144,8 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         q_after_boot.state_root_t,
         "g1_2-1",
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    support::pin_common_manifest(&bundle.sequencer);
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);
 
@@ -176,6 +179,7 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         .sequencer
         .q_snapshot()
         .expect("q_snapshot post-resume");
+    support::pin_common_manifest(&bundle_r.sequencer);
     let kernel2 = Kernel::new();
     let bus2 = TuringBus::with_sequencer(kernel2, BusConfig::default(), bundle_r.sequencer.clone());
     let tx_extra = make_synthetic_task_open(
@@ -184,7 +188,7 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         q_after_replay.state_root_t,
         "g1_2-post",
     );
-    bus2.submit_typed_tx(tx_extra)
+    bus2.submit_typed_tx(support::resign(tx_extra))
         .await
         .expect("submit post-resume TaskOpen");
     bundle_r.shutdown().await.expect("shutdown phase 3");
@@ -241,7 +245,8 @@ async fn sg_g1_3_resume_balances_reconstruction_matches_forward_replay() {
         q_after_activation.state_root_t,
         "g1_3-1",
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    support::pin_common_manifest(&bundle.sequencer);
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown forward");
     drop(bus);
     let q_forward = seq_forward.q_snapshot().expect("q_snapshot forward");
@@ -329,7 +334,8 @@ async fn sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false() {
         q_after_activation.state_root_t,
         "g1_4",
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    support::pin_common_manifest(&bundle.sequencer);
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -409,7 +415,8 @@ async fn sg_g1_5_pinned_pubkeys_preserved_across_resume() {
         q_after_activation.state_root_t,
         "g1_5",
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    support::pin_common_manifest(&bundle.sequencer);
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);
 

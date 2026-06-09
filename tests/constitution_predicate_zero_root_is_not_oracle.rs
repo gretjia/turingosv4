@@ -72,6 +72,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
+mod support;
+
 fn block_on<F: std::future::Future>(fut: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -117,6 +119,9 @@ fn fresh_seq(initial_q: QState) -> SeqHarness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // builders re-sign via support::resign so fail-closed ingress admits them.
+    support::pin_common_manifest(&seq);
     SeqHarness {
         _tmp: tmp,
         seq,
@@ -137,7 +142,7 @@ fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
 }
 
 fn make_task_open(task: &str, sponsor: &str, parent: Hash) -> TypedTx {
-    TypedTx::TaskOpen(TaskOpenTx {
+    support::resign(TypedTx::TaskOpen(TaskOpenTx {
         tx_id: TxId(format!("taskopen-{task}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -147,11 +152,11 @@ fn make_task_open(task: &str, sponsor: &str, parent: Hash) -> TypedTx {
         settlement_rule_hash: Hash::ZERO,
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_escrow_lock(task: &str, sponsor: &str, amount_micro: i64, parent: Hash) -> TypedTx {
-    TypedTx::EscrowLock(EscrowLockTx {
+    support::resign(TypedTx::EscrowLock(EscrowLockTx {
         tx_id: TxId(format!("escrowlock-{task}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -159,7 +164,7 @@ fn make_escrow_lock(task: &str, sponsor: &str, amount_micro: i64, parent: Hash) 
         amount: MicroCoin::from_micro_units(amount_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 /// A `WorkTx` whose acceptance carries a SELF-ASSERTED `true` boolean with NO
@@ -174,7 +179,7 @@ fn make_self_asserted_worktx(task: &str, agent: &str, parent: Hash) -> TypedTx {
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -192,7 +197,7 @@ fn make_self_asserted_worktx(task: &str, agent: &str, parent: Hash) -> TypedTx {
         stake: StakeMicroCoin::from_micro_units(1),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 /// Fund a task and submit a self-asserted-true WorkTx; return whether it was

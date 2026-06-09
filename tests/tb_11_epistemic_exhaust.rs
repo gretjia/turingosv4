@@ -38,6 +38,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ── Harness ─────────────────────────────────────────────────────────────────
 
 struct Harness {
@@ -76,6 +78,9 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // submits are re-signed via support::resign so fail-closed ingress admits.
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         seq,
@@ -106,7 +111,7 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
     });
-    h.seq.submit_agent_tx(open_tx).await.expect("submit open");
+    h.seq.submit_agent_tx(support::resign(open_tx)).await.expect("submit open");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)
@@ -123,7 +128,7 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 2,
     });
-    h.seq.submit_agent_tx(lock_tx).await.expect("submit lock");
+    h.seq.submit_agent_tx(support::resign(lock_tx)).await.expect("submit lock");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)

@@ -35,6 +35,8 @@ use turingosv4::state::typed_tx::{
     WriteKey,
 };
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -89,6 +91,7 @@ async fn i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i91");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
@@ -97,7 +100,7 @@ async fn i91_end_to_end_synthetic_worktx_plus_audit_record_round_trip() {
     // on prior accepted state); either way the L4.E entry is produced and
     // the audit record references the tx_id.
     let worktx = make_synthetic_worktx("task-i91", "agent-i91", Hash::ZERO, 0, "i91-1", true);
-    bus.submit_typed_tx(worktx)
+    bus.submit_typed_tx(support::resign(worktx))
         .await
         .expect("submit synthetic WorkTx");
     bundle.shutdown().await.expect("shutdown");

@@ -553,15 +553,62 @@ fn verify_agent_artifacts(
                     }
                 }
             }
-            // Remaining tx variants (TaskOpen / EscrowLock / Challenge /
-            // ChallengeResolve / ReuseTx / FinalizeReward / TaskExpire /
-            // TerminalSummary / TaskBankruptcy) are not covered by Gate 4
+            // TRACE_MATRIX FC1-N14 (OBS_AGENT_SIG_REPLAY_GAP closure; §8 token
+            // APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12): replay-time Gate 4
+            // coverage for the 3 remaining agent-signed economic variants —
+            // Challenge (challenger_agent) / TaskOpen (sponsor_agent) /
+            // EscrowLock (sponsor_agent). Mirrors the Work/Verify arms above:
+            // pubkey lookup by signer + verify against the manifest. With this
+            // the replay verifier covers all 12 signable economic variants,
+            // matching the fail-closed ingress gate (sequencer.rs
+            // submit_agent_tx).
+            TypedTx::Challenge(challenge) => {
+                let payload = challenge.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&challenge.challenger_agent);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&challenge.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            TypedTx::TaskOpen(open) => {
+                let payload = open.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&open.sponsor_agent);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&open.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            TypedTx::EscrowLock(lock) => {
+                let payload = lock.to_signing_payload();
+                let digest = payload.canonical_digest();
+                let pubkey_opt = manifest.get(&lock.sponsor_agent);
+                match pubkey_opt {
+                    None => agent_signatures_verified = false,
+                    Some(pubkey) => {
+                        if verify_agent_signature(&lock.signature, &digest, &pubkey).is_err() {
+                            agent_signatures_verified = false;
+                        }
+                    }
+                }
+            }
+            // Remaining tx variants (ChallengeResolve / ReuseTx /
+            // FinalizeReward / TaskExpire / TerminalSummary / TaskBankruptcy /
+            // EventResolve / governance FC3 variants) are not covered by Gate 4
             // because:
             // - Some are system-emitted (signature path is system, not agent;
             //   covered by system_signatures_verified above).
-            // - Others are agent-emitted but their signing payloads need
-            //   per-variant signing helpers and are deferred to a future
-            //   codebase-wide CO P2.x AgentRegistry pass per `OBS_AGENT_SIG_REPLAY_GAP_2026-05-03`.
+            // - ReuseTx is a fact-tx with no submitting agent / no signature
+            //   (typed_tx.rs § 3.6.5) — nothing to verify.
             _ => {}
         }
     }

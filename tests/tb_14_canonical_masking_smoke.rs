@@ -259,12 +259,35 @@ async fn bootstrap_task_for_alice(h: &mut Harness, task: &str, escrow_micro: i64
         .expect("set_agent_pubkeys");
 
     let parent = h.seq.q_snapshot().expect("genesis snap").state_root_t;
-    let parent = submit_and_apply(h, make_task_open(task, "alice", parent, "open")).await;
-    submit_and_apply(
-        h,
+    // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress requires the
+    // TaskOpen/EscrowLock to carry alice's REAL keypair signature (the same
+    // keypair the WorkTx side uses + that is in the pinned manifest).
+    let open = sign_tx_with_keypairs(&mut h.keypairs, make_task_open(task, "alice", parent, "open"));
+    let parent = submit_and_apply(h, open).await;
+    let lock = sign_tx_with_keypairs(
+        &mut h.keypairs,
         make_escrow_lock(task, "alice", escrow_micro, parent, "lock"),
-    )
-    .await
+    );
+    submit_and_apply(h, lock).await
+}
+
+/// Re-sign an economic tx by its signer field using the harness's
+/// `AgentKeypairRegistry` (the same registry the WorkTx side signs with), so
+/// the signature verifies against the pinned `keypairs.manifest()`.
+fn sign_tx_with_keypairs(reg: &mut AgentKeypairRegistry, tx: TypedTx) -> TypedTx {
+    match tx {
+        TypedTx::TaskOpen(mut t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            t.signature = reg.sign(&t.sponsor_agent, digest).expect("sign task_open");
+            TypedTx::TaskOpen(t)
+        }
+        TypedTx::EscrowLock(mut t) => {
+            let digest = t.to_signing_payload().canonical_digest();
+            t.signature = reg.sign(&t.sponsor_agent, digest).expect("sign escrow_lock");
+            TypedTx::EscrowLock(t)
+        }
+        other => other,
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────

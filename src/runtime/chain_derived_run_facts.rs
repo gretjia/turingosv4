@@ -1173,6 +1173,13 @@ mod tests {
             1,
         )
         .expect("worktx");
+        // OBS_AGENT_SIG_REPLAY_GAP closure: ingress is fail-closed, so pin the
+        // registry's manifest (now containing "n1") on the sequencer before
+        // submitting the validly-signed worktx.
+        bundle
+            .sequencer
+            .set_agent_pubkeys(std::sync::Arc::new(reg.manifest()))
+            .expect("set agent pubkeys");
         bus.submit_typed_tx(worktx).await.expect("submit");
         bundle.shutdown().await.expect("shutdown");
 

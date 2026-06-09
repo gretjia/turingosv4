@@ -4685,6 +4685,17 @@ pub enum SubmitError {
     /// signing-payload digest. Rejected pre-queue per Class 3
     /// money/collateral admission control.
     AgentSignatureInvalid,
+    /// TRACE_MATRIX FC2-Submit + § 5.2.1 (OBS_AGENT_SIG_REPLAY_GAP closure;
+    /// §8 token APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12): an economic
+    /// agent tx was submitted but no agent-pubkey manifest is configured —
+    /// fail-closed for untrusted agents. Distinct from `AgentSignatureInvalid`
+    /// (which means a manifest IS set but the signer is unregistered or the
+    /// signature does not verify). Pre-closure, an absent manifest silently
+    /// bypassed the ingress signature gate (Class-3/4 money/collateral txs
+    /// admitted unauthenticated); fail-closed REJECTS every signable economic
+    /// agent variant at ingress when the manifest is absent so no
+    /// unauthenticated economic tx can ever reach the queue.
+    AgentManifestRequired,
 }
 
 impl std::fmt::Display for SubmitError {
@@ -4694,8 +4705,14 @@ impl std::fmt::Display for SubmitError {
             Self::QueueClosed => write!(f, "submission queue closed"),
             Self::AgentSignatureInvalid => write!(
                 f,
-                "agent signature verification failed for TB-13 variant; \
-                 owner/provider unregistered or signature does not match"
+                "agent signature verification failed for economic variant; \
+                 signer unregistered or signature does not match"
+            ),
+            Self::AgentManifestRequired => write!(
+                f,
+                "economic agent tx submitted but no agent-pubkey manifest is \
+                 configured; fail-closed for untrusted agents \
+                 (OBS_AGENT_SIG_REPLAY_GAP closure)"
             ),
             Self::SystemTxForbiddenOnAgentIngress => write!(
                 f,
@@ -4706,6 +4723,35 @@ impl std::fmt::Display for SubmitError {
     }
 }
 impl std::error::Error for SubmitError {}
+
+/// TRACE_MATRIX FC2-Submit + § 5.2.1 (OBS_AGENT_SIG_REPLAY_GAP closure; §8
+/// token APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12): the single shared
+/// fail-closed signature-verification helper for every signable ECONOMIC
+/// agent variant at `submit_agent_tx` ingress.
+///
+/// Fail-closed contract (all 12 economic variants route through this one home;
+/// reverting any arm to `_ => {}` or to manifest-when-set drops a variant out
+/// of this gate and is caught by `constitution_agent_sig_ingress_failclosed`):
+///
+/// - **No manifest configured** (`manifest_opt == None`) → `Err(AgentManifestRequired)`.
+///   Pre-closure this silently bypassed the gate; fail-closed REJECTS so no
+///   unauthenticated Class-3/4 economic tx can reach the queue.
+/// - **Manifest set, signer unregistered** → `Err(AgentSignatureInvalid)`.
+/// - **Manifest set, signature does not verify** → `Err(AgentSignatureInvalid)`.
+/// - **Manifest set, signature verifies** → `Ok(())` (admit to queue).
+fn verify_economic_agent_sig(
+    manifest_opt: Option<&crate::runtime::agent_keypairs::AgentPubkeyManifest>,
+    signer: &AgentId,
+    sig: &crate::state::typed_tx::AgentSignature,
+    digest: [u8; 32],
+) -> Result<(), SubmitError> {
+    use crate::runtime::agent_keypairs::verify_agent_signature;
+    let manifest = manifest_opt.ok_or(SubmitError::AgentManifestRequired)?;
+    let pubkey = manifest
+        .get(signer)
+        .ok_or(SubmitError::AgentSignatureInvalid)?;
+    verify_agent_signature(sig, &digest, &pubkey).map_err(|_| SubmitError::AgentSignatureInvalid)
+}
 
 /// TRACE_MATRIX TB-5 charter v2 § 4.2 + preflight § 3.4: high-level command
 /// for `Sequencer::emit_system_tx`. Inputs that emit_system_tx accepts; the
@@ -5317,101 +5363,140 @@ impl Sequencer {
             // same admission gates as sibling agent-signed variants.
             | TypedTx::BuyWithCoinRouter(_) => {}
         }
-        // TRACE_MATRIX TB-13 Atom 6 round-3 (Codex VETO TB13-AUTH 2026-05-03):
-        // submit-time agent-signature verification for the 3 TB-13
-        // conditional-share variants. Opt-in via `set_agent_pubkeys` —
-        // when the manifest is set, forged or unregistered signatures
-        // are rejected pre-queue with `SubmitError::AgentSignatureInvalid`.
-        // When the manifest is absent (default), this gate is bypassed
-        // and replay-time `verify.rs` Gate 4 is the only line of defense
-        // (see OBS_AGENT_SIG_REPLAY_GAP_2026-05-03.md).
-        if let Some(manifest) = self.agent_pubkeys.get() {
-            use crate::runtime::agent_keypairs::verify_agent_signature;
-            match &tx {
-                TypedTx::CompleteSetMint(mint) => {
-                    let pubkey = manifest
-                        .get(&mint.owner)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = mint.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&mint.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                TypedTx::CompleteSetRedeem(redeem) => {
-                    let pubkey = manifest
-                        .get(&redeem.owner)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = redeem.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&redeem.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                TypedTx::MarketSeed(seed) => {
-                    let pubkey = manifest
-                        .get(&seed.provider)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = seed.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&seed.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M2 / Phase F.1 (architect §7.3): agent-signature
-                // gate parallel to CompleteSetMint / CompleteSetRedeem /
-                // MarketSeed. Owner is the signer; pubkey lookup mirrors
-                // CompleteSetMint admission.
-                TypedTx::CompleteSetMerge(merge) => {
-                    let pubkey = manifest
-                        .get(&merge.owner)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = merge.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&merge.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M4 / Phase F.3 (architect §7.5): agent-signature
-                // gate parallel to MarketSeed (provider is the signer). Pool
-                // creation is a Class-3 economic mutator → manifest-when-set
-                // gating consistent with sibling P-M3 / P-M2 admission.
-                TypedTx::CpmmPool(pool) => {
-                    let pubkey = manifest
-                        .get(&pool.provider)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = pool.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&pool.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M5 / Phase F.4 (architect §7.6): agent-signature
-                // gate parallel to CpmmPool (trader is the signer). Swap is a
-                // pure share-rotation Class-3 economic mutator → manifest-
-                // when-set gating consistent with sibling P-M4 admission.
-                TypedTx::CpmmSwap(swap) => {
-                    let pubkey = manifest
-                        .get(&swap.trader)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = swap.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&swap.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Stage C P-M6 / Phase F.5 (architect §7.7): agent-signature
-                // gate parallel to CpmmSwap (buyer is the signer). Router is
-                // a Class-4 STEP_B economic mutator (9-step composite atomic
-                // tx) → manifest-when-set gating consistent with sibling
-                // P-M5 admission.
-                TypedTx::BuyWithCoinRouter(router) => {
-                    let pubkey = manifest
-                        .get(&router.buyer)
-                        .ok_or(SubmitError::AgentSignatureInvalid)?;
-                    let digest = router.to_signing_payload().canonical_digest();
-                    if verify_agent_signature(&router.signature, &digest, &pubkey).is_err() {
-                        return Err(SubmitError::AgentSignatureInvalid);
-                    }
-                }
-                // Other agent variants are not gated here — codebase-wide
-                // forward-dep per OBS_AGENT_SIG_REPLAY_GAP.
-                _ => {}
+        // TRACE_MATRIX FC2-Submit + § 5.2.1 (OBS_AGENT_SIG_REPLAY_GAP closure;
+        // §8 token APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12): submit-time
+        // agent-signature verification for ALL 12 signable ECONOMIC agent
+        // variants, FAIL-CLOSED.
+        //
+        // Every economic variant routes through the single shared
+        // `verify_economic_agent_sig` helper (one home). Fail-closed contract:
+        //   - manifest ABSENT  → `Err(AgentManifestRequired)` (the helper's
+        //     None arm). Pre-closure this whole block was wrapped in
+        //     `if let Some(manifest)`, so an absent manifest silently bypassed
+        //     the gate (OBS_AGENT_SIG_REPLAY_GAP). The gate now runs
+        //     unconditionally; the helper rejects when no manifest is set.
+        //   - manifest set, signer unregistered or sig bad → `AgentSignatureInvalid`.
+        //   - manifest set, sig verifies → admit to queue.
+        //
+        // All production evaluator/market/generate binaries call
+        // `set_agent_pubkeys(...manifest())` (registry-signed agents are
+        // registered in that same manifest), so fail-closed does NOT break any
+        // production flow — it only rejects unauthenticated/unconfigured paths.
+        //
+        // Genuinely non-signable agent variants (ReuseTx — no signer/signature)
+        // stay in the `_ => {}` arm. Reverting any economic arm to `_ => {}` or
+        // back to manifest-when-set is caught by
+        // `constitution_agent_sig_ingress_failclosed`.
+        let manifest_opt = self.agent_pubkeys.get().map(|m| m.as_ref());
+        match &tx {
+            // TB-3 — sponsor-signed task lifecycle (metadata + escrow funding).
+            TypedTx::TaskOpen(open) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &open.sponsor_agent,
+                    &open.signature,
+                    open.to_signing_payload().canonical_digest(),
+                )?;
             }
+            TypedTx::EscrowLock(lock) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &lock.sponsor_agent,
+                    &lock.signature,
+                    lock.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // FC1 — agent work / verify / challenge (Class-3 stake-bearing).
+            TypedTx::Work(work) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &work.agent_id,
+                    &work.signature,
+                    work.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            TypedTx::Verify(verify) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &verify.verifier_agent,
+                    &verify.signature,
+                    verify.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            TypedTx::Challenge(challenge) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &challenge.challenger_agent,
+                    &challenge.signature,
+                    challenge.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // TB-13 conditional-share — owner/provider signed.
+            TypedTx::CompleteSetMint(mint) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &mint.owner,
+                    &mint.signature,
+                    mint.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            TypedTx::CompleteSetRedeem(redeem) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &redeem.owner,
+                    &redeem.signature,
+                    redeem.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            TypedTx::MarketSeed(seed) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &seed.provider,
+                    &seed.signature,
+                    seed.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // Stage C P-M2 (owner-signed merge).
+            TypedTx::CompleteSetMerge(merge) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &merge.owner,
+                    &merge.signature,
+                    merge.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // Stage C P-M4 (provider-signed pool create).
+            TypedTx::CpmmPool(pool) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &pool.provider,
+                    &pool.signature,
+                    pool.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // Stage C P-M5 (trader-signed swap).
+            TypedTx::CpmmSwap(swap) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &swap.trader,
+                    &swap.signature,
+                    swap.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // Stage C P-M6 (buyer-signed mint-and-swap router).
+            TypedTx::BuyWithCoinRouter(router) => {
+                verify_economic_agent_sig(
+                    manifest_opt,
+                    &router.buyer,
+                    &router.signature,
+                    router.to_signing_payload().canonical_digest(),
+                )?;
+            }
+            // Genuinely non-signable agent variant (ReuseTx — no signer/
+            // signature per typed_tx.rs § 3.6.5). All system-emitted variants
+            // were already rejected by the ingress barrier above and never
+            // reach this match. Not gated here.
+            _ => {}
         }
         // TB-2 P1-D r1 concurrency contract: fetch_add precedes try_send, so
         // submit_id allocation order is NOT receiver arrival order under
@@ -7309,6 +7394,52 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet};
     use tempfile::TempDir;
 
+    // OBS_AGENT_SIG_REPLAY_GAP closure (§8 APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12):
+    // ingress is now FAIL-CLOSED for every signable economic agent variant, so
+    // these unit tests must (a) pin an agent-pubkey manifest on the sequencer
+    // and (b) submit VALIDLY-SIGNED txs. The manifest + signatures are derived
+    // from per-agent DETERMINISTIC keypairs so the tests stay reproducible.
+
+    /// Deterministic per-agent test keypair (seed = first 32 bytes of the
+    /// agent id, zero-padded). Stable across runs; never used in production.
+    fn test_agent_keypair(agent: &str) -> crate::runtime::agent_keypairs::AgentKeypair {
+        let mut seed = [0u8; 32];
+        let bytes = agent.as_bytes();
+        let n = bytes.len().min(32);
+        seed[..n].copy_from_slice(&bytes[..n]);
+        crate::runtime::agent_keypairs::AgentKeypair::from_secret_bytes(seed)
+    }
+
+    /// Build an `AgentPubkeyManifest` over the named test agents.
+    fn test_manifest(
+        agents: &[&str],
+    ) -> crate::runtime::agent_keypairs::AgentPubkeyManifest {
+        let mut m = crate::runtime::agent_keypairs::AgentPubkeyManifest::default();
+        for a in agents {
+            m.agents
+                .insert((*a).to_string(), test_agent_keypair(a).public_key().to_hex());
+        }
+        m
+    }
+
+    /// Sign a tx's canonical digest with the agent's deterministic test key.
+    fn test_sign(agent: &str, digest: [u8; 32]) -> AgentSignature {
+        test_agent_keypair(agent)
+            .sign_digest(digest)
+            .expect("test sign")
+    }
+
+    /// The standard agent set every `fresh_sequencer` unit test may submit on
+    /// behalf of. Pinned into the sequencer manifest so fail-closed ingress
+    /// admits their validly-signed txs.
+    const TEST_AGENTS: &[&str] = &[
+        "alice", "a", "c", "v", "solver", "sponsor", "treasury",
+        "challenger-u17", "verifier-bob", "sponsor-alice", "solver-x",
+        "solver-u11", "sponsor-u6", "sponsor-u7", "s-u23", "sp-u24",
+        "sp-fwd", "verifier", "challenger", "owner", "provider", "trader",
+        "buyer",
+    ];
+
     fn fresh_sequencer() -> (
         TempDir,
         Sequencer,
@@ -7363,6 +7494,12 @@ mod tests {
             q,
             16,
         );
+        // OBS_AGENT_SIG_REPLAY_GAP closure: pin the standard test-agent manifest
+        // so fail-closed ingress admits validly-signed fixtures (and rejects
+        // forged ones with AgentSignatureInvalid rather than the manifest-absent
+        // AgentManifestRequired).
+        seq.set_agent_pubkeys(Arc::new(test_manifest(TEST_AGENTS)))
+            .expect("set test manifest once");
         (tmp, seq, rx, rejection_writer)
     }
 
@@ -7409,7 +7546,7 @@ mod tests {
                 proof_cid: None,
             },
         );
-        WorkTx {
+        let mut work = WorkTx {
             tx_id: TxId("worktx-seq-fixture".into()),
             task_id: TaskId("task-seq-fixture".into()),
             parent_state_root: Default::default(),
@@ -7427,9 +7564,13 @@ mod tests {
                 safety_class: SafetyOrCreation::Safety,
             },
             stake: StakeMicroCoin::from_micro_units(1_000_000),
-            signature: AgentSignature::from_bytes([0x77u8; 64]),
+            signature: AgentSignature::from_bytes([0u8; 64]),
             timestamp_logical: 1,
-        }
+        };
+        // OBS_AGENT_SIG_REPLAY_GAP closure: sign with alice's deterministic
+        // test key so fail-closed ingress admits the fixture.
+        work.signature = test_sign("alice", work.to_signing_payload().canonical_digest());
+        work
     }
 
     fn predicate_failed_work_tx_with_proposal(proposal_cid: Cid) -> WorkTx {
@@ -7438,6 +7579,8 @@ mod tests {
         for bwp in work.predicate_results.acceptance.values_mut() {
             bwp.value = false;
         }
+        // Re-sign after mutating signed fields (proposal_cid + acceptance).
+        work.signature = test_sign("alice", work.to_signing_payload().canonical_digest());
         work
     }
 
@@ -7882,6 +8025,11 @@ mod tests {
             QState::genesis(),
             2,
         );
+        // OBS_AGENT_SIG_REPLAY_GAP closure: pin the test manifest so the
+        // alice-signed fixture passes fail-closed ingress and the queue-full
+        // semantics (not the signature gate) is what this test exercises.
+        seq.set_agent_pubkeys(Arc::new(test_manifest(TEST_AGENTS)))
+            .expect("set test manifest once");
         // Fill capacity.
         seq.submit(TypedTx::Work(fixture_work_tx()))
             .await
@@ -9082,34 +9230,34 @@ mod tests {
         let r = seq.submit_agent_tx(TypedTx::Work(fixture_work_tx())).await;
         assert!(r.is_ok(), "Work agent variant accepted; got {r:?}");
 
-        // Verify.
-        let r = seq
-            .submit_agent_tx(TypedTx::Verify(VerifyTx {
-                tx_id: TxId("vt-u26".into()),
-                parent_state_root: Hash::ZERO,
-                target_work_tx: TxId("wt-u26".into()),
-                verifier_agent: AgentId("v".into()),
-                bond: StakeMicroCoin::from_micro_units(1),
-                verdict: VerifyVerdict::Confirm,
-                signature: AgentSignature::from_bytes([0; 64]),
-                timestamp_logical: 1,
-            }))
-            .await;
+        // Verify (signed by "v" under the test manifest).
+        let mut verify = VerifyTx {
+            tx_id: TxId("vt-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            verifier_agent: AgentId("v".into()),
+            bond: StakeMicroCoin::from_micro_units(1),
+            verdict: VerifyVerdict::Confirm,
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        };
+        verify.signature = test_sign("v", verify.to_signing_payload().canonical_digest());
+        let r = seq.submit_agent_tx(TypedTx::Verify(verify)).await;
         assert!(r.is_ok(), "Verify agent variant accepted; got {r:?}");
 
-        // Challenge.
-        let r = seq
-            .submit_agent_tx(TypedTx::Challenge(ChallengeTx {
-                tx_id: TxId("ct-u26".into()),
-                parent_state_root: Hash::ZERO,
-                target_work_tx: TxId("wt-u26".into()),
-                challenger_agent: AgentId("c".into()),
-                stake: StakeMicroCoin::from_micro_units(1),
-                counterexample_cid: Cid([1; 32]),
-                signature: AgentSignature::from_bytes([0; 64]),
-                timestamp_logical: 1,
-            }))
-            .await;
+        // Challenge (signed by "c" under the test manifest).
+        let mut challenge = ChallengeTx {
+            tx_id: TxId("ct-u26".into()),
+            parent_state_root: Hash::ZERO,
+            target_work_tx: TxId("wt-u26".into()),
+            challenger_agent: AgentId("c".into()),
+            stake: StakeMicroCoin::from_micro_units(1),
+            counterexample_cid: Cid([1; 32]),
+            signature: AgentSignature::from_bytes([0; 64]),
+            timestamp_logical: 1,
+        };
+        challenge.signature = test_sign("c", challenge.to_signing_payload().canonical_digest());
+        let r = seq.submit_agent_tx(TypedTx::Challenge(challenge)).await;
         assert!(r.is_ok(), "Challenge agent variant accepted; got {r:?}");
 
         // Reuse.
@@ -9124,36 +9272,38 @@ mod tests {
             .await;
         assert!(r.is_ok(), "Reuse agent variant accepted; got {r:?}");
 
-        // TaskOpen.
+        // TaskOpen (signed by "sponsor" under the test manifest).
         use crate::state::typed_tx::TaskOpenTx;
-        let r = seq
-            .submit_agent_tx(TypedTx::TaskOpen(TaskOpenTx {
-                tx_id: TxId("ot-u26".into()),
-                task_id: TaskId("t-u26".into()),
-                parent_state_root: Hash::ZERO,
-                sponsor_agent: AgentId("sponsor".into()),
-                verifier_quorum: 1,
-                max_reuse_royalty_fraction_basis_points: 1000,
-                settlement_rule_hash: Hash::ZERO,
-                signature: AgentSignature::from_bytes([0u8; 64]),
-                timestamp_logical: 1,
-            }))
-            .await;
+        let mut task_open = TaskOpenTx {
+            tx_id: TxId("ot-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            verifier_quorum: 1,
+            max_reuse_royalty_fraction_basis_points: 1000,
+            settlement_rule_hash: Hash::ZERO,
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        };
+        task_open.signature =
+            test_sign("sponsor", task_open.to_signing_payload().canonical_digest());
+        let r = seq.submit_agent_tx(TypedTx::TaskOpen(task_open)).await;
         assert!(r.is_ok(), "TaskOpen agent variant accepted; got {r:?}");
 
-        // EscrowLock.
+        // EscrowLock (signed by "sponsor" under the test manifest).
         use crate::state::typed_tx::EscrowLockTx;
-        let r = seq
-            .submit_agent_tx(TypedTx::EscrowLock(EscrowLockTx {
-                tx_id: TxId("lt-u26".into()),
-                task_id: TaskId("t-u26".into()),
-                parent_state_root: Hash::ZERO,
-                sponsor_agent: AgentId("sponsor".into()),
-                amount: MicroCoin::from_micro_units(1),
-                signature: AgentSignature::from_bytes([0u8; 64]),
-                timestamp_logical: 1,
-            }))
-            .await;
+        let mut escrow_lock = EscrowLockTx {
+            tx_id: TxId("lt-u26".into()),
+            task_id: TaskId("t-u26".into()),
+            parent_state_root: Hash::ZERO,
+            sponsor_agent: AgentId("sponsor".into()),
+            amount: MicroCoin::from_micro_units(1),
+            signature: AgentSignature::from_bytes([0u8; 64]),
+            timestamp_logical: 1,
+        };
+        escrow_lock.signature =
+            test_sign("sponsor", escrow_lock.to_signing_payload().canonical_digest());
+        let r = seq.submit_agent_tx(TypedTx::EscrowLock(escrow_lock)).await;
         assert!(r.is_ok(), "EscrowLock agent variant accepted; got {r:?}");
 
         // 6 successful submissions → submit_id advanced 6 times (started at 1).

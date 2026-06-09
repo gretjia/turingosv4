@@ -27,6 +27,8 @@ use turingosv4::top_white::predicates::registry::{
 };
 use turingosv4::top_white::predicates::visibility::Visibility;
 
+mod support;
+
 struct Harness {
     _tmp: TempDir,
     cas: Arc<RwLock<CasStore>>,
@@ -106,6 +108,9 @@ fn harness(initial_q: QState, registry: PredicateRegistry) -> Harness {
         initial_q,
         8,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // work_tx re-signs via support::resign so fail-closed ingress admits it.
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         cas,
@@ -124,7 +129,7 @@ fn work_tx(value: bool) -> TypedTx {
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId("work-1".to_string()),
         task_id: TaskId("predicate-test-task".to_string()),
         parent_state_root: Hash::ZERO,
@@ -140,7 +145,7 @@ fn work_tx(value: bool) -> TypedTx {
         stake: StakeMicroCoin::from_micro_units(10),
         signature: AgentSignature::default(),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 #[tokio::test]

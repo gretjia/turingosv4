@@ -38,6 +38,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Fixtures
 // ────────────────────────────────────────────────────────────────────────────
@@ -86,7 +88,7 @@ fn make_worktx(opts: WorkTxFixtureOpts) -> TypedTx {
             },
         );
     }
-    TypedTx::Work(WorkTx {
+    let work = TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-tb2-{}", opts.tx_id_suffix)),
         task_id: opts.task_id,
         parent_state_root: opts.parent_state_root,
@@ -106,7 +108,10 @@ fn make_worktx(opts: WorkTxFixtureOpts) -> TypedTx {
         stake: StakeMicroCoin::from_micro_units(opts.stake_micro_units),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    });
+    // OBS_AGENT_SIG_REPLAY_GAP closure: re-sign with the deterministic test key
+    // so fail-closed ingress admits the fixture.
+    support::resign(work)
 }
 
 /// **TB-3 Atom 6 fixture migration**: the bridge that synthesized
@@ -167,6 +172,7 @@ async fn setup_funded_task_through_formal_surface(h: &mut Harness, task_id: &Tas
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 0,
     });
+    let open_tx = support::resign(open_tx);
     h.seq.submit(open_tx).await.expect("seed TaskOpen submit");
     h.seq
         .try_apply_one(&mut h.rx)
@@ -184,6 +190,7 @@ async fn setup_funded_task_through_formal_surface(h: &mut Harness, task_id: &Tas
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 0,
     });
+    let lock_tx = support::resign(lock_tx);
     h.seq.submit(lock_tx).await.expect("seed EscrowLock submit");
     h.seq
         .try_apply_one(&mut h.rx)
@@ -237,6 +244,14 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q.clone(),
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress requires a pinned
+    // agent-pubkey manifest. Pin the deterministic test manifest covering this
+    // file's agents ("alice" solver + "treasury" sponsor); all submitted txs
+    // are re-signed via support::resign before submission.
+    seq.set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(&[
+        "alice", "treasury",
+    ])))
+    .expect("set test manifest once");
     Harness {
         _tmp: tmp,
         seq,
@@ -564,6 +579,11 @@ async fn submit_queue_full_consumes_submit_id() {
         QState::genesis(),
         2,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the test manifest so the
+    // alice-signed fixtures pass fail-closed ingress (queue-full is what this
+    // test exercises, not the signature gate).
+    seq.set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(&["alice"])))
+        .expect("set test manifest once");
 
     let r1 = seq
         .submit(make_worktx(WorkTxFixtureOpts {

@@ -38,6 +38,8 @@ use turingosv4::runtime::resume_preflight::{
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::Hash;
 
+mod support;
+
 /// Bootstrap a runtime_repo with exactly one accepted L4 entry so we have
 /// a real ChainTape to point a `ResumeContract` at. Returns the
 /// `(runtime_repo, cas_path, head_hex, state_root_hex, chain_length)`
@@ -56,6 +58,14 @@ async fn bootstrap_single_entry_chain(
         resume_existing_chain: false,
     };
     let bundle = build_chaintape_sequencer(&cfg).expect("fresh bootstrap");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: sponsor is run-id-derived; pin a
+    // deterministic manifest covering THIS run's sponsor + re-sign.
+    bundle
+        .sequencer
+        .set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(&[&format!(
+            "sponsor-{run_id}"
+        )])))
+        .expect("set agent manifest");
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     let tx = make_synthetic_task_open(
@@ -64,7 +74,7 @@ async fn bootstrap_single_entry_chain(
         Hash::ZERO,
         run_id,
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 

@@ -21,6 +21,11 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_OVERALL_§8_SIGN_
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_agent_sig_ingress_failclosed"
+authority = "OBS_AGENT_SIG_REPLAY_GAP closure: user §8 token (Class-4) APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12 — every agent-submitted ECONOMIC TypedTx variant is signature-verified FAIL-CLOSED at ingress (src/state/sequencer.rs::submit_agent_tx via the shared verify_economic_agent_sig helper) AND at replay (src/runtime/verify.rs Gate 4). Fail-closed = no agent-pubkey manifest configured REJECTS economic agent txs with the NEW SubmitError::AgentManifestRequired; a configured manifest verifies the signature and REJECTS (AgentSignatureInvalid) on unregistered-signer or bad-signature. Covers all 12 signable economic variants (Work/Verify/Challenge/TaskOpen/EscrowLock newly gated at ingress + the 7 TB-13/Stage-C CompleteSet/MarketSeed/Cpmm/Router variants moved from manifest-when-set to fail-closed); replay Gate 4 extended to Challenge/TaskOpen/EscrowLock. The gate asserts 4 states (accept-valid / reject-forged-zero / reject-impostor / reject-no-manifest) for a representative subset (the 5 newly-covered + CompleteSetMint + MarketSeed); mutation-sensitive (reverting any arm to _ => {} or to manifest-when-set flips a case RED). Touches PINNED trust-root files sequencer.rs + verify.rs (genesis_payload.toml pins rehashed in the same change)."
+added = "2026-06-09"
+
+[[gate]]
 name = "constitution_all_canonical_writers_verify_trust_root"
 authority = "handover/section8/APPROVE_ALL_CANONICAL_WRITERS_VERIFY_TRUST_ROOT_2026-06-07.md (§8 token APPROVE-ALL-CANONICAL-WRITERS-VERIFY-TRUST-ROOT)"
 added = "2026-06-07"
