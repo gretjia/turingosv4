@@ -665,13 +665,55 @@ fn run_run(args: &[String]) -> ExitCode {
                 "\n## SiliconFlow tokens consumed\n\n- Prompt: {}\n- Completion: {}\n",
                 summary.total_llm_prompt_tokens, summary.total_llm_completion_tokens
             ));
+
+            // VPPUT (operator metric — shielded). Computed locally from the same
+            // RunSummary fields the runner manifest uses, so report + manifest
+            // agree. progress=1 ONLY on a fully-verified proof terminal (all
+            // stages Proceeded, none escalated/aborted). Integer micro-units;
+            // NO f64 on the metric. This block is OUTSIDE every agent prompt
+            // builder (Goodhart shield).
+            let vpput_progress: u64 = if summary.stages_total > 0
+                && summary.stages_completed == summary.stages_total
+                && summary.stages_escalated.is_empty()
+            {
+                1
+            } else {
+                0
+            };
+            let vpput_cost_tokens: u64 = (summary.total_llm_prompt_tokens as u64)
+                .saturating_add(summary.total_llm_completion_tokens as u64);
+            let vpput_ticks: u64 = summary.probes.len() as u64;
+            let verified_pput_micro = turingosv4::tdma_runner::tdma_verified_pput_micro(
+                summary.stages_completed,
+                summary.stages_total,
+                summary.stages_escalated.is_empty(),
+                summary.total_llm_prompt_tokens,
+                summary.total_llm_completion_tokens,
+                summary.probes.len(),
+            );
+            r.push_str(&format!(
+                "\n## VPPUT (operator metric — shielded)\n\n\
+                 Verified Progress Per Unit Token, computed LOCALLY from this run's\n\
+                 RunSummary (NOT the tape-canonical `reconstruct_vpput_from_tape`).\n\n\
+                 - progress (1 = fully-verified proof terminal, 0 otherwise): **{}**\n\
+                 - C_i (cost tokens = prompt + completion): **{}**\n\
+                 - T_i (ticks = total attempts): **{}**\n\
+                 - **verified_pput_micro (integer micro-units): {}**\n\n\
+                 > CAVEAT: tdma stage judges are deterministic step judges\n\
+                 > (Nesbitt / math_step), NOT the Lean-oracle VerificationResult\n\
+                 > the tape-canonical VPPUT oracle_verified gate demands. This is\n\
+                 > an operator-convenience VPPUT, not the chain-reconstructable\n\
+                 > canonical H-VPPUT. Shielded: never fed into any agent prompt.\n",
+                vpput_progress, vpput_cost_tokens, vpput_ticks, verified_pput_micro,
+            ));
             let _ = fs::write(evidence_dir.join("ProductionTdmaReport.md"), r);
 
             println!(
-                "turingos tdma run: completed {}/{} stages in {:.1}s. Evidence at {}",
+                "turingos tdma run: completed {}/{} stages in {:.1}s. verified_pput_micro={} Evidence at {}",
                 summary.stages_completed,
                 summary.stages_total,
                 summary.total_wall_clock_ms as f64 / 1000.0,
+                verified_pput_micro,
                 evidence_dir.display()
             );
             ExitCode::SUCCESS
