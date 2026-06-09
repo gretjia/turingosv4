@@ -185,8 +185,11 @@ pub fn derive_scenario_set_from_spec(
 /// every functional gate into a false "must print the literal `turingos spec`"
 /// requirement that a correct app would never satisfy. We therefore derive the
 /// needle from the spec BODY only (attribution blockquote + appendix stripped)
-/// and additionally reject `turingos `-prefixed CLI-command tokens, so the needle
-/// is a real user-visible control, not harness boilerplate.
+/// and additionally reject non-functional tokens — harness/usage commands
+/// (`turingos spec`, `python3 main.py`) and filename/path tokens
+/// (`index.html`, `main.py`) — so the needle is a real user-visible control,
+/// not harness boilerplate, a usage example, or a bundle filename. See
+/// `is_non_functional_token`.
 ///
 /// The returned needle is intentionally a *small* required fragment, not the
 /// whole spec — the artifact must genuinely surface that requirement, but a
@@ -195,13 +198,14 @@ pub fn derive_scenario_set_from_spec(
 /// or quoted requirement), which a wrong-but-valid artifact would omit.
 fn derive_required_text(spec_text: &str) -> Option<(String, String)> {
     let body = spec_body_for_needle(spec_text);
-    // 1. backtick-quoted token (skip harness CLI-command tokens like
-    //    `turingos spec` / `turingos generate`).
-    if let Some(tok) = first_delimited_filtered(&body, '`', '`', is_harness_token) {
+    // 1. backtick-quoted token (skip non-functional tokens: harness/usage
+    //    commands like `turingos spec` / `python3 main.py`, and filename/path
+    //    tokens like `index.html` — see `is_non_functional_token`).
+    if let Some(tok) = first_delimited_filtered(&body, '`', '`', is_non_functional_token) {
         return Some((format!("required control `{tok}`"), tok.to_ascii_lowercase()));
     }
     // 2. double-quoted token.
-    if let Some(tok) = first_delimited_filtered(&body, '"', '"', is_harness_token) {
+    if let Some(tok) = first_delimited_filtered(&body, '"', '"', is_non_functional_token) {
         return Some((
             format!("required text \"{tok}\""),
             tok.to_ascii_lowercase(),
@@ -210,11 +214,45 @@ fn derive_required_text(spec_text: &str) -> Option<(String, String)> {
     None
 }
 
-/// A derived-needle reject predicate: harness boilerplate / CLI-command tokens
-/// are not user-visible requirements. Rejects `turingos `-prefixed commands.
-fn is_harness_token(tok: &str) -> bool {
+/// A derived-needle reject predicate. A FUNCTIONAL needle must be a real
+/// USER-VISIBLE requirement (a control label, an output string) that a correct
+/// artifact actually surfaces in its rendered body. This rejects three classes
+/// of token that a correct artifact would NEVER print, so the functional gate
+/// never false-fails correct work:
+///   1. harness CLI invocations — `turingos spec` / `turingos generate`;
+///   2. usage/command examples for any interpreter — `python3 main.py`,
+///      `node app.js`, `./run.sh`, `cargo run`, `npm start`, ...;
+///   3. filename / path tokens — `index.html`, `main.py`, `data.csv`. A file
+///      name is a bundle/structural concern already covered by
+///      `EntrypointExists`; a correct app never prints its own filename.
+///
+/// 1.0 E2E defect (the reason classes 2+3 exist): with two real specs the
+/// `--entrypoint` filename (`index.html`) and a spec usage example
+/// (`python3 main.py`) were each latched as the RequiredTextPresent needle,
+/// false-failing a correct Snake game and a correct CSV-stats script even
+/// though their real controls (`New Game`, `Average:`) were present.
+fn is_non_functional_token(tok: &str) -> bool {
     let t = tok.trim().to_ascii_lowercase();
-    t.starts_with("turingos ") || t == "turingos"
+    if t.is_empty() {
+        return true;
+    }
+    // (1)+(2) command / usage invocations — a usage example, not a control.
+    const CMD_PREFIXES: [&str; 14] = [
+        "turingos ", "python3 ", "python ", "node ", "npm ", "npx ", "bash ",
+        "sh ", "cargo ", "pip ", "pip3 ", "deno ", "ruby ", "./",
+    ];
+    if t == "turingos" || CMD_PREFIXES.iter().any(|p| t.starts_with(p)) {
+        return true;
+    }
+    // (3) filename / path tokens — any whitespace-separated word ending in a
+    // known source / asset / data extension.
+    const FILE_EXTS: [&str; 22] = [
+        ".html", ".htm", ".py", ".js", ".ts", ".jsx", ".tsx", ".css", ".json",
+        ".md", ".txt", ".csv", ".toml", ".yaml", ".yml", ".xml", ".svg",
+        ".png", ".jpg", ".rs", ".sh", ".lean",
+    ];
+    t.split_whitespace()
+        .any(|w| FILE_EXTS.iter().any(|ext| w.ends_with(ext)))
 }
 
 /// Return the spec BODY with the `wrap_spec_md` attribution header and the
@@ -354,6 +392,54 @@ mod tests {
             })
             .collect();
         assert_eq!(functional, vec!["new game".to_string()]);
+    }
+
+    /// 1.0 E2E regression: the functional needle must NOT be the entrypoint
+    /// FILENAME or a usage/command example. With two real synthesized specs the
+    /// derivation latched onto `index.html` and `python3 main.py`, false-failing
+    /// a correct Snake game and a correct CSV-stats script even though their real
+    /// controls (`New Game` / `Average:`) were present. After the
+    /// `is_non_functional_token` fix the needle must skip those and pick the
+    /// real control; a spec with ONLY non-functional tokens yields NO functional
+    /// gate (safe structural-only) rather than a false-failing one.
+    #[test]
+    fn functional_needle_skips_filename_and_usage_tokens() {
+        fn needle_of(spec: &str, entry: &str) -> Option<String> {
+            derive_scenario_set_from_spec(spec.as_bytes(), "cid", entry, 1)
+                .scenarios
+                .iter()
+                .find_map(|s| match s {
+                    TestScenario::RequiredTextPresent { needle, .. } => Some(needle.clone()),
+                    _ => None,
+                })
+        }
+
+        // webgame: the entrypoint filename `index.html` (backtick) precedes the
+        // real "New Game" control. The needle must be the control, not the file.
+        let web = "# Spec\n\nSave the page as `index.html`. It MUST have a \"New Game\" button.";
+        assert_eq!(
+            needle_of(web, "index.html"),
+            Some("new game".to_string()),
+            "needle must be the control, not the entrypoint filename"
+        );
+
+        // pyscript: a usage example `python3 main.py data.csv` precedes the real
+        // "Average:" output requirement. The needle must be the output, not cmd.
+        let py =
+            "# Spec\n\nRun as `python3 main.py data.csv`. It MUST print \"Average:\" then the mean.";
+        assert_eq!(
+            needle_of(py, "main.py"),
+            Some("average:".to_string()),
+            "needle must be the output requirement, not the usage command"
+        );
+
+        // ONLY non-functional tokens -> NO functional gate (safe), not a false one.
+        let only_files = "# Spec\n\nProduce `index.html` and `style.css`.";
+        assert_eq!(
+            needle_of(only_files, "index.html"),
+            None,
+            "filename-only spec must not yield a false functional needle"
+        );
     }
 
     /// 1.0 fix: the `wrap_spec_md` attribution header
