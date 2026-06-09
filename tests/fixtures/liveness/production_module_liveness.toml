@@ -923,6 +923,7 @@ module_ids = [
   "bin::turingos::cmd_generate",
   "bin::turingos::cmd_init",
   "bin::turingos::cmd_llm",
+  "bin::turingos::cmd_observe",
   "bin::turingos::cmd_os",
   "bin::turingos::cmd_preflight",
   "bin::turingos::cmd_render",

@@ -456,12 +456,19 @@ fn cmd_init_inner(args: InitArgs) -> Result<(), InitError> {
         println!("  {}", turingos_toml_path.display());
     }
     println!();
+    println!(
+        "IMPORTANT: run `turingos spec` / `generate` from the TuringOS source root\n\
+         (the directory holding the kernel `genesis_payload.toml` with a `[trust_root]`\n\
+         section), passing this workspace via `--workspace`. Do NOT `cd` into the scaffold\n\
+         first — running `generate` from inside it fails the boot trust-root check, because\n\
+         the scaffold's economic genesis intentionally has no `[trust_root]` section."
+    );
+    println!();
 
     match args.provider {
         Provider::SiliconFlow => {
             println!("Provider: SiliconFlow (api.siliconflow.cn)");
-            println!("Next steps:");
-            println!("  cd {cd_hint}");
+            println!("Next steps (from the TuringOS source root):");
             println!("  export SILICONFLOW_API_KEY=\"sk-...\"");
             println!(
                 "  turingos spec --workspace {cd_hint}           # 8-question grill -> spec.md (CAS-anchored)"

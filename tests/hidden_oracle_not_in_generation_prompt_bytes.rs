@@ -38,7 +38,7 @@ fn test_hidden_oracle_not_in_generation_prompt_bytes() {
 
     // Write a scenario set to CAS.
     let scenario_set =
-        derive_scenario_set_from_spec(b"Build a todo list app", "spec-oracle-cid", t);
+        derive_scenario_set_from_spec(b"Build a todo list app", "spec-oracle-cid", "index.html", t);
     let scenario_set_bytes = serde_json::to_vec(&scenario_set).expect("serialize");
     write_scenario_set(ws, &scenario_set).expect("write set");
 
@@ -100,7 +100,7 @@ fn test_hidden_oracle_not_in_generation_prompt_bytes() {
 fn test_scenario_set_json_not_substring_of_any_prompt_hash() {
     // Unit-level: scenario set JSON must not match a prompt_hash field.
     let t = now_t();
-    let scenario_set = derive_scenario_set_from_spec(b"Build a game", "spec-cid-2", t);
+    let scenario_set = derive_scenario_set_from_spec(b"Build a game", "spec-cid-2", "index.html", t);
     let set_json = serde_json::to_string(&scenario_set).expect("serialize");
 
     // A real prompt_hash is a sha256 hex string (64 chars) — it cannot contain JSON.

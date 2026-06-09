@@ -18,7 +18,9 @@ fn now_t() -> u64 {
 
 #[test]
 fn test_derive_scenario_set_includes_basic_scenarios() {
-    let set = derive_scenario_set_from_spec(b"Build a todo list app", "cid1", now_t());
+    // 1.0 blocker #1: derivation is entrypoint-aware; an .html entrypoint gets
+    // EntrypointExists + HtmlParses (+ a functional gate, blocker #2).
+    let set = derive_scenario_set_from_spec(b"Build a todo list app", "cid1", "index.html", now_t());
     assert_eq!(set.schema_id, TEST_SCENARIO_SET_SCHEMA_ID);
     assert_eq!(set.spec_capsule_cid, "cid1");
     assert!(set
@@ -29,14 +31,21 @@ fn test_derive_scenario_set_includes_basic_scenarios() {
         .scenarios
         .iter()
         .any(|s| matches!(s, TestScenario::HtmlParses)));
-    assert_eq!(set.scenarios.len(), 2, "no sandbox keyword → 2 scenarios");
+    // structural gates present; functional gate may add more (>= 2).
+    assert!(
+        set.scenarios.len() >= 2,
+        "at least EntrypointExists + HtmlParses"
+    );
 }
 
 #[test]
 fn test_derive_scenario_set_adds_sandbox_from_spec() {
-    let set =
-        derive_scenario_set_from_spec(b"Build a todo list with sandbox policy", "cid2", now_t());
-    assert_eq!(set.scenarios.len(), 3, "sandbox keyword → 3 scenarios");
+    let set = derive_scenario_set_from_spec(
+        b"Build a todo list with sandbox policy",
+        "cid2",
+        "index.html",
+        now_t(),
+    );
     assert!(set
         .scenarios
         .iter()
@@ -53,7 +62,7 @@ fn test_scenario_set_written_to_cas_and_readable() {
     let dir = tempfile::TempDir::new().expect("tempdir");
     let ws = dir.path();
 
-    let set = derive_scenario_set_from_spec(b"Build a web app", "spec-cid-1", now_t());
+    let set = derive_scenario_set_from_spec(b"Build a web app", "spec-cid-1", "index.html", now_t());
     let cid_hex = write_scenario_set(ws, &set).expect("write scenario set");
     assert!(!cid_hex.is_empty(), "scenario set CID must not be empty");
 
