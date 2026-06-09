@@ -118,6 +118,20 @@ fn run_inner(args: &[String]) -> Result<(), String> {
         ));
     }
 
+    // A freshly `init`-ed workspace has an EMPTY runtime_repo dir but no
+    // canonical tape yet: `pinned_pubkeys.json` is written by the sequencer on
+    // the first `generate`. Detect that here and return a clean, actionable
+    // message instead of letting `load_tape` surface a low-level
+    // "pinned manifest: ... No such file or directory" error.
+    if !runtime_repo.join("pinned_pubkeys.json").is_file() {
+        return Err(format!(
+            "no canonical tape yet at {} — the workspace is initialized but nothing has been \
+             generated. Run `turingos generate --workspace {}` first.",
+            runtime_repo.display(),
+            root.display()
+        ));
+    }
+
     let inputs = AuditInputs {
         runtime_repo: runtime_repo.clone(),
         cas_dir: cas_dir.clone(),
