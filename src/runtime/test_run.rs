@@ -41,6 +41,54 @@ pub struct TestRunCapsule {
     pub logical_t: u64,
 }
 
+/// TRACE_MATRIX FC1: delivery verdict split (structural vs functional).
+///
+/// 2026-06-09 architect decision (non-fatal functional gate): the
+/// `RequiredTextPresent` functional check is a best-effort heuristic whose needle
+/// is derived from fuzzy LLM-synthesized prose, so it must NEVER hard-reject
+/// structurally-valid generated work. Delivery is gated ONLY on the reliable
+/// structural scenarios; an unmet functional check yields a delivered artifact
+/// plus an on-tape advisory (the TestRunCapsule already records the failed
+/// `RequiredTextPresent` result) and a user warning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeliveryVerdict {
+    /// All reliable STRUCTURAL scenarios passed → safe to deliver.
+    pub structural_pass: bool,
+    /// A best-effort FUNCTIONAL scenario failed → deliver + advisory + warn.
+    pub functional_unmet: bool,
+}
+
+/// TRACE_MATRIX FC1: non-fatal delivery verdict — the single source that splits
+/// a test run into the reliable STRUCTURAL hard delivery gate and the best-effort
+/// FUNCTIONAL advisory.
+///
+/// Split per-scenario results into the delivery verdict. Delivery is blocked
+/// ONLY when a STRUCTURAL scenario fails; a functional-only failure is advisory
+/// (non-fatal). See `DeliveryVerdict` + `TestScenario::is_functional`. Operates
+/// on the raw results slice (what `run_and_write_test_pipeline` returns) so the
+/// generate delivery path and capsule-replay paths share one source of truth.
+pub fn delivery_verdict(results: &[TestScenarioResult]) -> DeliveryVerdict {
+    let structural_pass = results
+        .iter()
+        .filter(|r| !r.scenario.is_functional())
+        .all(|r| r.pass);
+    let functional_unmet = results
+        .iter()
+        .any(|r| r.scenario.is_functional() && !r.pass);
+    DeliveryVerdict {
+        structural_pass,
+        functional_unmet,
+    }
+}
+
+impl TestRunCapsule {
+    /// TRACE_MATRIX FC1: delivery verdict for a replayed capsule (delegates to
+    /// the free `delivery_verdict`).
+    pub fn delivery_verdict(&self) -> DeliveryVerdict {
+        delivery_verdict(&self.results)
+    }
+}
+
 /// TRACE_MATRIX FC1: error types for test runner.
 #[derive(Debug)]
 pub enum TestRunError {
@@ -546,6 +594,70 @@ mod tests {
         let json = serde_json::to_string(&cap).expect("serialize");
         let back: TestRunCapsule = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(cap, back);
+    }
+
+    /// 2026-06-09 architect decision: the functional gate is NON-FATAL. Delivery
+    /// is blocked ONLY by a structural failure; a functional-only failure
+    /// delivers + flags an advisory. Mutation-sensitive: breaking the
+    /// structural/functional split flips these asserts RED.
+    #[test]
+    fn delivery_verdict_non_fatal_functional_gate() {
+        let req = || TestScenario::RequiredTextPresent {
+            label: "New Game".into(),
+            needle: "new game".into(),
+        };
+        let r = |s: TestScenario, pass: bool| TestScenarioResult {
+            scenario: s,
+            pass,
+            detail: String::new(),
+        };
+
+        // is_functional classification: only RequiredTextPresent is functional.
+        assert!(req().is_functional());
+        assert!(!TestScenario::EntrypointExists.is_functional());
+        assert!(!TestScenario::HtmlParses.is_functional());
+        assert!(!TestScenario::PythonParses.is_functional());
+
+        // All pass -> deliver, nothing unmet.
+        let v = delivery_verdict(&[
+            r(TestScenario::EntrypointExists, true),
+            r(TestScenario::HtmlParses, true),
+            r(req(), true),
+        ]);
+        assert!(v.structural_pass && !v.functional_unmet);
+
+        // Structural OK + functional FAIL -> DELIVER + advisory (NON-FATAL).
+        let v = delivery_verdict(&[
+            r(TestScenario::EntrypointExists, true),
+            r(TestScenario::HtmlParses, true),
+            r(req(), false),
+        ]);
+        assert!(
+            v.structural_pass,
+            "a functional-only failure must NOT block delivery (non-fatal gate)"
+        );
+        assert!(
+            v.functional_unmet,
+            "a functional failure must be flagged as an on-tape advisory"
+        );
+
+        // Structural FAIL -> hard BLOCK regardless of the functional result.
+        let v = delivery_verdict(&[
+            r(TestScenario::EntrypointExists, true),
+            r(TestScenario::HtmlParses, false), // broken HTML
+            r(req(), true),
+        ]);
+        assert!(
+            !v.structural_pass,
+            "a structural failure must hard-block delivery"
+        );
+
+        // No functional scenario derived -> structural-only, never unmet.
+        let v = delivery_verdict(&[
+            r(TestScenario::EntrypointExists, true),
+            r(TestScenario::PythonParses, true),
+        ]);
+        assert!(v.structural_pass && !v.functional_unmet);
     }
 
     #[test]

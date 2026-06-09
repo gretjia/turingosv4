@@ -54,7 +54,7 @@ use turingosv4::runtime::rejection_capsule::{
 };
 use turingosv4::runtime::spec_capsule;
 use turingosv4::runtime::test_run::{
-    format_test_run_summary, run_and_write_test_pipeline, TestRunCapsule,
+    delivery_verdict, format_test_run_summary, run_and_write_test_pipeline, TestRunCapsule,
 };
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
@@ -889,11 +889,19 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 logical_t,
             ) {
                 Ok((test_run_cid, overall_pass, test_results)) => {
+                    // `overall_pass` (AND of all scenarios) is retained on the
+                    // capsule + summary; DELIVERY now gates on the STRUCTURAL
+                    // scenarios only — the best-effort functional gate is
+                    // non-fatal (2026-06-09 architect decision).
+                    let _ = overall_pass;
                     eprintln!("test_run_cid={}", test_run_cid);
                     // B4: print human-readable test summary so non-experts know what C11 fired.
                     eprintln!("{}", format_test_run_summary(&test_results));
-                    if !overall_pass {
-                        // Artifacts failed spec-derived test gate — reject as HeuristicFailed.
+                    let verdict = delivery_verdict(&test_results);
+                    if !verdict.structural_pass {
+                        // A reliable STRUCTURAL scenario failed (entrypoint
+                        // missing / unparseable HTML or Python / sandbox policy
+                        // stripped) — hard reject as HeuristicFailed (exit 2).
                         let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
                             schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
                             session_id: session_id.clone(),
@@ -947,6 +955,20 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     // artifact + print success NOW, BEFORE the best-effort
                     // market-settle leg. The user already has a working file;
                     // a downstream economic break must never retract delivery.
+                    //
+                    // Non-fatal functional gate (2026-06-09 architect decision):
+                    // the STRUCTURAL gates passed, so deliver. If the best-effort
+                    // FUNCTIONAL needle was unmet, WARN — the on-tape
+                    // TestRunCapsule (test_run_cid) already records the failed
+                    // RequiredTextPresent as the advisory; we never retract
+                    // structurally-valid work on a heuristic needle.
+                    if verdict.functional_unmet {
+                        eprintln!(
+                            "[warning] delivered, but a best-effort spec-derived functional \
+                             check was not satisfied — please review the result against your \
+                             requirement (on-tape advisory: test_run_cid={test_run_cid})."
+                        );
+                    }
                     print_generate_success(&workspace, &written);
 
                     // Polymarket PR-B (2026-05-23): the first worker's

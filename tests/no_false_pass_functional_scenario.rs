@@ -216,11 +216,25 @@ fn functional_gate_fails_wrong_but_valid_html() {
                 needle: String::new()
             }
         ),
-        "NO FALSE PASS: a wrong-but-valid artifact must FAIL the functional gate"
+        "ANTI-GOODHART SIGNAL: a wrong-but-valid artifact must FAIL the functional gate"
     );
     assert!(
         !wrong_run.overall_pass,
-        "NO FALSE PASS: wrong-but-valid HTML must NOT be delivered (overall_pass=false)"
+        "the battery still records the functional failure (overall_pass=false)"
+    );
+    // 2026-06-09 architect decision — NON-FATAL functional gate: the functional
+    // failure above is an on-tape ADVISORY, not a hard reject. Delivery is gated
+    // on the STRUCTURAL scenarios only, so the wrong-but-valid artifact is still
+    // DELIVERED (structural_pass) with the functional miss flagged
+    // (functional_unmet). The structural gate still hard-blocks broken artifacts.
+    let verdict = turingosv4::runtime::test_run::delivery_verdict(&wrong_run.results);
+    assert!(
+        verdict.structural_pass,
+        "non-fatal gate: a functional-only failure must NOT block delivery"
+    );
+    assert!(
+        verdict.functional_unmet,
+        "the functional miss must be flagged as an advisory"
     );
 }
 

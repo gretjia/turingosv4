@@ -456,7 +456,23 @@ fn functional_gate_rejects_wrong_passes_right() {
     );
     assert!(
         !wrong_run.overall_pass,
-        "NO FALSE PASS: a wrong-but-valid HTML app must NOT be delivered (overall_pass=false)"
+        "the battery still records the functional failure (overall_pass=false)"
+    );
+    // 2026-06-09 architect decision — NON-FATAL functional gate: the functional
+    // failure is an on-tape ADVISORY, not a hard delivery reject. The wrong
+    // artifact is STILL delivered (structural_pass) with the miss flagged
+    // (functional_unmet); only a STRUCTURAL failure hard-blocks. This keeps the
+    // anti-Goodhart SIGNAL (the gate detects the wrong artifact) without
+    // false-rejecting correct work when the heuristic needle is itself wrong.
+    let wrong_verdict = turingosv4::runtime::test_run::delivery_verdict(&wrong_run.results);
+    assert!(
+        wrong_verdict.structural_pass && wrong_verdict.functional_unmet,
+        "non-fatal gate: a functional-only miss delivers + advises, never hard-rejects"
+    );
+    let right_verdict = turingosv4::runtime::test_run::delivery_verdict(&correct_run.results);
+    assert!(
+        right_verdict.structural_pass && !right_verdict.functional_unmet,
+        "a correct artifact delivers with no advisory"
     );
 }
 

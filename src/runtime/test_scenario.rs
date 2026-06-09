@@ -88,6 +88,21 @@ impl TestScenario {
             ),
         }
     }
+
+    /// TRACE_MATRIX FC1: structural-vs-functional scenario classification (drives
+    /// the non-fatal delivery gate via `TestRunCapsule::delivery_verdict`).
+    ///
+    /// Whether this scenario is a best-effort FUNCTIONAL check (vs a reliable
+    /// STRUCTURAL one). `RequiredTextPresent` is the only functional scenario:
+    /// its needle is heuristically derived from fuzzy LLM-synthesized spec prose
+    /// and can be wrong, so per the 2026-06-09 architect decision a functional
+    /// failure is NON-FATAL for delivery (deliver + on-tape advisory + warn),
+    /// while every STRUCTURAL scenario (entrypoint exists / parses / sandbox
+    /// policy) is a reliable hard delivery gate. Used by
+    /// `TestRunCapsule::delivery_verdict`.
+    pub fn is_functional(&self) -> bool {
+        matches!(self, TestScenario::RequiredTextPresent { .. })
+    }
 }
 
 /// TRACE_MATRIX FC3: CAS-anchored set of test scenarios derived from a spec.
