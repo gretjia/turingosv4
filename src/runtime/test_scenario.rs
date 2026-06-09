@@ -251,8 +251,23 @@ fn is_non_functional_token(tok: &str) -> bool {
         ".md", ".txt", ".csv", ".toml", ".yaml", ".yml", ".xml", ".svg",
         ".png", ".jpg", ".rs", ".sh", ".lean",
     ];
-    t.split_whitespace()
+    if t
+        .split_whitespace()
         .any(|w| FILE_EXTS.iter().any(|ext| w.ends_with(ext)))
+    {
+        return true;
+    }
+    // (4) data / value tokens — a functional control or output LABEL is
+    // alphabetic ("New Game", "Average:", "Count:"); a token carrying a numeric
+    // value or pure data ("10, 20, 30", "Average: 20.0", "0", "5, hello, 15")
+    // is a narrative example, not a stable required control a correct artifact
+    // must surface. Require at least one letter AND reject any digit-bearing
+    // token. (1.0 E2E: a Meta-LLM Given/When/Then example lifted `10, 20, 30`
+    // and `Average: 20.0` as needles, false-failing a correct CSV-stats script
+    // that — correctly — never echoes its raw input values.)
+    let has_alpha = t.chars().any(|c| c.is_alphabetic());
+    let has_digit = t.chars().any(|c| c.is_ascii_digit());
+    !has_alpha || has_digit
 }
 
 /// Return the spec BODY with the `wrap_spec_md` attribution header and the
@@ -440,6 +455,26 @@ mod tests {
             None,
             "filename-only spec must not yield a false functional needle"
         );
+
+        // 1.0 E2E round-2 regression: a Given/When/Then example lifts raw input
+        // data (`10, 20, 30`) and a computed value (`Average: 20.0`) as the first
+        // backtick tokens. Both are value/data tokens (digit-bearing) and must be
+        // rejected; the needle must be the clean output LABEL "Count:".
+        let gwt = "# Spec\n\nGiven a CSV `data.csv` with the numbers `10, 20, 30`, \
+                   the output shows `Average: 20.0`. It MUST print a \"Count:\" line \
+                   and an \"Average:\" line.";
+        assert_eq!(
+            needle_of(gwt, "main.py"),
+            Some("count:".to_string()),
+            "needle must be a clean output label, not raw input data or a computed value"
+        );
+
+        // A digit-bearing or no-letter token is never a functional needle.
+        assert!(is_non_functional_token("10, 20, 30"));
+        assert!(is_non_functional_token("Average: 20.0"));
+        assert!(is_non_functional_token("0"));
+        assert!(!is_non_functional_token("New Game"));
+        assert!(!is_non_functional_token("Average:"));
     }
 
     /// 1.0 fix: the `wrap_spec_md` attribution header
