@@ -1,0 +1,11 @@
+# LIVE-FC1 Phase 7 — signed/user-approved budget hard-ceiling manifest.
+#
+# This is a SEPARATE unpinned TOML (NOT genesis_payload.toml). The runner reads
+# `cost_ceiling_micro_units` into the Phase-5 budget gate. 1 token == 1 MicroCoin
+# micro-unit. A POSITIVE value arms the hard ceiling (FC2-HALT on breach); 0 ==
+# unlimited.
+#
+# Set to 6000 micro-units so the bounded swarm run admits several real cells and
+# then HALTS mid-run on fuel exhaustion — producing genuine on-tape FC2-HALT
+# evidence (a budget_halt cell) within a few-dollar real spend.
+cost_ceiling_micro_units = 6000

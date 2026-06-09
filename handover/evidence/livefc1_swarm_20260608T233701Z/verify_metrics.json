@@ -1,0 +1,85 @@
+{
+  "schema_version": "turingosv4.livefc1.swarm_verify_metrics.v1",
+  "fc1_live_nodes": [
+    "FC1:predicate_gated_advance",
+    "FC1:failure_arm/parse_fail",
+    "FC1:failure_arm/llm_err",
+    "FC1:rtool_wtool_bridge"
+  ],
+  "fc1_failure_arm_step_reject": "REACHABLE-not-fired",
+  "fc1_failure_arm_parse_fail": "LIVE",
+  "fc1_failure_arm_llm_err": "LIVE",
+  "fc2_boot": "LIVE",
+  "fc2_map_reduce_tick": "LIVE",
+  "fc2_terminal": "LIVE",
+  "fc3_disposition": "reached_observable_canary",
+  "fc3_proposer": "REACHABLE-not-fired",
+  "fc3_canary": "REACHABLE-not-fired",
+  "zombie_count": 0,
+  "l4_entry_count": 19,
+  "l4e_entry_count": 7,
+  "vpput_tasks": [
+    {
+      "task_id": "math:livefc1-algebra-sum_arithmetic-2",
+      "progress": 0,
+      "cost_tokens": 195,
+      "wall_clock_ticks": 1,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 0
+    },
+    {
+      "task_id": "math:livefc1-algebra-vertical_asymptotes-0",
+      "progress": 0,
+      "cost_tokens": 189,
+      "wall_clock_ticks": 1,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 0
+    },
+    {
+      "task_id": "math:livefc1-counting-handshakes-1",
+      "progress": 0,
+      "cost_tokens": 182,
+      "wall_clock_ticks": 1,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 0
+    },
+    {
+      "task_id": "math:livefc1-counting-handshakes-8",
+      "progress": 0,
+      "cost_tokens": 248,
+      "wall_clock_ticks": 1,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 0
+    },
+    {
+      "task_id": "math:livefc1-numbertheory-units_digit-10",
+      "progress": 0,
+      "cost_tokens": 208,
+      "wall_clock_ticks": 3,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 0
+    }
+  ],
+  "vpput_ground_truth_solved": 0,
+  "best_vpput_task": "math:livefc1-counting-handshakes-1",
+  "best_vpput_micro": 0,
+  "vpput_progress_note": "progress=0 for all math tasks: no Lean oracle => no VerificationResult.verified ground-truth witness (honest).",
+  "distinct_provider_handles": 6,
+  "provider_handle_capsule_count": 12,
+  "replay_roots_match": true,
+  "l4e_llm_error_rows": 1,
+  "l4e_parse_fail_rows": 6,
+  "injected_fault_on_tape": true,
+  "a_observer_fc1_fired": true,
+  "a_observer_fc1_failure_arm_fired": true,
+  "a_observer_fc2_boot_tick_terminal": true,
+  "a_observer_no_zombie": true,
+  "c_heterogeneity_ge2": true,
+  "d_replay_ok": true,
+  "e_fault_on_tape": true
+}

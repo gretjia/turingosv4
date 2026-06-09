@@ -1,0 +1,21 @@
+CANONICAL LIVE-FC1 swarm run (the one with full on-tape verification + README):
+
+  handover/evidence/livefc1_swarm_20260608T233701Z/
+
+The three earlier dirs are SUPERSEDED debugging iterations from the same session
+(NOT fabricated evidence, NOT historical evidence — same-session partial runs):
+
+  livefc1_swarm_20260608T232506Z  — L4.E chain corrupted (two independent
+                                     rejection writers on one rejections.jsonl;
+                                     fixed by routing fault rows through the
+                                     sequencer's shared rejection writer).
+  livefc1_swarm_20260608T232857Z  — same L4.E-chain bug (pre shared-writer fix).
+  livefc1_swarm_20260608T233240Z  — coherent tape, but FC2 TerminalSummary did
+                                     not land (fixed by referencing a real
+                                     on-tape task id + awaiting state-root
+                                     advance before shutdown).
+
+Only the CANONICAL dir's tape reloads/verifies end-to-end with all of
+A1-A9 on-tape (see its README.md scorecard). The harness evidence-protection
+hook blocked deleting the superseded dirs; the orchestrator may drop them at
+commit time if desired.
