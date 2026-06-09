@@ -264,6 +264,17 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
         })
     {
         eprintln!("turingos generate: TRUST_ROOT_TAMPERED: {e}");
+        // Actionable hint for the common product-user mistake: `generate` is a
+        // canonical writer and verifies the kernel boot trust root against the
+        // CURRENT directory. A scaffold workspace (from `turingos init`) carries
+        // only an economic genesis with no `[trust_root]` section, so running
+        // `generate` from INSIDE the workspace fails here. Run it from the
+        // TuringOS source root instead, passing the workspace via `--workspace`.
+        eprintln!(
+            "       hint: run `turingos generate` from the TuringOS source root (the \
+             directory whose genesis_payload.toml has a [trust_root] section), and pass \
+             your project via `--workspace <PATH>` — do not `cd` into the scaffold."
+        );
         return ExitCode::from(2);
     }
     match run_inner(args) {
