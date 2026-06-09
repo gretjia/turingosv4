@@ -32,6 +32,8 @@ use turingosv4::runtime::{
 };
 use turingosv4::state::q_state::{AgentId, Hash};
 
+mod support;
+
 /// Static lock so env-mutating tests don't race under cargo's parallel runner
 /// (per `feedback_env_var_test_lock`). Every test that reads/writes
 /// `TURINGOS_CHAINTAPE_PATH` / `WAL_DIR` / `TURINGOS_RUN_ID` etc. acquires
@@ -53,6 +55,7 @@ async fn t1_build_chaintape_sequencer_returns_non_none_sequencer_with_git_writer
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t1");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     // Ensure the sequencer + writers are real handles.
     assert!(
         std::sync::Arc::strong_count(&bundle.sequencer) >= 2,
@@ -70,6 +73,7 @@ async fn t2_build_chaintape_sequencer_writes_pinned_pubkeys_json_to_runtime_repo
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t2");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let manifest_path = cfg.runtime_repo_path.join("pinned_pubkeys.json");
     assert!(manifest_path.exists(), "pinned_pubkeys.json must exist");
     let json = std::fs::read_to_string(&manifest_path).expect("read manifest");
@@ -104,6 +108,7 @@ async fn t4_chaintape_bundle_shutdown_drains_pending_submissions_before_join() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t4");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     // No submissions in the queue here; this is the empty-drain happy path.
     // The lifecycle invariant exercised: shutdown() returns Ok and the driver
     // task joins promptly (no hang). Real synthetic submissions exercising
@@ -118,6 +123,7 @@ async fn t5_chaintape_bundle_shutdown_returns_clean_on_empty_queue() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t5");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     bundle.shutdown().await.expect("clean shutdown");
 }
 
@@ -135,6 +141,7 @@ async fn t7_evaluator_chaintape_mode_sets_bus_sequencer_field_to_some() {
     let cfg = fresh_config(&tmp, "t7");
     // Mirror what run_swarm does: build chaintape bundle, then construct bus.
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus_config = BusConfig::default();
     let bus = TuringBus::with_sequencer(kernel, bus_config, bundle.sequencer.clone());
@@ -193,6 +200,7 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t10");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
     assert!(bus.sequencer.is_some());
@@ -211,7 +219,7 @@ async fn t10_direct_bus_submit_typed_tx_synthetic_taskopen_appends_l4_entry() {
         .expect("post-boot q")
         .state_root_t;
     let task_open = make_synthetic_task_open("task-t10", "sponsor-t10", parent_root, "t10-1");
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("submit TaskOpen via bus.submit_typed_tx");
 
@@ -241,6 +249,7 @@ async fn t11_synthetic_zero_stake_worktx_appends_l4e_rejection() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "t11");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
@@ -252,7 +261,7 @@ async fn t11_synthetic_zero_stake_worktx_appends_l4e_rejection() {
         "t11-zero-stake",
         true,
     );
-    bus.submit_typed_tx(bad_worktx)
+    bus.submit_typed_tx(support::resign(bad_worktx))
         .await
         .expect("submit zero-stake WorkTx");
 
@@ -281,16 +290,17 @@ async fn t12_chained_taskopen_then_zero_stake_worktx_produces_l4_and_l4e() {
     )]);
     let bundle = build_chaintape_sequencer_with_initial_q(&cfg, initial_q)
         .expect("bootstrap with seeded balance");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
     let task_open = make_synthetic_task_open("task-t12", "sponsor-t12", Hash::ZERO, "t12-1");
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("submit TaskOpen");
     let bad_worktx =
         make_synthetic_worktx("task-t12", "agent-t12", Hash::ZERO, 0, "t12-zero", true);
-    bus.submit_typed_tx(bad_worktx)
+    bus.submit_typed_tx(support::resign(bad_worktx))
         .await
         .expect("submit zero-stake WorkTx");
 

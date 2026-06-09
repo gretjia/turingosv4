@@ -74,6 +74,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ── Harness (variant of constitution_router_buy_with_coin.rs that keeps
 // the rejection_writer handle exposed for L4.E witness inspection) ──
 
@@ -139,6 +141,9 @@ fn genesis_with_balances_and_open_task(pairs: &[(&str, i64)], task: &str) -> QSt
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin manifest (idempotent) + re-sign.
+    support::pin_common_manifest(&h.seq);
+    let tx = support::resign(tx);
     h.seq
         .submit_agent_tx(tx)
         .await

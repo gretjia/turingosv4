@@ -166,6 +166,13 @@ async fn i101_zero_stake_real_worktx_lands_in_l4e_not_l4() {
     )
     .expect("build real worktx");
 
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the registry's manifest (it now
+    // contains the agent the tx was signed by) so fail-closed ingress admits
+    // the real-keypair-signed tx.
+    bundle
+        .sequencer
+        .set_agent_pubkeys(std::sync::Arc::new(reg.manifest()))
+        .expect("set agent manifest");
     bus.submit_typed_tx(tx).await.expect("submit accepted by ingress (system-tx-forbidden gate fires only on agent-submit of system variants)");
     bundle.shutdown().await.expect("shutdown drain");
 
@@ -260,6 +267,12 @@ async fn i103_omega_branch_emits_worktx_plus_verifytx_pair() {
         _ => panic!("expected TypedTx::Verify"),
     }
 
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the registry's manifest so
+    // fail-closed ingress admits the real-keypair-signed Work + Verify txs.
+    bundle
+        .sequencer
+        .set_agent_pubkeys(std::sync::Arc::new(reg.manifest()))
+        .expect("set agent manifest");
     bus.submit_typed_tx(work_tx).await.expect("WorkTx submit");
     bus.submit_typed_tx(verify_tx)
         .await

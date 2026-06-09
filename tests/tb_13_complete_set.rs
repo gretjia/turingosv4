@@ -55,6 +55,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ── Harness ─────────────────────────────────────────────────────────────────
 
 struct Harness {
@@ -93,6 +95,11 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // build_* helpers re-sign via support::resign so fail-closed ingress admits
+    // them. The dedicated TB13-AUTH test no longer pins its own manifest (it
+    // relies on this COMMON pin + deterministic keys).
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         seq,
@@ -193,6 +200,9 @@ fn genesis_post_mint(
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: re-sign the economic tx with the
+    // deterministic test key (fail-closed ingress; manifest pinned in harness).
+    let tx = support::resign(tx);
     h.seq
         .submit_agent_tx(tx)
         .await
@@ -917,28 +927,21 @@ fn _suppress_unused() {
 /// keypair, and proves both the accept-on-valid and reject-on-forged paths.
 #[tokio::test]
 async fn tb13_auth_submit_time_signature_verification() {
-    use std::sync::Arc;
-    use turingosv4::runtime::agent_keypairs::{AgentKeypair, AgentPubkeyManifest};
     use turingosv4::state::sequencer::SubmitError;
 
+    // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress is now the default
+    // and the COMMON deterministic manifest is pinned by `fresh_harness`. This
+    // test proves accept-valid / reject-forged / reject-impostor for the
+    // CompleteSetMint variant using the deterministic test keys ("alice" is in
+    // the pinned manifest; a different deterministic key is the impostor).
     let q0 = genesis_with_balances_and_open_task(&[("alice", 100)], "task-AUTH");
     let mut h = fresh_harness(q0);
 
-    // Build a real keypair for "alice" + register in the manifest.
-    let alice_keypair = AgentKeypair::generate().expect("generate alice keypair");
-    let mut manifest = AgentPubkeyManifest::default();
-    manifest
-        .agents
-        .insert("alice".to_string(), alice_keypair.public_key().to_hex());
-    h.seq
-        .set_agent_pubkeys(Arc::new(manifest))
-        .expect("set_agent_pubkeys must succeed once");
-
     let parent = h.seq.q_snapshot().unwrap().state_root_t;
 
-    // Path A — valid signature: build canonical signing payload digest,
-    // sign with alice's keypair, attach as the mint's signature.
-    let mint_unsigned = CompleteSetMintTx {
+    // Path A — valid signature: submit_and_apply re-signs with alice's
+    // deterministic key (which is in the pinned COMMON manifest) → accepted.
+    let mint = CompleteSetMintTx {
         tx_id: TxId("auth-mint-fixture".into()),
         parent_state_root: parent,
         event_id: EventId(TaskId("task-AUTH".into())),
@@ -947,20 +950,12 @@ async fn tb13_auth_submit_time_signature_verification() {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 500,
     };
-    let signing_digest = mint_unsigned.to_signing_payload().canonical_digest();
-    let valid_sig = alice_keypair
-        .sign_digest(signing_digest)
-        .expect("sign_digest");
-    let mint_signed = CompleteSetMintTx {
-        signature: valid_sig,
-        ..mint_unsigned.clone()
-    };
-    submit_and_apply(&mut h, TypedTx::CompleteSetMint(mint_signed))
+    submit_and_apply(&mut h, TypedTx::CompleteSetMint(mint))
         .await
         .expect("valid-sig mint must be accepted");
 
-    // Path B — forged signature: all-zero AgentSignature, valid payload.
-    // Must be rejected at submit_agent_tx with AgentSignatureInvalid.
+    // Path B — forged signature: all-zero AgentSignature submitted DIRECTLY
+    // (no re-sign). Must be rejected at submit with AgentSignatureInvalid.
     let parent_b = h.seq.q_snapshot().unwrap().state_root_t;
     let forged_mint = CompleteSetMintTx {
         tx_id: TxId("auth-forged-fixture".into()),
@@ -981,10 +976,9 @@ async fn tb13_auth_submit_time_signature_verification() {
         "expected SubmitError::AgentSignatureInvalid, got: {submit_err:?}"
     );
 
-    // Path C — unregistered agent: build a different keypair, sign with it
-    // for "alice" (impostor); pubkey lookup matches alice's registered
-    // key, signature verification fails. Must be rejected at submit.
-    let impostor_keypair = AgentKeypair::generate().expect("generate impostor keypair");
+    // Path C — impostor: owner = "alice" but signed by a DIFFERENT registered
+    // agent's deterministic key ("bob"). Manifest lookup resolves alice's
+    // pubkey; verification of bob's signature against it fails → rejected.
     let mint_impostor_unsigned = CompleteSetMintTx {
         tx_id: TxId("auth-impostor-fixture".into()),
         parent_state_root: parent_b,
@@ -994,12 +988,8 @@ async fn tb13_auth_submit_time_signature_verification() {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 502,
     };
-    let imp_sig = impostor_keypair
-        .sign_digest(
-            mint_impostor_unsigned
-                .to_signing_payload()
-                .canonical_digest(),
-        )
+    let imp_sig = support::deterministic_agent_keypair("bob")
+        .sign_digest(mint_impostor_unsigned.to_signing_payload().canonical_digest())
         .expect("sign_digest");
     let impostor_mint = CompleteSetMintTx {
         signature: imp_sig,

@@ -24,6 +24,8 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::Hash;
 use turingosv4::state::sequencer::task_open_accept_state_root;
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -39,6 +41,7 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
@@ -50,7 +53,7 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
         .state_root_t;
     let task_open = make_synthetic_task_open("task-i90", "sponsor-i90", boot_root, "i90-1");
     let post_task_open_root = task_open_accept_state_root(&boot_root, &task_open);
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("submit TaskOpen");
 
@@ -63,7 +66,7 @@ async fn i90_end_to_end_taskopen_plus_zero_stake_worktx_replay_passes_all_indica
         "i90-rej",
         true,
     );
-    bus.submit_typed_tx(bad_worktx)
+    bus.submit_typed_tx(support::resign(bad_worktx))
         .await
         .expect("submit zero-stake WorkTx");
 
@@ -120,6 +123,7 @@ async fn i90b_empty_chain_replay_reports_zero_entries_and_all_indicators_pass() 
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90b");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     bundle.shutdown().await.expect("shutdown");
 
     let report = verify_chaintape(
@@ -141,6 +145,7 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90c");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let kernel = Kernel::new();
     let bus = TuringBus::with_sequencer(kernel, BusConfig::default(), bundle.sequencer.clone());
 
@@ -150,7 +155,7 @@ async fn i90c_tampered_pinned_pubkey_breaks_signature_verification() {
         .expect("post-activation q")
         .state_root_t;
     let task_open = make_synthetic_task_open("task-i90c", "sponsor-i90c", boot_root, "i90c-1");
-    bus.submit_typed_tx(task_open)
+    bus.submit_typed_tx(support::resign(task_open))
         .await
         .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
@@ -236,13 +241,14 @@ async fn i90d_tampered_cas_index_breaks_verify_chaintape() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90d");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let bus = TuringBus::with_sequencer(
         Kernel::new(),
         BusConfig::default(),
         bundle.sequencer.clone(),
     );
     let task_open = make_synthetic_task_open("task-i90d", "sponsor-i90d", Hash::ZERO, "i90d-1");
-    bus.submit_typed_tx(task_open).await.expect("submit");
+    bus.submit_typed_tx(support::resign(task_open)).await.expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -288,6 +294,7 @@ async fn i90e_tampered_l4e_row_breaks_chain_open() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90e");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let bus = TuringBus::with_sequencer(
         Kernel::new(),
         BusConfig::default(),
@@ -295,7 +302,7 @@ async fn i90e_tampered_l4e_row_breaks_chain_open() {
     );
     // Submit a synthetic zero-stake WorkTx → L4.E row.
     let bad_work = make_synthetic_worktx("task-i90e", "agent-i90e", Hash::ZERO, 0, "i90e-1", true);
-    bus.submit_typed_tx(bad_work).await.expect("submit");
+    bus.submit_typed_tx(support::resign(bad_work)).await.expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -344,13 +351,14 @@ async fn i90f_absent_l4e_is_legitimate_empty_chain_not_tamper() {
     let tmp = TempDir::new().expect("tempdir");
     let cfg = fresh_config(&tmp, "i90f");
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    support::pin_common_manifest(&bundle.sequencer);
     let bus = TuringBus::with_sequencer(
         Kernel::new(),
         BusConfig::default(),
         bundle.sequencer.clone(),
     );
     let task_open = make_synthetic_task_open("task-i90f", "sponsor-i90f", Hash::ZERO, "i90f-1");
-    bus.submit_typed_tx(task_open).await.expect("submit");
+    bus.submit_typed_tx(support::resign(task_open)).await.expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 

@@ -30,6 +30,8 @@ use turingosv4::runtime::resume_preflight::snapshot_head_t;
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::Hash;
 
+mod support;
+
 async fn run_task_inproc(
     runtime_repo: &PathBuf,
     cas_path: &PathBuf,
@@ -44,6 +46,15 @@ async fn run_task_inproc(
         resume_existing_chain: resume,
     };
     let bundle = build_chaintape_sequencer(&cfg).expect("bootstrap");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: the sponsor agent id is run-id-derived,
+    // so pin a deterministic manifest covering THIS run's sponsor (resign uses
+    // the matching deterministic key).
+    bundle
+        .sequencer
+        .set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(&[&format!(
+            "sponsor-{run_id}"
+        )])))
+        .expect("set agent manifest");
     let parent_state_root = if resume {
         bundle
             .sequencer
@@ -61,7 +72,7 @@ async fn run_task_inproc(
         parent_state_root,
         run_id,
     );
-    bus.submit_typed_tx(tx).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
     let (head_hex, _, len) = snapshot_head_t(runtime_repo).expect("snapshot post-task");

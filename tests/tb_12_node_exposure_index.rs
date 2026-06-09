@@ -50,6 +50,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ── Harness ─────────────────────────────────────────────────────────────────
 
 struct Harness {
@@ -88,6 +90,9 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // submits are re-signed via support::resign so fail-closed ingress admits.
+    support::pin_common_manifest(&seq);
     Harness {
         _tmp: tmp,
         seq,
@@ -120,7 +125,7 @@ async fn open_task(h: &mut Harness, sponsor: &str, task: &str) {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
     });
-    h.seq.submit_agent_tx(tx).await.expect("submit open");
+    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit open");
     let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok");
 }
 
@@ -135,7 +140,7 @@ async fn lock_escrow(h: &mut Harness, sponsor: &str, task: &str, micro: i64) {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 2,
     });
-    h.seq.submit_agent_tx(tx).await.expect("submit lock");
+    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit lock");
     let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok");
 }
 
@@ -176,7 +181,7 @@ async fn submit_work(
         timestamp_logical: 3,
     };
     h.seq
-        .submit_agent_tx(TypedTx::Work(work))
+        .submit_agent_tx(support::resign(TypedTx::Work(work)))
         .await
         .expect("submit work");
     let _ = h
@@ -206,7 +211,7 @@ async fn submit_challenge(
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 4,
     });
-    h.seq.submit_agent_tx(tx).await.expect("submit challenge");
+    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit challenge");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)
@@ -234,7 +239,7 @@ async fn submit_verify(
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 5,
     });
-    h.seq.submit_agent_tx(tx).await.expect("submit verify");
+    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit verify");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)

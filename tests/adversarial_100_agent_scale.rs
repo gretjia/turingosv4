@@ -489,6 +489,12 @@ async fn g4_queue_backpressure_returns_queue_full_not_panic() {
     let reg_dir = TempDir::new().expect("reg dir");
     let mut reg = AgentKeypairRegistry::open(reg_dir.path()).expect("open registry");
     reg.get_or_create(&AgentId("dos".into())).expect("kp");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the registry manifest so fail-closed
+    // ingress admits the "dos" agent's real-keypair-signed TaskOpens (this test
+    // exercises queue back-pressure, not the signature gate).
+    h.seq
+        .set_agent_pubkeys(Arc::new(reg.manifest()))
+        .expect("set_agent_pubkeys");
 
     let parent = h.seq.q_snapshot().expect("snap").state_root_t;
 
@@ -817,14 +823,25 @@ async fn s1_forged_work_signature_characterizes_replay_gap() {
     let l4_len_before = h.writer.read().expect("writer").len();
 
     // ── Submit the forged Work through agent ingress. ──
+    //
+    // OBS_AGENT_SIG_REPLAY_GAP CLOSURE (§8 APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12):
+    // the ingress signature gate now covers Work (all 12 economic variants are
+    // fail-closed). A forged Work — owner=alice but signed by bob — is REJECTED
+    // PRE-QUEUE with `SubmitError::AgentSignatureInvalid`. The replay gap is
+    // CLOSED at ingress: the forged Class-3 money tx never reaches dispatch and
+    // never lands on L4.
     let ingress = h.seq.submit_agent_tx(forged_work).await;
-    let ingress_admitted_at_submit = ingress.is_ok();
-    eprintln!(
-        "S1: forged WorkTx (owner=alice, signed-by=bob) submit_agent_tx -> {ingress:?} \
-         (ingress_admitted_at_submit={ingress_admitted_at_submit})"
+    eprintln!("S1: forged WorkTx (owner=alice, signed-by=bob) submit_agent_tx -> {ingress:?}");
+    assert!(
+        matches!(ingress, Err(SubmitError::AgentSignatureInvalid)),
+        "S1 INGRESS GATE: a forged WorkTx (owner=alice, signed-by=bob) MUST be rejected at \
+         submit_agent_tx with AgentSignatureInvalid now that the ingress signature gate covers \
+         Work (OBS_AGENT_SIG_REPLAY_GAP closure). Got: {ingress:?}"
     );
+    let ingress_admitted_at_submit = ingress.is_ok();
 
-    // Drain so the forged Work (if it passed ingress) reaches the dispatch arm.
+    // Drain: nothing should have been queued (the forged Work was refused
+    // pre-queue), so no new accepted/rejected envelope appears.
     let (acc, rej) = drain_all(&mut h);
     let l4_len_after = h.writer.read().expect("writer").len();
     let landed_on_l4 = l4_len_after > l4_len_before;
@@ -833,35 +850,31 @@ async fn s1_forged_work_signature_characterizes_replay_gap() {
          | forged_work_landed_on_L4={landed_on_l4}"
     );
 
-    // DOCUMENT the headline gap explicitly.
-    if ingress_admitted_at_submit {
-        eprintln!(
-            "S1 OBS_AGENT_SIG_REPLAY_GAP CONFIRMED: a FORGED WorkTx passed submit_agent_tx \
-             signature checking (Work hits the `_ => {{}}` arm at sequencer.rs:~5413; only the 7 \
-             CompleteSet/MarketSeed/Cpmm variants are gated at ingress). The forged Class-3 money \
-             tx reached dispatch BEFORE any signature check — replay is the only line of defense."
-        );
-    } else {
-        eprintln!(
-            "S1 NOTE: ingress REJECTED the forged WorkTx at submit time. This would mean the \
-             ingress signature gate was extended to cover Work since OBS_AGENT_SIG_REPLAY_GAP was \
-             filed (a Class-4 §8 change). Recording, not failing."
-        );
-    }
+    // ── INGRESS GATE CLOSED: the forged Work was refused pre-queue. ──
+    // It must NOT have advanced the accepted L4 chain at all (the queue never
+    // received it). This is the headline assertion that the ingress signature
+    // gate is now live for Work (OBS_AGENT_SIG_REPLAY_GAP closure).
+    assert!(
+        !ingress_admitted_at_submit,
+        "S1: forged Work must be refused at ingress (gate closed)"
+    );
+    assert_eq!(
+        l4_len_after, l4_len_before,
+        "S1 INGRESS GATE: the forged WorkTx was rejected pre-queue, so the accepted L4 chain \
+         length MUST be unchanged — a forged Class-3 money tx never reaches dispatch nor L4 now \
+         that the ingress signature gate covers Work."
+    );
 
-    // ── EXISTING PARTIAL DEFENSE: replay Gate 4 must detect the forged Work. ──
-    //
-    // Replicate `verify.rs::verify_agent_artifacts` Gate-4 contract inline:
-    // walk every L4 entry, decode the TypedTx from CAS, and for WorkTx
-    // re-verify the AgentSignature against the manifest-pinned owner pubkey.
-    // The forged Work signature (bob's sig under alice's owner field) MUST fail
-    // this check if it landed on the tape.
+    // ── DEFENSE-IN-DEPTH: confirm the forged Work is NOT on the accepted tape. ──
+    // Walk every L4 entry; the forged tx_id must be absent, and every WorkTx on
+    // the tape (the legit alice-signed TaskOpen/EscrowLock funding chain carries
+    // no Work) verifies under the manifest. This proves the gate did not let the
+    // forgery slip onto the canonical chain.
     let entries = {
         let w = h.writer.read().expect("writer");
         let n = w.len();
         (1..=n).map(|t| w.read_at(t).expect("read_at")).collect::<Vec<_>>()
     };
-    let mut gate4_work_signatures_all_valid = true;
     let mut forged_work_found_on_tape = false;
     {
         let cas = h.cas.read().expect("cas read");
@@ -878,53 +891,26 @@ async fn s1_forged_work_signature_characterizes_replay_gap() {
                 if w.tx_id.0 == "worktx-forged-s1" {
                     forged_work_found_on_tape = true;
                 }
+                // Any Work that did land must verify under the pinned manifest.
                 let d = w.to_signing_payload().canonical_digest();
-                match manifest.get(&w.agent_id) {
-                    None => gate4_work_signatures_all_valid = false,
-                    Some(pubkey) => {
-                        if verify_agent_signature(&w.signature, &d, &pubkey).is_err() {
-                            gate4_work_signatures_all_valid = false;
-                        }
-                    }
-                }
+                let pubkey = manifest
+                    .get(&w.agent_id)
+                    .expect("on-tape WorkTx owner must be in manifest");
+                verify_agent_signature(&w.signature, &d, &pubkey)
+                    .expect("every WorkTx on the accepted tape must carry a valid signature");
             }
         }
     }
-
-    eprintln!(
-        "S1: replay Gate-4 walk -> forged_work_found_on_tape={forged_work_found_on_tape} | \
-         gate4_work_signatures_all_valid={gate4_work_signatures_all_valid}"
+    assert!(
+        !forged_work_found_on_tape,
+        "S1 INGRESS GATE: the forged WorkTx (worktx-forged-s1) MUST NOT appear on the accepted L4 \
+         tape — it was rejected at ingress before ever reaching the queue."
     );
-
-    if landed_on_l4 && forged_work_found_on_tape {
-        // The forged Work is on the canonical tape. The EXISTING partial defense
-        // (replay Gate 4, which COVERS Work) must catch it. This is a hard
-        // assert because Gate-4 Work coverage is the documented existing defense.
-        assert!(
-            !gate4_work_signatures_all_valid,
-            "S1 PARTIAL DEFENSE: a forged WorkTx landed on L4 but replay Gate 4 did NOT detect \
-             the bad signature. Replay Gate 4 (verify.rs::verify_agent_artifacts) COVERS Work and \
-             MUST flag a forged Work signature. If this fires, the LAST line of defense for \
-             forged Class-3 Work txs has a hole — escalate."
-        );
-        eprintln!(
-            "S1 RESULT: forged Work admitted at ingress (gap) but CAUGHT by replay Gate 4 \
-             (existing partial defense holds for Work). Note: Gate 4 does NOT cover \
-             Challenge/TaskOpen/EscrowLock — a forged tx of those variants would NOT be caught \
-             by replay. Closing the ingress gate is a Class-4 §8 change."
-        );
-    } else {
-        // The forged Work did not land on L4 (e.g. a dispatch-arm rejection on
-        // some other gate routed it to L4.E before signature-relevant state
-        // mutation). Characterize, do not fail: the gap is about the INGRESS
-        // signature check, which we already recorded above.
-        eprintln!(
-            "S1 NOTE: forged WorkTx did NOT land on the accepted L4 tape (landed_on_l4={landed_on_l4}, \
-             found_on_tape={forged_work_found_on_tape}); the dispatch arm rejected it on a \
-             non-signature gate. The INGRESS signature gap is already characterized above \
-             (ingress_admitted_at_submit={ingress_admitted_at_submit}). Recording, not failing."
-        );
-    }
+    eprintln!(
+        "S1 RESULT: forged Work (owner=alice, signed-by=bob) REJECTED at ingress \
+         (AgentSignatureInvalid); did NOT land on L4. OBS_AGENT_SIG_REPLAY_GAP closed at ingress \
+         for Work (all 12 economic variants now fail-closed)."
+    );
 }
 
 // ────────────────────────────────────────────────────────────────────────────

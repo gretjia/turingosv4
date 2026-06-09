@@ -63,6 +63,8 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::sdk::id_handle;
 
+mod support;
+
 // Brand literals that MUST NEVER appear on the canonical tape (case-insensitive).
 const FORBIDDEN_BRAND_LITERALS: &[&str] = &["deepseek", "qwen", "siliconflow", "gpt"];
 
@@ -262,7 +264,12 @@ async fn from_genesis_replay_reconstructs_identical_roots_and_tamper_flips_red()
         .q_snapshot()
         .expect("post-activation q")
         .state_root_t;
-    let task_open = make_synthetic_task_open("task-prov", "sponsor-prov", boot_root, "prov-1");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress needs a pinned
+    // manifest. Pin the deterministic test manifest on the bootstrapped
+    // sequencer and re-sign the TaskOpen so it admits.
+    support::pin_common_manifest(&bundle.sequencer);
+    let task_open =
+        support::resign(make_synthetic_task_open("task-prov", "sponsor-prov", boot_root, "prov-1"));
     bus.submit_typed_tx(task_open).await.expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);

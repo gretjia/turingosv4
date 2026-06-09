@@ -28,6 +28,8 @@ use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 use turingosv4::state::typed_tx::RunOutcome;
 
+mod support;
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -52,21 +54,33 @@ async fn compute_with_invariant_populates_all_six_fields() {
         bundle.sequencer.clone(),
     );
 
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
+    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
+
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pre-register the WorkTx agents + pin a
+    // MERGED manifest (COMMON deterministic for the synthetic sponsor + reg
+    // keys for the real-signature WorkTx side) so fail-closed ingress admits.
+    let agents = ["agent_a", "agent_b", "agent_c"];
+    for a in agents {
+        reg.get_or_create(&AgentId(a.into())).expect("register agent");
+    }
+    support::pin_merged_manifest(&bundle.sequencer, &reg);
+
     // 1× synthetic TaskOpen → L4 (NOT a Work entry; doesn't enter
     // l4_work_attempt_count).
-    let task_open =
-        make_synthetic_task_open("task-r4-acct", "tb18r-r4-sponsor", Hash::ZERO, "r4-seed");
+    let task_open = support::resign(make_synthetic_task_open(
+        "task-r4-acct",
+        "tb18r-r4-sponsor",
+        Hash::ZERO,
+        "r4-seed",
+    ));
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
 
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
-    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
-
     // 3× zero-stake WorkTx (real-signature + ProposalTelemetry-linked) →
     // L4.E (zero-stake admission rejection). Each lands as a WorkTx in
     // L4.E with tx_kind=Work, populating l4e_work_attempt_count=3.
-    let agents = ["agent_a", "agent_b", "agent_c"];
     for (idx, agent) in agents.iter().enumerate() {
         let pt = ProposalTelemetry::new_root(
             AgentId(agent.to_string()),
@@ -139,18 +153,26 @@ async fn l4_l4e_split_count_matches_chain_walk() {
         bundle.sequencer.clone(),
     );
 
-    let task_open = make_synthetic_task_open(
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
+    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pre-register WorkTx agents + pin merged
+    // manifest (COMMON sponsor + reg keys) before any submit.
+    for idx in 0..5 {
+        reg.get_or_create(&AgentId(format!("agent_{idx}")))
+            .expect("register agent");
+    }
+    support::pin_merged_manifest(&bundle.sequencer, &reg);
+
+    let task_open = support::resign(make_synthetic_task_open(
         "task-r4-split",
         "tb18r-r4-sponsor",
         Hash::ZERO,
         "split-seed",
-    );
+    ));
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
 
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
-    let mut cas_store = CasStore::open(&cfg.cas_path).expect("open cas");
     for idx in 0..5 {
         let agent = format!("agent_{idx}");
         let pt = ProposalTelemetry::new_root(

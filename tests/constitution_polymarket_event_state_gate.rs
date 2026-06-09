@@ -65,6 +65,10 @@ fn genesis_with_balances_and_event_state(
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), String> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest
+    // (idempotent) and re-sign the economic tx so fail-closed ingress admits it.
+    support::pin_common_manifest(&h.seq);
+    let tx = support::resign(tx);
     h.seq
         .submit_agent_tx(tx)
         .await

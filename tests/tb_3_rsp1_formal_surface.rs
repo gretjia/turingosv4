@@ -38,6 +38,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Fixtures
 // ────────────────────────────────────────────────────────────────────────────
@@ -80,6 +82,10 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest;
+    // builders re-sign via support::resign so fail-closed ingress admits them.
+    seq.set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(TB3_AGENTS)))
+        .expect("set test manifest once");
     Harness {
         _tmp: tmp,
         seq,
@@ -89,8 +95,18 @@ fn fresh_harness(initial_q: QState) -> Harness {
     }
 }
 
+/// Every agent id this file submits an economic tx on behalf of.
+const TB3_AGENTS: &[&str] = &[
+    "sponsor", "solver-A", "solver-B",
+    "sponsor-alice", "sponsor-i20", "sponsor-i21", "sponsor-i22", "sponsor-i23",
+    "sponsor-i24", "sponsor-i25", "sponsor-i26", "sponsor-i27", "sponsor-i28",
+    "sponsor-i29", "solver-i20", "solver-i21", "solver-i22", "solver-i23",
+    "solver-i24", "solver-i25", "solver-i26", "solver-i27", "solver-i28",
+    "solver-i29",
+];
+
 fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> TypedTx {
-    TypedTx::TaskOpen(TaskOpenTx {
+    support::resign(TypedTx::TaskOpen(TaskOpenTx {
         tx_id: TxId(format!("taskopen-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -100,7 +116,7 @@ fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> Type
         settlement_rule_hash: Hash::ZERO,
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_escrow_lock(
@@ -110,7 +126,7 @@ fn make_escrow_lock(
     parent: Hash,
     suffix: &str,
 ) -> TypedTx {
-    TypedTx::EscrowLock(EscrowLockTx {
+    support::resign(TypedTx::EscrowLock(EscrowLockTx {
         tx_id: TxId(format!("escrowlock-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -118,7 +134,7 @@ fn make_escrow_lock(
         amount: MicroCoin::from_micro_units(amount_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 /// Seed sponsor balance directly into genesis QState (test-only helper). Real
@@ -160,7 +176,7 @@ fn make_worktx(
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}-{suffix}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -180,7 +196,7 @@ fn make_worktx(
         stake: StakeMicroCoin::from_micro_units(stake_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 /// Apply TaskOpen + EscrowLock through `Sequencer::submit` so `task_markets_t`

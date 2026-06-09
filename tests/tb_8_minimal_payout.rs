@@ -37,6 +37,8 @@ use turingosv4::state::typed_tx::{
 };
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 // ────────────────────────────────────────────────────────────────────────────
 // Harness — mirror of TB-4 / TB-5 pattern.
 // ────────────────────────────────────────────────────────────────────────────
@@ -77,6 +79,12 @@ fn fresh_harness(initial_q: QState) -> Harness {
         initial_q,
         16,
     );
+    // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress needs a pinned
+    // manifest. All TaskOpen/EscrowLock/Work/Verify builders re-sign via
+    // support::resign with deterministic keys; pin the matching manifest for
+    // every agent this file submits on behalf of.
+    seq.set_agent_pubkeys(std::sync::Arc::new(support::manifest_for(TB8_AGENTS)))
+        .expect("set test manifest once");
     Harness {
         _tmp: tmp,
         seq,
@@ -84,6 +92,20 @@ fn fresh_harness(initial_q: QState) -> Harness {
         ledger_writer: writer,
     }
 }
+
+/// Every agent id this file submits an economic tx on behalf of (sponsors,
+/// solvers, verifiers, challengers). Used to pin the fail-closed manifest.
+const TB8_AGENTS: &[&str] = &[
+    "ch-i119", "solver-i100", "solver-i101", "solver-i102", "solver-i103",
+    "solver-i104", "solver-i110", "solver-i115", "solver-i118", "solver-i119",
+    "solver-i130", "solver-i131", "sponsor-i100", "sponsor-i101", "sponsor-i102",
+    "sponsor-i103", "sponsor-i104", "sponsor-i110", "sponsor-i115", "sponsor-i118",
+    "sponsor-i119", "sponsor-i130", "sponsor-i131", "verifier-i100", "verifier-i101",
+    "verifier-i102", "verifier-i103", "verifier-i104", "verifier-i110", "verifier-i115",
+    "verifier-i118", "verifier-i119", "verifier-A-i130", "verifier-A-i131",
+    "verifier-B-i130", "verifier-B-i131", "solver-i130", "solver-i131",
+    "sponsor-i130", "sponsor-i131",
+];
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
@@ -97,7 +119,7 @@ fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
 }
 
 fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> TypedTx {
-    TypedTx::TaskOpen(TaskOpenTx {
+    support::resign(TypedTx::TaskOpen(TaskOpenTx {
         tx_id: TxId(format!("taskopen-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -107,7 +129,7 @@ fn make_task_open(task: &str, sponsor: &str, parent: Hash, suffix: &str) -> Type
         settlement_rule_hash: Hash::ZERO,
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_escrow_lock(
@@ -117,7 +139,7 @@ fn make_escrow_lock(
     parent: Hash,
     suffix: &str,
 ) -> TypedTx {
-    TypedTx::EscrowLock(EscrowLockTx {
+    support::resign(TypedTx::EscrowLock(EscrowLockTx {
         tx_id: TxId(format!("escrowlock-{}-{}", task, suffix)),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -125,7 +147,7 @@ fn make_escrow_lock(
         amount: MicroCoin::from_micro_units(amount_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_worktx(task: &str, agent: &str, parent: Hash, stake_micro: i64, suffix: &str) -> TypedTx {
@@ -137,7 +159,7 @@ fn make_worktx(task: &str, agent: &str, parent: Hash, stake_micro: i64, suffix: 
             proof_cid: None,
         },
     );
-    TypedTx::Work(WorkTx {
+    support::resign(TypedTx::Work(WorkTx {
         tx_id: TxId(format!("worktx-{task}-{suffix}")),
         task_id: TaskId(task.into()),
         parent_state_root: parent,
@@ -157,7 +179,7 @@ fn make_worktx(task: &str, agent: &str, parent: Hash, stake_micro: i64, suffix: 
         stake: StakeMicroCoin::from_micro_units(stake_micro),
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
-    })
+    }))
 }
 
 fn make_verify_tx(
@@ -169,7 +191,7 @@ fn make_verify_tx(
     verdict: VerifyVerdict,
     timestamp_logical: u64,
 ) -> TypedTx {
-    TypedTx::Verify(VerifyTx {
+    support::resign(TypedTx::Verify(VerifyTx {
         tx_id: TxId(format!("verifytx-{target_work_tx_id}-{suffix}")),
         parent_state_root: parent,
         target_work_tx: TxId(target_work_tx_id.into()),
@@ -178,7 +200,7 @@ fn make_verify_tx(
         verdict,
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical,
-    })
+    }))
 }
 
 /// Sequence: TaskOpen → EscrowLock → WorkTx accepted → state_root post-work.

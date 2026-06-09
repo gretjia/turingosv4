@@ -27,6 +27,8 @@ use turingosv4::state::typed_tx::{
 use turingosv4::state::TransitionError;
 use turingosv4::top_white::predicates::registry::PredicateRegistry;
 
+mod support;
+
 struct Harness {
     _tmp: TempDir,
     seq: Sequencer,
@@ -72,6 +74,9 @@ fn fresh_harness(initial_q: QState) -> Harness {
 }
 
 async fn submit_and_apply(h: &mut Harness, tx: TypedTx) -> Result<(), ApplyError> {
+    // OBS_AGENT_SIG_REPLAY_GAP closure: pin manifest (idempotent) + re-sign.
+    support::pin_common_manifest(&h.seq);
+    let tx = support::resign(tx);
     h.seq.submit_agent_tx(tx).await.expect("submit tx");
     h.seq
         .try_apply_one(&mut h.rx)

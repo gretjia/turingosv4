@@ -89,7 +89,19 @@ fn fresh_harness(work_agent_balance: i64, mmb_balance: i64) -> Harness {
         q,
         16,
     );
-    let reg = AgentKeypairRegistry::open(&repo_path).expect("agent keypairs");
+    let mut reg = AgentKeypairRegistry::open(&repo_path).expect("agent keypairs");
+    // OBS_AGENT_SIG_REPLAY_GAP closure: this file signs every economic tx with
+    // its OWN registry (`make_real_*_signed_by(&mut h.reg, ...)`), so pin the
+    // sequencer manifest from that registry. Pre-register the agents this file
+    // submits on behalf of so the manifest covers them before fail-closed
+    // ingress runs (registry signing is the real attestation; do NOT re-sign
+    // with deterministic keys here).
+    for a in ["Agent_0", "MarketMakerBudget"] {
+        reg.get_or_create(&turingosv4::state::q_state::AgentId(a.into()))
+            .expect("register agent");
+    }
+    seq.set_agent_pubkeys(std::sync::Arc::new(reg.manifest()))
+        .expect("set agent manifest once");
     Harness {
         _tmp: tmp,
         seq,
