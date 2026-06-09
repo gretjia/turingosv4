@@ -175,8 +175,14 @@ fn read_prior_rejection_feedback_via_lib(workspace: &Path, session_id: &str) -> 
                                                 "EntrypointExists".to_string()
                                             }
                                             TestScenario::HtmlParses => "HtmlParses".to_string(),
+                                            TestScenario::PythonParses => {
+                                                "PythonParses".to_string()
+                                            }
                                             TestScenario::SandboxPolicyPreserved { .. } => {
                                                 "SandboxPolicyPreserved".to_string()
+                                            }
+                                            TestScenario::RequiredTextPresent { label, .. } => {
+                                                format!("RequiredTextPresent({label})")
                                             }
                                         };
                                         failed.push((name, r.detail));

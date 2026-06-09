@@ -131,7 +131,8 @@ fn test_accepted_delivery_true_when_test_run_passes() {
     let (_spec_cid, bundle_cid) = setup_workspace_with_bundle(ws, session, t);
 
     // Write a passing TestRunCapsule
-    let scenario_set = derive_scenario_set_from_spec(b"Build a todo list", "spec-cid", t);
+    let scenario_set =
+        derive_scenario_set_from_spec(b"Build a todo list", "spec-cid", "index.html", t);
     let set_cid = write_scenario_set(ws, &scenario_set).expect("write set");
 
     let cap = TestRunCapsule {
@@ -181,7 +182,8 @@ fn test_accepted_delivery_false_when_test_run_fails() {
     let (_spec_cid, bundle_cid) = setup_workspace_with_bundle(ws, session, t);
 
     // Write a FAILING TestRunCapsule
-    let scenario_set = derive_scenario_set_from_spec(b"Build a todo list", "spec-cid-3", t);
+    let scenario_set =
+        derive_scenario_set_from_spec(b"Build a todo list", "spec-cid-3", "index.html", t);
     let set_cid = write_scenario_set(ws, &scenario_set).expect("write set");
 
     let cap = TestRunCapsule {

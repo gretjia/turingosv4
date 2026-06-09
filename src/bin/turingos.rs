@@ -56,6 +56,8 @@ mod cmd_export_evidence;
 mod cmd_generate;
 #[path = "turingos/cmd_llm.rs"]
 mod cmd_llm;
+#[path = "turingos/cmd_observe.rs"]
+mod cmd_observe;
 #[path = "turingos/cmd_os.rs"]
 mod cmd_os;
 #[path = "turingos/cmd_preflight.rs"]
@@ -253,6 +255,11 @@ const SUBCOMMANDS: &[Subcommand] = &[
         name: "generate",
         short_help: cmd_generate::SHORT_HELP,
         run: cmd_generate::run,
+    },
+    Subcommand {
+        name: "observe",
+        short_help: cmd_observe::SHORT_HELP,
+        run: cmd_observe::run,
     },
     Subcommand {
         name: "spec audit",

@@ -4181,3 +4181,7 @@
 2026-06-07T22:58:56Z R-022-PASS commit=85303cbf00fbc7eca7aa2cd66fef2e592607b1de file=src/runtime/skill_capsule.rs line=399 symbol=pub_struct_AgentSkillProjection reason="doc-block backlink found"
 2026-06-07T22:58:56Z R-022-PASS commit=85303cbf00fbc7eca7aa2cd66fef2e592607b1de file=src/runtime/skill_capsule.rs line=421 symbol=pub_fn_project_capsule_for_agent reason="doc-block backlink found"
 2026-06-07T22:58:56Z R-022-PASS commit=85303cbf00fbc7eca7aa2cd66fef2e592607b1de file=src/runtime/skill_capsule.rs line=445 symbol=pub_fn_project_for_agent reason="doc-block backlink found"
+2026-06-09T03:39:56Z R-022-PASS commit=ee4d5bbe6ac47fa68c88941a6f7036e33a1c51f4 file=src/bin/turingos/cmd_observe.rs line=31 symbol=pub_const_SHORT_HELP reason="doc-block backlink found"
+2026-06-09T03:39:56Z R-022-PASS commit=ee4d5bbe6ac47fa68c88941a6f7036e33a1c51f4 file=src/bin/turingos/cmd_observe.rs line=35 symbol=pub_const_FULL_HELP reason="doc-block backlink found"
+2026-06-09T03:39:56Z R-022-PASS commit=ee4d5bbe6ac47fa68c88941a6f7036e33a1c51f4 file=src/bin/turingos/cmd_observe.rs line=56 symbol=pub_fn_run reason="doc-block backlink found"
+2026-06-09T03:39:56Z R-022-BLOCK commit=ee4d5bbe6ac47fa68c88941a6f7036e33a1c51f4 file=src/runtime/test_scenario.rs line=0 symbol=trace_removal reason="removed: /// TRACE_MATRIX FC3: Derive a minimal TestScenarioSet from spec bytes."

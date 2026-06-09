@@ -56,7 +56,6 @@ use turingosv4::runtime::spec_capsule;
 use turingosv4::runtime::test_run::{
     format_test_run_summary, run_and_write_test_pipeline, TestRunCapsule,
 };
-use turingosv4::runtime::test_scenario::TestScenario;
 use turingosv4::tdma_runner::{run_proof, AnyJudge, LlmResponse, RunConfig};
 
 // Polymarket chain integration (2026-05-23, revised post-Codex audit): after
@@ -932,7 +931,12 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             footer,
                         });
                     }
-                    // overall_pass=true — proceed to success output below.
+                    // overall_pass=true — the artifact MEETS the spec-derived
+                    // (incl. functional) gate. 1.0 blocker #3: DELIVER the
+                    // artifact + print success NOW, BEFORE the best-effort
+                    // market-settle leg. The user already has a working file;
+                    // a downstream economic break must never retract delivery.
+                    print_generate_success(&workspace, &written);
 
                     // Polymarket PR-B (2026-05-23): the first worker's
                     // accepted artifact is the user-visible delivery. For
@@ -940,6 +944,21 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     // independent candidate bundles and put every candidate
                     // through the canonical sequencer. UI/panel state is only
                     // a replay projection over these CAS-backed WorkTxs.
+                    //
+                    // 1.0 blocker #3 (Art.0.2 tape-first delivery contract): EVERY
+                    // step below is POST-delivery. `print_generate_success` already
+                    // ran, so the user has a working artifact. Mirroring the bundle
+                    // to the root CAS, building the worker roster, generating extra
+                    // worker candidates, and settling the market are all best-effort
+                    // economic/replay scaffolding — a failure in any of them must
+                    // NOT retract the delivery (success-then-exit-2 is the
+                    // contradiction the contract forbids). Run the whole post-delivery
+                    // sequence inside a closure: if it returns Err, WARN + anchor the
+                    // break on tape (same pattern as the softened market-settle leg)
+                    // and fall through to exit 0. A GENUINE generation failure was
+                    // already handled above (overall_pass=false -> Err -> exit 2),
+                    // before delivery; this softening only covers post-delivery steps.
+                    let post_delivery: Result<(), GenError> = (|| {
                     let root_workspace =
                         root_workspace_for_polymarket(&workspace).map_err(GenError::Io)?;
                     mirror_artifact_bundle_to_root(&workspace, &root_workspace, &bundle_cid)?;
@@ -1042,14 +1061,139 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                             }
                         }
                         Err(e) => {
-                            // Per Hard Constraint #6 in the Polymarket brief: do NOT
-                            // swallow errors. Sequencer admission failure on
-                            // system genesis state is a system-level break
-                            // (kernel surface failure on a known-valid input
-                            // is not a user-fixable condition).
-                            return Err(GenError::Io(format!(
-                                "[polymarket] sequencer admission failed: {e}"
-                            )));
+                            // 1.0 blocker #3 (Art.0.2 tape-first): the artifact
+                            // was ALREADY delivered + success printed above. The
+                            // market-settle leg is a POST-delivery economic
+                            // step; its failure must NOT retract the user's
+                            // working artifact. But the economic break must NOT
+                            // be swallowed silently either — anchor it on the
+                            // tape as a rejection capsule (Art.0.2: if it is not
+                            // on tape, it did not happen), WARN the user, and
+                            // exit 0 (they got their artifact).
+                            let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
+                                schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+                                session_id: session_id.clone(),
+                                spec_capsule_cid: spec_capsule_cid.clone(),
+                                generation_attempt_cid: Some(attempt_cid.clone()),
+                                triage_attempted: true,
+                                reject_class: turingosv4::runtime::rejection_capsule::RejectClass::InternalIo,
+                                public_error_summary: "artifact delivered; post-delivery market settlement failed".to_string(),
+                                reason: format!("market_settle_failed:{e}"),
+                                private_diagnostic_cid: None,
+                                // Not retryable as a generation: the artifact is
+                                // already delivered. This capsule records the
+                                // economic break, not a generation rejection.
+                                retryable: false,
+                                // Initialized false on purpose: cmd_generate
+                                // production code must NOT self-claim an unchanged
+                                // world head (truthfulness gate
+                                // p7z_truthfulness_hygiene). The narrow
+                                // append-only fact is OBSERVED and asserted by
+                                // `write_generate_rejection_capsule_observed`
+                                // below, which overwrites this to true only if the
+                                // CAS object set did not advance beyond the capsule
+                                // write. The serialized capsule therefore carries
+                                // the writer-observed value, never this literal.
+                                world_head_unchanged: false,
+                                logical_t,
+                            };
+                            eprintln!(
+                                "[polymarket] WARNING: post-delivery market settlement failed: {e}"
+                            );
+                            eprintln!(
+                                "[polymarket] your artifact was delivered successfully; only the economic settlement leg failed."
+                            );
+                            match turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
+                                Ok(rej_cid) => {
+                                    eprintln!(
+                                        "[polymarket] market settlement failure anchored on tape: rejection_cid={rej_cid}"
+                                    );
+                                    // Mirror to root CAS so the canonical
+                                    // workspace tape carries the break too.
+                                    if let Err(mirror_err) = root_workspace_for_polymarket(&workspace)
+                                        .map_err(GenError::Io)
+                                        .and_then(|root_workspace| {
+                                            mirror_rejection_capsule_to_root(&workspace, &root_workspace, &rej_cid)
+                                        })
+                                    {
+                                        eprintln!(
+                                            "[polymarket] WARNING: could not mirror settlement-failure capsule to root tape: {mirror_err}"
+                                        );
+                                    }
+                                }
+                                Err(anchor_err) => {
+                                    // Anchoring itself failed — surface loudly,
+                                    // but STILL do not retract the delivered
+                                    // artifact (do not return Err).
+                                    eprintln!(
+                                        "[polymarket] WARNING: could not anchor settlement failure on tape: {anchor_err}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Ok(())
+                    })();
+                    if let Err(e) = post_delivery {
+                        // 1.0 blocker #3: a post-delivery step (root mirror,
+                        // worker roster, extra-worker candidate, etc.) failed.
+                        // The artifact is ALREADY delivered + success printed —
+                        // do NOT retract it. WARN, best-effort anchor the break
+                        // on tape (Art.0.2: if it is not on tape it did not
+                        // happen), and fall through to exit 0, exactly like the
+                        // softened market-settle leg above.
+                        eprintln!(
+                            "[polymarket] WARNING: post-delivery mirror/roster step failed: {e}"
+                        );
+                        eprintln!(
+                            "[polymarket] your artifact was delivered successfully; only the post-delivery anchoring leg failed."
+                        );
+                        let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
+                            schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
+                            session_id: session_id.clone(),
+                            spec_capsule_cid: spec_capsule_cid.clone(),
+                            generation_attempt_cid: Some(attempt_cid.clone()),
+                            triage_attempted: true,
+                            reject_class: turingosv4::runtime::rejection_capsule::RejectClass::InternalIo,
+                            public_error_summary: "artifact delivered; post-delivery mirror/roster step failed".to_string(),
+                            reason: format!("post_delivery_mirror_failed:{e}"),
+                            private_diagnostic_cid: None,
+                            // Already delivered — this records the post-delivery
+                            // break, not a generation rejection. Not retryable as
+                            // a generation.
+                            retryable: false,
+                            // Initialized false on purpose: cmd_generate must NOT
+                            // self-claim an unchanged world head (truthfulness
+                            // gate). `write_generate_rejection_capsule_observed`
+                            // below OBSERVES the append-only fact and overwrites
+                            // this to true only if the CAS set did not advance
+                            // beyond the capsule write.
+                            world_head_unchanged: false,
+                            logical_t,
+                        };
+                        match turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
+                            Ok(rej_cid) => {
+                                eprintln!(
+                                    "[polymarket] post-delivery failure anchored on tape: rejection_cid={rej_cid}"
+                                );
+                                if let Err(mirror_err) = root_workspace_for_polymarket(&workspace)
+                                    .map_err(GenError::Io)
+                                    .and_then(|root_workspace| {
+                                        mirror_rejection_capsule_to_root(&workspace, &root_workspace, &rej_cid)
+                                    })
+                                {
+                                    eprintln!(
+                                        "[polymarket] WARNING: could not mirror post-delivery-failure capsule to root tape: {mirror_err}"
+                                    );
+                                }
+                            }
+                            Err(anchor_err) => {
+                                // Anchoring itself failed — surface loudly, but
+                                // STILL do not retract the delivered artifact.
+                                eprintln!(
+                                    "[polymarket] WARNING: could not anchor post-delivery failure on tape: {anchor_err}"
+                                );
+                            }
                         }
                     }
                 }
@@ -1096,43 +1240,10 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                 out.push('\n');
                 let _ = fs::write(&path, out);
             }
-
-            println!();
-            println!(
-                "Generated {} file(s) under {}/",
-                written.len(),
-                workspace.join("artifacts").display()
-            );
-            for p in &written {
-                println!("  {}", p.display());
-            }
-            println!();
-            println!("Open the entry file in your browser or run the entry script:");
-            if let Some(html) = written
-                .iter()
-                .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
-            {
-                println!(
-                    "  xdg-open {}/{}",
-                    workspace.join("artifacts").display(),
-                    html.display()
-                );
-            } else if let Some(py) = written
-                .iter()
-                .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
-            {
-                println!(
-                    "  python3 {}/{}",
-                    workspace.join("artifacts").display(),
-                    py.display()
-                );
-            } else if let Some(first) = written.first() {
-                println!(
-                    "  {}/{}",
-                    workspace.join("artifacts").display(),
-                    first.display()
-                );
-            }
+            // NOTE (1.0 blocker #3): the user-facing delivery success was
+            // already printed via `print_generate_success` BEFORE the
+            // best-effort market-settle leg, so a settlement failure can no
+            // longer retract or precede the delivery message.
         }
     }
 
@@ -1416,12 +1527,18 @@ fn read_failed_scenarios_by_cid(store: &CasStore, cid_hex: &str) -> Option<Vec<(
     let mut failed = Vec::new();
     for r in capsule.results {
         if !r.pass {
-            let name = match &r.scenario {
-                TestScenario::EntrypointExists => "EntrypointExists".to_string(),
-                TestScenario::HtmlParses => "HtmlParses".to_string(),
-                TestScenario::SandboxPolicyPreserved { .. } => "SandboxPolicyPreserved".to_string(),
-            };
-            failed.push((name, r.detail));
+            // C11 hidden-oracle (Art.III.4): route the failed scenario through
+            // the lib-owned shielded renderer (TestScenario::shielded_feedback).
+            // For a RequiredTextPresent gate this strips BOTH the needle
+            // (carried verbatim in `r.detail` as "entrypoint must contain ...")
+            // AND the label (which the old inline `RequiredTextPresent({label})`
+            // *name* leaked — the label is the same spec token as the needle,
+            // only cased differently). Structural-scenario details, which carry
+            // no spec-derived oracle, pass through unchanged. This is the single
+            // site that renders a failed scenario into the retry user_msg, so
+            // shielding here closes the prompt-leak path.
+            let (name, detail) = r.scenario.shielded_feedback(&r.detail);
+            failed.push((name, detail));
         }
     }
     Some(failed)
@@ -1627,6 +1744,38 @@ fn find_entrypoint(files: &[EmittedFile]) -> Option<String> {
     }
     // 3. Fallback to first file
     Some(files[0].path.clone())
+}
+
+/// 1.0 blocker #3: print the user-facing delivery success block. Called
+/// BEFORE the best-effort market-settle leg so a downstream economic break
+/// cannot retract or reorder the delivery message. Pure stdout; no side
+/// effects on the tape/economy.
+fn print_generate_success(workspace: &Path, written: &[PathBuf]) {
+    let artifacts_dir = workspace.join("artifacts");
+    println!();
+    println!(
+        "Generated {} file(s) under {}/",
+        written.len(),
+        artifacts_dir.display()
+    );
+    for p in written {
+        println!("  {}", p.display());
+    }
+    println!();
+    println!("Open the entry file in your browser or run the entry script:");
+    if let Some(html) = written
+        .iter()
+        .find(|p| p.extension().map(|x| x == "html").unwrap_or(false))
+    {
+        println!("  xdg-open {}/{}", artifacts_dir.display(), html.display());
+    } else if let Some(py) = written
+        .iter()
+        .find(|p| p.extension().map(|x| x == "py").unwrap_or(false))
+    {
+        println!("  python3 {}/{}", artifacts_dir.display(), py.display());
+    } else if let Some(first) = written.first() {
+        println!("  {}/{}", artifacts_dir.display(), first.display());
+    }
 }
 
 fn root_workspace_for_polymarket(workspace: &Path) -> Result<PathBuf, String> {

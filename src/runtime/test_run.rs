@@ -172,6 +172,84 @@ fn run_one_scenario(
                 },
             }
         }
+        TestScenario::PythonParses => {
+            // Read entrypoint Python bytes from CAS and verify it parses as
+            // syntactically valid Python 3 (`import ast; ast.parse(src)`).
+            // 1.0 blocker #1: this is the script-deliverable analogue of
+            // HtmlParses — a default `main.py` is certified by REAL syntactic
+            // validity, not merely by existing.
+            let entrypoint = &manifest.entrypoint;
+            let file_entry = manifest.files.iter().find(|f| &f.path == entrypoint);
+            match file_entry {
+                None => TestScenarioResult {
+                    scenario: scenario.clone(),
+                    pass: false,
+                    detail: format!("entrypoint {:?} not in bundle", entrypoint),
+                },
+                Some(fe) => match parse_cid_hex(&fe.cid).and_then(|cid| store.get(&cid).ok()) {
+                    None => TestScenarioResult {
+                        scenario: scenario.clone(),
+                        pass: false,
+                        detail: format!("entrypoint CAS content not found for CID {}", fe.cid),
+                    },
+                    Some(bytes) => {
+                        let src = String::from_utf8_lossy(&bytes).to_string();
+                        match python_ast_parse_ok(&src) {
+                            Ok(true) => TestScenarioResult {
+                                scenario: scenario.clone(),
+                                pass: true,
+                                detail: "Python entrypoint parses (ast.parse OK)".to_string(),
+                            },
+                            Ok(false) => TestScenarioResult {
+                                scenario: scenario.clone(),
+                                pass: false,
+                                detail: "Python entrypoint has a syntax error (ast.parse failed)"
+                                    .to_string(),
+                            },
+                            // Fail CLOSED when no interpreter is available — the
+                            // artifact is NOT certified, never silently passed.
+                            Err(e) => TestScenarioResult {
+                                scenario: scenario.clone(),
+                                pass: false,
+                                detail: format!(
+                                    "Python syntactic check could not run (fail-closed): {e}"
+                                ),
+                            },
+                        }
+                    }
+                },
+            }
+        }
+        TestScenario::RequiredTextPresent { label, needle } => {
+            // 1.0 blocker #2 FUNCTIONAL gate: the rendered entrypoint artifact
+            // must contain the spec-derived required token (case-insensitive).
+            // Read from the ENTRYPOINT (the user-visible deliverable), not just
+            // any file, so a stray comment in an asset can't satisfy it.
+            let entrypoint = &manifest.entrypoint;
+            let file_entry = manifest.files.iter().find(|f| &f.path == entrypoint);
+            let needle_l = needle.to_ascii_lowercase();
+            let found = match file_entry
+                .and_then(|fe| parse_cid_hex(&fe.cid).and_then(|cid| store.get(&cid).ok()))
+            {
+                Some(bytes) => {
+                    let content = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
+                    content.contains(&needle_l)
+                }
+                None => false,
+            };
+            TestScenarioResult {
+                scenario: scenario.clone(),
+                pass: found,
+                detail: if found {
+                    format!("functional requirement satisfied: {label}")
+                } else {
+                    format!(
+                        "functional requirement NOT met: {label} (entrypoint must contain {:?})",
+                        needle
+                    )
+                },
+            }
+        }
         TestScenario::SandboxPolicyPreserved { policy } => {
             // Verify the policy attribute appears in the entrypoint or any file.
             let found = manifest.files.iter().any(|fe| {
@@ -194,6 +272,48 @@ fn run_one_scenario(
             }
         }
     }
+}
+
+/// Syntactic Python-3 validity check via `import ast; ast.parse(...)`.
+///
+/// Returns `Ok(true)` if the source parses, `Ok(false)` if it has a syntax
+/// error, and `Err(..)` if no Python interpreter could be invoked. Callers MUST
+/// fail CLOSED on `Err` — a missing interpreter does not certify the artifact.
+///
+/// The source is passed on stdin (not via the command line) so arbitrary
+/// generated code cannot break argument quoting, and `ast.parse` does NOT
+/// execute the artifact — it only builds the syntax tree.
+fn python_ast_parse_ok(src: &str) -> Result<bool, String> {
+    use crate::sdk::sanitized_runner::{
+        env_allowlist_from_current, run_sanitized, SanitizedCommand,
+    };
+    use std::path::PathBuf;
+    use std::time::Duration;
+
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let interpreters = ["python3", "python"];
+    let mut last_err = String::from("no python interpreter found on PATH");
+    for interp in interpreters {
+        let command = SanitizedCommand {
+            program: PathBuf::from(interp),
+            args: vec![
+                "-c".to_string(),
+                "import sys, ast; ast.parse(sys.stdin.read())".to_string(),
+            ],
+            cwd: cwd.clone(),
+            env: env_allowlist_from_current(&["PATH"]),
+            stdin: Some(src.as_bytes().to_vec()),
+            timeout: Duration::from_secs(30),
+        };
+        match run_sanitized(command) {
+            Ok(output) => return Ok(output.success()),
+            Err(e) => {
+                last_err = format!("{interp}: {e}");
+                continue;
+            }
+        }
+    }
+    Err(last_err)
 }
 
 /// TRACE_MATRIX FC3: Write a TestScenarioSet to CAS and return its CID hex.
@@ -270,8 +390,15 @@ pub fn run_and_write_test_pipeline(
 ) -> Result<(String, bool, Vec<TestScenarioResult>), String> {
     use crate::runtime::test_scenario::derive_scenario_set_from_spec;
 
+    // 1.0 blocker #1: scenario derivation is entrypoint-aware. Read the
+    // bundle's resolved entrypoint so HtmlParses/PythonParses is chosen by the
+    // real deliverable type (a .py entrypoint is no longer HTML-gated).
+    let entrypoint = read_bundle_entrypoint(workspace, artifact_bundle_cid_hex)
+        .unwrap_or_else(|| "index.html".to_string());
+
     // Derive scenario set — bytes stay in this call, never reach LLM prompt.
-    let scenario_set = derive_scenario_set_from_spec(spec_bytes, spec_capsule_cid, logical_t);
+    let scenario_set =
+        derive_scenario_set_from_spec(spec_bytes, spec_capsule_cid, &entrypoint, logical_t);
 
     // Write scenario set to CAS (hidden CID — not propagated to callers).
     let scenario_set_cid = write_scenario_set(workspace, &scenario_set)?;
@@ -342,7 +469,11 @@ pub fn format_test_run_summary(results: &[TestScenarioResult]) -> String {
         match &r.scenario {
             TestScenario::EntrypointExists => "EntrypointExists".to_string(),
             TestScenario::HtmlParses => "HtmlParses".to_string(),
+            TestScenario::PythonParses => "PythonParses".to_string(),
             TestScenario::SandboxPolicyPreserved { .. } => "SandboxPolicyPreserved".to_string(),
+            TestScenario::RequiredTextPresent { label, .. } => {
+                format!("RequiredTextPresent({label})")
+            }
         }
     };
 
@@ -362,6 +493,23 @@ pub fn format_test_run_summary(results: &[TestScenarioResult]) -> String {
             "Internal tests: FAIL ({passed}/{total} scenarios passed; failed: {})",
             failed_names.join(", ")
         )
+    }
+}
+
+/// Read the resolved entrypoint path from an ArtifactBundleManifest in CAS.
+/// Returns None if the bundle is missing or undeserializable (caller defaults
+/// to the historical `index.html`). 1.0 blocker #1 support.
+fn read_bundle_entrypoint(workspace: &Path, artifact_bundle_cid_hex: &str) -> Option<String> {
+    let cas_dir = cas_path(workspace);
+    let mut store = CasStore::open(&cas_dir).ok()?;
+    let _ = store.reload_index_from_sidecar();
+    let bundle_cid = parse_cid_hex(artifact_bundle_cid_hex)?;
+    let bytes = store.get(&bundle_cid).ok()?;
+    let manifest: ArtifactBundleManifest = serde_json::from_slice(&bytes).ok()?;
+    if manifest.entrypoint.is_empty() {
+        None
+    } else {
+        Some(manifest.entrypoint)
     }
 }
 

@@ -73,7 +73,8 @@ fn test_test_run_capsule_replayable_from_cas() {
     let bundle_cid = put_bundle(&mut store, "session-replay", t);
 
     // Build a TestRunCapsule
-    let scenario_set = derive_scenario_set_from_spec(b"Build a todo list", "spec-cid-replay", t);
+    let scenario_set =
+        derive_scenario_set_from_spec(b"Build a todo list", "spec-cid-replay", "index.html", t);
     let set_cid =
         turingosv4::runtime::test_run::write_scenario_set(ws, &scenario_set).expect("write set");
 
@@ -129,7 +130,7 @@ fn test_capsule_cid_different_from_scenario_set_cid() {
     let ws = dir.path();
     let t = now_t();
 
-    let scenario_set = derive_scenario_set_from_spec(b"spec", "cid-s", t);
+    let scenario_set = derive_scenario_set_from_spec(b"spec", "cid-s", "index.html", t);
     let set_cid =
         turingosv4::runtime::test_run::write_scenario_set(ws, &scenario_set).expect("write set");
 
