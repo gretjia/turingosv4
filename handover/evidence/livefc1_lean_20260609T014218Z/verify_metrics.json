@@ -1,0 +1,65 @@
+{
+  "schema_version": "turingosv4.livefc1.swarm_verify_metrics.v1",
+  "fc1_live_nodes": [
+    "FC1:predicate_gated_advance",
+    "FC1:rtool_wtool_bridge"
+  ],
+  "fc1_failure_arm_step_reject": "REACHABLE-not-fired",
+  "fc1_failure_arm_parse_fail": "REACHABLE-not-fired",
+  "fc1_failure_arm_llm_err": "REACHABLE-not-fired",
+  "fc2_boot": "LIVE",
+  "fc2_map_reduce_tick": "LIVE",
+  "fc2_terminal": "LIVE",
+  "fc3_disposition": "reached_observable_canary",
+  "fc3_proposer": "REACHABLE-not-fired",
+  "fc3_canary": "REACHABLE-not-fired",
+  "zombie_count": 0,
+  "l4_entry_count": 17,
+  "l4e_entry_count": 0,
+  "vpput_tasks": [
+    {
+      "task_id": "lean:calib_core_add_zero-0",
+      "progress": 1,
+      "cost_tokens": 179,
+      "wall_clock_ticks": 3,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 1862
+    },
+    {
+      "task_id": "lean:calib_core_decide_le-2",
+      "progress": 1,
+      "cost_tokens": 175,
+      "wall_clock_ticks": 3,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 1904
+    },
+    {
+      "task_id": "lean:calib_core_le_succ-1",
+      "progress": 1,
+      "cost_tokens": 175,
+      "wall_clock_ticks": 3,
+      "attempt_count": 1,
+      "failed_branch_attempt_count": 0,
+      "verified_pput_micro": 1904
+    }
+  ],
+  "vpput_ground_truth_solved": 3,
+  "best_vpput_task": "lean:calib_core_decide_le-2",
+  "best_vpput_micro": 1904,
+  "vpput_progress_note": "progress=0 for all math tasks: no Lean oracle => no VerificationResult.verified ground-truth witness (honest).",
+  "distinct_provider_handles": 1,
+  "provider_handle_capsule_count": 3,
+  "replay_roots_match": true,
+  "l4e_llm_error_rows": 0,
+  "l4e_parse_fail_rows": 0,
+  "injected_fault_on_tape": false,
+  "a_observer_fc1_fired": true,
+  "a_observer_fc1_failure_arm_fired": false,
+  "a_observer_fc2_boot_tick_terminal": true,
+  "a_observer_no_zombie": true,
+  "c_heterogeneity_ge2": false,
+  "d_replay_ok": true,
+  "e_fault_on_tape": false
+}

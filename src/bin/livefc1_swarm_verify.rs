@@ -279,8 +279,11 @@ fn run(args: &Args) -> Result<(), String> {
         vpput_ground_truth_solved: recon.ground_truth_solved_count(),
         best_vpput_task,
         best_vpput_micro,
-        vpput_progress_note:
-            "progress=0 for all math tasks: no Lean oracle => no VerificationResult.verified ground-truth witness (honest).",
+        vpput_progress_note: if recon.ground_truth_solved_count() > 0 {
+            "non-zero VPPUT: >=1 ground-truth-verified golden path on the tape (a VerificationResult.verified oracle witness fired)."
+        } else {
+            "progress=0: no ground-truth witness fired in this workload (no external oracle => no VerificationResult.verified)."
+        },
         distinct_provider_handles: distinct_handles,
         provider_handle_capsule_count: handle_capsule_count,
         replay_roots_match: replay_ok,
