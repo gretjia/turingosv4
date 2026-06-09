@@ -2322,7 +2322,7 @@ fn generate_additional_worker_candidate(
         logical_t,
     )?;
     let spec_capsule_cid_for_test = spec_capsule_cid.as_deref().unwrap_or("");
-    let (test_run_cid, overall_pass, test_results) = run_and_write_test_pipeline(
+    let (test_run_cid, _overall_pass, test_results) = run_and_write_test_pipeline(
         workspace,
         spec_md.as_bytes(),
         spec_capsule_cid_for_test,
@@ -2333,14 +2333,20 @@ fn generate_additional_worker_candidate(
     mirror_artifact_bundle_to_root(workspace, root_workspace, &bundle_cid)?;
     mirror_test_run_to_root(workspace, root_workspace, &test_run_cid)?;
 
-    if !overall_pass {
+    // Non-fatal functional gate (2026-06-09): a competing worker candidate is
+    // admitted/rejected on the SAME STRUCTURAL basis as the primary delivery.
+    // A functional-only miss is advisory, NOT a market rejection — otherwise the
+    // identical structurally-valid artifact is accepted as the primary
+    // (predicate_passes=true) yet rejected as a competing candidate. Only a
+    // STRUCTURAL failure rejects the candidate.
+    if !delivery_verdict(&test_results).structural_pass {
         let rejection_cid = write_candidate_rejection_capsule(
             workspace,
             &candidate_session_id,
             spec_capsule_cid,
             Some(attempt_cid_for_rejection),
             RejectClass::HeuristicFailed,
-            "worker candidate artifacts failed spec-derived tests".to_string(),
+            "worker candidate artifacts failed structural spec-derived tests".to_string(),
             format!("worker_candidate_heuristic_failed:{worker_agent}:test_run_cid={test_run_cid}"),
             None,
             true,

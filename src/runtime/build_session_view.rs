@@ -10,7 +10,7 @@ use crate::runtime::generation_attempt::{
 };
 use crate::runtime::preview_run::{PreviewRunCapsule, PREVIEW_RUN_CAPSULE_SCHEMA_ID};
 use crate::runtime::spec_capsule::{cas_path, CapsuleError, GrillSessionCapsuleBody};
-use crate::runtime::test_run::{TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
+use crate::runtime::test_run::{delivery_verdict, TestRunCapsule, TEST_RUN_CAPSULE_SCHEMA_ID};
 use std::path::Path;
 
 /// TRACE_MATRIX FC2-N16: error taxonomy for BuildSessionView derivation.
@@ -263,6 +263,12 @@ pub fn derive_build_session_view(
 
     // C11: Determine accepted_delivery from latest TestRunCapsule for the latest bundle.
     // TestScenarioSet CID is intentionally NOT surfaced (hidden-oracle invariant).
+    //
+    // Non-fatal functional gate (2026-06-09): accepted_delivery mirrors the CLI
+    // delivery contract — a build is "accepted/delivered" iff the reliable
+    // STRUCTURAL scenarios passed. A functional-only miss is an on-tape advisory,
+    // not a delivery block, so the dashboard agrees with `turingos generate`
+    // (exit 0 + "Generated N files") instead of under-reporting acceptance.
     let accepted_delivery = if let Some(&(_, ref latest_bundle_cid)) = artifact_bundles.last() {
         let latest_bundle_cid_hex = latest_bundle_cid.hex();
         // Find the latest TestRunCapsule for this bundle by logical_t.
@@ -270,7 +276,7 @@ pub fn derive_build_session_view(
             .iter()
             .filter(|cap| cap.artifact_bundle_cid == latest_bundle_cid_hex)
             .max_by_key(|cap| cap.logical_t)
-            .map(|cap| cap.overall_pass)
+            .map(|cap| delivery_verdict(&cap.results).structural_pass)
             .unwrap_or(false)
     } else {
         false

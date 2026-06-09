@@ -207,3 +207,61 @@ fn test_accepted_delivery_false_when_test_run_fails() {
     );
     assert_ne!(view.current_status, BuildStatus::Accepted);
 }
+
+/// 2026-06-09 architect decision — NON-FATAL functional gate: a build whose
+/// STRUCTURAL scenarios pass but whose best-effort FUNCTIONAL scenario
+/// (RequiredTextPresent) fails is still DELIVERED by the CLI (exit 0), so the
+/// session view must report accepted_delivery=TRUE to agree with the delivery
+/// contract — the functional miss is an on-tape advisory, not a delivery block.
+/// Mutation-proof: reverting accepted_delivery to `cap.overall_pass` flips this
+/// RED (overall_pass is false here because the functional scenario fails).
+#[test]
+fn test_accepted_delivery_true_on_functional_only_miss() {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let ws = dir.path();
+    let session = "functional-miss-session";
+    let t = now_t();
+
+    let (_spec_cid, bundle_cid) = setup_workspace_with_bundle(ws, session, t);
+
+    let scenario_set =
+        derive_scenario_set_from_spec(b"Build a todo list", "spec-cid-4", "index.html", t);
+    let set_cid = write_scenario_set(ws, &scenario_set).expect("write set");
+
+    let cap = TestRunCapsule {
+        schema_id: TEST_RUN_CAPSULE_SCHEMA_ID.to_string(),
+        artifact_bundle_cid: bundle_cid.clone(),
+        test_scenario_set_cid: set_cid,
+        results: vec![
+            TestScenarioResult {
+                scenario: TestScenario::EntrypointExists,
+                pass: true,
+                detail: "ok".to_string(),
+            },
+            TestScenarioResult {
+                scenario: TestScenario::HtmlParses,
+                pass: true,
+                detail: "ok".to_string(),
+            },
+            // FUNCTIONAL scenario fails — best-effort, non-fatal.
+            TestScenarioResult {
+                scenario: TestScenario::RequiredTextPresent {
+                    label: "New Game".to_string(),
+                    needle: "new game".to_string(),
+                },
+                pass: false,
+                detail: "advisory".to_string(),
+            },
+        ],
+        overall_pass: false, // AND-of-all is false because the functional scenario failed
+        logical_t: t + 3,
+    };
+    write_test_run_capsule(ws, &cap).expect("write capsule");
+
+    let view = derive_build_session_view(ws, session).expect("derive view");
+    assert!(
+        view.accepted_delivery,
+        "non-fatal gate: a structural-pass + functional-miss build IS delivered \
+         (accepted_delivery=true), matching the CLI exit-0 delivery"
+    );
+}
