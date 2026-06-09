@@ -1,0 +1,405 @@
+{
+  "schema_version": "turingosv4.livefc1.swarm_consolidated_metrics.v1",
+  "generated_utc": "2026-06-08T23:39:18Z",
+  "run_id": "livefc1-swarm-20260608T233701Z",
+  "live_providers": [
+    "DeepSeek (deepseek-chat)",
+    "SiliconFlow (Qwen/Qwen2.5-72B-Instruct)",
+    "DashScope (qwen3-8b)"
+  ],
+  "config_matrix_axes": {
+    "providers": 3,
+    "temperatures_milli": [
+      0,
+      700
+    ],
+    "prompt_variants": [
+      "terse",
+      "verbose"
+    ],
+    "tasks_in_pool": 4,
+    "real_cells_executed": 12,
+    "note": "scaling to >50/>100 agents is a pure config change (max_real_cells + provider list); kept bounded for cost."
+  },
+  "config_matrix": [
+    {
+      "cell_id": "p0-t0-v0",
+      "agent_id": "Agent_0",
+      "provider_handle": "c41250cf5819ae95",
+      "brand_provider": "DeepSeek",
+      "brand_model": "deepseek-chat",
+      "temperature_milli": 0,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:algebra:vertical_asymptotes",
+      "outcome": "ok",
+      "answer_correct": true,
+      "prompt_tokens": 105,
+      "completion_tokens": 84,
+      "work_tx_id": "worktx-math:livefc1-algebra-vertical_asymptotes-0-livefc1-swarm",
+      "l4e_submit_id": null
+    },
+    {
+      "cell_id": "p0-t0-v1",
+      "agent_id": "Agent_1",
+      "provider_handle": "c41250cf5819ae95",
+      "brand_provider": "DeepSeek",
+      "brand_model": "deepseek-chat",
+      "temperature_milli": 0,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:counting:handshakes",
+      "outcome": "ok",
+      "answer_correct": true,
+      "prompt_tokens": 108,
+      "completion_tokens": 74,
+      "work_tx_id": "worktx-math:livefc1-counting-handshakes-1-livefc1-swarm",
+      "l4e_submit_id": null
+    },
+    {
+      "cell_id": "p0-t1-v0",
+      "agent_id": "Agent_2",
+      "provider_handle": "a7fdd22fc67580ed",
+      "brand_provider": "DeepSeek",
+      "brand_model": "deepseek-chat",
+      "temperature_milli": 700,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:algebra:sum_arithmetic",
+      "outcome": "ok",
+      "answer_correct": true,
+      "prompt_tokens": 93,
+      "completion_tokens": 102,
+      "work_tx_id": "worktx-math:livefc1-algebra-sum_arithmetic-2-livefc1-swarm",
+      "l4e_submit_id": null
+    },
+    {
+      "cell_id": "p0-t1-v1",
+      "agent_id": "Agent_3",
+      "provider_handle": "a7fdd22fc67580ed",
+      "brand_provider": "DeepSeek",
+      "brand_model": "deepseek-chat",
+      "temperature_milli": 700,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:numbertheory:units_digit",
+      "outcome": "fault_injected_llm_err",
+      "answer_correct": null,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "work_tx_id": null,
+      "l4e_submit_id": 1
+    },
+    {
+      "cell_id": "p1-t0-v0",
+      "agent_id": "Agent_4",
+      "provider_handle": "9d9c0b2c45bcab3b",
+      "brand_provider": "SiliconFlow",
+      "brand_model": "Qwen/Qwen2.5-72B-Instruct",
+      "temperature_milli": 0,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:numbertheory:units_digit",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 104,
+      "completion_tokens": 115,
+      "work_tx_id": null,
+      "l4e_submit_id": 2
+    },
+    {
+      "cell_id": "p1-t0-v1",
+      "agent_id": "Agent_5",
+      "provider_handle": "9d9c0b2c45bcab3b",
+      "brand_provider": "SiliconFlow",
+      "brand_model": "Qwen/Qwen2.5-72B-Instruct",
+      "temperature_milli": 0,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:algebra:sum_arithmetic",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 107,
+      "completion_tokens": 150,
+      "work_tx_id": null,
+      "l4e_submit_id": 3
+    },
+    {
+      "cell_id": "p1-t1-v0",
+      "agent_id": "Agent_6",
+      "provider_handle": "75fbd0a4e9a55663",
+      "brand_provider": "SiliconFlow",
+      "brand_model": "Qwen/Qwen2.5-72B-Instruct",
+      "temperature_milli": 700,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:algebra:vertical_asymptotes",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 117,
+      "completion_tokens": 120,
+      "work_tx_id": null,
+      "l4e_submit_id": 4
+    },
+    {
+      "cell_id": "p1-t1-v1",
+      "agent_id": "Agent_7",
+      "provider_handle": "75fbd0a4e9a55663",
+      "brand_provider": "SiliconFlow",
+      "brand_model": "Qwen/Qwen2.5-72B-Instruct",
+      "temperature_milli": 700,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:counting:handshakes",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 120,
+      "completion_tokens": 93,
+      "work_tx_id": null,
+      "l4e_submit_id": 5
+    },
+    {
+      "cell_id": "p2-t0-v0",
+      "agent_id": "Agent_8",
+      "provider_handle": "8c4737b515b79ec0",
+      "brand_provider": "DashScope",
+      "brand_model": "qwen3-8b",
+      "temperature_milli": 0,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:counting:handshakes",
+      "outcome": "ok",
+      "answer_correct": true,
+      "prompt_tokens": 121,
+      "completion_tokens": 127,
+      "work_tx_id": "worktx-math:livefc1-counting-handshakes-8-livefc1-swarm",
+      "l4e_submit_id": null
+    },
+    {
+      "cell_id": "p2-t0-v1",
+      "agent_id": "Agent_9",
+      "provider_handle": "8c4737b515b79ec0",
+      "brand_provider": "DashScope",
+      "brand_model": "qwen3-8b",
+      "temperature_milli": 0,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:algebra:vertical_asymptotes",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 124,
+      "completion_tokens": 191,
+      "work_tx_id": null,
+      "l4e_submit_id": 6
+    },
+    {
+      "cell_id": "p2-t1-v0",
+      "agent_id": "Agent_0",
+      "provider_handle": "ffc3a01d6d3f6fb2",
+      "brand_provider": "DashScope",
+      "brand_model": "qwen3-8b",
+      "temperature_milli": 700,
+      "prompt_variant": "terse",
+      "sample_id": "livefc1:numbertheory:units_digit",
+      "outcome": "ok",
+      "answer_correct": true,
+      "prompt_tokens": 108,
+      "completion_tokens": 100,
+      "work_tx_id": "worktx-math:livefc1-numbertheory-units_digit-10-livefc1-swarm",
+      "l4e_submit_id": null
+    },
+    {
+      "cell_id": "p2-t1-v1",
+      "agent_id": "Agent_1",
+      "provider_handle": "ffc3a01d6d3f6fb2",
+      "brand_provider": "DashScope",
+      "brand_model": "qwen3-8b",
+      "temperature_milli": 700,
+      "prompt_variant": "verbose",
+      "sample_id": "livefc1:algebra:sum_arithmetic",
+      "outcome": "parse_fail",
+      "answer_correct": null,
+      "prompt_tokens": 111,
+      "completion_tokens": 165,
+      "work_tx_id": null,
+      "l4e_submit_id": 7
+    }
+  ],
+  "outcome_tally": {
+    "ok": 5,
+    "fault_injected_llm_err": 1,
+    "parse_fail": 6
+  },
+  "real_token_spend": {
+    "total_tokens": 2539,
+    "prompt_tokens": 1218,
+    "completion_tokens": 1321,
+    "requests": 11,
+    "errors": 2,
+    "retries_429": 0,
+    "per_provider_requests": {
+      "deepseek": [
+        3
+      ],
+      "siliconflow": [
+        1,
+        2,
+        1
+      ],
+      "dashscope": [
+        6
+      ]
+    },
+    "approx_usd_note": "~2.5k tokens at blended provider pricing ~$0.1-0.6/1M => well under $0.01 (sub-cent)."
+  },
+  "budget": {
+    "ceiling_micro_units": 6000,
+    "final_tape_spend_tokens": 1022,
+    "halted": false,
+    "note": "ceiling armed (positive); real spend stayed under ceiling so no FC2-HALT this run; budget_check exercised WITHIN on every cell."
+  },
+  "heterogeneity": {
+    "distinct_provider_handles_on_tape": 6,
+    "provider_handle_capsule_count": 12,
+    "brand_free": true,
+    "brand_sidecar_external": [
+      {
+        "agent_id": "Agent_0",
+        "provider_handle": "c41250cf5819ae95",
+        "brand_model_name": "deepseek-chat",
+        "brand_model_provider": "DeepSeek"
+      },
+      {
+        "agent_id": "Agent_1",
+        "provider_handle": "c41250cf5819ae95",
+        "brand_model_name": "deepseek-chat",
+        "brand_model_provider": "DeepSeek"
+      },
+      {
+        "agent_id": "Agent_2",
+        "provider_handle": "a7fdd22fc67580ed",
+        "brand_model_name": "deepseek-chat",
+        "brand_model_provider": "DeepSeek"
+      },
+      {
+        "agent_id": "Agent_3",
+        "provider_handle": "a7fdd22fc67580ed",
+        "brand_model_name": "deepseek-chat",
+        "brand_model_provider": "DeepSeek"
+      },
+      {
+        "agent_id": "Agent_4",
+        "provider_handle": "9d9c0b2c45bcab3b",
+        "brand_model_name": "Qwen/Qwen2.5-72B-Instruct",
+        "brand_model_provider": "SiliconFlow"
+      },
+      {
+        "agent_id": "Agent_5",
+        "provider_handle": "9d9c0b2c45bcab3b",
+        "brand_model_name": "Qwen/Qwen2.5-72B-Instruct",
+        "brand_model_provider": "SiliconFlow"
+      },
+      {
+        "agent_id": "Agent_6",
+        "provider_handle": "75fbd0a4e9a55663",
+        "brand_model_name": "Qwen/Qwen2.5-72B-Instruct",
+        "brand_model_provider": "SiliconFlow"
+      },
+      {
+        "agent_id": "Agent_7",
+        "provider_handle": "75fbd0a4e9a55663",
+        "brand_model_name": "Qwen/Qwen2.5-72B-Instruct",
+        "brand_model_provider": "SiliconFlow"
+      },
+      {
+        "agent_id": "Agent_8",
+        "provider_handle": "8c4737b515b79ec0",
+        "brand_model_name": "qwen3-8b",
+        "brand_model_provider": "DashScope"
+      },
+      {
+        "agent_id": "Agent_9",
+        "provider_handle": "8c4737b515b79ec0",
+        "brand_model_name": "qwen3-8b",
+        "brand_model_provider": "DashScope"
+      },
+      {
+        "agent_id": "Agent_0",
+        "provider_handle": "ffc3a01d6d3f6fb2",
+        "brand_model_name": "qwen3-8b",
+        "brand_model_provider": "DashScope"
+      },
+      {
+        "agent_id": "Agent_1",
+        "provider_handle": "ffc3a01d6d3f6fb2",
+        "brand_model_name": "qwen3-8b",
+        "brand_model_provider": "DashScope"
+      }
+    ]
+  },
+  "fault_tolerance": {
+    "injected_fault_on_tape": true,
+    "l4e_llm_error_rows": 1,
+    "l4e_parse_fail_rows": 6,
+    "note": "1 deliberate unroutable-model fault -> L4.E LlmError; 6 real SiliconFlow/DashScope verbose JSON-format failures -> L4.E ParseFailed. All recorded as L4.E, zero crashes."
+  },
+  "fc_liveness": {
+    "fc1_live_nodes": [
+      "FC1:predicate_gated_advance",
+      "FC1:failure_arm/parse_fail",
+      "FC1:failure_arm/llm_err",
+      "FC1:rtool_wtool_bridge"
+    ],
+    "fc1_failure_arm_parse_fail": "LIVE",
+    "fc1_failure_arm_llm_err": "LIVE",
+    "fc2_boot": "LIVE",
+    "fc2_map_reduce_tick": "LIVE",
+    "fc2_terminal": "LIVE",
+    "fc3_disposition": "reached_observable_canary",
+    "fc3_proposer": "REACHABLE-not-fired",
+    "fc3_canary": "REACHABLE-not-fired",
+    "zombie_count": 0,
+    "l4_entry_count": 19,
+    "l4e_entry_count": 7
+  },
+  "vpput": {
+    "ground_truth_solved": 0,
+    "progress_note": "progress=0 for all math tasks: no Lean oracle => no VerificationResult.verified ground-truth witness (honest).",
+    "best_would_be_task": "math:livefc1-counting-handshakes-1",
+    "ranking_by_cost_times_ticks_asc": [
+      {
+        "task_id": "math:livefc1-counting-handshakes-1",
+        "cost_tokens": 182,
+        "ticks": 1,
+        "cost_times_ticks": 182,
+        "progress": 0,
+        "verified_pput_micro": 0
+      },
+      {
+        "task_id": "math:livefc1-algebra-vertical_asymptotes-0",
+        "cost_tokens": 189,
+        "ticks": 1,
+        "cost_times_ticks": 189,
+        "progress": 0,
+        "verified_pput_micro": 0
+      },
+      {
+        "task_id": "math:livefc1-algebra-sum_arithmetic-2",
+        "cost_tokens": 195,
+        "ticks": 1,
+        "cost_times_ticks": 195,
+        "progress": 0,
+        "verified_pput_micro": 0
+      },
+      {
+        "task_id": "math:livefc1-counting-handshakes-8",
+        "cost_tokens": 248,
+        "ticks": 1,
+        "cost_times_ticks": 248,
+        "progress": 0,
+        "verified_pput_micro": 0
+      },
+      {
+        "task_id": "math:livefc1-numbertheory-units_digit-10",
+        "cost_tokens": 208,
+        "ticks": 3,
+        "cost_times_ticks": 624,
+        "progress": 0,
+        "verified_pput_micro": 0
+      }
+    ]
+  },
+  "replay": {
+    "replay_roots_match_genesis": true
+  }
+}
