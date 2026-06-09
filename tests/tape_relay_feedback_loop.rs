@@ -170,22 +170,13 @@ fn read_prior_rejection_feedback_via_lib(workspace: &Path, session_id: &str) -> 
                                 let mut failed: Vec<(String, String)> = Vec::new();
                                 for r in run_cap.results {
                                     if !r.pass {
-                                        let name = match &r.scenario {
-                                            TestScenario::EntrypointExists => {
-                                                "EntrypointExists".to_string()
-                                            }
-                                            TestScenario::HtmlParses => "HtmlParses".to_string(),
-                                            TestScenario::PythonParses => {
-                                                "PythonParses".to_string()
-                                            }
-                                            TestScenario::SandboxPolicyPreserved { .. } => {
-                                                "SandboxPolicyPreserved".to_string()
-                                            }
-                                            TestScenario::RequiredTextPresent { label, .. } => {
-                                                format!("RequiredTextPresent({label})")
-                                            }
-                                        };
-                                        failed.push((name, r.detail));
+                                        // Mirror production faithfully: route through the
+                                        // SINGLE shielded renderer (TestScenario::shielded_feedback)
+                                        // exactly as read_failed_scenarios_by_cid does, so this
+                                        // replica never re-introduces the C11 needle/label leak
+                                        // (Art.III.4) it is supposed to be testing against.
+                                        let (name, detail) = r.scenario.shielded_feedback(&r.detail);
+                                        failed.push((name, detail));
                                     }
                                 }
                                 if !failed.is_empty() {
