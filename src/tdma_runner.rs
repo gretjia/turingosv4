@@ -401,6 +401,74 @@ pub struct RunSummary {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
+/// TRACE_MATRIX FC1-N34 + Art.I.1: tdma-LOCAL Verified-PPUT micro-unit.
+///
+/// This is the operator-convenience projection of the architect North Star
+/// `VPPUT_i = 1[ground-truth verified terminal] / (C_i × T_i)` computed from a
+/// `RunSummary`'s in-memory fields — NOT the canonical chain-reconstructed
+/// `reconstruct_vpput_from_tape` value. `turingos tdma run` writes a
+/// `GitTapeLedger` (refs/tdma/*; TapeNode field-blobs), not the runtime-L4
+/// git2 ledger + CAS + TypedTx that the tape-canonical reconstructor requires,
+/// so the canonical reconstructor cannot run over a tdma tape. This local
+/// helper inlines the identical integer formula (reusing the pub
+/// `PPUT_MICRO_SCALE`) so operators still see a VPPUT number.
+///
+/// Inputs (all integer):
+///   * `stages_completed` / `stages_total` — canonical stage progress.
+///   * `escalated_empty` — `summary.stages_escalated.is_empty()`; any
+///     escalation/abort means NOT a fully-verified terminal.
+///   * `prompt_tokens` + `completion_tokens` — `C_i`; these already include
+///     ALL failed-branch attempt tokens (summed per-probe before success).
+///   * `attempts` — `T_i`, the deterministic tick proxy (`probes.len()`);
+///     wall-clock ms is rejected (non-deterministic).
+///
+/// `progress` is `1` ONLY when every canonical stage Proceeded AND none
+/// escalated/aborted — the tdma analog of a fully-verified proof terminal —
+/// else `0`. The metric is `0` whenever `progress == 0` or the denominator is
+/// `0` (no panic). NO `f64` on any numeric surface.
+///
+/// CAVEAT: tdma stage judges are deterministic step judges (Nesbitt /
+/// math_step), NOT the Lean-oracle `VerificationResult` the tape-canonical
+/// VPPUT `oracle_verified` gate demands. This is therefore an
+/// operator-convenience VPPUT, not the chain-reconstructable canonical H-VPPUT.
+///
+/// SHIELDED: this value is a report/manifest surface only and MUST NOT enter
+/// any agent prompt builder (Goodhart shield, Art.III.4 / Gate H).
+pub fn tdma_verified_pput_micro(
+    stages_completed: usize,
+    stages_total: usize,
+    escalated_empty: bool,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    attempts: usize,
+) -> u64 {
+    // progress (0/1): fully-verified terminal ⇔ every canonical stage Proceeded
+    // (stages_total reached) AND nothing escalated/aborted. `stages_total == 0`
+    // is not a verified proof (there is nothing to verify) → progress 0.
+    let progress: u64 =
+        if stages_total > 0 && stages_completed == stages_total && escalated_empty {
+            1
+        } else {
+            0
+        };
+    if progress == 0 {
+        return 0;
+    }
+    // C_i — ALL prompt + completion tokens (failed branches already included).
+    let cost_tokens: u64 = (prompt_tokens as u64).saturating_add(completion_tokens as u64);
+    // T_i — deterministic attempt/stage count (NOT wall-clock ms).
+    let ticks: u64 = attempts as u64;
+    let denom = cost_tokens.saturating_mul(ticks);
+    if denom == 0 {
+        return 0;
+    }
+    // Integer division — pure u64; identical body to
+    // vpput_reconstruction::TaskVpput::compute_micro (which is private). NO f64.
+    crate::runtime::agent_scheduler::vpput_reconstruction::PPUT_MICRO_SCALE
+        .saturating_mul(progress)
+        / denom
+}
+
 /// TRACE_MATRIX FC3-replay: SHA-256 hex over arbitrary bytes.
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
@@ -828,6 +896,20 @@ where
         .max()
         .unwrap_or(0);
 
+    // VPPUT (operator metric — shielded). Computed from the SAME in-memory
+    // RunSummary-equivalent locals the report/stdout will use, so report +
+    // manifest agree byte-for-byte. progress=1 ONLY on a fully-verified proof
+    // terminal (all stages Proceeded, none escalated). Integer micro-units; NO
+    // f64. This value is NEVER fed into any agent prompt (Goodhart shield).
+    let verified_pput_micro = tdma_verified_pput_micro(
+        stages_completed,
+        total_stages,
+        stages_escalated.is_empty(),
+        total_prompt_tokens,
+        total_completion_tokens,
+        probes.len(),
+    );
+
     let manifest = serde_json::json!({
         "run_id": cfg.run_id,
         "model_label": cfg.model_label,
@@ -853,6 +935,9 @@ where
         "total_wall_clock_ms": run_start.elapsed().as_millis() as u64,
         "total_llm_completion_tokens": total_completion_tokens,
         "total_llm_prompt_tokens": total_prompt_tokens,
+        // VPPUT operator metric — integer micro-units, shielded from agent
+        // prompts. progress=1 ONLY on a fully-verified proof terminal.
+        "verified_pput_micro": verified_pput_micro,
         "per_stage": per_stage_attempts.iter().map(|(s, a, c, o)| {
             serde_json::json!({"stage": s, "attempts_used": a, "final_constraints": c, "outcome": o})
         }).collect::<Vec<_>>(),
@@ -885,6 +970,49 @@ where
 mod tests {
     use super::*;
     use std::cell::RefCell;
+
+    /// Gate (mutation-sensitive): a fully-VERIFIED tdma terminal yields a
+    /// NON-ZERO integer VPPUT exactly equal to PPUT_MICRO_SCALE / (C_i × T_i),
+    /// a NON-verified terminal yields 0, and a zero denominator never panics.
+    ///
+    /// Mutation-proof: flipping the progress gate `==` → `!=` makes (1) fail
+    /// (verified would score 0); dropping the `escalated_empty` conjunct makes
+    /// (2b) fail (an escalated-but-complete run would score non-zero).
+    #[test]
+    fn tdma_verified_pput_micro_gate() {
+        // (1) VERIFIED proof → NON-ZERO, exactly 1_000_000 / (C_i × T_i).
+        //     stages 5/5, escalated empty, C_i = 100 + 100 = 200, attempts = 4.
+        //     denom = 200 × 4 = 800 → 1_000_000 / 800 = 1250.
+        let v = tdma_verified_pput_micro(5, 5, true, 100, 100, 4);
+        assert!(v > 0, "verified proof must score > 0, got {v}");
+        let c_i: u64 = 100 + 100;
+        let t_i: u64 = 4;
+        assert_eq!(v, 1_000_000u64 / (c_i * t_i), "independent integer recompute");
+
+        // Efficiency ordering: cheaper verified solve scores strictly higher.
+        let cheap = tdma_verified_pput_micro(5, 5, true, 50, 50, 4); // denom 400
+        assert!(cheap > v, "fewer tokens must score higher: {cheap} !> {v}");
+
+        // (2a) NON-VERIFIED (incomplete stages) → 0 regardless of token counts.
+        assert_eq!(
+            tdma_verified_pput_micro(4, 5, true, 100, 100, 4),
+            0,
+            "stages_completed < stages_total is not a verified terminal"
+        );
+        // (2b) NON-VERIFIED (escalation present) → 0 even when all stages done.
+        assert_eq!(
+            tdma_verified_pput_micro(5, 5, false, 100, 100, 4),
+            0,
+            "any escalation/abort means NOT a fully-verified terminal"
+        );
+        // stages_total == 0 (nothing to verify) → 0.
+        assert_eq!(tdma_verified_pput_micro(0, 0, true, 100, 100, 4), 0);
+
+        // (3) ZERO-DENOM defense: progress would be 1 but C_i == 0 or
+        //     attempts == 0 → 0, no panic / no divide-by-zero.
+        assert_eq!(tdma_verified_pput_micro(5, 5, true, 0, 0, 4), 0);
+        assert_eq!(tdma_verified_pput_micro(5, 5, true, 100, 100, 0), 0);
+    }
 
     #[test]
     fn any_judge_construction_each_variant() {
