@@ -369,6 +369,7 @@ module_ids = [
   "bin::lean_market_agent",
   "bin::livefc1_swarm_runner",
   "bin::livefc1_swarm_verify",
+  "bin::livefc1_lean_runner",
   "bin::reputation_constitutional",
   "bin::market_external_agent_current_kernel",
   "bin::math_competition_reasoning_current_kernel",

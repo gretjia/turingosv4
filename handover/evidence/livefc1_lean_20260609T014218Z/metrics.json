@@ -1,0 +1,114 @@
+{
+ "schema_version": "turingosv4.livefc1.lean_consolidated_metrics.v1",
+ "generated_utc": "2026-06-09T01:46:22Z",
+ "run_id": "livefc1-lean-20260609T014218Z",
+ "a5_status": "A5_CLOSED_nonzero_vpput_lean_verified",
+ "lean_oracle": {
+  "oracle": "real Lean 4 kernel via LeanJudge (lean -DwarningAsError=true + #print axioms whitelist)",
+  "lean_bin": "/home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean",
+  "preflight": "trivial good core theorem -> exit 0; wrong theorem -> exit 1; bank reference proofs (5 core) all Verified via LeanJudge"
+ },
+ "theorems_attempted": [
+  "calib_core_add_zero",
+  "calib_core_le_succ",
+  "calib_core_decide_le"
+ ],
+ "theorems_lean_verified": [
+  "calib_core_add_zero",
+  "calib_core_le_succ",
+  "calib_core_decide_le"
+ ],
+ "per_task_vpput": [
+  {
+   "task_id": "lean:calib_core_add_zero-0",
+   "progress": 1,
+   "cost_tokens": 179,
+   "wall_clock_ticks": 3,
+   "attempt_count": 1,
+   "failed_branch_attempt_count": 0,
+   "verified_pput_micro": 1862
+  },
+  {
+   "task_id": "lean:calib_core_decide_le-2",
+   "progress": 1,
+   "cost_tokens": 175,
+   "wall_clock_ticks": 3,
+   "attempt_count": 1,
+   "failed_branch_attempt_count": 0,
+   "verified_pput_micro": 1904
+  },
+  {
+   "task_id": "lean:calib_core_le_succ-1",
+   "progress": 1,
+   "cost_tokens": 175,
+   "wall_clock_ticks": 3,
+   "attempt_count": 1,
+   "failed_branch_attempt_count": 0,
+   "verified_pput_micro": 1904
+  }
+ ],
+ "attempts": [
+  {
+   "problem_id": "calib_core_add_zero",
+   "outcome": "verified",
+   "verdict_kind": "Verified",
+   "lean_verified": true,
+   "proof_body_preview": "exact Nat.add_zero n",
+   "prompt_tokens": 162,
+   "completion_tokens": 17,
+   "verification_result_cid": "5e1762d74506d7912dd0ac39856762c91ad3e585c772c32449c367223cf17eb7",
+   "work_tx_id": "worktx-lean:calib_core_add_zero-0-livefc1-lean"
+  },
+  {
+   "problem_id": "calib_core_le_succ",
+   "outcome": "verified",
+   "verdict_kind": "Verified",
+   "lean_verified": true,
+   "proof_body_preview": "omega",
+   "prompt_tokens": 163,
+   "completion_tokens": 12,
+   "verification_result_cid": "53cd4abc41c291c121d280db47988f1690366e6db5dbf3c4151941fc90f3a204",
+   "work_tx_id": "worktx-lean:calib_core_le_succ-1-livefc1-lean"
+  },
+  {
+   "problem_id": "calib_core_decide_le",
+   "outcome": "verified",
+   "verdict_kind": "Verified",
+   "lean_verified": true,
+   "proof_body_preview": "decide",
+   "prompt_tokens": 162,
+   "completion_tokens": 13,
+   "verification_result_cid": "ec31ebc67f451e5d47b78cb2f990fb77ca5662cc8ab0ab3a802118853cdce957",
+   "work_tx_id": "worktx-lean:calib_core_decide_le-2-livefc1-lean"
+  }
+ ],
+ "nonzero_h_vpput_micro": 1904,
+ "h_vpput_micro_held_out_mean": 1890,
+ "ground_truth_solved": 3,
+ "observer": {
+  "fc2_boot": "LIVE",
+  "fc2_map_reduce_tick": "LIVE",
+  "fc2_terminal": "LIVE",
+  "fc3_disposition": "reached_observable_canary",
+  "zombie_count": 0,
+  "no_zombie": true,
+  "l4_entry_count": 17,
+  "l4e_entry_count": 0
+ },
+ "replay_roots_match_genesis": true,
+ "distinct_provider_handles": 1,
+ "provider_handle_capsule_count": 3,
+ "cost": {
+  "final_spend_tokens": 529,
+  "wall_clock_s": 6.716777918,
+  "budget_ceiling_micro_units": 20000,
+  "approx_usd": "sub-cent (<$0.01): 529 real tokens at ~$0.1-0.6/1M blended)",
+  "estimated_tokens": false
+ },
+ "honesty": [
+  "progress=1 ONLY because the REAL Lean kernel returned success on the model proof body (LeanJudge.is_verified()).",
+  "DeepSeek produced distinct proofs (e.g. add_zero -> `exact Nat.add_zero n`, NOT the reference `simp`) => genuine model output, not leaked reference.",
+  "VerificationResult.verified=true linked into ProposalTelemetry.verification_result_cid + TerminalSummary OmegaAccepted => the two VPPUT progress gates both fire on tape.",
+  "distinct_provider_handles=1: this is a single-provider (DeepSeek) Lean run; >=2 heterogeneity is the already-merged swarm run job, not A5."
+ ]
+}

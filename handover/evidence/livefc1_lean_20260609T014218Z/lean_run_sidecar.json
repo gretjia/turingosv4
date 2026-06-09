@@ -1,0 +1,120 @@
+{
+  "schema_version": "turingosv4.livefc1.lean_run_sidecar.v1",
+  "run_id": "livefc1-lean-20260609T014218Z",
+  "proxy_url": "http://localhost:8123",
+  "model_brand": "deepseek-chat",
+  "provider_brand": "DeepSeek",
+  "lean_bin": "/home/zephryj/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean",
+  "budget_ceiling_micro_units": 20000,
+  "final_spend_tokens": 529,
+  "wall_clock_s": 6.716777918,
+  "problems": [
+    {
+      "problem_id": "calib_core_add_zero",
+      "task_id": "lean:calib_core_add_zero-0",
+      "needs_mathlib": false,
+      "attempts": 2,
+      "verified": true,
+      "omega_accepted_emitted": true,
+      "total_tokens": 179,
+      "provider_handle": "729c1024b8e378b3"
+    },
+    {
+      "problem_id": "calib_core_le_succ",
+      "task_id": "lean:calib_core_le_succ-1",
+      "needs_mathlib": false,
+      "attempts": 2,
+      "verified": true,
+      "omega_accepted_emitted": true,
+      "total_tokens": 175,
+      "provider_handle": "729c1024b8e378b3"
+    },
+    {
+      "problem_id": "calib_core_decide_le",
+      "task_id": "lean:calib_core_decide_le-2",
+      "needs_mathlib": false,
+      "attempts": 2,
+      "verified": true,
+      "omega_accepted_emitted": true,
+      "total_tokens": 175,
+      "provider_handle": "729c1024b8e378b3"
+    }
+  ],
+  "attempts": [
+    {
+      "problem_id": "calib_core_add_zero",
+      "task_id": "lean:calib_core_add_zero-0",
+      "attempt_index": 0,
+      "outcome": "verified",
+      "verdict_kind": "Verified",
+      "prompt_tokens": 162,
+      "completion_tokens": 17,
+      "body_preview": "exact Nat.add_zero n",
+      "feedback": "",
+      "work_tx_id": "worktx-lean:calib_core_add_zero-0-livefc1-lean",
+      "l4e_submit_id": null,
+      "proposal_telemetry_cid": "3187585db3d313d9a2f09133568cf6c314d3b8ed6d363a78a751c41ea4258e3a",
+      "verification_result_cid": "5e1762d74506d7912dd0ac39856762c91ad3e585c772c32449c367223cf17eb7",
+      "verified": true
+    },
+    {
+      "problem_id": "calib_core_le_succ",
+      "task_id": "lean:calib_core_le_succ-1",
+      "attempt_index": 0,
+      "outcome": "verified",
+      "verdict_kind": "Verified",
+      "prompt_tokens": 163,
+      "completion_tokens": 12,
+      "body_preview": "omega",
+      "feedback": "",
+      "work_tx_id": "worktx-lean:calib_core_le_succ-1-livefc1-lean",
+      "l4e_submit_id": null,
+      "proposal_telemetry_cid": "d3728b5d89aae872325b34e51f748d6e9555ca8c5e43740337eac5342f8901d2",
+      "verification_result_cid": "53cd4abc41c291c121d280db47988f1690366e6db5dbf3c4151941fc90f3a204",
+      "verified": true
+    },
+    {
+      "problem_id": "calib_core_decide_le",
+      "task_id": "lean:calib_core_decide_le-2",
+      "attempt_index": 0,
+      "outcome": "verified",
+      "verdict_kind": "Verified",
+      "prompt_tokens": 162,
+      "completion_tokens": 13,
+      "body_preview": "decide",
+      "feedback": "",
+      "work_tx_id": "worktx-lean:calib_core_decide_le-2-livefc1-lean",
+      "l4e_submit_id": null,
+      "proposal_telemetry_cid": "2d2606fde47fbd47891dd56d2e7beae9ca5a7e184ec12fb6f30e58f593195701",
+      "verification_result_cid": "ec31ebc67f451e5d47b78cb2f990fb77ca5662cc8ab0ab3a802118853cdce957",
+      "verified": true
+    }
+  ],
+  "brand_sidecar": [
+    {
+      "agent_id": "Agent_0",
+      "provider_handle": "729c1024b8e378b3",
+      "brand_model_name": "deepseek-chat",
+      "brand_model_provider": "DeepSeek"
+    },
+    {
+      "agent_id": "Agent_1",
+      "provider_handle": "729c1024b8e378b3",
+      "brand_model_name": "deepseek-chat",
+      "brand_model_provider": "DeepSeek"
+    },
+    {
+      "agent_id": "Agent_2",
+      "provider_handle": "729c1024b8e378b3",
+      "brand_model_name": "deepseek-chat",
+      "brand_model_provider": "DeepSeek"
+    }
+  ],
+  "fc2_terminal_omega_accepted": true,
+  "notes": [
+    "REAL Lean kernel (LeanJudge) is the external ground-truth oracle; progress=1 ONLY on a kernel-Verified proof.",
+    "A Verified proof links VerificationResult.verified=true into ProposalTelemetry.verification_result_cid AND emits TerminalSummary OmegaAccepted => VPPUT progress=1.",
+    "Failed Lean attempts land on tape as L4.E LeanFailed (token-spent, counted) — not a verified path.",
+    "Provider identity on canonical CAS is the brand-GENERIC ProviderHandleCapsule (opaque sha256 handle); brand->handle mapping is external-only."
+  ]
+}

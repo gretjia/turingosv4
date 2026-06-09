@@ -1,0 +1,10 @@
+# LIVE-FC1 Lean-tier — signed/user-approved budget hard-ceiling manifest.
+#
+# Separate UNPINNED TOML (NOT genesis_payload.toml). 1 token == 1 MicroCoin
+# micro-unit. A POSITIVE value arms the hard ceiling (FC2-HALT on breach); 0 ==
+# unlimited.
+#
+# These are EASY core Lean theorems; each verified proof costs only a few hundred
+# tokens. 20000 micro-units (~20k tokens) comfortably admits 1-3 theorems with a
+# couple of attempts each while still capping a runaway. Sub-dollar real spend.
+cost_ceiling_micro_units = 20000
