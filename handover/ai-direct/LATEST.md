@@ -9,6 +9,80 @@
 
 ---
 
+## Current Snapshot (2026-06-09)
+
+**Session**: 1.0 readiness via a systematic multi-tier real E2E + adversarial
+campaign under the standing `/goal`, then closing the resulting Class-4 security
+gap. `main` now at `7298b927` (Merge #340). THREE PRs landed this session:
+
+- **#338** (`6649c684`, Class 2, zero pinned) — 1.0 product-flow hardening of
+  `turingos generate`: honest delivery contract (post-delivery steps
+  warn+anchor+exit-0, never retract a printed delivery; a genuine pre-delivery /
+  structural failure still exits 2), entrypoint-aware structural gate
+  (`.py`->PythonParses via `sanitized_runner`, `.html`->HtmlParses), spec-derived
+  functional gate, C11 shielded retry-feedback, and a new read-only
+  `turingos observe` (FC1/FC2/FC3 liveness + no-zombie + integer-VPPUT rollup).
+  Includes the E2E-driven needle fixes. Clean-context 4-lens audit 4x PROCEED.
+- **#339** (`09b3903`, Class 1) — operator-convenience VPPUT surfaced in
+  `turingos tdma run`. **Honestly NOT** the canonical Lean-oracle H-VPPUT: it
+  uses the deterministic stage judges, and the tdma git tape is not the
+  runtime-L4 tape `reconstruct_vpput_from_tape` reads.
+- **#340** (`7298b927`; trust-root commit `0585831b`; tag
+  `v4-ratify-2026-06-09-siggap`, gretjia ED25519) — **Class-4 §8** closure of
+  **OBS_AGENT_SIG_REPLAY_GAP**. §8 token
+  `APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12`. ALL 12 agent economic TypedTx
+  variants (Work/Verify/Challenge/TaskOpen/EscrowLock + CompleteSet*/MarketSeed/
+  Cpmm*/BuyWithCoinRouter) are now signature-verified **FAIL-CLOSED** at
+  `submit_agent_tx` ingress via a shared `verify_economic_agent_sig` helper (new
+  `SubmitError::AgentManifestRequired`: no manifest -> reject) AND at replay
+  Gate 4. 8 trust-root pins rehashed (sequencer.rs, verify.rs,
+  chain_derived_run_facts.rs test-section, + 5 pinned test files). Closes the
+  ingress vector for UNTRUSTED external agents (architect-confirmed 1.0 req).
+
+**Architect decision (2026-06-09) — NON-FATAL functional gate**: the spec-derived
+`RequiredTextPresent` check is best-effort (needle derived from fuzzy LLM prose,
+wrong 4 ways across the E2E: filename / command / numeric / narrative-example).
+Delivery is gated on the reliable STRUCTURAL scenarios ONLY; a functional miss is
+delivered + recorded as an on-tape advisory + warned, never a hard reject. See
+`test_run::delivery_verdict`.
+
+**E2E campaign (5 tiers; real CLI + live LLM + top-level tape observer; no mocks)**:
+- Simple E2E (HTML game / Python script) -> both OS-LIVE-DELIVERED.
+- Tier-1 (long-horizon multi-turn resume / forced-retry / adversarial) — FC2
+  multi-tick + resume + C11 relay + fail-closed all held; surfaced a trust-root
+  CLI footgun (`init` told users to `cd` into the scaffold; fixed) and the needle
+  false-negative (-> non-fatal gate).
+- Tier-2 (multi-worker market resolution `--n-parallel-workers 3` / Lean-oracle
+  `tdma --judge nesbitt`) — 3 workers admitted + winner settled; judge oracle
+  fired + discriminated correctly (7/8 stages, last step rightly rejected).
+- Tier-3 (100 synthetic Byzantine agents, zero-LLM, deterministic) — money
+  conservation / ingress system-tx rejection / double-claim idempotency / DoS
+  back-pressure / malformed fail-closed / 200-entry replay ALL held at scale;
+  DEMONSTRATED the agent-sig ingress gap exploitable -> drove #340.
+Full report: `handover/audits/E2E_1_0_READINESS_2026-06-09.md`.
+
+**Gates at `main`**: `cargo test --workspace --no-fail-fast` 479 bins / 0 failed;
+`run_constitution_gates` total=**194** failed=0; matrix-drift 3/3. New gates this
+session: `constitution_agent_sig_ingress_failclosed` (7 variants x 4 states,
+triple-coupled), `constitution_e2e_1_0_product_flow`,
+`no_false_pass_functional_scenario`, `adversarial_100_agent_scale` (7/7),
+`tdma_verified_pput_micro_gate`.
+
+**1.0 posture**: the core product flow (describe app -> delivered working code on
+a constitutional tape) AND untrusted-agent ingress security are now closed.
+**Remaining (architect / §8)**: **P2** distributable-binary trust-root (make
+`generate`'s trust-root check cwd-independent / binary-embedded — Class-4, only
+needed if shipping a standalone binary; the demo runs from the source root, and
+`init`'s "Next steps" now reflects that); minor **P4** (audit-tape production
+role naming, cross-backend `observe`/`verify chaintape` for the tdma git tape,
+market `winner=` stdout line).
+
+**Merge model (this session)**: with explicit architect authorization the agent
+self-merges non-trust-root PRs (#339 agent-merged). Trust-root PRs still require a
+user-signed `v4-ratify-*` tag (cryptographic, G-GUARD) before agent merge — that
+is the one irreducibly-human step (#340 merged after the user signed the tag).
+See `feedback_agent_merge_authorization`.
+
 ## Current Snapshot (2026-06-08)
 
 **Session**: Agentic-OS roadmap S1–S6 — **every autonomously-shippable atom

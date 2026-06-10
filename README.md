@@ -42,16 +42,22 @@ Sessions #1-#54 are archived at:
 
 ## Current Main Status
 
-As of `origin/main@13f2760f`, `main` includes the Phase E libgit2 cutover,
-flowchart closure work, no-zombie/liveness gates, OBL-001 through OBL-009
-closure, platform-agnostic audit doctrine, and the post-merge handover
-correction. Current constitution gate result from a clean `origin/main`
-worktree:
+As of `origin/main@7298b927` (Merge #340, 2026-06-09), `main` includes the Phase E
+libgit2 cutover, flowchart closure, no-zombie/liveness gates, the platform-agnostic
+audit doctrine, the **agentic-OS roadmap S1–S6** (#315–#324), the **`turingos`
+product CLI** (`init` → `spec` → `generate` → `observe`), the **1.0 product-flow
+hardening + non-fatal functional gate** (#338), an **operator VPPUT in
+`tdma run`** (#339), and the **Class-4 agent-signature ingress fail-closure**
+(#340, all 12 agent economic tx variants verified at ingress + replay — closing
+OBS_AGENT_SIG_REPLAY_GAP for untrusted external agents). Current constitution gate
+result from a clean `origin/main` worktree:
 
 ```text
 bash scripts/run_constitution_gates.sh
-# [k-1-5] total=164 failed=0
+# [k-1-5] total=194 failed=0
 ```
+
+(`cargo test --workspace --no-fail-fast`: 479 test binaries, 0 failed.)
 
 Current high-signal facts:
 
@@ -71,14 +77,38 @@ Current high-signal facts:
 - **SWE-bench judge**: PR #212 wires `turingos tdma run --judge swebench` to a
   real SWE-bench hidden-test verifier path. Current honest result is loop 0/3,
   bare 0/3; the verifier/runtime path exists, but no loop advantage is claimed.
-- **Known current blocker**: `cargo test --features web --test
-  generate_emits_work_tx_smoke -- --nocapture` fails to compile because
-  `src/web/dag_view.rs` imports private `TaskId` through `state::typed_tx`
-  instead of `state::q_state`. This does not invalidate the constitution gate
-  result, but it blocks that web-feature smoke until fixed.
+- **Product CLI + delivery contract (2026-06-09, #338)**: `turingos generate`
+  delivers structurally-valid code with an HONEST exit code (a printed delivery
+  is never retracted by a downstream economic break; a genuine pre-delivery /
+  structural failure exits 2). The spec-derived functional check is **non-fatal**
+  (best-effort needle from fuzzy LLM prose → deliver + on-tape advisory + warn,
+  never a hard reject); structural gates (entrypoint exists/parses) still
+  hard-block. `turingos observe` gives a read-only FC1/FC2/FC3 liveness +
+  no-zombie + integer-VPPUT rollup over a workspace tape.
+- **Untrusted-agent ingress security (2026-06-09, #340, Class-4 §8)**: all 12
+  agent economic typed-tx variants are signature-verified FAIL-CLOSED at
+  `submit_agent_tx` ingress (`SubmitError::AgentManifestRequired` when no manifest
+  is configured) AND at replay Gate 4. Demonstrated at 100-agent Byzantine scale
+  (`tests/adversarial_100_agent_scale.rs`).
+- **Note**: the earlier `13f2760f`-era web-feature smoke blocker
+  (`generate_emits_work_tx_smoke` private-`TaskId` import) predates this snapshot;
+  re-verify against current `main` before relying on it either way.
 
 ### Recent Milestones
 
+- **PR #340** (2026-06-09, Class-4 §8 `APPROVE-AGENT-SIG-INGRESS-FAILCLOSED-ALL-12`):
+  close OBS_AGENT_SIG_REPLAY_GAP — all 12 agent economic tx variants fail-closed
+  at ingress + replay Gate 4; 8 trust-root pins rehashed; tag
+  `v4-ratify-2026-06-09-siggap`.
+- **PR #339** (2026-06-09): operator VPPUT in `turingos tdma run`.
+- **PR #338** (2026-06-09): 1.0 product-flow hardening — honest delivery
+  contract, entrypoint-aware structural gate, non-fatal functional gate, C11
+  shielded retry, `turingos observe`; plus the 5-tier real E2E + adversarial
+  campaign (report: `handover/audits/E2E_1_0_READINESS_2026-06-09.md`).
+- **PRs #315–#324** (2026-06-08): agentic-OS roadmap S1–S6 (single-admission
+  predicate gate, conformance sweep, all-canonical-writers-verify-trust-root,
+  FC3 observable+canary, arg-taint hard-gate, Tier-1 memory, interop, economy
+  observe-only boltzmann trace).
 - **PR #214**: post-merge handover and roadmap-status correction.
 - **PR #212**: SWE-bench TDMA hidden-test judge + review fixes.
 - **PR #213**: platform-agnostic audit doctrine + `turingos_dev` retirement.
