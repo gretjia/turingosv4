@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — NOT a real-data validation. run_skillsweep is a pure synthetic Monte-Carlo (est = skill*truth + (1-skill)*noise; no LLM in the selection loop); the softmax arm has a FIXED 80.2% accuracy ceiling independent of skill (tau=0.10 vs price gap 0.25); the crossover is a property of the noise model (n=3, sign-flip at 0.45); 'hidden gems drive the win' is mechanistically false. Only the 4x4 competence matrix is real.
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # Routing A/B (autonomous price vs softmax forced) — real-Lean validation of the architect's simulation
 
 > 2026-05-31. The architect ran a reproducible Monte-Carlo simulation of two routing policies and found a

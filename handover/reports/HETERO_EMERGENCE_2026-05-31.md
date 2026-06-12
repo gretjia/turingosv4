@@ -1,3 +1,10 @@
+> ⚠️ **CORRECTION 2026-06-01** — mislabeled 'price-routed'. src/bin/lean_hetero_market.rs has ZERO price code; specialists are handed verbatim closing-tactic recipes (prompt asymmetry); single_spec is a 1-of-4-family definitional floor. This is coverage/prompt-shaping, NOT price routing, and is erased at equal budget (Stage-2 JUST_SAMPLING).
+>
+> Full evidence + the systematic fix: `handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`.
+> External claims are held to **Verdict B only** until the real-value experiment (lean_market_agent, non-local price-routed tree search) passes with fair baselines + tape-recompute.
+
+---
+
 # Heterogeneous-agent market — REAL emergence signal (2026-05-31)
 
 > branch `claude/lean-market-baselines` · binary `src/bin/lean_hetero_market.rs`
