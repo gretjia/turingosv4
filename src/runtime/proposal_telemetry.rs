@@ -53,7 +53,16 @@ use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::bottom_white::ledger::transition_ledger::{canonical_decode, canonical_encode};
 use crate::state::q_state::{AgentId, Hash, TxId};
 
-const PROPOSAL_TELEMETRY_SCHEMA_ID: &str = "turingosv4.proposal_telemetry.v1";
+// §8 (architect ratified 2026-06-15): schema v1→v2 adds the additive `model_id`
+// field so per-proposal model provenance is tape-canonical (Art 0.2) instead of
+// inferred from a round-robin rule. v1 is retained as a legacy DECODE path
+// (`read_from_cas` tries v2 then falls back to v1 with model_id=None) so historical
+// CAS objects still replay byte-equivalently. NEW writes use v2.
+const PROPOSAL_TELEMETRY_SCHEMA_ID: &str = "turingosv4.proposal_telemetry.v2";
+/// Legacy schema id, retained for documentation + the historical replay-equivalence test.
+/// The legacy DECODER keys off struct shape (positional bincode), not this string.
+#[allow(dead_code)]
+const PROPOSAL_TELEMETRY_SCHEMA_ID_V1: &str = "turingosv4.proposal_telemetry.v1";
 
 // ── Token counts ────────────────────────────────────────────────────────────
 
@@ -139,6 +148,16 @@ pub struct ProposalTelemetry {
     /// telemetry.
     #[serde(default)]
     pub verification_result_cid: Option<Cid>,
+    /// §8 (schema v2, architect ratified 2026-06-15): the vendor model id that
+    /// produced this proposal (e.g. "Qwen/Qwen3.5-397B-A17B"). Makes per-proposal
+    /// model provenance — and therefore cost = rate(model_id)×tokens — recomputable
+    /// from the frozen tape ALONE (Art 0.2), instead of inferred from a round-robin
+    /// agent→model rule (which breaks under dynamic model-budget routing). This is
+    /// provenance metadata (same category as `agent_id`), NOT deliberation/raw
+    /// content, so it does not violate the §6 forbidden-field guard. `None` on
+    /// legacy v1 records decoded through the fallback path.
+    #[serde(default)]
+    pub model_id: Option<String>,
 }
 
 impl ProposalTelemetry {
@@ -163,6 +182,7 @@ impl ProposalTelemetry {
             branch_id,
             parent_tx: None,
             verification_result_cid: None,
+            model_id: None,
         }
     }
 
@@ -254,6 +274,7 @@ impl ProposalTelemetry {
             branch_id: format!("{}.b{}", agent_id, proposal_index),
             parent_tx,
             verification_result_cid: None,
+            model_id: None,
         })
     }
 
@@ -326,16 +347,71 @@ pub fn write_to_cas(
     Ok(cid)
 }
 
+/// §8 legacy decode shape: the exact pre-v2 (9-field) `ProposalTelemetry` layout,
+/// WITHOUT `model_id`. `canonical_encode`/`decode` is positional bincode
+/// (non-self-describing), so a historical v1 buffer (9 fields) cannot decode into
+/// the v2 struct (10 fields) — it errors on the missing trailing field. This
+/// struct lets `read_from_cas` fall back and map a v1 record to a v2 record with
+/// `model_id = None`, preserving byte-equivalent replay of all historical CAS.
+#[derive(Serialize, Deserialize)]
+struct ProposalTelemetryV1 {
+    agent_id: AgentId,
+    prompt_context_hash: Hash,
+    proposal_artifact_cid: Cid,
+    candidate_tactic: String,
+    token_counts: TokenCounts,
+    tool_calls: Vec<ToolCallRecord>,
+    branch_id: String,
+    parent_tx: Option<TxId>,
+    #[serde(default)]
+    verification_result_cid: Option<Cid>,
+}
+
+impl From<ProposalTelemetryV1> for ProposalTelemetry {
+    fn from(v: ProposalTelemetryV1) -> Self {
+        ProposalTelemetry {
+            agent_id: v.agent_id,
+            prompt_context_hash: v.prompt_context_hash,
+            proposal_artifact_cid: v.proposal_artifact_cid,
+            candidate_tactic: v.candidate_tactic,
+            token_counts: v.token_counts,
+            tool_calls: v.tool_calls,
+            branch_id: v.branch_id,
+            parent_tx: v.parent_tx,
+            verification_result_cid: v.verification_result_cid,
+            model_id: None, // v1 records predate model provenance
+        }
+    }
+}
+
 /// TRACE_MATRIX FC1-N14: CAS fetch + canonical-decode. Used by Atom 4
 /// `verify_chaintape` extension to retrieve and validate
 /// `WorkTx.proposal_cid` references during replay.
+///
+/// §8: tries the current v2 (10-field, with `model_id`) layout first; on a decode
+/// error falls back to the legacy v1 (9-field) layout and maps `model_id = None`.
+/// This keeps every historical ProposalTelemetry CAS object replayable after the
+/// schema bump (AGENTS.md §8 — never break historical evidence reconstructability).
 pub fn read_from_cas(
     cas: &CasStore,
     cid: &Cid,
 ) -> Result<ProposalTelemetry, ProposalTelemetryError> {
-    let bytes = cas.get(cid)?;
-    canonical_decode::<ProposalTelemetry>(&bytes)
-        .map_err(|e| ProposalTelemetryError::Codec(e.to_string()))
+    decode_bytes(&cas.get(cid)?)
+}
+
+/// §8: the shared v1/v2-robust ProposalTelemetry decoder over raw CAS bytes. Tries
+/// the current v2 (10-field) layout, then falls back to legacy v1 (9-field) with
+/// `model_id = None`. EVERY ProposalTelemetry decode site (read_from_cas, the
+/// predicate registry, audit_assertions) MUST route through this so the schema bump
+/// neither breaks historical v1 replay nor mis-decodes v2's trailing field
+/// (canonical_decode is positional bincode + requires full byte consumption).
+pub fn decode_bytes(bytes: &[u8]) -> Result<ProposalTelemetry, ProposalTelemetryError> {
+    match canonical_decode::<ProposalTelemetry>(bytes) {
+        Ok(v2) => Ok(v2),
+        Err(_) => canonical_decode::<ProposalTelemetryV1>(bytes)
+            .map(ProposalTelemetry::from)
+            .map_err(|e| ProposalTelemetryError::Codec(e.to_string())),
+    }
 }
 
 /// TRACE_MATRIX FC1-N14: convenience — open a CAS at `cas_path` and read the
@@ -423,14 +499,14 @@ mod tests {
     /// `None`). The original 8 ruling-D5 fields are unchanged; this is
     /// purely additive.
     #[test]
-    fn schema_validity_nine_fields_with_verification_result() {
+    fn schema_validity_ten_fields_with_model_id() {
         let record = fresh_record("n1", "n1.b0");
         let json = serde_json::to_value(&record).expect("serialize");
         let obj = json.as_object().expect("object");
         assert_eq!(
             obj.len(),
-            9,
-            "ProposalTelemetry must have 9 fields (8 ruling-D5 + 1 TB-7.7 D4 verification_result_cid)"
+            10,
+            "ProposalTelemetry must have 10 fields (8 ruling-D5 + TB-7.7 D4 verification_result_cid + §8 model_id)"
         );
         assert!(obj.contains_key("agent_id"));
         assert!(obj.contains_key("prompt_context_hash"));
@@ -441,6 +517,7 @@ mod tests {
         assert!(obj.contains_key("branch_id"));
         assert!(obj.contains_key("parent_tx"));
         assert!(obj.contains_key("verification_result_cid"));
+        assert!(obj.contains_key("model_id"));
         // Forbidden field guard: telemetry must NOT contain chain-of-thought
         // or raw deliberation per TB-6 charter §6 #11 inheritance.
         for forbidden in [
@@ -569,5 +646,59 @@ mod tests {
         )
         .expect("without parent");
         assert!(pt2.parent_tx.is_none());
+    }
+
+    /// §8 REQUIRED historical replay-equivalence: a legacy v1 (9-field) record,
+    /// canonical-encoded exactly as historical CAS objects were, must still be
+    /// readable through `read_from_cas` after the v2 (10-field) bump — decoding to
+    /// the same 9 fields with `model_id = None`. Proves the schema bump does not
+    /// break historical evidence reconstructability (AGENTS.md §8).
+    #[test]
+    fn v1_record_still_decodes_after_v2_bump() {
+        let (_dir, mut cas) = fresh_cas();
+        // Encode a record in the EXACT pre-v2 (9-field) layout, byte-for-byte as a
+        // historical writer would, and store it under the v1 schema id.
+        let v1 = ProposalTelemetryV1 {
+            agent_id: AgentId("legacy_n1".into()),
+            prompt_context_hash: Hash([3u8; 32]),
+            proposal_artifact_cid: Cid([9u8; 32]),
+            candidate_tactic: "nlinarith".into(),
+            token_counts: TokenCounts { prompt_tokens: 11, completion_tokens: 22, tool_tokens: 0 },
+            tool_calls: Vec::new(),
+            branch_id: "legacy_n1.b0".into(),
+            parent_tx: None,
+            verification_result_cid: None,
+        };
+        let bytes = canonical_encode(&v1).expect("encode v1");
+        let cid = cas
+            .put(&bytes, ObjectType::Generic, "legacy-writer", 1,
+                 Some(PROPOSAL_TELEMETRY_SCHEMA_ID_V1.to_string()))
+            .expect("put v1");
+        // A 9-field buffer must FAIL to decode as the 10-field v2 struct (positional
+        // bincode), proving the fallback path is actually exercised, not bypassed.
+        assert!(
+            canonical_decode::<ProposalTelemetry>(&bytes).is_err(),
+            "v1 bytes must not silently decode as v2 (would mean no real version separation)"
+        );
+        // read_from_cas must still recover it via the v1 fallback, model_id = None.
+        let got = read_from_cas(&cas, &cid).expect("read legacy v1 via fallback");
+        assert_eq!(got.agent_id, AgentId("legacy_n1".into()));
+        assert_eq!(got.candidate_tactic, "nlinarith");
+        assert_eq!(got.token_counts.total(), 33);
+        assert_eq!(got.branch_id, "legacy_n1.b0");
+        assert_eq!(got.verification_result_cid, None);
+        assert_eq!(got.model_id, None, "legacy v1 record maps to model_id=None");
+    }
+
+    /// §8: a v2 record carrying a model_id round-trips and the model_id survives.
+    #[test]
+    fn v2_record_roundtrips_with_model_id() {
+        let (_dir, mut cas) = fresh_cas();
+        let mut rec = fresh_record("n3", "n3.b0");
+        rec.model_id = Some("Qwen/Qwen3.5-397B-A17B".into());
+        let cid = write_to_cas(&mut cas, &rec, "v2-test", 1).expect("write v2");
+        let got = read_from_cas(&cas, &cid).expect("read v2");
+        assert_eq!(got.model_id.as_deref(), Some("Qwen/Qwen3.5-397B-A17B"));
+        assert_eq!(got, rec);
     }
 }

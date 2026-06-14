@@ -1147,33 +1147,9 @@ fn code_hash_for_boot_predicate(id: &str, kind: &BootPredicateKind) -> [u8; 32] 
     h.finalize().into()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct ProposalTelemetryRef {
-    agent_id: AgentId,
-    prompt_context_hash: Hash,
-    proposal_artifact_cid: Cid,
-    candidate_tactic: String,
-    token_counts: ProposalTokenCountsRef,
-    tool_calls: Vec<ProposalToolCallRecordRef>,
-    branch_id: String,
-    parent_tx: Option<TxId>,
-    #[serde(default)]
-    verification_result_cid: Option<Cid>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct ProposalTokenCountsRef {
-    prompt_tokens: u64,
-    completion_tokens: u64,
-    tool_tokens: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct ProposalToolCallRecordRef {
-    tool_id: String,
-    args_hash: Hash,
-    result_hash: Hash,
-}
+// §8: the local ProposalTelemetry{,TokenCounts,ToolCallRecord}Ref decode structs were
+// removed — `proposal_payload_bytes` now routes through the shared v1/v2-robust
+// `proposal_telemetry::decode_bytes`, so there is a single ProposalTelemetry decode path.
 
 fn proposal_payload_bytes(ctx: &PredicateContext<'_>) -> Result<Vec<u8>, PredicateVerifyError> {
     let obj = ctx
@@ -1183,8 +1159,14 @@ fn proposal_payload_bytes(ctx: &PredicateContext<'_>) -> Result<Vec<u8>, Predica
     if obj.object_type == ObjectType::ProposalPayload {
         return Ok(obj.bytes);
     }
-    if obj.schema_id.as_deref() == Some("turingosv4.proposal_telemetry.v1") {
-        let telemetry: ProposalTelemetryRef = canonical_decode(&obj.bytes)
+    if matches!(
+        obj.schema_id.as_deref(),
+        Some("turingosv4.proposal_telemetry.v1") | Some("turingosv4.proposal_telemetry.v2")
+    ) {
+        // §8: route through the shared v1/v2-robust decoder. Positional bincode +
+        // full-consumption means a v2 record's trailing model_id would TrailingBytes
+        // a 9-field Ref, and a v1 record would short-read a 10-field struct.
+        let telemetry = crate::runtime::proposal_telemetry::decode_bytes(&obj.bytes)
             .map_err(|e| PredicateVerifyError::ProposalPayloadDecode(e.to_string()))?;
         let artifact = ctx
             .proof_store

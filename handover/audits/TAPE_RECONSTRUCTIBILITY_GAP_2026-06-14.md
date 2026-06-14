@@ -1,5 +1,15 @@
 # Gate D — H-HET-1 Carrier Tape-Reconstructibility Gap Analysis
 
+> **✅ GAP CLOSED 2026-06-15** — resolved by the architect-ratified §8 change:
+> `ProposalTelemetry` schema v1→v2 adds `model_id`, so per-proposal model provenance +
+> cost = rate(model_id)×tokens now recompute from the frozen ChainTape+CAS ALONE (no
+> Manifest roster, no round-robin inference). The negative-witness
+> `model_id_is_not_a_field_on_carrier_cas_objects` flipped to the positive recompute
+> closure `model_id_is_tape_canonical_on_carrier_cas_objects`. Historical v1 CAS still
+> replays byte-equivalent via the legacy fallback decoder. Verified: full constitution
+> gate suite 167 / 3-known-reds (zero new), schema lib 10/10, Gate-D 5/5. See
+> `ART_0_2_FULL_CLOSE_DESIGN_2026-06-15.md`. The analysis below is the historical record.
+
 **Date:** 2026-06-14 (test added; analysis carried 2026-06-15)
 **Gate:** D — tape-reconstructibility (architect audit, constitution **Art 0.2** "所有信号必须可从 tape 重建 / any field that cannot be rebuilt from the frozen tape is excluded from the headline metric"). This is the HARDEST, partly-DIAGNOSTIC gate.
 **Carrier:** `src/bin/lean_market_agent.rs` (H-HET-1 heterogeneous autonomous market).

@@ -58,27 +58,27 @@ use sha2::{Digest, Sha256};
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::CasStore;
 use crate::bottom_white::ledger::rejection_evidence::{
-    RejectionEvidenceError, RejectionEvidenceWriter, parse_and_verify_jsonl_record_bytes,
+    parse_and_verify_jsonl_record_bytes, RejectionEvidenceError, RejectionEvidenceWriter,
 };
 use crate::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemPublicKey,
 };
 use crate::bottom_white::ledger::transition_ledger::{
-    Git2LedgerWriter, LedgerEntry, LedgerWriter, ReplayError, TxKind, canonical_decode,
-    replay_full_transition_with_predicate_binding,
+    canonical_decode, replay_full_transition_with_predicate_binding, Git2LedgerWriter, LedgerEntry,
+    LedgerWriter, ReplayError, TxKind,
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
-use crate::runtime::PinnedPubkeyManifest;
 use crate::runtime::agent_keypairs::AgentPubkeyManifest;
 use crate::runtime::attempt_telemetry::{
-    AttemptOutcome, AttemptTelemetry, LeanResult, read_attempt_telemetry_shared_slot_from_cas,
-    read_lean_result_from_cas,
+    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, AttemptOutcome,
+    AttemptTelemetry, LeanResult,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
 use crate::runtime::genesis_report::AgentModelAssignment;
 use crate::runtime::markov_capsule::MarkovEvidenceCapsule;
 use crate::runtime::proposal_telemetry::ProposalTelemetry;
 use crate::runtime::verification_result::VerificationResult;
+use crate::runtime::PinnedPubkeyManifest;
 use crate::state::q_state::{Hash, QState};
 use crate::state::typed_tx::TypedTx;
 
@@ -1238,7 +1238,7 @@ pub fn assert_07_genesis_row_zero_parents(t: &LoadedTape) -> AssertionResult {
 
 /// TRACE_MATRIX FC1-N34 + FC2-N31 (TB-16 audit-from-tape battery).
 pub fn assert_08_system_tx_signatures_verify(t: &LoadedTape) -> AssertionResult {
-    use crate::bottom_white::ledger::system_keypair::{CanonicalMessage, verify_system_signature};
+    use crate::bottom_white::ledger::system_keypair::{verify_system_signature, CanonicalMessage};
     let mut count = 0u32;
     for (i, e) in t.entries.iter().enumerate() {
         if !is_system_tx_kind(e.tx_kind) {
@@ -1962,7 +1962,7 @@ pub fn assert_24_proposal_telemetry_chain(t: &LoadedTape) -> AssertionResult {
                 );
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
+        let telemetry: ProposalTelemetry = match crate::runtime::proposal_telemetry::decode_bytes(&prop_bytes)
         {
             Ok(p) => p,
             Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
@@ -2299,7 +2299,7 @@ pub fn assert_e_boltzmann_parent_selection_diversity(t: &LoadedTape) -> Assertio
                 continue;
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
+        let telemetry: ProposalTelemetry = match crate::runtime::proposal_telemetry::decode_bytes(&prop_bytes)
         {
             Ok(p) => p,
             Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
@@ -3724,7 +3724,13 @@ pub fn summarize_results(
         }
     }
     let mut feature_coverage: BTreeMap<String, String> = BTreeMap::new();
-    let cov = |present: bool| -> &'static str { if present { "GREEN" } else { "RED" } };
+    let cov = |present: bool| -> &'static str {
+        if present {
+            "GREEN"
+        } else {
+            "RED"
+        }
+    };
     let c = &tx_kind_counts;
     feature_coverage.insert("TB-1_monetary".into(), "GREEN".into());
     feature_coverage.insert("TB-2_work".into(), cov(c.work > 0).into());

@@ -460,10 +460,13 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         let meta = store
             .metadata(&cid)
             .unwrap_or_else(|| panic!("proposal CID {cid_hex} must resolve in CAS"));
-        assert_eq!(
-            meta.schema_id.as_deref(),
-            Some("turingosv4.proposal_telemetry.v1"),
-            "WorkTx.proposal_cid {cid_hex} must be ProposalTelemetry for verify_chaintape Gate 5"
+        assert!(
+            matches!(
+                meta.schema_id.as_deref(),
+                Some("turingosv4.proposal_telemetry.v1") | Some("turingosv4.proposal_telemetry.v2")
+            ),
+            "WorkTx.proposal_cid {cid_hex} must be ProposalTelemetry (v1 or §8 v2) for verify_chaintape Gate 5, got {:?}",
+            meta.schema_id.as_deref()
         );
         let telemetry = read_proposal_telemetry(&store, &cid)
             .unwrap_or_else(|e| panic!("proposal telemetry {cid_hex} must decode: {e}"));

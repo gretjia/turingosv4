@@ -48,6 +48,16 @@ use turingosv4::runtime::proposal_telemetry::{
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 
+/// The het carrier's default 4-vendor roster (mirrors `agent_models` round-robin in
+/// `lean_market_agent.rs`). Used to stamp `ProposalTelemetry.model_id` on the frozen chain
+/// exactly as the carrier's `put_proposal` does, so the §8 recompute-from-tape witness is faithful.
+const HET_ROSTER: &[&str] = &[
+    "deepseek-ai/DeepSeek-V4-Pro",
+    "Qwen/Qwen3-32B",
+    "zai-org/GLM-4.5-Air",
+    "Qwen/Qwen3.5-397B-A17B",
+];
+
 fn fresh_config(tmp: &TempDir, run_id: &str) -> RuntimeChaintapeConfig {
     RuntimeChaintapeConfig {
         runtime_repo_path: tmp.path().join("runtime_repo"),
@@ -101,7 +111,7 @@ async fn build_frozen_carrier_chain(
         // the ProposalTelemetry carries token_counts + parent_tx; its CID is the
         // WorkTx.proposal_cid. We use the lower-level constructor so the parent lineage
         // edge is on the record exactly as the carrier writes it.
-        let pt = ProposalTelemetry::build_for_evaluator_append_with_parent(
+        let mut pt = ProposalTelemetry::build_for_evaluator_append_with_parent(
             &mut cas,
             &cfg.run_id,
             &agent,
@@ -114,6 +124,9 @@ async fn build_frozen_carrier_chain(
             prev_work.clone(),
         )
         .expect("build ProposalTelemetry");
+        // §8: mirror the carrier's put_proposal — record the producing vendor model on the
+        // tape-resident CAS object (round-robin over the het roster, exactly as agent_models[ai]).
+        pt.model_id = Some(HET_ROSTER[idx % HET_ROSTER.len()].to_string());
         let tel_cid = write_telemetry(&mut cas, &pt, "lm-proposal-telemetry", (idx as u64) * 3 + 2)
             .expect("write telemetry");
 
@@ -313,13 +326,16 @@ async fn cas_tamper_cannot_silently_preserve_token_recompute() {
     // Tamper the CAS index sidecar (`.turingos_cas_index.jsonl`): drop one ProposalTelemetry
     // metadata line. `compute_run_facts` reads tokens via
     // `read_proposal_telemetry(WorkTx.proposal_cid)` where proposal_cid IS the telemetry CID
-    // (schema id "turingosv4.proposal_telemetry.v1").
+    // (schema id "turingosv4.proposal_telemetry.v2" since §8; v1 for legacy chains).
     let index_path = cfg.cas_path.join(".turingos_cas_index.jsonl");
     let index_txt = std::fs::read_to_string(&index_path).expect("read CAS index sidecar");
     let mut kept: Vec<&str> = Vec::new();
     let mut dropped_one = false;
     for line in index_txt.lines() {
-        if !dropped_one && line.contains("turingosv4.proposal_telemetry.v1") {
+        if !dropped_one
+            && (line.contains("turingosv4.proposal_telemetry.v2")
+                || line.contains("turingosv4.proposal_telemetry.v1"))
+        {
             dropped_one = true;
             continue; // remove this CID's metadata → it becomes unresolvable
         }
@@ -350,48 +366,105 @@ async fn cas_tamper_cannot_silently_preserve_token_recompute() {
     }
 }
 
-/// GAP WITNESS (honest, non-forcing) — the per-LLM model identity the architect named
-/// (`model_id`/`provider`/`rate-table-version`) is NOT on any tape/CAS object the carrier
-/// writes. `ProposalTelemetry` (the only token-bearing CAS object on the carrier path) has
-/// NO model field, so cost (Σ model-rate × tokens) cannot be recomputed from the frozen
-/// tape ALONE — it needs the `Manifest.models` roster + the deterministic round-robin rule.
-/// This test PINS the gap so a future schema change that closes it (e.g. populating
-/// `AttemptTelemetry.model_name`/`model_provider`, which exist but are unused by this
-/// carrier) flips this assertion and forces the gap doc to be updated.
-#[test]
-fn model_id_is_not_a_field_on_carrier_cas_objects() {
-    // Structural witness over the schema source: ProposalTelemetry (carrier's token-bearing
-    // CAS object) has no model_* field; the model identity slots live on the SIBLING
-    // AttemptTelemetry schema which this carrier never writes.
+/// §8 POSITIVE WITNESS (was the GAP negative-witness, flipped on architect ratification
+/// 2026-06-15) — per-proposal model identity is now TAPE-CANONICAL. Two assertions:
+/// (1) STRUCTURAL: `ProposalTelemetry` carries `model_id` and the carrier populates it.
+/// (2) FUNCTIONAL recompute-from-tape (§17.1-G1): every ProposalTelemetry on a frozen carrier
+///     chain has `model_id = Some(<roster model>)`, and cost = Σ rate(model_id)×tokens recomputes
+///     from the FROZEN TAPE+CAS ALONE — the `Manifest.models` roster + round-robin inference is
+///     no longer needed. This closes the Art-0.2 cost/model_id GAP documented in
+///     TAPE_RECONSTRUCTIBILITY_GAP_2026-06-14.md (AMBER→GREEN).
+#[tokio::test]
+async fn model_id_is_tape_canonical_on_carrier_cas_objects() {
+    use turingosv4::bottom_white::ledger::rejection_evidence::RejectionEvidenceWriter;
+    use turingosv4::bottom_white::ledger::transition_ledger::{
+        canonical_decode, Git2LedgerWriter, LedgerWriter, TxKind,
+    };
+    use turingosv4::state::typed_tx::TypedTx;
+
+    // Mirrors market_tape_shared::call_micro_usd output-rate semantics for the 4 roster models
+    // (that fn is a #[path]-included module, not a lib module — adding it to lib.rs would be a
+    // trust-root touch). The point of the closure is that cost DEPENDS on model_id-off-the-tape.
+    fn out_rate_upmt(model: &str) -> i64 {
+        match model {
+            "Qwen/Qwen3.5-397B-A17B" => 2_340_000,
+            "zai-org/GLM-4.5-Air" => 860_000,
+            "Qwen/Qwen3-32B" => 570_000,
+            _ => 870_000, // deepseek-v4-pro
+        }
+    }
+
+    // (1) STRUCTURAL: the field exists and the carrier writes it.
     let pt_src = std::fs::read_to_string("src/runtime/proposal_telemetry.rs")
         .expect("read proposal_telemetry.rs");
-    // The ProposalTelemetry struct body must not declare a model_id/model_name/provider field.
-    let struct_start = pt_src
-        .find("pub struct ProposalTelemetry")
-        .expect("ProposalTelemetry struct present");
-    let struct_body_end = pt_src[struct_start..]
-        .find('}')
-        .map(|o| struct_start + o)
-        .expect("struct close brace");
-    let body = &pt_src[struct_start..struct_body_end];
     assert!(
-        !body.contains("model_id")
-            && !body.contains("model_name")
-            && !body.contains("model_provider"),
-        "GAP CLOSED? ProposalTelemetry now carries a model identity field — update \
-         handover/audits/TAPE_RECONSTRUCTIBILITY_GAP_2026-06-14.md (cost/model_id row) \
-         and promote it from GAP to RECONSTRUCTIBLE."
+        pt_src.contains("pub model_id: Option<String>"),
+        "§8 regression: ProposalTelemetry must carry the model_id field"
     );
-
-    // The carrier must not (yet) write AttemptTelemetry with model_name — it imports only
-    // LeanResult/LeanVerdictKind from attempt_telemetry. If this changes, the gap is closing.
     let carrier_src =
         std::fs::read_to_string("src/bin/lean_market_agent.rs").expect("read lean_market_agent.rs");
     assert!(
-        !carrier_src.contains("write_attempt_telemetry")
-            && !carrier_src.contains("model_name:")
-            && !carrier_src.contains("model_provider:"),
-        "GAP CLOSED? carrier now records model identity on a CAS object — update the gap doc \
-         (per-LLM model_id/provider row) and add a real model-id recompute assertion."
+        carrier_src.contains("tel.model_id = Some("),
+        "§8 regression: carrier put_proposal must populate ProposalTelemetry.model_id"
+    );
+
+    // (2) FUNCTIONAL: recompute model provenance + cost from a FROZEN chain, no manifest.
+    let tmp = TempDir::new().expect("tempdir");
+    let cfg = fresh_config(&tmp, "het-modelid");
+    let _gt = build_frozen_carrier_chain(&cfg, 4).await;
+
+    let cas = CasStore::open(&cfg.cas_path).expect("open cas");
+    // Collect every ProposalTelemetry on the canonical tape — BOTH L4 (accepted) and L4.E
+    // (rejected) — exactly as compute_run_facts_from_chain / recover_nodes_from_frozen_chain do.
+    let mut tels: Vec<ProposalTelemetry> = Vec::new();
+    let writer = Git2LedgerWriter::open(&cfg.runtime_repo_path).expect("open L4");
+    for t in 1..=writer.len() {
+        let entry = writer.read_at(t).expect("read L4 entry");
+        let Ok(bytes) = cas.get(&entry.tx_payload_cid) else { continue };
+        let Ok(TypedTx::Work(w)) = canonical_decode::<TypedTx>(&bytes) else { continue };
+        if let Ok(tel) = read_proposal_telemetry(&cas, &w.proposal_cid) {
+            tels.push(tel);
+        }
+    }
+    let rej_path = cfg.runtime_repo_path.join("rejections.jsonl");
+    if rej_path.exists() {
+        let l4e = RejectionEvidenceWriter::open_jsonl(rej_path).expect("open L4.E");
+        for rec in l4e.records() {
+            if rec.tx_kind != TxKind::Work {
+                continue;
+            }
+            if let Ok(bytes) = cas.get(&rec.tx_payload_cid) {
+                if let Ok(TypedTx::Work(w)) = canonical_decode::<TypedTx>(&bytes) {
+                    if let Ok(tel) = read_proposal_telemetry(&cas, &w.proposal_cid) {
+                        tels.push(tel);
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        tels.len() >= 4,
+        "must recover all frozen proposals from L4+L4.E (got {})",
+        tels.len()
+    );
+    let mut total_cost_micro: i64 = 0;
+    for tel in &tels {
+        let model = tel.model_id.clone().expect(
+            "Art 0.2: every carrier ProposalTelemetry must carry model_id on the frozen tape",
+        );
+        assert!(
+            HET_ROSTER.contains(&model.as_str()),
+            "model_id off the tape must be a real roster vendor, got {model}"
+        );
+        // Cost recomputed from (model_id on the CAS object) × (tokens on the CAS object) +
+        // the rate table — NO Manifest roster, NO round-robin inference. This is the closure.
+        total_cost_micro +=
+            tel.token_counts.completion_tokens as i64 * out_rate_upmt(&model) / 1_000_000
+                + tel.token_counts.prompt_tokens as i64;
+    }
+    assert!(
+        total_cost_micro > 0,
+        "Art 0.2 / §17.1-G1: per-proposal cost = Σ rate(model_id)×tokens must recompute \
+         (>0) from the frozen tape+CAS ALONE — model provenance is now tape-canonical"
     );
 }

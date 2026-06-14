@@ -13,7 +13,7 @@ use serde_json::Value;
 use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::runtime::artifact_bundle::{ARTIFACT_BUNDLE_SCHEMA_ID, ArtifactBundleManifest};
+use turingosv4::runtime::artifact_bundle::{ArtifactBundleManifest, ARTIFACT_BUNDLE_SCHEMA_ID};
 use turingosv4::runtime::generation_attempt::GENERATION_ATTEMPT_CAPSULE_SCHEMA_ID;
 use turingosv4::runtime::proposal_telemetry::read_from_cas as read_proposal_telemetry;
 
@@ -356,11 +356,10 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         .list_cids_by_object_type(ObjectType::Generic)
         .into_iter()
         .filter(|cid| {
-            store
-                .metadata(cid)
-                .and_then(|m| m.schema_id.clone())
-                .as_deref()
-                == Some("turingosv4.proposal_telemetry.v1")
+            matches!(
+                store.metadata(cid).and_then(|m| m.schema_id.clone()).as_deref(),
+                Some("turingosv4.proposal_telemetry.v1") | Some("turingosv4.proposal_telemetry.v2")
+            )
         })
         .any(|cid| read_proposal_telemetry(&store, &cid).is_ok());
     assert!(

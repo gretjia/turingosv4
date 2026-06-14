@@ -700,6 +700,7 @@ async fn submit_await(
         .map_err(|_| format!("{label} did not advance"))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn put_proposal(
     cas_path: &PathBuf,
     run_id: &str,
@@ -708,10 +709,11 @@ fn put_proposal(
     parent: Option<TxId>,
     body: &str,
     tokens: TokenCounts,
+    model: &str,
     lt: u64,
 ) -> Result<Cid, String> {
     let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
-    let tel = ProposalTelemetry::build_for_evaluator_append_with_parent(
+    let mut tel = ProposalTelemetry::build_for_evaluator_append_with_parent(
         &mut cas,
         run_id,
         agent,
@@ -724,6 +726,10 @@ fn put_proposal(
         parent,
     )
     .map_err(|e| format!("ProposalTelemetry: {e}"))?;
+    // §8 (Art 0.2): record the producing vendor model on the tape-resident CAS
+    // object so per-proposal model provenance + cost are reconstructable from the
+    // frozen tape alone (no round-robin inference, no manifest sidecar).
+    tel.model_id = Some(model.to_string());
     write_proposal_telemetry_to_cas(&mut cas, &tel, "lm-proposal-telemetry", lt + 1)
         .map_err(|e| format!("write telemetry: {e}"))
 }
@@ -2303,6 +2309,7 @@ async fn run(args: Args) -> Result<(), String> {
                 parent_tx.clone(),
                 &body,
                 tokens,
+                &agent_models[ai],
                 lt,
             )?;
             lt += 2;
