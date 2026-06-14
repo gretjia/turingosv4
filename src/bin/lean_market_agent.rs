@@ -26,7 +26,7 @@
 //! Class 2 (new binary; reuses g1 tx machinery + LeanJudge; no §6 surface).
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Instant;
 
@@ -42,7 +42,7 @@ use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::judges::lean_judge::{default_lean_bin, LeanOutcome};
+use turingosv4::judges::lean_judge::{default_lean_bin, realign, LeanOutcome};
 use turingosv4::judges::lean_theorem_bank::{
     default_lake_bin, load_bank, mathlib_lean_path, LeanTheorem,
 };
@@ -79,6 +79,16 @@ use turingosv4::state::sequencer::{Sequencer, SystemEmitCommand};
 use turingosv4::state::typed_tx::{OutcomeSide, TypedTx};
 use turingosv4::state::NodeMarketEntry;
 
+// Shared per-model cost table + recompute helper (TP-0A.3). Pulled in via #[path] (NOT lib.rs —
+// adding a mod there is a trust-root/constitution touch), identical to verify_market_tape and
+// lean_hayek_market so the cost-resolution self-test asserts on the SAME table the tape replay uses.
+#[path = "../market_tape_shared.rs"]
+// This bin uses only the cost table + recompute helper; the module's other derive_* helpers are
+// exercised by verify_market_tape, so they are intentionally unused here (not dead code).
+#[allow(dead_code)]
+mod market_tape_shared;
+use market_tape_shared::{call_micro_usd, FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT};
+
 const SPONSOR_AGENT: &str = "Agent_user_0";
 const PROVIDER_AGENT: &str = "Agent_user_1";
 const MARKET_SEED_MICRO: i64 = 100_000;
@@ -91,6 +101,22 @@ const MAX_STAKE_MICRO: i64 = 20_000;
 const BASE_WORK_STAKE: i64 = 1_000;
 const VERIFIER_AGENT: &str = "Agent_lm_verifier";
 const VERIFY_BOND_MICRO: i64 = 500;
+const PROOF_TEMPERATURE: f64 = 0.7;
+const ROUTE_TEMPERATURE: f64 = 0.7;
+const BEAR_TEMPERATURE: f64 = 0.3;
+
+/// Default heterogeneous model roster (used when `--models` is absent or parses empty). Single
+/// source of truth so `parse_args` and the cost-resolution self-test reference the SAME list and
+/// cannot drift. These are the literal provider model ids sent to the proxy and recorded on tape;
+/// `call_micro_usd` matches them case-insensitively against the lowercase MODEL_RATES table.
+fn default_models() -> Vec<String> {
+    vec![
+        "deepseek-ai/DeepSeek-V4-Pro".into(),
+        "Qwen/Qwen3-32B".into(),
+        "zai-org/GLM-4.5-Air".into(),
+        "Qwen/Qwen3.5-397B-A17B".into(),
+    ]
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Policy {
@@ -110,6 +136,27 @@ enum Policy {
     SingleRestart, // ~Single, but each round may root-restart (fresh) OR extend own_last.
     SingleTreeNoPrice, // ~Single, but may extend ANY of its OWN prior nodes (uniform, NO price).
     ParallelRestart, // ~Parallel (N indep chains), but each may root-restart; NO shared price/tree.
+    // BEAR-TRIAGE soft routing: priority = base + λ·norm_score, linear-weight softmax (integer, no f64).
+    // Routes toward LOW-short (low-skepticism) nodes — Phase 1 evidence: P(short_Verified <
+    // short_Failed) = 0.62 / AUC 0.62 → lower short = more likely to succeed. Norm score
+    // (permille, [0..1000]) is the INVERSE of raw bear, so lowest-short node gets highest weight.
+    // True soft distribution — all nodes retain non-zero probability (§17.3 / G1). Emits a real
+    // Bear ChallengeTx (short) per node so the price index carries a true signal; without shorts
+    // den==num → all bear_scores zero → routing degenerates to uniform (Bug1/Bug2/Bug3 fixes).
+    BearTriage,
+    // AUTONOMOUS-MARKET (Hayekian self-selection — Change 2/3). The harness assigns NO phase/role.
+    // Each heterogeneous agent is broadcast PRICE signals (Art II.2) + the ABSTRACTED librarian
+    // failure digest (Art II.1) over its OWN isolated, decorrelated decision context (Art III.3 —
+    // never a shared in-flight blob) and FREELY CHOOSES one of TWO actions from a menu:
+    //   "solve"  → propose+verify a proof on a self-chosen open node (Long / YES) — routes into the
+    //              EXISTING Stage-2 → judge.verify → WorkTx path (a real Lean kernel verdict).
+    //   "short"  → bet a self-chosen open node will FAIL (Bear / NO) — routes into the EXISTING
+    //              ChallengeTx path; the shorter proposes NO proof and triggers NO kernel verify.
+    // The agent's self-chosen action is tape-recorded (Art 0.2: AttemptNode.chosen_action) so the
+    // autonomous choice + the signals it saw are reconstructable; failed solves stay on tape
+    // verified=false. Monetary/CTF invariants are unchanged — both actions route to EXISTING typed
+    // tx types (WorkTx / ChallengeTx), whose conservation is sequencer-enforced.
+    AutonomousMarket,
 }
 
 impl Policy {
@@ -129,6 +176,8 @@ impl Policy {
             "single_restart" => Ok(Policy::SingleRestart),
             "single_tree_no_price" => Ok(Policy::SingleTreeNoPrice),
             "parallel_restart" => Ok(Policy::ParallelRestart),
+            "bear_triage" => Ok(Policy::BearTriage),
+            "autonomous_market" => Ok(Policy::AutonomousMarket),
             _ => Err(format!("unknown policy `{s}`")),
         }
     }
@@ -148,6 +197,8 @@ impl Policy {
             Policy::SingleRestart => "single_restart",
             Policy::SingleTreeNoPrice => "single_tree_no_price",
             Policy::ParallelRestart => "parallel_restart",
+            Policy::BearTriage => "bear_triage",
+            Policy::AutonomousMarket => "autonomous_market",
         }
     }
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
@@ -155,6 +206,13 @@ impl Policy {
     fn emits_challenges(self) -> bool {
         // F3 single_restart / single_tree_no_price / parallel_restart are Bulls-only
         // (NO price game, NO Bear short) — they intentionally fall through to `false`.
+        // AutonomousMarket ALSO falls through to `false` here: its short is NOT a per-proposal
+        // auto-short — the agent SELF-SELECTS "short" as one of its two actions and the branch
+        // emits the ChallengeTx itself against a chosen open node. A generic auto-short here
+        // would double-short every self-chosen "solve" (one short per WorkTx), corrupting price.
+        // BearTriage MUST emit a real Bear short so the price index is populated and
+        // `short` has a true signal; without it den==num → bear_score=0 everywhere →
+        // routing degenerates to uniform (Bug1 fix).
         matches!(
             self,
             Policy::Market
@@ -163,6 +221,28 @@ impl Policy {
                 | Policy::FixedBear
                 | Policy::ShuffledPrice
                 | Policy::NoPrice
+                | Policy::BearTriage
+        )
+    }
+    /// CONTROL-INTEGRITY GATE (Art II.2 broadcast-vs-no-broadcast A/B): does this arm's
+    /// HYPOTHESIS include "the broadcast price signal helps proof generation"? Only those arms
+    /// may receive the live Market-Prices block in the Stage-2 PROOF prompt. This is a SEPARATE
+    /// axis from `emits_challenges()`: `NoPrice` emits a Bear short (so its price index is
+    /// populated) but its premise is "prices STRIPPED from selection" — injecting the live price
+    /// block into NoPrice's proof prompt would contaminate the exact baseline the A/B measures
+    /// against (false null / false positive). `AutonomousMarket` does NOT auto-short here yet DOES
+    /// broadcast price (Art II.2). The single/parallel/topology controls (Single, Parallel,
+    /// SingleRestart, SingleTreeNoPrice, ParallelRestart) and the non-price scorers (Majority,
+    /// BestFirst, SkepticRerank) are NO-broadcast controls → MUST get an empty price block.
+    fn broadcasts_price(self) -> bool {
+        matches!(
+            self,
+            Policy::Market
+                | Policy::RandomBear
+                | Policy::FixedBear
+                | Policy::ShuffledPrice
+                | Policy::BearTriage
+                | Policy::AutonomousMarket
         )
     }
 }
@@ -173,7 +253,13 @@ struct Args {
     run_id: String,
     out: PathBuf,
     proxy_url: String,
+    /// Back-compat single-model field (still used for Manifest.model provenance field).
+    /// Per-agent routing now uses `models` roster + derived `agent_models`.
     model: String,
+    /// Heterogeneous model roster: comma-separated via `--models`. Defaults to the 4-model
+    /// round-robin roster [DeepSeek-V4-Pro, Qwen3-32B, GLM-4.5-Air, Qwen3.5-397B-A17B].
+    /// Expanded round-robin to n_agents to produce `agent_models`.
+    models: Vec<String>,
     bank: PathBuf,
     problem: String,
     mathlib_dir: Option<PathBuf>,
@@ -208,6 +294,19 @@ struct AttemptNode {
     /// reviewer confirms ⊆ AXIOM_WHITELIST directly from the manifest. Empty unless the node
     /// compiled exit-0 (Verified or axiom-rejected).
     axioms: Vec<String>,
+    /// Art 0.2 (Change 2/3 — AutonomousMarket): the action the heterogeneous agent SELF-CHOSE
+    /// from the 2-action menu for this node — `Some("solve")` (this node is a self-selected Long
+    /// proof attempt) or `Some("short")` (this node is a self-selected Bear short — a ChallengeTx,
+    /// no proof). `None` for all harness-assigned policies (Market/Autonomous/etc.) where the phase
+    /// was NOT self-chosen. Makes the autonomous choice tape-reconstructable without re-running.
+    chosen_action: Option<String>,
+    /// Eng-2 (audit 2026-06-14): provenance of `chosen_action` for AutonomousMarket nodes —
+    /// `Some("agent")` = genuinely self-selected from the menu; `Some("parse_fallback")` /
+    /// `Some("llm_error")` = a forced constructive solve (the decision JSON was unparseable or
+    /// the decision LLM call failed). `None` for harness-assigned policies. Lets a solve-rate
+    /// metric exclude forced solves (`action_source != Some("agent")`) instead of counting a
+    /// parse/LLM failure as a real choice.
+    action_source: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -216,6 +315,17 @@ struct Manifest {
     run_id: String,
     policy: &'static str,
     model: String,
+    /// Art 0.2 tape provenance: per-agent model roster (length = n_agents, round-robin of args.models).
+    /// Allows a verifier to reconstruct which model was used for Agent_i without re-running.
+    models: Vec<String>,
+    proxy_url: String,
+    proof_temperature: f64,
+    route_temperature: f64,
+    bear_temperature: f64,
+    lean_bin: String,
+    lean_version: Option<String>,
+    mathlib_dir: Option<String>,
+    mathlib_lean_path: Option<String>,
     problem: String,
     needs_mathlib: bool,
     n_agents: usize,
@@ -243,6 +353,8 @@ struct Manifest {
     proposal_llm_calls: usize,
     route_llm_calls: usize,
     bear_llm_calls: usize,
+    bear_flat_short_fallback_count: usize,
+    bear_parse_fallback_count: usize,
     proof_prompt_tokens: u64,
     route_prompt_tokens: u64,
     bear_prompt_tokens: u64,
@@ -308,6 +420,13 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
         run_id: get("run-id").ok_or("--run-id required")?,
         proxy_url: get("proxy-url").unwrap_or_else(|| "http://localhost:8123".into()),
         model: get("model").unwrap_or_else(|| "deepseek-chat".into()),
+        models: get("models")
+            .map(|s| s.split(',').map(|m| m.trim().to_string()).filter(|m| !m.is_empty()).collect())
+            // A `--models` that parses to an empty roster (e.g. `--models ","`) would make
+            // `i % args.models.len()` a divide-by-zero panic downstream; treat it like absent and
+            // fall back to the default roster.
+            .filter(|v: &Vec<String>| !v.is_empty())
+            .unwrap_or_else(default_models),
         bank: get("bank")
             .map(Into::into)
             .unwrap_or_else(|| "tests/fixtures/lean_theorems.jsonl".into()),
@@ -365,6 +484,80 @@ fn shuffle_prices(
     keys.into_iter().zip(vals).collect()
 }
 
+/// BEAR-TRIAGE soft routing (§17.3 name-lie gate: truly soft, not argmax).
+///
+/// Given a slice of `(TxId, norm_score)` pairs — norm_score is the **normalized routing
+/// priority** in [0, 1000] (permille), ALREADY inverted so that lower-short (less skepticism)
+/// nodes have HIGHER norm_score — compute a weighted probability distribution where:
+///
+///   weight_i = BASE + (lambda_num * norm_score_i) / lambda_den
+///
+/// Phase 1 empirical finding: P(short_Verified < short_Failed) = 0.62, AUC = 0.62.
+/// "Low-short → more likely to succeed." Therefore routing priority is INVERSE of raw bear:
+/// norm_score_i = round(1000 * (M - short_i) / max(1, M)), M = max short among candidates.
+/// This maps the lowest-short node to 1000 and the highest-short to 0, bounded [0, 1000],
+/// keeping λ tunable over a predictable range regardless of raw micro magnitudes (Bug3 fix).
+///
+/// BASE = 1 is added so EVERY node has a strictly positive weight even when norm_score_i == 0.
+/// This guarantees no node is dropped (G1: no veto/skip/zero-probability).
+///
+/// The selection is a linear scan over the cumulative weights using a uniform integer draw
+/// against the total (no f64; the random draw is expressed as a fraction r/total with integer r):
+///   draw r from [0, total)   (u128, fits within i128 headroom for realistic N and scores)
+///   pick the first i such that cumulative_weight[i] > r
+///
+/// Returns None only when the scores slice is empty (no candidates; caller falls back).
+///
+/// Integer-only arithmetic throughout (money path: §12 "禁 f64").
+fn bear_soft_priority(
+    scores: &[(TxId, i128)],
+    lambda_num: i64,
+    lambda_den: i64,
+    rng: &mut StdRng,
+) -> Option<TxId> {
+    if scores.is_empty() {
+        return None;
+    }
+    // lambda_den must be positive to avoid division-by-zero or sign flip.
+    let lden = lambda_den.max(1) as i128;
+    let lnum = lambda_num as i128;
+    // Weight_i = BASE + floor(lambda_num * norm_score_i / lambda_den).
+    // BASE = lden (chosen so BASE/lden = 1 in the same unit as the lambda term, keeping all i128).
+    // Equivalently weight_i_scaled = lden + lnum * norm_score_i (in units of 1/lden each).
+    // norm_score values are already in [0, 1000]; the weight range is thus [lden, lden+1000*lnum],
+    // which is bounded and predictable — softmax maintains a true distribution (Bug3 fix).
+    // We work in units of 1/lden throughout so no division is needed until the final comparison.
+    let weights: Vec<i128> = scores
+        .iter()
+        .map(|(_, ns)| {
+            // norm_score is in [0, 1000] (non-negative by construction).
+            let s = (*ns).max(0);
+            // weight_scaled = lden (base=1 in fractional units) + lnum * s
+            (lden + lnum * s).max(1) // clamp to ≥1: guarantees non-zero weight for every node
+        })
+        .collect();
+    let total: i128 = weights.iter().sum();
+    if total <= 0 {
+        // degenerate: all weights collapsed to zero despite clamp — return first node
+        return Some(scores[0].0.clone());
+    }
+    // Draw r uniformly from [0, total) using a u64 rng call scaled to total.
+    // To avoid f64: draw a u64, then compute r = (draw as i128 * total) / u64::MAX as i128.
+    // This gives a uniform integer in [0, total) with negligible bias (bias < 1 ULP of total).
+    let draw = rng.gen::<u64>() as i128;
+    let r = (draw * total) / (u64::MAX as i128 + 1);
+    // Walk cumulative weights, pick first i where cumsum > r.
+    let mut cumsum: i128 = 0;
+    for (i, w) in weights.iter().enumerate() {
+        cumsum += w;
+        if cumsum > r {
+            return Some(scores[i].0.clone());
+        }
+    }
+    // Floating-point-free fallback: rounding may push r == total; return last.
+    Some(scores[scores.len() - 1].0.clone())
+}
+
 /// Parent selection by policy. Returns the parent attempt node to refine (or None
 /// for a fresh root attempt).
 fn select_parent(
@@ -383,6 +576,10 @@ fn select_parent(
         // pre-call selector is a no-op (None). The real parent is parsed from the model's
         // {parent_node} field and validated against node_tx_ids after the LLM returns.
         Policy::Autonomous => None,
+        // AUTONOMOUS-MARKET (Change 2/3): the agent self-selects action + target INSIDE STEP A;
+        // the pre-call selector is likewise a no-op (None). The real parent (solve) or short
+        // target is parsed from the model's {action,target} and validated after the call.
+        Policy::AutonomousMarket => None,
         // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
         // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
         Policy::Market | Policy::RandomBear | Policy::FixedBear => {
@@ -437,6 +634,55 @@ fn select_parent(
             .iter()
             .min_by_key(|t| node_doubt.get(&t.0).copied().unwrap_or(i64::MAX))
             .cloned(),
+        // BEAR-TRIAGE: soft routing toward LOW-short (low-skepticism) nodes.
+        //
+        // Phase 1 empirical basis: P(short_Verified < short_Failed) = 0.62, bear AUC = 0.62.
+        // "Verified nodes have lower short than Failed nodes" → route toward LOW short to
+        // concentrate refinement effort on the nodes most likely to succeed (Bug2 fix: direction
+        // was previously inverted, routing toward high-short = most likely to fail).
+        //
+        // Normalization (Bug3 fix): raw short ~ thousands of micro; routing directly on raw values
+        // creates weight range spanning 1000× → softmax → near-argmax, killing exploration
+        // (Art. II.2.1 / §17.3). Instead normalize to relative permille in [0, 1000]:
+        //   raw_bear_i = price_yes.den - price_yes.num  (higher = more market skepticism)
+        //   M = max raw_bear across candidates (within the current call)
+        //   norm_score_i = round(1000 * (M - raw_bear_i) / max(1, M))
+        //   → lowest-short node → norm_score 1000; highest-short → norm_score 0.
+        // Nodes without a price entry get raw_bear = 0 (no market signal; treated as minimally
+        // skeptical). With λ = lambda_num/lambda_den = 1/1 (default; binding-budget pilot before
+        // architect finalizes), weight_i = 1 + norm_score_i ∈ [1, 1001] — all nodes non-zero
+        // (true soft distribution, G1: no veto path). λ can be raised to sharpen the bias.
+        Policy::BearTriage => {
+            if all_nodes.is_empty() {
+                return None;
+            }
+            // Step 1: collect raw bear scores (higher raw = more market skepticism).
+            let raw_bears: Vec<(TxId, i128)> = all_nodes
+                .iter()
+                .map(|t| {
+                    let raw = pi
+                        .get(t)
+                        .and_then(|e| e.price_yes.as_ref())
+                        .map(|p| (p.denominator as i128) - (p.numerator as i128))
+                        .unwrap_or(0)
+                        .max(0);
+                    (t.clone(), raw)
+                })
+                .collect();
+            // Step 2: normalize and invert — low short → high priority (0..1000 permille).
+            let m = raw_bears.iter().map(|(_, b)| *b).max().unwrap_or(0).max(1);
+            let scores: Vec<(TxId, i128)> = raw_bears
+                .iter()
+                .map(|(t, raw)| {
+                    // norm_score = 1000 * (M - raw) / M; inversely proportional to raw bear.
+                    let ns = 1000i128 * (m - raw) / m;
+                    (t.clone(), ns)
+                })
+                .collect();
+            // Step 3: λ = 1/1 (default; bounded weight range [1, 1001] with permille scores).
+            bear_soft_priority(&scores, 1, 1, rng)
+                .or_else(|| all_nodes.last().cloned())
+        }
     }
 }
 
@@ -615,6 +861,7 @@ fn build_prompt(
     parent_body: Option<&str>,
     parent_feedback: Option<&str>,
     librarian: &str,
+    price_context: &str,
 ) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (Mathlib is available). Output ONLY a JSON object.\n\n");
@@ -630,6 +877,11 @@ fn build_prompt(
     }
     if !librarian.is_empty() {
         p.push_str(librarian);
+    }
+    // Art II.2: broadcast price signals only — no solution steps, no scoring internals (Art III.4).
+    // Art III.2: bounded disclosure — a few lines only.
+    if !price_context.is_empty() {
+        p.push_str(price_context);
     }
     p.push_str(
         "\nReturn EXACTLY: {\"proof_body\":\"<the Lean tactic block AFTER `:= by`, no theorem signature, no imports>\",\"confidence\":0.0-1.0}\n",
@@ -652,8 +904,9 @@ fn stage2_proof_prompt(
     parent_body: Option<&str>,
     parent_feedback: Option<&str>,
     librarian: &str,
+    price_context: &str,
 ) -> String {
-    build_prompt(theorem, parent_body, parent_feedback, librarian)
+    build_prompt(theorem, parent_body, parent_feedback, librarian, price_context)
 }
 
 /// KNOWN-DIVERGENT CONTROL for the confound-B gate — NOT used in the live loop. This is the
@@ -672,7 +925,7 @@ fn confound_b_control_prompt(
     librarian: &str,
     landscape_bodies: &[(&str, &str)],
 ) -> String {
-    let mut p = build_prompt(theorem, parent_body, parent_feedback, librarian);
+    let mut p = build_prompt(theorem, parent_body, parent_feedback, librarian, "");
     p.push_str("\n=== FULL SEARCH LANDSCAPE (confound-B leak) ===\n");
     for (body, err) in landscape_bodies {
         p.push_str("--- node body ---\n");
@@ -749,6 +1002,156 @@ fn resolve_parent_index(node_tx_ids: &[TxId], chosen: i64) -> Option<TxId> {
     }
 }
 
+/// AUTONOMOUS-MARKET decision prompt (Change 2/3, STEP A — Hayekian self-selection).
+///
+/// Broadcasts SIGNALS ONLY (Art II.2): the open priced nodes (price_yes per node, from the
+/// shared price index — Change 3's `price_context` surface), the coarse error CLASS per node
+/// (never the raw shielded `node_feedback`), and the ABSTRACTED librarian failure digest
+/// (Art II.1 — passed in as `librarian`, the same shielded `real_librarian_solver_notice`
+/// digest the proof prompt uses; NEVER raw error logs). It assigns NO role and gives NO
+/// instruction on HOW to prove (no solution steps), and exposes NO LeanJudge/Predicate scoring
+/// internals (Art III.4 Goodhart shield — only the market-derived price, which is downstream of
+/// the kernel verdict, never the verdict-scoring machinery).
+///
+/// DECORRELATION (Art III.3): this is the agent's OWN isolated decision context. It is built
+/// ONLY from already-COMMITTED tape state (the price index + the abstracted librarian), never
+/// from any other agent's in-flight (this-round-uncommitted) choice. Feeding agents each other's
+/// pending picks would collapse "一万个黑盒退化为一个" — so we never do.
+///
+/// The menu is exactly 2 actions: "solve" (propose+verify a proof on a chosen open node, Long /
+/// YES) or "short" (bet a chosen open node FAILS, Bear / NO). The model returns its self-chosen
+/// action, the target node index, an optional proof body (advisory only — solve still runs the
+/// EXISTING Stage-2 proof+verify path), and its own confidence (drives the stake).
+fn build_autonomous_decision_prompt(
+    theorem: &LeanTheorem,
+    node_tx_ids: &[TxId],
+    node_feedback: &BTreeMap<String, String>,
+    node_conf: &BTreeMap<String, u64>,
+    pi: &BTreeMap<TxId, NodeMarketEntry>,
+    librarian: &str,
+) -> String {
+    let mut p = String::new();
+    p.push_str(
+        "You are an autonomous agent in a Lean 4 proof-search MARKET (Mathlib is available). \
+         No role has been assigned to you. You are shown ONLY market signals — you decide for \
+         yourself what to do. CHOOSE ONE of exactly two actions:\n\
+         \n\
+         - \"solve\": you believe a goal/node is provable — propose a Lean proof for it and take \
+           the LONG (YES) side. You may extend an existing open node (by its index) or start a \
+           fresh root (target = -1).\n\
+         - \"short\": you believe an existing open node's attempt will FAIL the Lean kernel — \
+           take the SHORT (NO) side against it (by its index). You propose NO proof.\n\
+         \n\
+         Decide from the prices and the collective failure memory below. Be selective — do not \
+         all crowd onto the single highest-priced node; balance exploring under-attacked nodes \
+         against exploiting strong ones. Output ONLY a JSON object.\n\n",
+    );
+    p.push_str("=== Target (the goal to prove) ===\n");
+    p.push_str(&theorem.preamble);
+    p.push('\n');
+    if node_tx_ids.is_empty() {
+        p.push_str(
+            "\n=== Open nodes: NONE yet — the only available action is solve a fresh root (target = -1) ===\n",
+        );
+    } else {
+        p.push_str(
+            "\n=== Open nodes (index : price_yes(num/den) : confidence : error-class) ===\n",
+        );
+        for (idx, tx) in node_tx_ids.iter().enumerate() {
+            // ONLY the coarse error CLASS (Art II.1 abstraction) — never the raw shielded line.
+            let class = node_feedback
+                .get(&tx.0)
+                .map(|f| classify_lean_error(f))
+                .unwrap_or("pending");
+            let conf = node_conf.get(&tx.0).copied().unwrap_or(0);
+            // Integer num/den straight off the price index — no f64, no ranking (tape order).
+            let (pn, pd) = pi
+                .get(tx)
+                .and_then(|e| e.price_yes.as_ref())
+                .map(|r| (r.numerator, r.denominator))
+                .unwrap_or((0, 0));
+            p.push_str(&format!(
+                "[{idx}] price_yes={pn}/{pd} conf={conf}% class={class}\n"
+            ));
+        }
+    }
+    // Art II.1: the ABSTRACTED collective-failure digest, broadcast (NOT raw logs). Same shielded
+    // notice the proof prompt carries; empty-guarded so we never inject a no-op section.
+    if !librarian.is_empty() {
+        p.push_str(librarian);
+    }
+    p.push_str(
+        "\nReturn EXACTLY one of:\n\
+         {\"action\":\"solve\",\"target\":<node index to extend, or -1 for a fresh root>,\
+         \"proof_body\":\"<the Lean tactic block AFTER `:= by`>\",\"confidence\":0.0-1.0}\n\
+         {\"action\":\"short\",\"target\":<index of an existing node you bet will FAIL>,\
+         \"confidence\":0.0-1.0}\n",
+    );
+    p
+}
+
+/// The parsed self-selected action from STEP A (Change 2/3). Tape-canonical (Art 0.2): every
+/// field here is reconstructable from the agent's decision response + the committed signals.
+struct AutonomousChoice {
+    /// "solve" or "short" — the harness never assigns this; the agent self-selects it.
+    action: String,
+    /// node index the agent chose to act on (-1 = fresh root, only meaningful for solve).
+    target: i64,
+    /// the agent's self-reported confidence (0..1) → drives the stake / short size.
+    confidence: f64,
+    /// Eng-2 (audit 2026-06-14): provenance of `action`, so a fail-open "solve" is NOT
+    /// silently counted as a genuine self-selected solve when computing the solve-rate metric.
+    /// `"agent"` = the decision JSON carried a valid solve/short; `"parse_fallback"` = no JSON
+    /// or an invalid/missing action field forced the constructive solve default; `"llm_error"` =
+    /// the decision LLM call itself failed and the iteration fell open to a solve. Mirrors the
+    /// existing `BearShortDecision.parse_fallback` honesty pattern. Tape-recorded on
+    /// `AttemptNode.action_source` so the metric can exclude `action_source != "agent"`.
+    decision_source: &'static str,
+}
+
+/// Parse STEP A's JSON. FAIL-OPEN to a "solve" on a fresh root (the constructive default) on any
+/// parse/shape error, so a malformed decision does not silently shrink the autonomous-market
+/// node count below the budget-parity target — it still produces one real proof attempt.
+fn parse_autonomous_choice(content: &str) -> AutonomousChoice {
+    let v = match extract_json_object(content) {
+        Some(v) => v,
+        None => {
+            // No parseable JSON at all → forced constructive solve, marked as such (Eng-2).
+            return AutonomousChoice {
+                action: "solve".into(),
+                target: -1,
+                confidence: 0.6,
+                decision_source: "parse_fallback",
+            }
+        }
+    };
+    // Capture whether the action field itself was a valid self-selection ("agent") or whether
+    // the constructive "solve" default had to be forced ("parse_fallback") (Eng-2).
+    let valid_action = v
+        .get("action")
+        .and_then(|x| x.as_str())
+        .map(|s| s.to_ascii_lowercase())
+        .filter(|s| s == "solve" || s == "short");
+    let decision_source = if valid_action.is_some() {
+        "agent"
+    } else {
+        "parse_fallback"
+    };
+    let action = valid_action.unwrap_or_else(|| "solve".into());
+    let target = v.get("target").and_then(|x| x.as_i64()).unwrap_or(-1);
+    let confidence = v
+        .get("confidence")
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.6)
+        .clamp(0.0, 1.0);
+    AutonomousChoice {
+        action,
+        target,
+        confidence,
+        decision_source,
+    }
+}
+
 /// Informed Bear short (P0-E): an independent skeptic LLM estimates P(this proof does NOT
 /// compile); the short stake scales with that doubt, so weak proofs get a big short (low
 /// price_yes) and strong ones a small short (high price_yes) — the price-discovery signal
@@ -758,12 +1161,21 @@ fn resolve_parent_index(node_tx_ids: &[TxId], chosen: i64) -> Option<TxId> {
 /// (short_micro, prompt_tokens, completion_tokens) — F2 splits the bear's token cost so
 /// `bear_prompt_tokens` is honestly separable from `completion_tokens` on the manifest. The
 /// money element (short_micro: i64) is unchanged. Falls back to a flat short on LLM/parse error.
+#[derive(Debug, Clone, Copy)]
+struct BearShortDecision {
+    short_micro: i64,
+    prompt_tokens: u64,
+    completion_tokens: u64,
+    flat_short_fallback: bool,
+    parse_fallback: bool,
+}
+
 async fn bear_doubt_short(
     llm: &ResilientLLMClient,
     model: &str,
     theorem: &LeanTheorem,
     body: &str,
-) -> (i64, u64, u64) {
+) -> BearShortDecision {
     let prompt = format!(
         "You are a SKEPTIC in a proof market. A prover submitted the Lean 4 proof body below \
          for the goal. Estimate the probability it does NOT compile under the Lean kernel \
@@ -779,22 +1191,34 @@ async fn bear_doubt_short(
                 role: "user".into(),
                 content: prompt,
             }],
-            temperature: Some(0.3),
+            temperature: Some(BEAR_TEMPERATURE),
             max_tokens: Some(60),
         })
         .await
     {
         Ok(r) => {
-            let doubt = extract_json_object(&r.content)
-                .and_then(|v| v.get("doubt").and_then(|x| x.as_f64()))
-                .unwrap_or(0.5)
-                .clamp(0.0, 1.0);
+            let parsed = extract_json_object(&r.content)
+                .and_then(|v| v.get("doubt").and_then(|x| x.as_f64()));
+            let parse_fallback = parsed.is_none();
+            let doubt = parsed.unwrap_or(0.5).clamp(0.0, 1.0);
             // probability → integer percent (not a money op); stake math stays integer.
             let doubt_pct = (doubt * 100.0) as i64;
             let short = MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100;
-            (short, r.prompt_tokens as u64, r.completion_tokens as u64)
+            BearShortDecision {
+                short_micro: short,
+                prompt_tokens: r.prompt_tokens as u64,
+                completion_tokens: r.completion_tokens as u64,
+                flat_short_fallback: false,
+                parse_fallback,
+            }
         }
-        Err(_) => (CHALLENGE_STAKE_MICRO, 0, 0),
+        Err(_) => BearShortDecision {
+            short_micro: CHALLENGE_STAKE_MICRO,
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            flat_short_fallback: true,
+            parse_fallback: false,
+        },
     }
 }
 
@@ -803,6 +1227,20 @@ fn sha_hex(s: &str) -> String {
     let mut h = Sha256::new();
     h.update(s.as_bytes());
     h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn lean_version_for_manifest(lean_bin: &Path) -> Option<String> {
+    if !lean_bin.exists() {
+        return None;
+    }
+    let out = std::process::Command::new(lean_bin)
+        .arg("--version")
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 /// LLM-FREE, Lean-FREE testable seam (run via `lean_market_agent --self-test`, exit 0/1).
@@ -875,7 +1313,7 @@ fn self_test_inner() -> Result<String, String> {
         resolve_parent_index(&node_tx_ids, 1).ok_or("self-test: parent index 1 must resolve")?;
     let market_body = node_body.get(&market_parent.0).cloned();
     let market_feedback = node_feedback.get(&market_parent.0).cloned();
-    let market_prompt = build_prompt(&thm, market_body.as_deref(), market_feedback.as_deref(), "");
+    let market_prompt = build_prompt(&thm, market_body.as_deref(), market_feedback.as_deref(), "", "");
 
     // AUTONOMOUS arm: simulate Stage-1 routing returning index 1, then derive the parent EXACTLY
     // as the live autonomous branch does (resolve_parent_index → parent_tx → body/feedback from
@@ -888,7 +1326,7 @@ fn self_test_inner() -> Result<String, String> {
         .as_ref()
         .and_then(|t| node_feedback.get(&t.0).cloned());
     let stage2_prompt =
-        stage2_proof_prompt(&thm, auto_body.as_deref(), auto_feedback.as_deref(), "");
+        stage2_proof_prompt(&thm, auto_body.as_deref(), auto_feedback.as_deref(), "", "");
     let sha_market = sha_hex(&market_prompt);
     let sha_stage2 = sha_hex(&stage2_prompt);
     if sha_market != sha_stage2 {
@@ -1049,6 +1487,16 @@ fn self_test_inner() -> Result<String, String> {
         "total_model_tokens",
         "lean_verifies",
         "total_wall_clock_ms",
+        "proxy_url",
+        "proof_temperature",
+        "route_temperature",
+        "bear_temperature",
+        "lean_bin",
+        "lean_version",
+        "mathlib_dir",
+        "mathlib_lean_path",
+        "bear_flat_short_fallback_count",
+        "bear_parse_fallback_count",
     ] {
         if v.get(key).is_none() {
             return Err(format!("manifest missing telemetry field `{key}`"));
@@ -1084,6 +1532,41 @@ fn self_test_inner() -> Result<String, String> {
         return Err("non-autonomous: route_prompt_tokens must be 0".into());
     }
 
+    // ── (F5) cost-resolution: every DEFAULT roster model must resolve to a SPECIFIC MODEL_RATES
+    // entry, never the bare `deepseek` / FALLBACK catch-all (the OBL-012 under-bill bug). This is
+    // the gate that fails if a future roster id (e.g. a mixed-case `DeepSeek-V4-Pro`) stops matching
+    // its lowercase rate id and silently falls through. `call_micro_usd` is the SAME function the
+    // tape replay (market_tape_shared::derive_cost) recomputes from, so manifest and standalone
+    // verifier share this resolution. Probe with 1M input / 0 output tokens so the per-call cost
+    // equals the input-rate micro-USD exactly; the bare `deepseek` catch-all charges FALLBACK_IN
+    // (270_000) and any FALLBACK also charges 270_000 — both forbidden for a roster model.
+    for model in default_models() {
+        let in_cost = call_micro_usd(&model, 1_000_000, 0);
+        if in_cost == FALLBACK_IN_UPMT {
+            return Err(format!(
+                "cost-resolution: roster model `{model}` resolves to the bare deepseek/FALLBACK \
+                 input rate ({FALLBACK_IN_UPMT}) — OBL-012 under-bill; it must match a specific \
+                 MODEL_RATES id (check case-insensitivity)"
+            ));
+        }
+        // And it must not be billed at the bare-catch-all OUTPUT rate either.
+        let out_cost = call_micro_usd(&model, 0, 1_000_000);
+        if out_cost == FALLBACK_OUT_UPMT {
+            return Err(format!(
+                "cost-resolution: roster model `{model}` resolves to the bare deepseek/FALLBACK \
+                 output rate ({FALLBACK_OUT_UPMT}) — OBL-012 over-bill"
+            ));
+        }
+    }
+    // Pin the historically-bugged entry: the DeepSeek-V4-Pro roster id MUST bill at the
+    // deepseek-v4-pro rate (435_000 in / 870_000 out), not the bare deepseek catch-all.
+    if call_micro_usd("deepseek-ai/DeepSeek-V4-Pro", 1_000_000, 0) != 435_000 {
+        return Err("cost-resolution: DeepSeek-V4-Pro input rate must be 435_000 (deepseek-v4-pro)".into());
+    }
+    if call_micro_usd("deepseek-ai/DeepSeek-V4-Pro", 0, 1_000_000) != 870_000 {
+        return Err("cost-resolution: DeepSeek-V4-Pro output rate must be 870_000 (deepseek-v4-pro)".into());
+    }
+
     Ok(sha_market)
 }
 
@@ -1100,6 +1583,15 @@ fn sample_manifest_for_selftest(policy: Policy) -> Manifest {
         run_id: "selftest".into(),
         policy: policy.label(),
         model: "none".into(),
+        models: vec!["none".into()],
+        proxy_url: "http://127.0.0.1:0".into(),
+        proof_temperature: PROOF_TEMPERATURE,
+        route_temperature: ROUTE_TEMPERATURE,
+        bear_temperature: BEAR_TEMPERATURE,
+        lean_bin: "/tmp/lean-selftest".into(),
+        lean_version: Some("Lean selftest".into()),
+        mathlib_dir: None,
+        mathlib_lean_path: None,
         problem: "selftest".into(),
         needs_mathlib: false,
         n_agents: 1,
@@ -1113,6 +1605,8 @@ fn sample_manifest_for_selftest(policy: Policy) -> Manifest {
         proposal_llm_calls: proposal,
         route_llm_calls: route_calls,
         bear_llm_calls: 2,
+        bear_flat_short_fallback_count: 0,
+        bear_parse_fallback_count: 1,
         proof_prompt_tokens: 100,
         route_prompt_tokens: route_tokens,
         bear_prompt_tokens: 20,
@@ -1190,6 +1684,7 @@ async fn run(args: Args) -> Result<(), String> {
         })?
         .clone();
     let lean_bin = default_lean_bin();
+    let lean_version = lean_version_for_manifest(&lean_bin);
     let mathlib_lp = if theorem.needs_mathlib {
         let dir = args
             .mathlib_dir
@@ -1202,7 +1697,7 @@ async fn run(args: Args) -> Result<(), String> {
     } else {
         None
     };
-    let judge = theorem.judge(lean_bin, mathlib_lp.as_deref());
+    let judge = theorem.judge(lean_bin.clone(), mathlib_lp.as_deref());
 
     // F3: single_restart / single_tree_no_price are 1-agent (like Single); parallel_restart is N-agent.
     let one_agent = matches!(
@@ -1222,6 +1717,11 @@ async fn run(args: Args) -> Result<(), String> {
     let market_task = format!("lm-market-{}", args.run_id);
     let agents: Vec<String> = (0..n_agents).map(|i| format!("Agent_{i}")).collect();
     let challengers: Vec<String> = (0..n_agents).map(|i| format!("Chal_{i}")).collect();
+    // Heterogeneous per-agent models: round-robin of args.models roster expanded to n_agents.
+    // Agent_i uses agent_models[i]; bears use the SAME model as their paired prover (same index).
+    let agent_models: Vec<String> = (0..n_agents)
+        .map(|i| args.models[i % args.models.len()].clone())
+        .collect();
 
     // ── Genesis + keypairs ───────────────────────────────────────────
     let mut balances = default_pput_preseed_pairs();
@@ -1326,6 +1826,7 @@ async fn run(args: Args) -> Result<(), String> {
     let (mut llm_calls, mut parse_fails, mut verified_count, mut failed_count) =
         (0usize, 0usize, 0usize, 0usize);
     let (mut bear_calls, mut bear_tokens_total) = (0usize, 0u64);
+    let (mut bear_flat_short_fallback_count, mut bear_parse_fallback_count) = (0usize, 0usize);
     // F2 honest compute split (no double-count): proposal prompt/completion vs bear prompt/completion.
     let (mut proof_prompt_tokens, mut completion_tokens_total) = (0u64, 0u64);
     let mut bear_prompt_tokens_total = 0u64;
@@ -1392,12 +1893,19 @@ async fn run(args: Args) -> Result<(), String> {
             // autonomous node count matches market — only the route pick is lost).
             let mut parent_tx = parent_tx;
             let (mut parent_body, mut parent_feedback) = (parent_body, parent_feedback);
+            // Art 0.2 tape field: the action this agent SELF-CHOSE this iteration. Stays None for
+            // every harness-assigned policy; set to Some("solve") below for AutonomousMarket
+            // solves (a self-chosen short takes the early-`continue` short path and tape-records
+            // its own AttemptNode there).
+            let mut chosen_action: Option<String> = None;
+            // Eng-2: provenance of the self-chosen solve (None until AutonomousMarket sets it).
+            let mut action_source: Option<&'static str> = None;
             if args.policy == Policy::Autonomous {
                 let route_prompt =
                     build_route_summary(&theorem, &node_tx_ids, &node_feedback, &node_conf, &pi);
                 let chosen = match llm
                     .generate(&GenerateRequest {
-                        model: args.model.clone(),
+                        model: agent_models[ai].clone(),
                         messages: vec![
                             sys.clone(),
                             Message {
@@ -1405,7 +1913,7 @@ async fn run(args: Args) -> Result<(), String> {
                                 content: route_prompt,
                             },
                         ],
-                        temperature: Some(0.7),
+                        temperature: Some(ROUTE_TEMPERATURE),
                         max_tokens: Some(120),
                     })
                     .await
@@ -1439,20 +1947,229 @@ async fn run(args: Args) -> Result<(), String> {
                     .as_ref()
                     .and_then(|t| node_feedback.get(&t.0).cloned());
             }
+
+            // ── AUTONOMOUS-MARKET (Change 2/3 — Hayekian 2-action self-selection) ──────────
+            // STEP A: broadcast SIGNALS ONLY (price index + abstracted librarian, Art II.1/II.2)
+            // over this agent's OWN isolated decision context (Art III.3 — never a shared
+            // in-flight blob) and let the heterogeneous agent FREELY CHOOSE one of two actions
+            // from a menu. This is a genuinely SEPARATE Stage-1-style call (decides action+target,
+            // emits no proof, triggers no kernel verify) — counted in route_* like Autonomous's
+            // route call, so the budget split stays honest (proposal vs route mechanism cost).
+            if args.policy == Policy::AutonomousMarket {
+                let decision_prompt = build_autonomous_decision_prompt(
+                    &theorem,
+                    &node_tx_ids,
+                    &node_feedback,
+                    &node_conf,
+                    &pi,
+                    &lib,
+                );
+                let choice = match llm
+                    .generate(&GenerateRequest {
+                        model: agent_models[ai].clone(),
+                        messages: vec![
+                            sys.clone(),
+                            Message {
+                                role: "user".into(),
+                                content: decision_prompt,
+                            },
+                        ],
+                        temperature: Some(ROUTE_TEMPERATURE),
+                        max_tokens: Some(200),
+                    })
+                    .await
+                {
+                    Ok(r) => {
+                        route_llm_calls += 1;
+                        route_prompt_tokens += (r.prompt_tokens + r.completion_tokens) as u64;
+                        parse_autonomous_choice(&r.content)
+                    }
+                    Err(e) => {
+                        // Fail-open to a constructive default (solve / fresh root): the iteration
+                        // still produces one real proof attempt so node count tracks the budget.
+                        // Marked "llm_error" (Eng-2) so this forced solve is excludable from the
+                        // self-selection solve-rate metric.
+                        eprintln!("lm decision_err {agent}: {e:?}");
+                        AutonomousChoice {
+                            action: "solve".into(),
+                            target: -1,
+                            confidence: 0.6,
+                            decision_source: "llm_error",
+                        }
+                    }
+                };
+
+                // STEP B (short branch): the agent SELF-SELECTED "short" — it bets a chosen open
+                // node will FAIL. Route into the EXISTING ChallengeTx path (no proof, no kernel
+                // verify; the shorter proposes nothing). A short with no valid live target (e.g.
+                // round 0, empty frontier, or a hallucinated index) cannot bet on nothing → it
+                // is treated as a fresh-root SOLVE so the budget-parity node count is preserved.
+                let short_target = resolve_parent_index(&node_tx_ids, choice.target);
+                if choice.action == "short" && short_target.is_some() {
+                    let target_tx = short_target.unwrap();
+                    // Stake from the agent's OWN confidence over the bear short range — its
+                    // self-priced conviction, integer math (no f64 in the money op). Higher
+                    // self-confidence in failure → larger short, exactly as the bear path scales.
+                    let conf_pct = (choice.confidence * 100.0) as i64;
+                    let short_micro = (MIN_SHORT_MICRO
+                        + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * conf_pct.clamp(0, 100) / 100)
+                        .clamp(MIN_SHORT_MICRO, MAX_SHORT_MICRO);
+                    let challenger = challengers[ai % challengers.len()].clone();
+                    if let Ok(ce) = put_counterexample(&args.cas, &target_tx.0, lt) {
+                        lt += 1;
+                        match make_real_challengetx_signed_by(
+                            &mut kp,
+                            root,
+                            target_tx.clone(),
+                            &challenger,
+                            short_micro,
+                            ce,
+                            &format!("lmam{step_idx}"),
+                            lt,
+                        ) {
+                            Ok(chal) => {
+                                match submit_await(&seq, chal, root, "ChallengeTx(autonomous)")
+                                    .await
+                                {
+                                    Ok(r) => {
+                                        root = r;
+                                        lt += 1;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("lm am-short skip node{step_idx}: {e}")
+                                    }
+                                }
+                            }
+                            Err(e) => eprintln!("lm am-short build skip: {e}"),
+                        }
+                    }
+                    // Tape-record the self-chosen short (Art 0.2): an AttemptNode with no proof,
+                    // is_verified=false, chosen_action="short", targeting the shorted node. Reads
+                    // the LIVE price of the shorted node so the price effect of the short is on
+                    // tape. No WorkTx is created — a shorter does not propose a proof.
+                    let short_price = compute_price_index(
+                        &seq.q_snapshot()
+                            .map_err(|e| format!("{e:?}"))?
+                            .economic_state_t,
+                    );
+                    let spe = short_price.get(&target_tx);
+                    nodes.push(AttemptNode {
+                        node_tx: format!("lmam-short{step_idx}-{}", args.run_id),
+                        task: market_task.clone(),
+                        by_agent: agent.clone(),
+                        parent_tx: Some(target_tx.0.clone()),
+                        confidence_pct: (choice.confidence * 100.0) as u64,
+                        work_stake_micro: short_micro,
+                        price_yes_num: spe
+                            .and_then(|e| e.price_yes.as_ref().map(|p| p.numerator)),
+                        price_yes_den: spe
+                            .and_then(|e| e.price_yes.as_ref().map(|p| p.denominator)),
+                        verdict: "Short".into(),
+                        reject_class: None,
+                        is_verified: false,
+                        body_preview: String::new(),
+                        feedback: format!("autonomous short of {}", target_tx.0),
+                        tokens: 0,
+                        axioms: vec![],
+                        chosen_action: Some("short".into()),
+                        // A short is only reached when `action == "short"` parsed cleanly, so the
+                        // provenance is always the agent's genuine choice (Eng-2).
+                        action_source: Some(choice.decision_source),
+                    });
+                    step_idx += 1;
+                    // Short fully handled — skip the entire Stage-2 proof/WorkTx/verify path.
+                    continue;
+                }
+
+                // STEP B (solve branch): the agent SELF-SELECTED "solve" (or a short with no valid
+                // target degraded to solve). Set the chosen parent and fall through to the EXISTING
+                // Stage-2 proof → judge.verify → WorkTx path. The decision's advisory `proof_body`
+                // is intentionally NOT spliced in — solve runs the SAME shared `stage2_proof_prompt`
+                // market/single use (confound-B byte-parity preserved). Tape-record the choice.
+                parent_tx = short_target; // None ⇒ fresh root; Some ⇒ extend the chosen node.
+                if parent_tx.is_some() {
+                    route_hit += 1;
+                } else if choice.target < 0 {
+                    route_fresh += 1;
+                } else {
+                    route_halluc += 1;
+                }
+                parent_body = parent_tx
+                    .as_ref()
+                    .and_then(|t| node_body.get(&t.0).cloned());
+                parent_feedback = parent_tx
+                    .as_ref()
+                    .and_then(|t| node_feedback.get(&t.0).cloned());
+                chosen_action = Some("solve".into());
+                // Eng-2: carry the decision provenance onto the node. "agent" for a genuine solve
+                // (or a genuine short degraded to solve by a missing live target — its action field
+                // still parsed); "parse_fallback"/"llm_error" for a forced constructive solve.
+                action_source = Some(choice.decision_source);
+            }
+
+            // Art II.2: build a BOUNDED price-signal block from the current price index.
+            // Lists open nodes with their price_yes so agents can self-adjust (exploration vs
+            // exploitation). Signal only — no solution steps, no LeanJudge/Predicate scoring
+            // internals (Art III.4), no raw error logs (Art II.1). Empty on round 0 (pi empty).
+            // Art III.2: bounded disclosure, a few lines.
+            //
+            // CONTROL-INTEGRITY GATE (confound class — Art II.2 broadcast-vs-no-broadcast A/B):
+            // build this block ONLY for the price-BROADCASTING arms (Policy::broadcasts_price()).
+            // For Policy::NoPrice (premise: "prices stripped from selection") and every
+            // single/parallel/topology + non-price-scorer control, force price_ctx = "" so the
+            // baselines can NEVER silently re-acquire the live price signal in the PROOF prompt.
+            // `pi` is computed every iteration regardless of policy and NoPrice's price index IS
+            // populated (it emits a Bear short); without this gate that live signal would leak
+            // into the no-price/single/parallel proof prompts and contaminate the very baselines
+            // the A/B measures against (false null / false positive).
+            let price_ctx: String = if !args.policy.broadcasts_price() {
+                String::new()
+            } else {
+                let entries: Vec<String> = pi
+                    .values()
+                    .enumerate()
+                    .map(|(i, entry)| {
+                        let py = entry.price_yes.as_ref().map(|r| {
+                            if r.denominator == 0 { 0.0_f64 }
+                            else { r.numerator as f64 / r.denominator as f64 }
+                        });
+                        match py {
+                            Some(v) => format!("  node {i}: price_yes={v:.3}"),
+                            None => format!("  node {i}: price_yes=none"),
+                        }
+                    })
+                    .collect();
+                if entries.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "\n=== Market Prices (signal only) ===\n{}\n",
+                        entries.join("\n")
+                    )
+                }
+            };
             // STAGE 2 (ALL arms): the SAME proof prompt as market/single for the chosen parent,
             // via the ONE shared `stage2_proof_prompt` constructor. Autonomous reaches this with
-            // the post-route parent; market/single with their pre-call parent. Same fn + same args
-            // for the same parent ⇒ the proof-generation context is BYTE-IDENTICAL across arms
-            // (confound-B fix). The parity gate drives both operands through this exact helper.
+            // the post-route parent; market/single with their pre-call parent. Same fn + same
+            // {theorem, parent_body, parent_feedback, lib} args for the same parent ⇒ the
+            // proof-generation context is BYTE-IDENTICAL across arms EXCEPT for the policy-gated
+            // `price_ctx` block: price-BROADCASTING arms (Policy::broadcasts_price()) carry a
+            // non-empty Market-Prices block, every control (NoPrice / single / parallel /
+            // topology / non-price scorers) carries `price_ctx == ""`. The confound-B parity gate
+            // proves the SHARED-PATH invariant — for an IDENTICAL price_ctx the prompt is
+            // byte-identical across arms (it holds price_ctx fixed and varies the route path) — and
+            // the control-integrity test proves the INTENTIONAL price-axis divergence: a non-empty
+            // price_ctx (broadcast arm) yields a STRICTLY DIFFERENT prompt than "" (control arm).
             let prompt = stage2_proof_prompt(
                 &theorem,
                 parent_body.as_deref(),
                 parent_feedback.as_deref(),
                 &lib,
+                &price_ctx,
             );
             let resp = match llm
                 .generate(&GenerateRequest {
-                    model: args.model.clone(),
+                    model: agent_models[ai].clone(),
                     messages: vec![
                         sys.clone(),
                         Message {
@@ -1460,7 +2177,7 @@ async fn run(args: Args) -> Result<(), String> {
                             content: prompt,
                         },
                     ],
-                    temperature: Some(0.7),
+                    temperature: Some(PROOF_TEMPERATURE),
                     max_tokens: Some(900),
                 })
                 .await
@@ -1498,6 +2215,11 @@ async fn run(args: Args) -> Result<(), String> {
                 parse_fails += 1;
                 continue;
             }
+            // OBL-018 (门0/D1): realign the model's proof_body — flush a flat tactic
+            // sequence to col 0 — so a first-line-shallow body is not mislabeled Failed by
+            // the conservative assemble-time `dedent`. SOUND: only cures false negatives;
+            // Lean still arbitrates the goal. Feeds both verify() and assemble() below.
+            let body = realign(&body);
             let confidence_pct = (v
                 .get("confidence")
                 .and_then(|x| x.as_f64())
@@ -1611,22 +2333,37 @@ async fn run(args: Args) -> Result<(), String> {
                 // Bear short by policy: informed (skeptic-LLM doubt) for market/shuffled/no_price;
                 // random U(0,1) with NO skeptic call (M1); or fixed constant (M2). M1/M2 isolate
                 // whether the *informed* price signal (vs noise / vs a constant) does the work.
-                let (short_micro, bear_prompt, bear_completion) = match args.policy {
+                let bear = match args.policy {
                     Policy::RandomBear => {
                         let doubt_pct = rng.gen_range(0..=100) as i64;
-                        (
-                            MIN_SHORT_MICRO + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100,
-                            0u64,
-                            0u64,
-                        )
+                        BearShortDecision {
+                            short_micro: MIN_SHORT_MICRO
+                                + (MAX_SHORT_MICRO - MIN_SHORT_MICRO) * doubt_pct / 100,
+                            prompt_tokens: 0,
+                            completion_tokens: 0,
+                            flat_short_fallback: false,
+                            parse_fallback: false,
+                        }
                     }
-                    Policy::FixedBear => (CHALLENGE_STAKE_MICRO, 0u64, 0u64),
-                    _ => bear_doubt_short(&llm, &args.model, &theorem, &body).await,
+                    Policy::FixedBear => BearShortDecision {
+                        short_micro: CHALLENGE_STAKE_MICRO,
+                        prompt_tokens: 0,
+                        completion_tokens: 0,
+                        flat_short_fallback: false,
+                        parse_fallback: false,
+                    },
+                    _ => bear_doubt_short(&llm, &agent_models[ai], &theorem, &body).await,
                 };
                 bear_calls += 1;
-                bear_prompt_tokens_total += bear_prompt;
-                completion_tokens_total += bear_completion;
-                bear_tokens_total += bear_prompt + bear_completion;
+                if bear.flat_short_fallback {
+                    bear_flat_short_fallback_count += 1;
+                }
+                if bear.parse_fallback {
+                    bear_parse_fallback_count += 1;
+                }
+                bear_prompt_tokens_total += bear.prompt_tokens;
+                completion_tokens_total += bear.completion_tokens;
+                bear_tokens_total += bear.prompt_tokens + bear.completion_tokens;
                 let challenger = challengers[ai % challengers.len()].clone();
                 if let Ok(ce) = put_counterexample(&args.cas, &work_tx_id, lt) {
                     lt += 1;
@@ -1635,7 +2372,7 @@ async fn run(args: Args) -> Result<(), String> {
                         root,
                         TxId(work_tx_id.clone()),
                         &challenger,
-                        short_micro,
+                        bear.short_micro,
                         ce,
                         &format!("lm{step_idx}"),
                         lt,
@@ -1656,13 +2393,18 @@ async fn run(args: Args) -> Result<(), String> {
             // drive argmin-doubt selection — NOT a market short. Isolates "a critic helped" from
             // "the market helped" (prereg v2 rule 7). Bear tokens count toward budget.
             if args.policy == Policy::SkepticRerank {
-                let (doubt_micro, bear_prompt, bear_completion) =
-                    bear_doubt_short(&llm, &args.model, &theorem, &body).await;
+                let bear = bear_doubt_short(&llm, &agent_models[ai], &theorem, &body).await;
                 bear_calls += 1;
-                bear_prompt_tokens_total += bear_prompt;
-                completion_tokens_total += bear_completion;
-                bear_tokens_total += bear_prompt + bear_completion;
-                node_doubt.insert(work_tx_id.clone(), doubt_micro);
+                if bear.flat_short_fallback {
+                    bear_flat_short_fallback_count += 1;
+                }
+                if bear.parse_fallback {
+                    bear_parse_fallback_count += 1;
+                }
+                bear_prompt_tokens_total += bear.prompt_tokens;
+                completion_tokens_total += bear.completion_tokens;
+                bear_tokens_total += bear.prompt_tokens + bear.completion_tokens;
+                node_doubt.insert(work_tx_id.clone(), bear.short_micro);
             }
 
             // Chain-record the Lean verdict so the OMEGA is reconstructable from tape
@@ -1727,6 +2469,12 @@ async fn run(args: Args) -> Result<(), String> {
                 feedback: outcome.feedback.chars().take(160).collect(),
                 tokens: tokens.prompt_tokens + tokens.completion_tokens,
                 axioms: node_axioms,
+                // Art 0.2: Some("solve") iff the AutonomousMarket agent self-chose to solve;
+                // None for harness-assigned policies. (Self-chosen shorts are tape-recorded on
+                // their own AttemptNode at the early-`continue` short path above.)
+                chosen_action: chosen_action.clone(),
+                // Eng-2: provenance so forced solves are excludable from the solve-rate metric.
+                action_source,
             });
             step_idx += 1;
             if is_verified {
@@ -1802,13 +2550,13 @@ async fn run(args: Args) -> Result<(), String> {
         }
         golden_path.reverse();
     }
-    // F4: route (Stage-1) prompt tokens are a REAL compute cost of autonomous; include them so
-    // total_tokens (the PPUT/budget-parity denominator) equals the self-tested total_model_tokens
-    // (proof_prompt + route_prompt + bear_prompt + completion). node.tokens carries proof
-    // prompt+completion and bear_tokens_total carries bear prompt+completion, so the only missing
-    // term is route_prompt_tokens. 0 for every non-autonomous arm → no effect on those.
-    let total_tokens: u64 =
-        nodes.iter().map(|n| n.tokens).sum::<u64>() + bear_tokens_total + route_prompt_tokens;
+    let total_model_tokens = proof_prompt_tokens
+        + route_prompt_tokens
+        + bear_prompt_tokens_total
+        + completion_tokens_total;
+    // F4: total_tokens is the PPUT/budget-parity denominator. Bind it to the same manifest-level
+    // equation as total_model_tokens so node-local token previews cannot drift from accounting.
+    let total_tokens: u64 = total_model_tokens;
     let wall_clock_s = t0.elapsed().as_secs_f64();
     let pput = if omega_node.is_none() || wall_clock_s <= 0.0 {
         0.0
@@ -1830,6 +2578,15 @@ async fn run(args: Args) -> Result<(), String> {
         run_id: args.run_id.clone(),
         policy: args.policy.label(),
         model: args.model.clone(),
+        models: agent_models.clone(),
+        proxy_url: args.proxy_url.clone(),
+        proof_temperature: PROOF_TEMPERATURE,
+        route_temperature: ROUTE_TEMPERATURE,
+        bear_temperature: BEAR_TEMPERATURE,
+        lean_bin: lean_bin.display().to_string(),
+        lean_version,
+        mathlib_dir: args.mathlib_dir.as_ref().map(|p| p.display().to_string()),
+        mathlib_lean_path: mathlib_lp.clone(),
         problem: args.problem.clone(),
         needs_mathlib: theorem.needs_mathlib,
         n_agents,
@@ -1845,14 +2602,13 @@ async fn run(args: Args) -> Result<(), String> {
         // is the real Stage-1 count (0 for pre-call-routed arms) — NOT a labeled view of proposal.
         route_llm_calls,
         bear_llm_calls: bear_calls,
+        bear_flat_short_fallback_count,
+        bear_parse_fallback_count,
         proof_prompt_tokens,
         route_prompt_tokens,
         bear_prompt_tokens: bear_prompt_tokens_total,
         completion_tokens: completion_tokens_total,
-        total_model_tokens: proof_prompt_tokens
-            + route_prompt_tokens
-            + bear_prompt_tokens_total
-            + completion_tokens_total,
+        total_model_tokens,
         lean_verifies,
         total_wall_clock_ms: t0.elapsed().as_millis() as u64,
         parse_fails,
@@ -1978,6 +2734,8 @@ mod tests {
 
     #[test]
     fn only_price_family_emits_bear_shorts() {
+        // BearTriage is price-family: it emits a real Bear short so the price index carries a
+        // true signal (Bug1 fix — without shorts den==num → bear_score=0 → uniform routing).
         for p in [
             Policy::Market,
             Policy::Autonomous,
@@ -1985,6 +2743,7 @@ mod tests {
             Policy::FixedBear,
             Policy::ShuffledPrice,
             Policy::NoPrice,
+            Policy::BearTriage,
         ] {
             assert!(p.emits_challenges(), "{p:?} is price-family");
         }
@@ -1997,8 +2756,12 @@ mod tests {
             Policy::SingleRestart,
             Policy::SingleTreeNoPrice,
             Policy::ParallelRestart,
+            // AutonomousMarket does NOT auto-emit a per-proposal short: the agent self-selects
+            // "short" as one of its two actions and the branch emits the ChallengeTx itself.
+            // A generic auto-short here would double-short every self-chosen "solve" (Change 2/3).
+            Policy::AutonomousMarket,
         ] {
-            assert!(!p.emits_challenges(), "{p:?} is Bulls-only");
+            assert!(!p.emits_challenges(), "{p:?} does NOT auto-emit per-proposal shorts");
         }
     }
 
@@ -2019,10 +2782,85 @@ mod tests {
             "single_restart",
             "single_tree_no_price",
             "parallel_restart",
+            "bear_triage",
+            "autonomous_market",
         ] {
             assert_eq!(Policy::parse(s).unwrap().label(), s);
         }
         assert!(Policy::parse("bogus").is_err());
+    }
+
+    #[test]
+    fn autonomous_market_select_parent_is_precall_noop() {
+        // Like Autonomous, the AutonomousMarket parent/target is chosen by the agent INSIDE
+        // STEP A (build_autonomous_decision_prompt), not by select_parent; the pre-call selector
+        // MUST be a no-op (None) even with a fully-priced landscape, so STEP A is the sole source.
+        let mut pi = BTreeMap::new();
+        let nodes = vec![TxId("n0".into()), TxId("n1".into())];
+        pi.insert(TxId("n0".into()), NodeMarketEntry::default());
+        let mut rng = StdRng::seed_from_u64(11);
+        assert_eq!(
+            select_parent(
+                Policy::AutonomousMarket,
+                &pi,
+                &nodes,
+                Some(&TxId("n0".into())),
+                &[],
+                &BTreeMap::new(),
+                &BTreeMap::new(),
+                0.15,
+                &mut rng
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn autonomous_choice_parses_and_fails_open_to_solve() {
+        // A well-formed short choice parses verbatim (self-selected action + target + confidence).
+        let short = parse_autonomous_choice(
+            "{\"action\":\"short\",\"target\":2,\"confidence\":0.9}",
+        );
+        assert_eq!(short.action, "short");
+        assert_eq!(short.target, 2);
+        assert!((short.confidence - 0.9).abs() < 1e-9);
+        // A well-formed solve choice on a fresh root parses verbatim.
+        let solve = parse_autonomous_choice(
+            "{\"action\":\"solve\",\"target\":-1,\"proof_body\":\"simp\",\"confidence\":0.5}",
+        );
+        assert_eq!(solve.action, "solve");
+        assert_eq!(solve.target, -1);
+        // Malformed JSON, an unknown action, and a missing action all FAIL-OPEN to solve/fresh —
+        // never silently dropping the iteration (budget-parity node count is preserved).
+        for bad in ["not json", "{\"action\":\"sabotage\",\"target\":0}", "{\"target\":0}"] {
+            let c = parse_autonomous_choice(bad);
+            assert_eq!(c.action, "solve", "fail-open action for {bad:?}");
+        }
+        // An empty/garbage body fails open to a fresh-root solve (target -1).
+        assert_eq!(parse_autonomous_choice("not json").target, -1);
+    }
+
+    #[test]
+    fn autonomous_decision_prompt_is_signal_only_and_decorrelated() {
+        // STEP A prompt must broadcast SIGNALS ONLY (Art II.2): it offers the 2-action menu, lists
+        // open nodes by price/conf/error-CLASS, and carries the ABSTRACTED librarian — but NEVER a
+        // raw proof body, raw shielded error line, or any LeanJudge/Predicate scoring internal.
+        let thm = selftest_theorem();
+        let nodes = vec![TxId("worktx-abc".into())];
+        let mut fb = BTreeMap::new();
+        fb.insert("worktx-abc".into(), "error: unsolved goals\n  ⊢ secret_raw".into());
+        let mut conf = BTreeMap::new();
+        conf.insert("worktx-abc".into(), 40u64);
+        let pi = BTreeMap::new();
+        let prompt = build_autonomous_decision_prompt(&thm, &nodes, &fb, &conf, &pi, "");
+        // Menu is exactly the two self-selected actions.
+        assert!(prompt.contains("\"solve\""), "menu offers solve");
+        assert!(prompt.contains("\"short\""), "menu offers short");
+        // Only the coarse error CLASS leaks, never the raw shielded line (Art II.1 / III.4).
+        assert!(prompt.contains("unsolved_goals"), "coarse error class is shown");
+        assert!(!prompt.contains("secret_raw"), "raw shielded error must NOT leak");
+        // No assigned role / no HOW-to-prove instruction (Art II.2 — no micromanagement).
+        assert!(!prompt.to_lowercase().contains("your role is"));
     }
 
     #[test]
@@ -2088,8 +2926,8 @@ mod tests {
         let thm = selftest_theorem();
         let body = "intro h; FULLBODYSENTINEL_simp_all; exact h";
         let fb = "error: SHIELDSENTINEL unsolved goals n+0=n";
-        let market = build_prompt(&thm, Some(body), Some(fb), "");
-        let stage2 = stage2_proof_prompt(&thm, Some(body), Some(fb), "");
+        let market = build_prompt(&thm, Some(body), Some(fb), "", "");
+        let stage2 = stage2_proof_prompt(&thm, Some(body), Some(fb), "", "");
         assert_eq!(
             sha_hex(&market),
             sha_hex(&stage2),
@@ -2115,6 +2953,143 @@ mod tests {
         // prompt) and carries leaked landscape text — so the inequality above is non-vacuous.
         assert!(control.len() > stage2.len());
         assert!(control.contains("FULL SEARCH LANDSCAPE"));
+    }
+
+    // ── F1–F5 self-test seam mirrored as a #[test] so `cargo test` covers the same checks the
+    // shipped `--self-test` CLI path runs (makes the seam a real gate, not documentation). ──
+    #[test]
+    fn self_test_inner_ok() {
+        self_test_inner().expect("self_test_inner (F1–F5) must pass");
+    }
+
+    // ── F5 cost-resolution (OBL-012 / §17.3 no name-lie): every DEFAULT roster model must bill at a
+    // SPECIFIC MODEL_RATES entry, never the bare `deepseek`/FALLBACK catch-all. This is the exact
+    // failure this diff's roster introduced (`deepseek-ai/DeepSeek-V4-Pro` not matching the lowercase
+    // `deepseek-v4-pro` id under case-sensitive `contains`). LOAD-BEARING: it would FAIL again if the
+    // case-insensitive match in `call_micro_usd` were reverted. ──
+    #[test]
+    fn default_roster_never_resolves_to_bare_deepseek_fallback() {
+        for model in default_models() {
+            let in_cost = call_micro_usd(&model, 1_000_000, 0);
+            assert_ne!(
+                in_cost, FALLBACK_IN_UPMT,
+                "roster model `{model}` under-bills at the bare deepseek/FALLBACK input rate (OBL-012)"
+            );
+            let out_cost = call_micro_usd(&model, 0, 1_000_000);
+            assert_ne!(
+                out_cost, FALLBACK_OUT_UPMT,
+                "roster model `{model}` over-bills at the bare deepseek/FALLBACK output rate (OBL-012)"
+            );
+        }
+        // Pin the historically-bugged entry to its intended deepseek-v4-pro rate.
+        assert_eq!(
+            call_micro_usd("deepseek-ai/DeepSeek-V4-Pro", 1_000_000, 0),
+            435_000,
+            "DeepSeek-V4-Pro must bill at the deepseek-v4-pro input rate, not the bare deepseek catch-all"
+        );
+        assert_eq!(
+            call_micro_usd("deepseek-ai/DeepSeek-V4-Pro", 0, 1_000_000),
+            870_000,
+            "DeepSeek-V4-Pro must bill at the deepseek-v4-pro output rate, not the bare deepseek catch-all"
+        );
+    }
+
+    // ── Robustness: a `--models` that parses to an empty roster (e.g. `--models ","`) must NOT
+    // yield an empty `args.models` (which would make `args.models[i % args.models.len()]` a
+    // divide-by-zero panic in the agent loop); it falls back to the non-empty default roster. ──
+    #[test]
+    fn empty_models_arg_falls_back_to_nonempty_default() {
+        let argv: Vec<String> = [
+            "--runtime-repo", "/tmp/x",
+            "--cas", "/tmp/x",
+            "--run-id", "t",
+            "--problem", "p",
+            "--models", ",",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let args = parse_args(&argv).expect("parse_args must succeed");
+        assert!(
+            !args.models.is_empty(),
+            "empty --models must fall back to the default roster, not an empty Vec (divide-by-zero guard)"
+        );
+        assert_eq!(args.models, default_models());
+        // Directly exercise the formerly-panicking index expression.
+        let _ = args.models[0 % args.models.len()].clone();
+    }
+
+    // ── Control-integrity gate (Art II.2 broadcast-vs-no-broadcast A/B confound) ──
+    // The live loop builds the Stage-2 `price_ctx` block ONLY for `Policy::broadcasts_price()`
+    // arms and forces `price_ctx == ""` for every control. These two tests pin BOTH halves so a
+    // control arm can NEVER silently re-acquire the live price signal in the proof prompt.
+
+    #[test]
+    fn price_broadcast_gated_to_market_family_only() {
+        // EXACTLY the price-broadcasting arms (their hypothesis = "broadcast price helps").
+        for p in [
+            Policy::Market,
+            Policy::RandomBear,
+            Policy::FixedBear,
+            Policy::ShuffledPrice,
+            Policy::BearTriage,
+            Policy::AutonomousMarket,
+        ] {
+            assert!(
+                p.broadcasts_price(),
+                "{} must broadcast price (Art II.2 treatment arm)",
+                p.label()
+            );
+        }
+        // The no-price baseline and EVERY single/parallel/topology + non-price-scorer control
+        // must NOT broadcast price into the proof prompt. NoPrice is the load-bearing case:
+        // it `emits_challenges()` (so its price index IS populated) yet its premise is "prices
+        // stripped from selection" — it must still get an empty price block.
+        assert!(Policy::NoPrice.emits_challenges(), "NoPrice populates pi (precondition for the leak this gate prevents)");
+        for p in [
+            Policy::NoPrice,
+            Policy::Single,
+            Policy::Parallel,
+            Policy::SingleRestart,
+            Policy::SingleTreeNoPrice,
+            Policy::ParallelRestart,
+            Policy::Majority,
+            Policy::BestFirst,
+            Policy::SkepticRerank,
+            Policy::Autonomous, // price stays in its Stage-1 route channel only, never the proof prompt
+        ] {
+            assert!(
+                !p.broadcasts_price(),
+                "{} is a no-broadcast control — its Stage-2 price_ctx must be empty",
+                p.label()
+            );
+        }
+    }
+
+    #[test]
+    fn price_ctx_axis_changes_proof_prompt() {
+        // The confound-B parity gate holds `price_ctx` FIXED ("") and proves the route path does
+        // not perturb the prompt. THIS test exercises the OTHER axis the live loop now varies:
+        // a non-empty price_ctx (broadcast arm) must yield a STRICTLY DIFFERENT proof prompt than
+        // "" (control arm) for the SAME parent — i.e. the green parity test is not blind to the
+        // policy-gated price dimension. Drive BOTH operands through the SHARED stage2 helper.
+        let thm = selftest_theorem();
+        let body = "intro h; simp_all; exact h";
+        let fb = "error: unsolved goals n+0=n";
+        // Treatment arm: the exact Market-Prices block shape the live loop appends.
+        let price_block = "\n=== Market Prices (signal only) ===\n  node 0: price_yes=0.429\n";
+        let broadcast = stage2_proof_prompt(&thm, Some(body), Some(fb), "", price_block);
+        let control = stage2_proof_prompt(&thm, Some(body), Some(fb), "", "");
+        assert_ne!(
+            sha_hex(&broadcast),
+            sha_hex(&control),
+            "control-integrity gate not load-bearing: a broadcast arm's price_ctx must change the \
+             proof prompt vs a no-broadcast control — otherwise the A/B treatment is a no-op"
+        );
+        // And the divergence is exactly the price block (strict superset), not some other drift.
+        assert!(broadcast.len() > control.len());
+        assert!(broadcast.contains("Market Prices (signal only)"));
+        assert!(!control.contains("Market Prices"));
     }
 
     #[test]
@@ -2257,6 +3232,191 @@ mod tests {
         );
     }
 
+    // ── BEAR-TRIAGE: bear_soft_priority distribution properties ──
+
+    /// Deterministic test for bear_soft_priority.
+    ///
+    /// bear_soft_priority receives PRE-NORMALIZED scores (norm_score in [0, 1000]) where HIGHER
+    /// norm_score = HIGHER priority (low-short node already has the highest norm_score after the
+    /// inversion in select_parent::BearTriage). This test exercises the weighting directly.
+    ///
+    /// Constructs 4 nodes with norm_scores [0, 200, 500, 1000].
+    /// With lambda_num=1, lambda_den=1, weights = [1+0, 1+200, 1+500, 1+1000] = [1, 201, 501, 1001].
+    /// Total = 1704.
+    ///
+    /// G1 self-check: all nodes have non-zero weight → no node is ever permanently excluded.
+    /// We verify across 2000 seeds that:
+    ///   (a) every node is selected at least once (true soft, not argmax-collapse / §17.3)
+    ///   (b) higher norm_score nodes are selected more often (rank order: ns1000 > ns500 > ns200 > ns0)
+    #[test]
+    fn bear_soft_priority_true_soft_distribution() {
+        let ns0 = TxId("node_ns0".into());
+        let ns200 = TxId("node_ns200".into());
+        let ns500 = TxId("node_ns500".into());
+        let ns1000 = TxId("node_ns1000".into());
+
+        // norm_scores: ns0→0, ns200→200, ns500→500, ns1000→1000 (pre-inverted by caller)
+        // weights (lambda=1/1): [1, 201, 501, 1001]
+        let scores: Vec<(TxId, i128)> = vec![
+            (ns0.clone(), 0),
+            (ns200.clone(), 200),
+            (ns500.clone(), 500),
+            (ns1000.clone(), 1000),
+        ];
+
+        let n_trials = 2_000u64;
+        let mut counts: BTreeMap<String, u64> = BTreeMap::new();
+        for seed in 0..n_trials {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let picked = bear_soft_priority(&scores, 1, 1, &mut rng)
+                .expect("non-empty scores must return Some");
+            *counts.entry(picked.0.clone()).or_default() += 1;
+        }
+
+        // (a) G1: every node selected at least once — true soft distribution, no veto path.
+        assert!(
+            counts.get(&ns0.0).copied().unwrap_or(0) > 0,
+            "bear_soft_priority: node_ns0 (weight=1) never selected — argmax-collapse detected"
+        );
+        assert!(
+            counts.get(&ns200.0).copied().unwrap_or(0) > 0,
+            "bear_soft_priority: node_ns200 never selected"
+        );
+        assert!(
+            counts.get(&ns500.0).copied().unwrap_or(0) > 0,
+            "bear_soft_priority: node_ns500 never selected"
+        );
+        assert!(
+            counts.get(&ns1000.0).copied().unwrap_or(0) > 0,
+            "bear_soft_priority: node_ns1000 (weight=1001) never selected"
+        );
+
+        // (b) rank order: ns1000 > ns500 > ns200 > ns0 (higher norm_score → higher freq).
+        let c0 = counts.get(&ns0.0).copied().unwrap_or(0);
+        let c200 = counts.get(&ns200.0).copied().unwrap_or(0);
+        let c500 = counts.get(&ns500.0).copied().unwrap_or(0);
+        let c1000 = counts.get(&ns1000.0).copied().unwrap_or(0);
+        assert!(
+            c1000 > c500,
+            "bear_soft_priority: ns1000 ({c1000}) should be picked more than ns500 ({c500})"
+        );
+        assert!(
+            c500 > c200,
+            "bear_soft_priority: ns500 ({c500}) should be picked more than ns200 ({c200})"
+        );
+        assert!(
+            c200 > c0,
+            "bear_soft_priority: ns200 ({c200}) should be picked more than ns0 ({c0})"
+        );
+    }
+
+    /// Deterministic test: bear_soft_priority with a single node always returns that node.
+    #[test]
+    fn bear_soft_priority_single_node_always_selected() {
+        let only = TxId("sole".into());
+        let scores = vec![(only.clone(), 7i128)];
+        for seed in 0..100u64 {
+            let mut rng = StdRng::seed_from_u64(seed);
+            assert_eq!(
+                bear_soft_priority(&scores, 1, 1, &mut rng),
+                Some(only.clone()),
+                "single-node: must always pick the only node"
+            );
+        }
+    }
+
+    /// Deterministic test: empty scores returns None (caller falls back).
+    #[test]
+    fn bear_soft_priority_empty_returns_none() {
+        let mut rng = StdRng::seed_from_u64(0);
+        assert_eq!(bear_soft_priority(&[], 1, 1, &mut rng), None);
+    }
+
+    /// select_parent with BearTriage routes toward the LOW-short node (Bug2 fix: direction
+    /// reversal based on Phase 1 evidence P(short_Verified < short_Failed) = 0.62).
+    ///
+    /// n_lo has price 9/10 (raw_bear = 10-9 = 1, low skepticism → high norm_score → preferred).
+    /// n_hi has price 2/10 (raw_bear = 10-2 = 8, high skepticism → low norm_score → deprioritized).
+    /// n_none: no price entry (raw_bear = 0, treated as most-confident/lowest-short).
+    ///
+    /// Normalization with M = max(raw_bear) = max(1, 8, 0) = 8:
+    ///   n_lo:  norm_score = 1000*(8-1)/8 = 875
+    ///   n_hi:  norm_score = 1000*(8-8)/8 = 0
+    ///   n_none:norm_score = 1000*(8-0)/8 = 1000
+    /// Weights (λ=1/1): n_lo=876, n_hi=1, n_none=1001. Total=1878.
+    /// → n_none > n_lo >> n_hi; lo_count >> hi_count confirms the direction.
+    ///
+    /// True-soft-distribution check: n_hi (weight=1) must still appear at least once (G1/§17.3).
+    #[test]
+    fn bear_triage_select_parent_integration() {
+        // Three nodes: n_lo has price 9/10 (bear=1), n_hi has price 2/10 (bear=8), n_none has no price.
+        let n_lo = TxId("n_lo".into());
+        let n_hi = TxId("n_hi".into());
+        let n_none = TxId("n_none".into());
+        let all_nodes = vec![n_lo.clone(), n_hi.clone(), n_none.clone()];
+        let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        pi.insert(
+            n_lo.clone(),
+            NodeMarketEntry {
+                price_yes: Some(RationalPrice {
+                    numerator: 9,
+                    denominator: 10,
+                }),
+                ..Default::default()
+            },
+        );
+        pi.insert(
+            n_hi.clone(),
+            NodeMarketEntry {
+                price_yes: Some(RationalPrice {
+                    numerator: 2,
+                    denominator: 10,
+                }),
+                ..Default::default()
+            },
+        );
+        // n_none: no price_yes entry → raw_bear = 0 → norm_score = 1000 (lowest-short = most trusted).
+
+        let conf: BTreeMap<String, u64> = BTreeMap::new();
+        let doubt: BTreeMap<String, i64> = BTreeMap::new();
+        let mut hi_count = 0u64;
+        let mut lo_count = 0u64;
+        // Use 10 000 trials: n_hi has weight 1/1878 ≈ 0.053%; expected ~5 appearances.
+        // This keeps the test deterministic and the G1 no-veto-path invariant verifiable
+        // even at extreme weight ratios created by the permille normalization.
+        let n_trials = 10_000u64;
+        for seed in 0..n_trials {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let picked = select_parent(
+                Policy::BearTriage,
+                &pi,
+                &all_nodes,
+                None,
+                &[],
+                &conf,
+                &doubt,
+                0.15,
+                &mut rng,
+            );
+            assert!(picked.is_some(), "BearTriage with non-empty landscape must return Some");
+            match picked.as_ref().map(|t| t.0.as_str()) {
+                Some("n_hi") => hi_count += 1,
+                Some("n_lo") => lo_count += 1,
+                _ => {} // n_none also valid (norm_score=1000, highest priority)
+            }
+        }
+        // Phase 1 direction: route toward LOW short → n_lo (norm_score=875) >> n_hi (norm_score=0).
+        // lo_count > hi_count confirms the direction is correct (Bug2 fix: previously asserted inverse).
+        assert!(
+            lo_count > hi_count,
+            "BearTriage: low-short node n_lo ({lo_count}) should be chosen more than high-short n_hi ({hi_count}) — Phase 1: P(short_Verified < short_Failed)=0.62"
+        );
+        // True-soft-distribution (G1/§17.3): n_hi (weight=1/1878) must appear at least once —
+        // no veto path. With 10 000 trials, expected ~5 appearances; probability of zero < 1%.
+        assert!(hi_count > 0, "n_hi (weight=1/1878) must be selected at least once in 10000 trials — true soft, no veto path (G1/§17.3)");
+        assert!(lo_count > 0, "n_lo must be selected at least once");
+    }
+
     // ── F2 telemetry: manifest carries the compute fields + honest invariants ──
 
     #[test]
@@ -2287,6 +3447,303 @@ mod tests {
         );
     }
 
+    // ── Gate C+F: prompt is signal-only; no Goodhart leak (Art II.2 + Art III.4) ──
+    //
+    // Renders build_autonomous_decision_prompt and build_prompt with synthetic node_feedback that
+    // contains a raw stderr line ("error: unknown tactic") AND a Goodhart bait string ("score=99
+    // verdict=PASS") to PROVE the rendered prompts strip both down to the coarse class only.
+    //
+    // MUST contain (decision prompt): no-role phrasing, signal-only framing, self-choose menu.
+    // MUST NOT contain (decision prompt): assigned role label as instruction, raw stderr text,
+    //   raw score= string, LeanJudge/predicate scoring internals, heldout/eval identifiers.
+    // Broadcast field whitelist (per node line): only index, price_yes num/den, confidence,
+    //   coarse error-class appear — no proof bodies, no other-agent raw data.
+    // MUST contain (proof prompt): parent body for the chosen parent.
+    // MUST NOT contain (proof prompt): raw stderr or score= from other nodes' feedback.
+    #[test]
+    fn gate_c_f_prompt_is_signal_only_no_goodhart_leak() {
+        let thm = selftest_theorem();
+
+        // Synthetic frontier: two nodes.
+        // Node 0: raw feedback with a Goodhart bait string ("score=99 verdict=PASS") + raw stderr.
+        // Node 1: distinct body and distinct raw feedback.
+        let node0 = TxId("worktx-n0".into());
+        let node1 = TxId("worktx-n1".into());
+        let nodes = vec![node0.clone(), node1.clone()];
+
+        // Goodhart bait: a "score=" string that mimics verifier/LeanJudge scoring internals.
+        // If this leaks into the agent prompt verbatim the gate fails (Art III.4 Goodhart shield).
+        let raw_stderr_node0 = "error: unknown tactic `decide` at line 3\nscore=99 verdict=PASS heldout_eval=true";
+        // Node 1 has a different raw error line; its body should NOT appear in node 0's decision ctx.
+        let raw_stderr_node1 = "error: unsolved goals\n  ⊢ n+0=n  SECRET_BODY_SENTINEL_1234";
+
+        let mut fb: BTreeMap<String, String> = BTreeMap::new();
+        fb.insert(node0.0.clone(), raw_stderr_node0.to_string());
+        fb.insert(node1.0.clone(), raw_stderr_node1.to_string());
+
+        let mut conf: BTreeMap<String, u64> = BTreeMap::new();
+        conf.insert(node0.0.clone(), 55u64);
+        conf.insert(node1.0.clone(), 40u64);
+
+        let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        pi.insert(
+            node0.clone(),
+            NodeMarketEntry {
+                price_yes: Some(RationalPrice { numerator: 3, denominator: 7 }),
+                ..Default::default()
+            },
+        );
+        pi.insert(
+            node1.clone(),
+            NodeMarketEntry {
+                price_yes: Some(RationalPrice { numerator: 1, denominator: 4 }),
+                ..Default::default()
+            },
+        );
+
+        let decision_prompt = build_autonomous_decision_prompt(&thm, &nodes, &fb, &conf, &pi, "");
+
+        // ── MUST-CONTAIN (Art II.2 signal-only / no-role contract) ──
+
+        // No role has been assigned — literal phrase from the prompt builder.
+        assert!(
+            decision_prompt.contains("No role has been assigned"),
+            "decision prompt MUST carry no-role-assigned phrasing (Art II.2)\n--- prompt ---\n{decision_prompt}"
+        );
+        // Signal-only framing.
+        assert!(
+            decision_prompt.contains("ONLY market signals"),
+            "decision prompt MUST carry signal-only framing (Art II.2)\n--- prompt ---\n{decision_prompt}"
+        );
+        // Self-choose menu: both actions available.
+        assert!(
+            decision_prompt.contains("\"solve\""),
+            "decision prompt MUST offer \"solve\" action in the self-choose menu\n--- prompt ---\n{decision_prompt}"
+        );
+        assert!(
+            decision_prompt.contains("\"short\""),
+            "decision prompt MUST offer \"short\" action in the self-choose menu\n--- prompt ---\n{decision_prompt}"
+        );
+        // The coarse error class (not the raw line) IS allowed.
+        let class0 = classify_lean_error(raw_stderr_node0);
+        assert!(
+            decision_prompt.contains(class0),
+            "decision prompt MUST carry the coarse error class `{class0}` for node0\n--- prompt ---\n{decision_prompt}"
+        );
+        // price_yes num/den for node 0 must appear.
+        assert!(
+            decision_prompt.contains("price_yes=3/7"),
+            "decision prompt MUST broadcast node0 price_yes=3/7 (signal whitelist)\n--- prompt ---\n{decision_prompt}"
+        );
+
+        // ── MUST-NOT-CONTAIN (Goodhart shield Art III.4 + decorrelation Art III.3) ──
+
+        // Raw Lean stderr must NOT leak — only the coarse class.
+        assert!(
+            !decision_prompt.contains("unknown tactic"),
+            "decision prompt MUST NOT contain raw stderr text `unknown tactic` (Art II.1 / III.4)\n--- prompt ---\n{decision_prompt}"
+        );
+        // Goodhart bait: score= / verdict= / heldout_eval= from verifier internals must NOT appear.
+        assert!(
+            !decision_prompt.contains("score=99"),
+            "decision prompt MUST NOT contain Goodhart bait `score=99` (verifier internal, Art III.4)\n--- prompt ---\n{decision_prompt}"
+        );
+        assert!(
+            !decision_prompt.contains("verdict=PASS"),
+            "decision prompt MUST NOT contain Goodhart bait `verdict=PASS` (verifier internal, Art III.4)\n--- prompt ---\n{decision_prompt}"
+        );
+        assert!(
+            !decision_prompt.contains("heldout_eval"),
+            "decision prompt MUST NOT contain heldout/eval identifier (benchmark leak, Art III.4)\n--- prompt ---\n{decision_prompt}"
+        );
+        // Node 1's raw sentinel must NOT appear (decorrelation: no cross-agent raw leakage).
+        assert!(
+            !decision_prompt.contains("SECRET_BODY_SENTINEL_1234"),
+            "decision prompt MUST NOT contain node1 raw sentinel — raw error text must never transit (Art II.1)\n--- prompt ---\n{decision_prompt}"
+        );
+        // Assigned role labels (Bull/Bear/Solver/Challenger) must NOT appear as instructions.
+        // These are assignment strings — the prompt must not command "You are a Bull/Bear/Solver/Challenger".
+        for role_label in ["You are a Bull", "You are a Bear", "You are a Solver", "You are a Challenger"] {
+            assert!(
+                !decision_prompt.contains(role_label),
+                "decision prompt MUST NOT assign a role via `{role_label}` (Art II.2 no-role)\n--- prompt ---\n{decision_prompt}"
+            );
+        }
+
+        // ── Broadcast field whitelist: per-node line must only carry index, price num/den,
+        // confidence%, and coarse error-class — NO proof bodies, NO raw errors, NO other fields. ──
+        // Extract the Open nodes section lines.
+        for line in decision_prompt.lines() {
+            if line.starts_with('[') && line.contains("price_yes=") {
+                // Each frontier line format: [idx] price_yes=N/D conf=C% class=CLASS
+                // Must NOT carry any raw body text or score= bait.
+                assert!(
+                    !line.contains("score="),
+                    "frontier line MUST NOT contain `score=` (Goodhart leak): {line:?}"
+                );
+                assert!(
+                    !line.contains("unknown tactic"),
+                    "frontier line MUST NOT contain raw stderr: {line:?}"
+                );
+                assert!(
+                    !line.contains("SECRET_BODY_SENTINEL"),
+                    "frontier line MUST NOT contain proof body sentinel: {line:?}"
+                );
+            }
+        }
+
+        // ── Proof prompt (build_prompt) must not leak raw feedback from non-parent nodes ──
+        // build_prompt is the Stage-2 proof-prompt constructor; for the proof repair task it
+        // DOES include the chosen parent's raw Lean feedback (the model needs to see the error
+        // to fix it). What must NOT appear is any raw data from NON-parent nodes.
+        // We call build_prompt with node0 as the parent; node1's sentinel must not appear.
+        let proof_prompt = build_prompt(
+            &thm,
+            Some("intro n; simp"),      // parent body (node0)
+            Some(raw_stderr_node0),     // parent raw feedback (node0) — legitimately included
+            "",
+            "",
+        );
+        // Node 1's raw sentinel absolutely must not appear in a node-0-parent proof prompt.
+        assert!(
+            !proof_prompt.contains("SECRET_BODY_SENTINEL_1234"),
+            "proof prompt MUST NOT contain node1 raw sentinel — non-parent node data must never transit\n--- prompt ---\n{proof_prompt}"
+        );
+        // The proof prompt's own code path must not inject any extra scoring/Goodhart fields
+        // beyond what the caller passes as parent_feedback. We check by building with empty
+        // feedback: the resulting prompt must not contain any score= or verdict= strings.
+        let proof_prompt_empty_fb = build_prompt(&thm, Some("intro n; simp"), None, "", "");
+        assert!(
+            !proof_prompt_empty_fb.contains("score="),
+            "proof prompt (no-feedback path) MUST NOT synthesize Goodhart bait from its own code path\n--- prompt ---\n{proof_prompt_empty_fb}"
+        );
+        assert!(
+            !proof_prompt_empty_fb.contains("verdict="),
+            "proof prompt (no-feedback path) MUST NOT synthesize verdict= strings from its own code path\n--- prompt ---\n{proof_prompt_empty_fb}"
+        );
+    }
+
+    // ── Gate E: heterogeneity decorrelated (Art III.3 + §17.3 no-argmax-collapse) ──
+    //
+    // With a multi-vendor --models roster, per-agent effective model ids must have entropy>0
+    // (not all the same), a round does NOT all-fallback to a single provider, and the decision
+    // context rendered for agent i does NOT contain another agent's raw proof_body (Art III.3).
+    //
+    // Reuses/extends the existing default_roster_never_resolves_to_bare_deepseek_fallback and
+    // price_broadcast_gated tests by exercising the round-robin assignment directly and asserting
+    // the per-agent isolation property on build_autonomous_decision_prompt.
+    #[test]
+    fn gate_e_heterogeneity_decorrelated() {
+        // ── 1. Per-agent model assignment has entropy > 0 ──
+        // default_models() returns 4 distinct vendor models. With n_agents >= 4, round-robin
+        // assigns each a different model → at least 2 distinct effective ids in 4 agents.
+        let roster = default_models();
+        let n_agents = 4usize;
+        let agent_models: Vec<String> = (0..n_agents)
+            .map(|i| roster[i % roster.len()].clone())
+            .collect();
+
+        // Entropy > 0: not all model ids are identical.
+        let first = &agent_models[0];
+        let all_same = agent_models.iter().all(|m| m == first);
+        assert!(
+            !all_same,
+            "Gate E: per-agent model assignment must have entropy > 0 — found all agents using `{first}` (argmax-collapse / §17.3)"
+        );
+
+        // At least 2 distinct models in the 4-agent roster.
+        let distinct: std::collections::BTreeSet<&String> = agent_models.iter().collect();
+        assert!(
+            distinct.len() >= 2,
+            "Gate E: a multi-vendor roster of {} models must yield >= 2 distinct effective model ids across {} agents; got {}: {:?}",
+            roster.len(), n_agents, distinct.len(), agent_models
+        );
+
+        // ── 2. No all-fallback to a single provider ──
+        // Each model in the roster must NOT resolve to the bare FALLBACK rate (OBL-012 gate
+        // mirrored here: if a model fallbacks, it means cost resolution collapsed to one entry).
+        // A round that all-falls-back to one provider is a billing + diversity failure.
+        for model in &roster {
+            let in_cost = call_micro_usd(model, 1_000_000, 0);
+            assert_ne!(
+                in_cost, FALLBACK_IN_UPMT,
+                "Gate E: roster model `{model}` resolves to the bare FALLBACK input rate — single-provider collapse detected (OBL-012)"
+            );
+            let out_cost = call_micro_usd(model, 0, 1_000_000);
+            assert_ne!(
+                out_cost, FALLBACK_OUT_UPMT,
+                "Gate E: roster model `{model}` resolves to the bare FALLBACK output rate — single-provider collapse detected (OBL-012)"
+            );
+        }
+
+        // ── 3. Decision context for agent i does NOT contain another agent's raw proof_body ──
+        // Art III.3 decorrelation: build_autonomous_decision_prompt is called with the shared
+        // committed tape state (price index + coarse error class). No in-flight proof body from
+        // another agent's pending attempt should appear in agent i's context.
+        //
+        // Synthetic scenario: agent 0 has submitted a proof body on node0 (in-flight, uncommitted).
+        // Agent 1's decision context is built from the SAME committed tape. We inject agent 0's
+        // raw proof body as a sentinel into node0's feedback MAP (simulating a mis-implementation
+        // that leaks the in-flight body into the feedback channel) and assert it does NOT transit
+        // into agent 1's rendered decision prompt.
+        let thm = selftest_theorem();
+        let node0 = TxId("worktx-decorr-0".into());
+        let node1 = TxId("worktx-decorr-1".into());
+        let nodes = vec![node0.clone(), node1.clone()];
+
+        // Agent 0's in-flight proof body — must NOT appear in agent 1's context.
+        let agent0_raw_proof_body = "intro n; AGENT0_PROOF_SENTINEL; simp_all; exact Nat.zero_add n";
+        // If a buggy implementation leaked the proof body into node_feedback, it would look like:
+        let leaked_feedback = format!("error: type mismatch\n--- agent0 in-flight body ---\n{agent0_raw_proof_body}");
+
+        let mut fb: BTreeMap<String, String> = BTreeMap::new();
+        fb.insert(node0.0.clone(), leaked_feedback); // attempt to inject the in-flight body
+        fb.insert(node1.0.clone(), "error: unsolved goals\n  ⊢ n+0=n".to_string());
+
+        let mut conf: BTreeMap<String, u64> = BTreeMap::new();
+        conf.insert(node0.0.clone(), 60u64);
+        conf.insert(node1.0.clone(), 35u64);
+
+        let mut pi: BTreeMap<TxId, NodeMarketEntry> = BTreeMap::new();
+        pi.insert(
+            node0.clone(),
+            NodeMarketEntry {
+                price_yes: Some(RationalPrice { numerator: 2, denominator: 5 }),
+                ..Default::default()
+            },
+        );
+
+        // Agent 1's decision context — built from committed tape (price index + classify path).
+        let agent1_ctx = build_autonomous_decision_prompt(&thm, &nodes, &fb, &conf, &pi, "");
+
+        // Art III.3: agent 1's context must NOT contain agent 0's raw proof body sentinel.
+        // The coarse error class ("type_mismatch") is allowed; the raw body is NOT.
+        assert!(
+            !agent1_ctx.contains("AGENT0_PROOF_SENTINEL"),
+            "Gate E Art III.3: agent 1 decision context MUST NOT contain agent 0's raw proof body sentinel — cross-agent decorrelation violated\n--- agent1_ctx ---\n{agent1_ctx}"
+        );
+        // The coarse class for node0 (type_mismatch) IS allowed to transit.
+        let class0 = classify_lean_error("error: type mismatch");
+        assert_eq!(class0, "type_mismatch");
+        assert!(
+            agent1_ctx.contains(class0),
+            "Gate E: coarse error class `{class0}` must transit (signal whitelist) but was absent\n--- agent1_ctx ---\n{agent1_ctx}"
+        );
+
+        // Also verify that with heterogeneous roster, distinct agents see heterogeneous model
+        // assignments (entropy check on actual round-robin output for the full default roster).
+        let n_large = roster.len();
+        let large_agent_models: Vec<String> = (0..n_large)
+            .map(|i| roster[i % roster.len()].clone())
+            .collect();
+        let distinct_large: std::collections::BTreeSet<&String> = large_agent_models.iter().collect();
+        assert_eq!(
+            distinct_large.len(), roster.len(),
+            "Gate E: with n_agents == roster.len() ({n_large}), every agent should get a distinct model; got {:?}",
+            large_agent_models
+        );
+    }
+
     #[test]
     fn f2_manifest_has_compute_telemetry_fields() {
         let m = sample_manifest_for_selftest(Policy::Autonomous);
@@ -2304,6 +3761,16 @@ mod tests {
             "total_wall_clock_ms",
             "librarian_notice_nonempty_count",
             "librarian_notice_chars",
+            "proxy_url",
+            "proof_temperature",
+            "route_temperature",
+            "bear_temperature",
+            "lean_bin",
+            "lean_version",
+            "mathlib_dir",
+            "mathlib_lean_path",
+            "bear_flat_short_fallback_count",
+            "bear_parse_fallback_count",
         ] {
             assert!(v.get(key).is_some(), "manifest missing `{key}`");
         }

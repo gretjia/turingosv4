@@ -14,8 +14,11 @@ REPORT_MD="target/constitution_gate_report.md"
 # Discover gates from test files
 DISCOVERED=$(ls tests/constitution_*.rs 2>/dev/null | xargs -n1 basename | sed 's/\.rs$//' | sort)
 
-# Extract gates from manifest
-MANIFEST=$(grep -oP '^name = "\K[^"]+' scripts/constitution_gates.manifest.toml | sort)
+# Extract gates from manifest. POSIX sed instead of GNU grep -oP \K, which
+# BSD/macOS grep rejects with "invalid option -- P" (probe worktrees run on
+# macOS; rg is not guaranteed on a non-interactive PATH here). The capture
+# `[^"]\{1,\}` reproduces the PCRE `\K[^"]+` value exactly.
+MANIFEST=$(sed -n 's/^name = "\([^"]\{1,\}\).*/\1/p' scripts/constitution_gates.manifest.toml | sort)
 
 # Cross-check: gates discovered but missing from manifest
 ONLY_DISC=$(comm -23 <(echo "$DISCOVERED") <(echo "$MANIFEST"))
@@ -54,7 +57,7 @@ if ! RUST_TEST_THREADS=1 cargo test "${CARGO_ARGS[@]}" --no-fail-fast 2>&1 | tee
   fi
 fi
 
-TOTAL=$(echo "$DISCOVERED" | wc -w)
+TOTAL=$(echo "$DISCOVERED" | wc -w | tr -d '[:space:]')  # BSD wc left-pads; GNU doesn't
 SUMMARY="[k-1-5] total=$TOTAL failed=$FAIL"
 echo "$SUMMARY"
 

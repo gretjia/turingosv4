@@ -845,3 +845,8 @@ added = "2026-06-01"
 name = "constitution_router_name_matches_mechanism"
 authority = "Forensic retrospective 2026-06-01 (handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md §1.C/§1.A, failure-mode #4) + AGENTS.md §17.3: named mechanism must match implementation. The softmax router must DISTRIBUTE (not argmax-collapse); a price-routing claim must carry a real price identifier in code; lean_market_agent.rs is the canonical priced-softmax substrate."
 added = "2026-06-01"
+
+[[gate]]
+name = "constitution_het_tape_reconstructibility"
+authority = "Architect independent audit 2026-06-14 §5 Gate D (H-HET-1 carrier hard-gate): Art 0.2 Tape-Canonical witness for the heterogeneous autonomous-market carrier — asserts which decision signals (chosen_action, price snapshot, wallet delta, tx linkage, judge verdict, tokens) ARE reconstructible from frozen tape, and is a negative witness that model_id/provider is NOT a field on carrier CAS objects (the documented Art-0.2 GAP pending joint close-vs-scope decision). See handover/audits/TAPE_RECONSTRUCTIBILITY_GAP_2026-06-14.md."
+added = "2026-06-14"

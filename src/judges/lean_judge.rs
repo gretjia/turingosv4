@@ -134,13 +134,21 @@ impl LeanJudge {
 
     /// TRACE_MATRIX FC1a-judge_pi: assemble a candidate proof body into a checkable file.
     /// Assemble the full `.lean` source for a candidate proof body.
+    ///
+    /// The body is `dedent`-ed (NOT flat-trimmed): the body's first tactic anchors the
+    /// Lean `by` tactic block at column 0, so a uniformly-indented body (common when one
+    /// is sliced out of a fuller `theorem … := by` block) must have its SHARED leading
+    /// indent stripped from EVERY line — a flat `.trim()` strips only line 1's indent,
+    /// leaving later siblings deeper than the anchor and thus OUTSIDE the block, which
+    /// mislabels a correct proof `Failed`. See `dedent`.
     pub fn assemble(&self, candidate_body: &str) -> String {
-        let mut s = String::with_capacity(self.preamble.len() + candidate_body.len() + 2);
+        let body = dedent(candidate_body);
+        let mut s = String::with_capacity(self.preamble.len() + body.len() + 2);
         s.push_str(&self.preamble);
         if !self.preamble.ends_with('\n') && !self.preamble.ends_with(' ') {
             s.push('\n');
         }
-        s.push_str(candidate_body.trim());
+        s.push_str(&body);
         s.push('\n');
         s
     }
@@ -382,6 +390,127 @@ pub fn default_lean_bin() -> PathBuf {
     PathBuf::from("lean")
 }
 
+/// Dedent a candidate proof body so its shallowest line sits at column 0 while the
+/// RELATIVE indentation of deeper lines (genuine nesting: `·` foci, `have … := by`
+/// sub-blocks, `case` arms) is preserved byte-for-byte.
+///
+/// Why this exists: `assemble` appends the body right after the preamble's `:= by`, so
+/// the body's first tactic lands at column 0 and that column ANCHORS the Lean `by`
+/// tactic block. A naive `.trim()` on a uniformly-indented body (e.g. the 2-space block
+/// `"  simp [Matrix.det_fin_three]\n  ring"` sliced from a fuller `theorem … := by`
+/// block) strips ONLY the first line's indent, leaving later siblings deeper than the
+/// anchor — Lean then parses them OUTSIDE the block (`unsolved goals` + `unexpected
+/// identifier; expected command`) and a CORRECT proof is mislabeled `Failed`. Stripping
+/// the longest common leading-whitespace prefix re-aligns every sibling to the same
+/// column without disturbing genuine nesting. Empirically pinned (Lean v4.24.0 +
+/// mathlib4): the de-aligned body fails; the dedented body verifies.
+///
+/// Conservative by construction: it strips only whitespace SHARED by all non-blank
+/// lines, so it can never flatten real nesting, and for a single-line or already-col-0
+/// body it is equivalent to a trim. A body whose FIRST line is already shallower than a
+/// later line (e.g. `"simp\n  ring"` — a body a prior `.trim()` already de-aligned) is
+/// NOT recoverable here; that is why this normalization must run at the FIRST point a
+/// body is captured, before any lossy trim, not only at the end of the pipeline.
+pub fn dedent(s: &str) -> String {
+    let lines: Vec<&str> = s.lines().collect();
+    // Longest common leading-whitespace prefix over the non-blank lines.
+    let mut common: Option<&str> = None;
+    for line in &lines {
+        if line.trim().is_empty() {
+            continue; // blank lines do not constrain the shared indent
+        }
+        let lead = &line[..line.len() - line.trim_start().len()];
+        common = Some(match common {
+            None => lead,
+            Some(prev) => {
+                let n = prev
+                    .bytes()
+                    .zip(lead.bytes())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                &prev[..n]
+            }
+        });
+    }
+    let cut = common.map_or(0, str::len);
+    // Strip the shared prefix from each line; blank lines collapse to empty.
+    let stripped: Vec<&str> = lines
+        .iter()
+        .map(|line| {
+            if line.trim().is_empty() {
+                ""
+            } else {
+                line[cut..].trim_end()
+            }
+        })
+        .collect();
+    // Drop leading / trailing blank lines, keep the interior verbatim.
+    let start = stripped.iter().position(|l| !l.is_empty()).unwrap_or(0);
+    let end = stripped
+        .iter()
+        .rposition(|l| !l.is_empty())
+        .map_or(0, |i| i + 1);
+    stripped[start..end].join("\n")
+}
+
+/// Re-align an extracted proof body for `:= by\n<body>` assembly. A FLAT tactic
+/// sequence (no nested block openers) has every sibling flushed to column 0, curing the
+/// "first line shallower than a sibling" de-alignment that the conservative [`dedent`]
+/// cannot recover — e.g. a model `proof_body` `"simp\n  ring"` (common prefix `""`) or an
+/// inline `:= by tac\n  tac` slice (common prefix `" "`). A body that CONTAINS genuine
+/// nesting (a line that opens a child block) is handed to [`dedent`], preserving relative
+/// nesting byte-for-byte.
+///
+/// SOUND: flattening a flat sequence cannot restructure tactics (no nesting to destroy),
+/// and Lean still verifies the real goal — `realign` can only cure a false NEGATIVE, never
+/// manufacture a false positive against the theorem statement. Apply at the point a
+/// model's proof body is extracted (the het probe and `lean_market_agent`); keep
+/// [`dedent`] conservative for the assemble-time path.
+pub fn realign(body: &str) -> String {
+    let expanded = body.replace('\t', "  ");
+    if opens_nested_block(&expanded) {
+        return dedent(&expanded);
+    }
+    let lines: Vec<&str> = expanded.lines().map(str::trim).collect();
+    let start = lines.iter().position(|l| !l.is_empty()).unwrap_or(0);
+    let end = lines.iter().rposition(|l| !l.is_empty()).map_or(0, |i| i + 1);
+    if start >= end {
+        return String::new();
+    }
+    lines[start..end].join("\n")
+}
+
+/// True iff any non-blank line opens a nested tactic/term block, so the body has genuine
+/// relative nesting that [`realign`] must preserve (defer to conservative [`dedent`])
+/// rather than flush. Conservative: a missed opener only risks a false NEGATIVE (same
+/// class as the bug being fixed), never a false positive — Lean is the final arbiter.
+fn opens_nested_block(body: &str) -> bool {
+    body.lines().any(|raw| {
+        let l = raw.trim();
+        if l.is_empty() {
+            return false;
+        }
+        let ends_open = l == "by"
+            || l.ends_with(" by")
+            || l.ends_with("=>")
+            || l == "do"
+            || l.ends_with(" do")
+            || l == "with"
+            || l.ends_with(" with")
+            || l.ends_with(" from")
+            || l.ends_with(":=");
+        let starts_block = l.starts_with('·')
+            || l.starts_with('•')
+            || l == "|"
+            || l.starts_with("| ")
+            || l.starts_with("case ")
+            || l.starts_with("next ")
+            || l.starts_with("calc")
+            || l.starts_with('{');
+        ends_open || starts_block
+    })
+}
+
 /// Strip Lean line (`-- ...`) and block (`/- ... -/`) comments, then return the
 /// first kernel-bypass token that appears as a whole word in code.
 fn first_bypass_token(candidate: &str) -> Option<&'static str> {
@@ -517,6 +646,44 @@ mod tests {
     }
 
     #[test]
+    fn dedent_realigns_uniformly_indented_block() {
+        // The bug shape: a 2-space block sliced from a fuller `:= by` body. A flat trim
+        // would leave `simp [...]\n  ring` (line 2 deeper than the col-0 anchor → outside
+        // the by-block). Dedent strips the SHARED 2-space prefix → both tactics at col 0.
+        assert_eq!(
+            dedent("  simp [Matrix.det_fin_three]\n  ring"),
+            "simp [Matrix.det_fin_three]\nring"
+        );
+    }
+
+    #[test]
+    fn dedent_preserves_relative_nesting() {
+        // Genuine nesting (inner `have … := by` step 2 deeper) must survive: strip only
+        // the shared outer prefix, keep the inner step relatively indented.
+        assert_eq!(
+            dedent("  have h : True := by\n    trivial\n  exact h"),
+            "have h : True := by\n  trivial\nexact h"
+        );
+    }
+
+    #[test]
+    fn dedent_is_trim_for_single_line_and_col0() {
+        assert_eq!(dedent("  rfl  "), "rfl");
+        // already col-0 → unchanged (no JSON-body regression)
+        assert_eq!(dedent("simp\nnorm_num"), "simp\nnorm_num");
+        // leading / trailing blank lines dropped, interior kept
+        assert_eq!(dedent("\n\n  exact h\n\n"), "exact h");
+    }
+
+    #[test]
+    fn dedent_does_not_recover_already_dealigned_body() {
+        // Documents the boundary: once line 1 is shallower than a sibling (a prior trim
+        // already destroyed the shared prefix), dedent cannot re-align — which is WHY the
+        // normalization must run before the first lossy trim, not only in `assemble`.
+        assert_eq!(dedent("simp\n  ring"), "simp\n  ring");
+    }
+
+    #[test]
     fn bypass_tokens_detected_in_code() {
         assert_eq!(first_bypass_token("exact sorry"), Some("sorry"));
         assert_eq!(first_bypass_token("by admit"), Some("admit"));
@@ -592,6 +759,24 @@ mod tests {
         let o = j.verify("rfl");
         assert_eq!(o.verdict_kind, LeanVerdictKind::Failed);
         assert!(!o.feedback.is_empty());
+    }
+
+    #[test]
+    fn real_lean_verifies_indented_multitactic_body() {
+        // Regression for the het_capability_probe de-alignment bug. A uniformly-indented
+        // multi-tactic body (the shape sliced from a fuller `:= by` block) MUST verify,
+        // not be mislabeled Failed. Pre-dedent, `assemble`'s flat trim left the 2nd/3rd
+        // tactics deeper than the col-0 anchor → `unsolved goals` + `unexpected
+        // identifier; expected command`. Mathlib-free (core `And`/`constructor`) so it
+        // runs fast on the pinned toolchain alone.
+        let Some(bin) = toolchain_or_skip() else {
+            return;
+        };
+        let mut j = LeanJudge::new("theorem t (p q : Prop) (hp : p) (hq : q) : p ∧ q := by");
+        j.lean_bin = bin;
+        // 2-space uniform indent on every tactic — the exact shape that used to fail.
+        let o = j.verify("  constructor\n  exact hp\n  exact hq");
+        assert!(o.is_verified(), "indented multi-tactic body must verify, got {o:?}");
     }
 
     // ── F5 axiom-gate: pure parse/extract (always run; no toolchain) ──
