@@ -1,13 +1,14 @@
-# TB — Dynamic Model-Budget Market (H-HET-2) — CHARTER (draft v2, architect-redlined)
+# TB — Dynamic Model-Budget Market (H-HET-2) — CHARTER (v2, ARCHITECT-APPROVED AS AMENDED)
 
-**Status:** DRAFT for architect review (v2, incorporating the 2026-06-15 architect
-redline). §8 `ProposalTelemetry.model_id` hard gate is **SATISFIED** and **Veto-AI
-PASS** is recorded (commit `51c1d602`; per-proposal model provenance is now
-tape-canonical). **No H-HET-2 paid run** until ALL freeze gates in §11 pass:
-charter frozen + `BudgetAllocationTelemetry` tape gate + BestHOMO control defined +
-target pool frozen with leakage guard + paired primary metric frozen + budget
-fairness (tokens+microUSD+calls+router overhead) frozen + bandit/pricing policy
-sha-pinned + audit split + Veto-AI constitutional PASS + architect sign-off.
+**Status:** **ARCHITECT-APPROVED AS AMENDED** 2026-06-15 (verdict + errata folded in
+below; full approval text in §12). This charter is architect-approved as the
+controlling H-HET-2 design document. **Approval authorizes** the dynamic carrier
+build, `BudgetAllocationTelemetry` schema work, prereg drafting, and clean-context
+audit preparation. **It does NOT authorize any confirmatory paid run.** §8
+`ProposalTelemetry.model_id` hard gate is SATISFIED with Veto-AI PASS (commit
+`51c1d602`; per-proposal model provenance tape-canonical). The confirmatory paid run
+remains BLOCKED until ALL §11 paid-run freeze gates pass + Veto-AI constitutional
+PASS + scientific-audit plan ready + architect sign-off.
 
 **Authority (anchored on SHAs, not a bare date — avoid future-dated authority):**
 architect independent audit + redline 2026-06-15; §8 satisfied by commit
@@ -67,6 +68,14 @@ The claim is NOT "heterogeneity helps." It is: **dynamic budget routing converts
 complementary coverage into capability BestHOMO cannot match at equal-or-lower
 total cost.**
 
+**Roster freeze (errata #4).** The eligible model roster is frozen BEFORE calibration
+and before any confirmatory seed. No post-calibration model admission, removal, alias
+substitution, fallback model, or provider-side silent replacement may enter the
+primary metric unless explicitly preregistered AND tape-detected (the §5.4
+`eligible_model_set_hash` makes drift detectable on replay). The initial roster may
+reuse the H-HET-1 four vendors (DeepSeek-V4-Pro, Qwen3-32B, GLM-4.5-Air,
+Qwen3.5-397B-A17B); any expansion requires freeze-THEN-calibrate ordering.
+
 ## 3. Targets — deep, hard, budget-Goldilocks, with a leakage guard (REDLINE #4)
 
 Pre-select theorems where (a) no single model one-shots them, AND (b) the
@@ -91,11 +100,19 @@ is an OBSERVED witness only and may NOT trigger a SUPPORTED/PROVEN headline (H-H
 showed a one-cell swing is sampling noise at K=3).
 
 - **Primary A (confirmatory, paired):** `Δ_union = Σ I[TREAT solved ∧ BestHOMO
-  unsolved] − Σ I[BestHOMO solved ∧ TREAT unsolved]` over target×seed cells, tested
-  with paired exact sign / McNemar OR within-seed Wilcoxon (preregistered choice).
-- **Primary B (existence witness):** ≥1 target where TREAT solves in ≥m/12 seeds AND
-  BestHOMO solves in 0/12 (or statistically fewer paired seeds), replay-clean +
-  axiom-clean.
+  unsolved] − Σ I[BestHOMO solved ∧ TREAT unsolved]` over seed×target cells.
+  **Default test = exact paired sign / McNemar over the discordant seed×target cells**
+  (Δ_union is a binary paired-discordance structure). **Wilcoxon may be used ONLY**
+  for preregistered per-seed aggregate deltas or continuous/token-economic secondary
+  metrics (errata #3).
+- **Primary B (existence witness):** ≥1 target where TREAT solves in **≥ m/12 seeds
+  with m = 6 (minimum; a later prereg may raise to 7/12, never below 6)** AND BestHOMO
+  solves in 0/12 (or statistically fewer paired seeds), replay-clean + axiom-clean. A
+  **SUPPORTED headline requires Primary A positive under the preregistered paired test
+  AND ≥1 Primary-B witness**, unless the prereg explicitly downgrades Primary B to
+  secondary evidence. If Primary B is used independently across multiple targets, apply
+  preregistered multiplicity control (preferably Holm) (errata #2). A single "≥1
+  theorem once" is OBSERVED-only and never triggers SUPPORTED/PROVEN.
 - **Economic dominance (REDLINE #5):** equal budget = same-or-lower total
   input+output **tokens** AND same-or-lower **microUSD** (model-specific rates
   differ — Q397/DS/Q32/GLM are not equally priced) AND same-or-lower **proposal-call
@@ -120,7 +137,11 @@ showed a one-cell swing is sampling noise at K=3).
    to ChainTape/CAS: `policy_hash`, `policy_version`, `input_state_cid`, visible price
    vector, abstracted failure features, per-model score, exploration-floor state, RNG
    seed/draw (if stochastic), selected `model_id`, allocated proposal/token budget,
-   and reason code. Replay assertion: `allocation_view == derive_from_tape(tape)`.
+   reason code, AND (errata #6, for full budget-dynamics reconstruction)
+   `eligible_model_set_hash`, `budget_remaining_before`, `budget_remaining_after`,
+   `router_overhead_cid`. `router_overhead_cid` is mandatory — without it the "all
+   router/model-selection overhead counted" budget-fairness rule (§4) leaks at the
+   field level. Replay assertion: `allocation_view == derive_from_tape(tape)`.
    Without this the DAG artifact only shows where budget *went*, not that it went
    there *by the frozen policy* — the treatment would be unauditable (Art 0.2).
 
@@ -144,11 +165,17 @@ This is the direct visual test of whether budget flowed to the winning model.
 - **Art II.2 (price broadcast drives emergence)** — finally implemented at the level
   that matters: budget (the scarce resource) is priced and routed, not just node
   prices broadcast. H-HET-1's carrier was a half-implementation.
-- **Art II.2.1 explore/exploit — testable exploration floor (REDLINE #7).** Each
-  eligible model receives ≥ ε of proposal budget per target until either (a) it
-  accumulates N consecutive tape-recorded hard failures under comparable context, or
-  (b) preregistered budget exhaustion. ε, N, and the failure-class definitions are
-  frozen before the paid run (not narrative — a gate).
+- **Art II.2.1 explore/exploit — testable exploration floor (REDLINE #7, defaults
+  bound by errata #5).** Each eligible model receives ≥ `ε_model` of proposal budget
+  per target until either (a) it accumulates `N` consecutive tape-recorded hard
+  failures under comparable context, or (b) preregistered budget exhaustion. Approved
+  defaults: **`ε_model = min(0.10, 0.40 / |eligible_models|)`** (4 models → ≥10% each,
+  total exploration ≤40%; scales without starving as the roster grows); **`N = 3`**
+  consecutive tape-recorded hard failures. A **"hard failure" EXCLUDES** parse-fallback,
+  provider error, timeout, rate-limit, and tool-infrastructure failure unless the
+  prereg says otherwise (so infra noise can't burn a model's exploration budget).
+  `ε_model`, `N`, and the hard-failure class are frozen before the paid run (a gate,
+  not narrative).
 - **Art III.3/III.4** — shield horizontal correlation (keep models decorrelated);
   keep the allocation metric non-gameable (the score inputs are tape-recorded so
   Goodhart is auditable).
@@ -187,7 +214,10 @@ OBLIGATIONS reconciled. **Post-data review is TWO separate tracks:**
   statistics, PPUT/token/microUSD, DAG reconstruction, headline validity; verdict
   domain `{SUPPORTED | NOT-SUPPORTED | ANALYSIS-ERROR | RECONSTRUCTION-FAILURE}`.
 
-## 11. Freeze-gate criterion (architect's 8 points — ALL required to freeze)
+## 11. Paid-run freeze gate criterion — ALL required before the confirmatory paid run
+
+(Errata #1: these are PAID-RUN / prereg-freeze gates, distinct from charter approval.
+The charter itself is already architect-approved per §12; these gates gate the paid run.)
 
 1. §8 `model_id` tape-canonical — **SATISFIED** (`51c1d602`, Veto-AI PASS).
 2. `BudgetAllocationTelemetry` / router decision tape-canonical (§5.4) — **OPEN**.
@@ -203,3 +233,50 @@ OBLIGATIONS reconciled. **Post-data review is TWO separate tracks:**
 > normalized indefinitely before merge / final paid run): the `.claude/hooks/judge.sh`
 > stale trust-root manifest hash (Class-4 inconsistency at HEAD; clean@HEAD, from
 > commit `92c6ffe6`).
+
+## 12. Architect approval (verbatim, 2026-06-15)
+
+```
+ARCHITECT APPROVAL — H-HET-2 Dynamic Model-Budget Market Charter v2
+
+Verdict: APPROVED AS AMENDED.
+
+Scope of approval:
+This approves the H-HET-2 charter as the controlling design document and authorizes
+dynamic carrier build, BudgetAllocationTelemetry schema work, prereg drafting, and
+clean-context audit preparation. It does NOT authorize any confirmatory paid run.
+
+Mandatory approval errata:
+1. Rename §11 to "Paid-run freeze gate criterion"; distinguish charter approval
+   from paid-run freeze.
+2. Bind Primary-B witness threshold: m = 6/12 minimum; SUPPORTED headline requires
+   Primary A plus a Primary-B witness unless prereg downgrades Primary B to secondary.
+3. Primary-A default test = exact paired sign / McNemar over seed×target discordants;
+   Wilcoxon only for preregistered per-seed aggregate or continuous secondary metrics.
+4. Freeze eligible model roster before calibration and confirmatory seeds; no silent
+   fallback, alias substitution, or post-calibration roster changes enter primary.
+5. Exploration floor default:
+   ε_model = min(0.10, 0.40 / |eligible_models|);
+   N = 3 consecutive tape-recorded hard failures;
+   infra/provider/parse failures are not hard failures unless preregistered.
+6. Extend BudgetAllocationTelemetry with:
+   eligible_model_set_hash,
+   budget_remaining_before,
+   budget_remaining_after,
+   router_overhead_cid.
+
+Paid-run remains blocked until:
+BudgetAllocationTelemetry lands tape-canonical with replay assertion;
+BestHOMO route is concretely selected;
+target pool/depth proxy/calibration artifacts are frozen;
+primary metric and statistical test are preregistered;
+budget fairness is frozen across tokens + microUSD + calls + router overhead;
+bandit/pricing policy is sha-pinned with all inputs reconstructible from tape;
+Veto-AI returns constitutional PASS;
+scientific/economic audit plan is ready;
+architect sign-off is recorded.
+```
+
+**Errata application status (this v2):** #1 ✅ (§11 renamed + Status split) · #2 ✅
+(§4 m=6) · #3 ✅ (§4 McNemar default) · #4 ✅ (§2 roster freeze) · #5 ✅ (§8 ε/N
+defaults) · #6 ✅ (§5.4 +4 fields). All six folded into the controlling text above.
