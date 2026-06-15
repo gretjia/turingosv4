@@ -865,6 +865,45 @@ real_world_evidence = [
 evidence_requires = ["real command path", "generated artifact", "runtime repo"]
 
 [[group]]
+id = "dynamic_model_budget_routing"
+classification = "product_workload"
+status = "smoke_only"
+risk_class = 2
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = ["runtime::routing_policy", "runtime::budget_allocation_telemetry"]
+paths = ["src/runtime/routing_policy.rs", "src/runtime/budget_allocation_telemetry.rs"]
+constitutional_anchors = ["Art.II.2", "Art.II.2.1", "Art.0.2", "VERIFY_UCB_PRICE_PRIOR_FLOOR_V1"]
+necessity = "Dynamic verify-reward UCB model-budget routing (H-HET-2 ruling VERIFY_UCB_PRICE_PRIOR_FLOOR_V1). routing_policy is the generic deterministic allocation mechanism (no RNG); budget_allocation_telemetry is its tape-canonical per-tick routing-decision CAS object. Mechanism complete and recompute-from-tape gated (§17.1-G1); broad real-world evidence is intentionally pending the architect-sign-off-gated paid run, so this group is smoke_only by honest policy (smoke_is_not_final_evidence)."
+smoke_gates = [
+  "tests/constitution_budget_decision_tape_canonical.rs::allocation_recomputes_from_tape",
+  "tests/constitution_budget_decision_tape_canonical.rs::policy_distributes_not_argmax_collapse",
+  "tests/constitution_budget_decision_tape_canonical.rs::genesis_pin_pins_the_frozen_policy",
+]
+real_world_evidence = []
+evidence_requires = ["routing-decision tape", "recompute-from-tape", "BudgetAllocationTelemetry CAS"]
+closure_action = "Promote to historical_real_world_candidate after the architect-sign-off-gated H-HET-2 VERIFY_UCB_PRICE_PRIOR_FLOOR_V1 paid run lands broad real-world ChainTape/CAS evidence under handover/evidence/; the mechanism is gate-5.4 recompute-from-tape proven, but per this manifest smoke is explicitly not final closure evidence."
+
+[[group]]
+id = "het_experiment_probes"
+classification = "dev_only"
+status = "smoke_only"
+risk_class = 1
+allowed_as_fc_authority = false
+restricted_surface = false
+module_ids = ["bin::het_calibration_probe", "bin::het_capability_probe", "bin::het_dealign_exposure"]
+paths = ["src/bin/het_calibration_probe.rs", "src/bin/het_capability_probe.rs", "src/bin/het_dealign_exposure.rs"]
+constitutional_anchors = ["Art.I.1", "FC3:logs"]
+necessity = "H-HET-1 experiment instrumentation: cross-lab calibration / capability(emergence) / de-alignment(false-negative) probes that drive real models through the SAME lib LeanJudge/realign/dedent paths to measure heterogeneity. Diagnostic dev tooling, NOT production AGI substrate — deliberately excluded from the production no-zombie real-world requirement."
+smoke_gates = [
+  "tests/het_probe_pool_reference_bodies_verify.rs::pool_target_reference_bodies_verify_clean",
+  "tests/het_third_bug_dealign_decisive.rs::third_bug_first_line_shallow_mislabels_good_proof",
+]
+real_world_evidence = []
+evidence_requires = ["diagnostic probe (dev-only, excluded from production AGI substrate)"]
+closure_action = "Retain as H-HET diagnostic dev tooling (dev_only): these probes instrument the heterogeneity experiment and are not production AGI substrate; delete or archive them when the H-HET line of inquiry is fully closed."
+
+[[group]]
 id = "tool_registry_current"
 classification = "required_substrate"
 status = "historical_real_world_candidate"

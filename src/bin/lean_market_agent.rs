@@ -89,9 +89,9 @@ use turingosv4::state::NodeMarketEntry;
 // Shared per-model cost table + recompute helper (TP-0A.3). Pulled in via #[path] (NOT lib.rs —
 // adding a mod there is a trust-root/constitution touch), identical to verify_market_tape and
 // lean_hayek_market so the cost-resolution self-test asserts on the SAME table the tape replay uses.
-#[path = "../market_tape_shared.rs"]
 // This bin uses only the cost table + recompute helper; the module's other derive_* helpers are
 // exercised by verify_market_tape, so they are intentionally unused here (not dead code).
+#[path = "../market_tape_shared.rs"]
 #[allow(dead_code)]
 mod market_tape_shared;
 use market_tape_shared::{call_micro_usd, FALLBACK_IN_UPMT, FALLBACK_OUT_UPMT};
