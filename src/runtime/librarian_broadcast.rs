@@ -498,7 +498,18 @@ pub fn decode_librarian_candidate(
                 // object; it is NOT librarian evidence (the LeanResult sidecar carries the
                 // shielded verdict). Ignore it explicitly so the fail-closed selector does
                 // not HARD-ERROR when reading lean_market_agent's CAS.
-                || schema == "lm.proof_artifact.v1" =>
+                || schema == "lm.proof_artifact.v1"
+                // H-HET-2 router CAS objects (VERIFY_UCB_PRICE_FLOOR): budget-allocation decisions,
+                // frozen-policy pin/config, and the routing-decision input blobs. These are audit
+                // telemetry (replay/Goodhart-shield), NOT librarian broadcast evidence — ignore so
+                // the fail-closed selector does not HARD-ERROR scanning the carrier CAS (§8 lesson).
+                || schema == "turingosv4.budget_allocation_telemetry.v1"
+                || schema == "turingosv4.routing_policy_genesis_pin.v1"
+                || schema == "turingosv4.routing_policy_config.v1"
+                || schema == "het2.price_vector.v1"
+                || schema == "het2.failure_features.v1"
+                || schema == "het2.routing_input.v1"
+                || schema == "het2.router_overhead.v1" =>
         {
             Ok(None)
         }

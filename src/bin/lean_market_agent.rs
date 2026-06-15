@@ -61,6 +61,13 @@ use turingosv4::runtime::verification_result::{
     write_to_cas as write_verification_result_to_cas, VerificationResult,
 };
 use turingosv4::runtime::{build_chaintape_sequencer_with_initial_q, RuntimeChaintapeConfig};
+// H-HET-2 (VERIFY_UCB_PRICE_FLOOR): generic model-budget router + tape-canonical decision record.
+use turingosv4::runtime::budget_allocation_telemetry::{
+    self as bat, BudgetAllocationTelemetry,
+};
+use turingosv4::runtime::routing_policy::{
+    self, ModelInput, RoutingPolicyConfig, RoutingPolicyGenesisPin,
+};
 // REAL librarian (src/runtime/librarian_broadcast.rs): CAS-derived, role-scoped, shielded
 // collective digest of prior attempts. Fed by the LeanResult sidecar written below; the
 // previous experiment-local `librarian_digest` lookalike is removed.
@@ -157,6 +164,17 @@ enum Policy {
     // verified=false. Monetary/CTF invariants are unchanged — both actions route to EXISTING typed
     // tx types (WorkTx / ChallengeTx), whose conservation is sequencer-enforced.
     AutonomousMarket,
+    // H-HET-2 DYNAMIC MODEL-BUDGET ROUTING (VERIFY_UCB_PRICE_PRIOR_FLOOR_V1; architect ruling
+    // 2026-06-15). The router (a top-level allocator, NOT proposer-visible — Goodhart shield,
+    // Art III.4) picks WHICH model gets the next proposal-call, using the GENERIC
+    // `runtime::routing_policy` mechanism on per-(model,target) predicate-outcome counts:
+    // deterministic UCB (reward = Lean verify), a bounded target-local price prior for
+    // cold-start only, a mandatory ε exploration floor, an integer isqrt count bonus, no RNG.
+    // Each tick emits a tape-canonical `BudgetAllocationTelemetry` so the allocation replays
+    // (Art 0.2). The model routing is the treatment; node routing is fresh-root solve (isolates
+    // the model-budget lever). The carrier here is the math-domain DRIVER application; the
+    // routing mechanism itself stays generic.
+    VerifyUcbPriceFloor,
 }
 
 impl Policy {
@@ -178,6 +196,7 @@ impl Policy {
             "parallel_restart" => Ok(Policy::ParallelRestart),
             "bear_triage" => Ok(Policy::BearTriage),
             "autonomous_market" => Ok(Policy::AutonomousMarket),
+            "verify_ucb_price_floor" => Ok(Policy::VerifyUcbPriceFloor),
             _ => Err(format!("unknown policy `{s}`")),
         }
     }
@@ -199,6 +218,7 @@ impl Policy {
             Policy::ParallelRestart => "parallel_restart",
             Policy::BearTriage => "bear_triage",
             Policy::AutonomousMarket => "autonomous_market",
+            Policy::VerifyUcbPriceFloor => "verify_ucb_price_floor",
         }
     }
     /// Price-family policies emit a Bear ChallengeTx (short) per node; the
@@ -580,6 +600,10 @@ fn select_parent(
         // the pre-call selector is likewise a no-op (None). The real parent (solve) or short
         // target is parsed from the model's {action,target} and validated after the call.
         Policy::AutonomousMarket => None,
+        // H-HET-2 VERIFY_UCB_PRICE_FLOOR: the treatment is MODEL-budget routing (chosen by the
+        // top-level router before the proposal call), so node routing is held constant as fresh-root
+        // solve (None) to isolate the model-budget lever from node-routing confounds.
+        Policy::VerifyUcbPriceFloor => None,
         // TRUE Boltzmann softmax (Art. II.2.1): distribute attention across promising nodes
         // (incl. early ones → non-local re-expansion / new branches), NOT argmax-collapse.
         Policy::Market | Policy::RandomBear | Policy::FixedBear => {
@@ -757,6 +781,36 @@ fn put_proof_artifact(cas_path: &PathBuf, source: &str, lt: u64) -> Result<Cid, 
         Some("lm.proof_artifact.v1".into()),
     )
     .map_err(|e| format!("put proof artifact: {e}"))
+}
+
+/// H-HET-2: deterministic sha256 over an ordered list of strings (set/pool/caps hashes).
+fn blob_hash(items: &[String]) -> Hash {
+    let mut h = Sha256::new();
+    for s in items {
+        h.update((s.len() as u64).to_be_bytes());
+        h.update(s.as_bytes());
+    }
+    Hash(h.finalize().into())
+}
+
+/// H-HET-2: put a small canonical JSON blob to CAS under a schema id; returns its CID.
+/// Used for the BudgetAllocationTelemetry input CID fields (price vector / failure features /
+/// router overhead) so the routing decision is reconstructable from the frozen tape (Art 0.2).
+fn put_routing_blob(
+    cas_path: &PathBuf,
+    schema_id: &str,
+    value: &serde_json::Value,
+    lt: u64,
+) -> Result<Cid, String> {
+    let mut cas = CasStore::open(cas_path).map_err(|e| format!("open CAS: {e}"))?;
+    cas.put(
+        serde_json::to_vec(value).map_err(|e| format!("blob ser: {e}"))?.as_slice(),
+        ObjectType::Generic,
+        "het2-router",
+        lt,
+        Some(schema_id.into()),
+    )
+    .map_err(|e| format!("put routing blob: {e}"))
 }
 
 /// GCD for reducing price fractions so equal ratios (e.g. 4000/4000 == 250/250 == 1/1)
@@ -1848,6 +1902,53 @@ async fn run(args: Args) -> Result<(), String> {
     let mut time_to_first_proof_s: Option<f64> = None;
     let mut step_idx = 0u64;
 
+    // ── H-HET-2 VERIFY_UCB_PRICE_FLOOR router state (only used for that policy) ──────────
+    // The frozen policy config (architect-approved defaults) + per-(model,target) counts
+    // maintained in memory for speed AND emitted to tape each tick so they recompute from the
+    // frozen tape (Art 0.2). target = the single --problem this invocation proves.
+    let routing_cfg = RoutingPolicyConfig::default();
+    // The FROZEN eligible roster = deduped args.models, sorted for a deterministic set hash.
+    let mut rt_roster: Vec<String> = args.models.clone();
+    rt_roster.sort();
+    rt_roster.dedup();
+    let rt_k = rt_roster.len() as u64;
+    let rt_total_budget = (effective_rounds as u64) * (agents.len() as u64);
+    let rt_floor_quota0 = routing_cfg.floor_quota(rt_k, rt_total_budget);
+    let mut rt_pull: BTreeMap<String, u32> = rt_roster.iter().map(|m| (m.clone(), 0)).collect();
+    let mut rt_verify: BTreeMap<String, u32> = rt_roster.iter().map(|m| (m.clone(), 0)).collect();
+    let mut rt_hardfail: BTreeMap<String, u32> = rt_roster.iter().map(|m| (m.clone(), 0)).collect();
+    let mut rt_floor: BTreeMap<String, u64> =
+        rt_roster.iter().map(|m| (m.clone(), rt_floor_quota0)).collect();
+    // node_tx -> model that authored it (for the target-local price prior).
+    let mut rt_node_model: BTreeMap<String, String> = BTreeMap::new();
+    let rt_eligible_set_hash = blob_hash(&rt_roster);
+    // Emit the RoutingPolicyGenesisPin once at boot so the run's frozen policy is on tape.
+    if args.policy == Policy::VerifyUcbPriceFloor {
+        if let Ok(mut cas) = CasStore::open(&args.cas) {
+            let cfg_cid = routing_policy::write_policy_config_to_cas(
+                &mut cas, &routing_cfg, "het2-router", lt + 1,
+            )
+            .map_err(|e| format!("policy config cas: {e}"))?;
+            let pin = RoutingPolicyGenesisPin {
+                policy_family: routing_cfg.policy_family.clone(),
+                policy_version: routing_cfg.policy_version.clone(),
+                policy_hash: routing_cfg.policy_hash(),
+                canonical_policy_config_cid: cfg_cid,
+                eligible_model_set_hash: rt_eligible_set_hash,
+                target_pool_hash: blob_hash(&[args.problem.clone()]),
+                budget_caps_hash: blob_hash(&[format!(
+                    "na={} nr={} budget={}",
+                    n_agents, args.n_rounds, rt_total_budget
+                )]),
+                rng_mode: "deterministic_none".into(),
+                art_0_4_path: "B".into(),
+            };
+            routing_policy::write_genesis_pin_to_cas(&mut cas, &pin, "het2-router", lt + 2)
+                .map_err(|e| format!("genesis pin cas: {e}"))?;
+        }
+        lt += 2;
+    }
+
     'outer: for round in 0..effective_rounds {
         for ai in 0..agents.len() {
             let agent = agents[ai].clone();
@@ -1906,6 +2007,109 @@ async fn run(args: Args) -> Result<(), String> {
             let mut chosen_action: Option<String> = None;
             // Eng-2: provenance of the self-chosen solve (None until AutonomousMarket sets it).
             let mut action_source: Option<&'static str> = None;
+
+            // ── H-HET-2 VERIFY_UCB_PRICE_FLOOR: top-level model-budget router ───────────────
+            // The router (NOT proposer-visible — Goodhart shield, Art III.4) picks WHICH model
+            // funds this proposal tick via the GENERIC runtime::routing_policy mechanism on
+            // per-(model,target) predicate-outcome counts, replacing the fixed agent_models[ai].
+            // A pull (budget spend) is recorded now; verify/hard-fail are recorded after the
+            // outcome. The decision is emitted as tape-canonical BudgetAllocationTelemetry (Art 0.2).
+            let mut tick_model = agent_models[ai].clone();
+            let mut tick_truncated = false;
+            if args.policy == Policy::VerifyUcbPriceFloor {
+                let inputs: Vec<ModelInput> = rt_roster
+                    .iter()
+                    .map(|m| {
+                        let price_prior_bps = rt_node_model
+                            .iter()
+                            .filter(|(_, mm)| mm.as_str() == m.as_str())
+                            .filter_map(|(tx, _)| {
+                                pi.get(&TxId(tx.clone())).and_then(|e| e.price_yes.as_ref())
+                            })
+                            .map(|p| {
+                                (p.numerator.saturating_mul(10_000) / p.denominator.max(1)) as u64
+                            })
+                            .max()
+                            .unwrap_or(0);
+                        ModelInput {
+                            model_id: m.clone(),
+                            pull_count: *rt_pull.get(m).unwrap_or(&0),
+                            verify_count: *rt_verify.get(m).unwrap_or(&0),
+                            hard_failure_streak: *rt_hardfail.get(m).unwrap_or(&0),
+                            price_prior_bps,
+                            floor_quota_remaining: *rt_floor.get(m).unwrap_or(&0),
+                        }
+                    })
+                    .collect();
+                let remaining = rt_total_budget.saturating_sub(step_idx);
+                let sel = routing_policy::score_and_select(&routing_cfg, &inputs, remaining);
+                tick_model = sel.selected_model_id.clone();
+                if let Some(rsel) = sel.rows.iter().find(|r| r.model_id == sel.selected_model_id) {
+                    rt_floor.insert(tick_model.clone(), rsel.floor_quota_remaining_after);
+                }
+                let total_pulls_before: u32 =
+                    rt_roster.iter().map(|m| *rt_pull.get(m).unwrap_or(&0)).sum();
+                // pull = budget spent on this model this tick (recorded before the proposal so a
+                // soft api/parse failure below still counts the budget spend, per the ruling).
+                *rt_pull.entry(tick_model.clone()).or_insert(0) += 1;
+                let pv = serde_json::json!(sel
+                    .rows
+                    .iter()
+                    .map(|r| (r.model_id.clone(), r.price_bps))
+                    .collect::<Vec<_>>());
+                let ff = serde_json::json!(sel
+                    .rows
+                    .iter()
+                    .map(|r| (r.model_id.clone(), r.hard_failure_streak_before))
+                    .collect::<Vec<_>>());
+                let price_vector_cid = put_routing_blob(&args.cas, "het2.price_vector.v1", &pv, lt + 1)
+                    .unwrap_or(Cid([0u8; 32]));
+                let abstracted_failure_features_cid =
+                    put_routing_blob(&args.cas, "het2.failure_features.v1", &ff, lt + 2)
+                        .unwrap_or(Cid([0u8; 32]));
+                let input_state_cid = put_routing_blob(
+                    &args.cas,
+                    "het2.routing_input.v1",
+                    &serde_json::json!({"round": round, "step": step_idx, "total_pulls_before": total_pulls_before, "target": args.problem}),
+                    lt + 3,
+                )
+                .unwrap_or(Cid([0u8; 32]));
+                let router_overhead_cid = put_routing_blob(
+                    &args.cas,
+                    "het2.router_overhead.v1",
+                    &serde_json::json!({"route_calls": 0, "route_tokens": 0}),
+                    lt + 4,
+                )
+                .unwrap_or(Cid([0u8; 32]));
+                lt += 4;
+                let record = BudgetAllocationTelemetry {
+                    policy_family: routing_cfg.policy_family.clone(),
+                    policy_hash: routing_cfg.policy_hash(),
+                    policy_version: routing_cfg.policy_version.clone(),
+                    target_id: args.problem.clone(),
+                    seed_id: args.seed,
+                    eligible_model_set_hash: rt_eligible_set_hash,
+                    input_state_cid,
+                    price_vector_cid,
+                    abstracted_failure_features_cid,
+                    total_pulls_target_before: total_pulls_before,
+                    candidates: sel.rows.clone(),
+                    selected_model_id: sel.selected_model_id.clone(),
+                    selection_reason: sel.reason,
+                    allocated_proposal_budget: 1,
+                    allocated_token_budget: 900,
+                    budget_remaining_before: remaining,
+                    budget_remaining_after: remaining.saturating_sub(1),
+                    router_overhead_cid,
+                    rng_seed: None,
+                    rng_draw: None,
+                };
+                if let Ok(mut cas) = CasStore::open(&args.cas) {
+                    let _ = bat::write_to_cas(&mut cas, &record, "het2-router", lt + 1);
+                    lt += 1;
+                }
+            }
+
             if args.policy == Policy::Autonomous {
                 let route_prompt =
                     build_route_summary(&theorem, &node_tx_ids, &node_feedback, &node_conf, &pi);
@@ -2175,7 +2379,9 @@ async fn run(args: Args) -> Result<(), String> {
             );
             let resp = match llm
                 .generate(&GenerateRequest {
-                    model: agent_models[ai].clone(),
+                    // H-HET-2: tick_model = the router-selected model for VerifyUcbPriceFloor;
+                    // = agent_models[ai] (fixed round-robin) for every other policy.
+                    model: tick_model.clone(),
                     messages: vec![
                         sys.clone(),
                         Message {
@@ -2195,6 +2401,9 @@ async fn run(args: Args) -> Result<(), String> {
                 }
             };
             llm_calls += 1;
+            // H-HET-2: a truncated proposal (hit the 900-token cap) is a SOFT failure (ruling:
+            // excluded from hard-failure) — captured here for the router counts update below.
+            tick_truncated = resp.completion_tokens as u64 >= 900;
             // F2: the proposal call's prompt is the proof prompt (build_prompt); for autonomous
             // the route decision rode a SEPARATE Stage-1 call (route_* counters), so this counts
             // only the Stage-2 proof prompt + completion — no double-count.
@@ -2309,7 +2518,7 @@ async fn run(args: Args) -> Result<(), String> {
                 parent_tx.clone(),
                 &body,
                 tokens,
-                &agent_models[ai],
+                &tick_model, // H-HET-2: ProposalTelemetry.model_id = router-selected model (§8)
                 lt,
             )?;
             lt += 2;
@@ -2325,6 +2534,20 @@ async fn run(args: Args) -> Result<(), String> {
             lt += 1;
             node_tx_ids.push(TxId(work_tx_id.clone()));
             own_last.insert(agent.clone(), TxId(work_tx_id.clone()));
+            // H-HET-2: record which model authored this node (target-local price prior) + update
+            // the router's per-model verify/hard-fail counts. is_verified ⇒ reset hard-fail streak;
+            // a non-verified, NON-truncated, kernel-reaching attempt ⇒ a HARD failure (ruling's
+            // class); truncation/api/parse are SOFT (truncated handled here; api/parse already
+            // `continue`d above so they only counted the pull, never a hard failure).
+            if args.policy == Policy::VerifyUcbPriceFloor {
+                rt_node_model.insert(work_tx_id.clone(), tick_model.clone());
+                if is_verified {
+                    *rt_verify.entry(tick_model.clone()).or_insert(0) += 1;
+                    rt_hardfail.insert(tick_model.clone(), 0);
+                } else if !tick_truncated {
+                    *rt_hardfail.entry(tick_model.clone()).or_insert(0) += 1;
+                }
+            }
             // F3 single_tree_no_price: feed this agent's whole own-history for next round.
             own_nodes_by_agent
                 .entry(agent.clone())

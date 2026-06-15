@@ -40,6 +40,9 @@ pub mod proposal_telemetry;
 /// H-HET-2 dynamic model-budget routing decision telemetry (tape-canonical, Art 0.2).
 /// Authority: architect routing-policy ruling 2026-06-15 (VERIFY_UCB_PRICE_PRIOR_FLOOR_V1).
 pub mod budget_allocation_telemetry;
+/// H-HET-2 generic routing-policy mechanism (deterministic UCB + price prior + ε floor)
+/// + RoutingPolicyGenesisPin. Domain-agnostic: routes budget on generic predicate counts.
+pub mod routing_policy;
 
 /// TRACE_MATRIX FC1-N14: TB-7 Atom 5 — ChainDerivedRunFacts aggregator (renamed from chain_derived_pput per ARCHITECT_RULING D4; bit-exact §4.4 structural field set computed from L4 + L4.E + CAS alone).
 pub mod chain_derived_run_facts;
