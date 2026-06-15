@@ -45,7 +45,7 @@ fn attempt(agent_id: &str, model_name: Option<&str>, family: Option<&str>) -> At
         Hash([0xAA; 32]),
         Cid::from_content(format!("candidate-{agent_id}").as_bytes()),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "step".into(),
     );
@@ -174,7 +174,7 @@ fn historical_attempt_telemetry_v1_bytes_still_decode() {
         candidate_payload_cid: Cid::from_content(b"candidate"),
         lean_result_cid: None,
         attempt_kind: AttemptKind::ExternalizedLlmCycle,
-        outcome: AttemptOutcome::LeanFail,
+        outcome: AttemptOutcome::VerifierFail,
         token_counts: TokenCounts::default(),
         tool_name: "step".into(),
         proposal_telemetry_cid: None,
@@ -195,7 +195,6 @@ fn historical_attempt_telemetry_v1_bytes_still_decode() {
     );
 }
 
-
 #[test]
 fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
     let src = std::fs::read_to_string(
@@ -212,4 +211,3 @@ fn audit_tape_assertion_battery_blocks_hidden_model_switch() {
         "run_all_assertions must push hidden-switch assertion so audit_tape blocks mismatch"
     );
 }
-

@@ -173,25 +173,25 @@ fn all_externalized_attempts_have_cas_payload() {
 }
 
 /// Art. III.2 — All Lean results have CAS payload. The TB-18R R1
-/// schema introduced LeanResult CAS routing for full Lean output
+/// schema introduced VerifierResult CAS routing for full Lean output
 /// (verdict + diagnostic + sample stderr).
 #[test]
 fn all_lean_results_have_cas_payload() {
     let tel_src = std::fs::read_to_string("src/runtime/attempt_telemetry.rs")
         .expect("attempt_telemetry.rs readable");
     assert!(
-        tel_src.contains("pub fn write_lean_result_to_cas"),
-        "Tape canonical violation: write_lean_result_to_cas missing — \
+        tel_src.contains("pub fn write_verifier_result_to_cas"),
+        "Tape canonical violation: write_verifier_result_to_cas missing — \
          Lean diagnostic cannot be CAS-anchored."
     );
     assert!(
-        tel_src.contains("pub fn read_lean_result_from_cas"),
-        "Tape canonical violation: read_lean_result_from_cas missing — \
+        tel_src.contains("pub fn read_verifier_result_from_cas"),
+        "Tape canonical violation: read_verifier_result_from_cas missing — \
          Lean payload un-readable for audit."
     );
     assert!(
-        tel_src.contains("pub struct LeanResult"),
-        "Tape canonical violation: LeanResult struct missing — typed \
+        tel_src.contains("pub struct VerifierResult"),
+        "Tape canonical violation: VerifierResult struct missing — typed \
          Lean payload schema gone."
     );
 }

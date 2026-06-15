@@ -237,7 +237,7 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     // tactic_diversity counts WorkTx whose ProposalTelemetry CAS object
     // is reachable, which for L4.E-only paths is empty since L4.E entries
     // aren't decoded for proposal_telemetry. Asserts shape, not exact count.)
-    assert!(facts.tactic_diversity <= 3);
+    assert!(facts.method_diversity <= 3);
     // tool_dist count keys ≤ 3.
     assert!(facts.tool_dist.len() <= 3);
 

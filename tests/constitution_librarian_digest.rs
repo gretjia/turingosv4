@@ -13,7 +13,7 @@ use turingosv4::runtime::librarian_broadcast::{
 fn event(label: &str) -> LibrarianEvidenceEvent {
     LibrarianEvidenceEvent {
         cid: Cid::from_content(label.as_bytes()),
-        kind: LibrarianEvidenceKind::LeanError,
+        kind: LibrarianEvidenceKind::VerifierError,
         class_label: "err:type_mismatch".into(),
         task_id: Some("task-algebra".into()),
         public_summary: "Repeated Lean type mismatch in externalized tactic".into(),

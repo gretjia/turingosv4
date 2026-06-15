@@ -1,11 +1,13 @@
 //! TB-7.7 Deliverable 4 — `VerificationResult` CAS object.
 //!
-//! Records the **Lean oracle's actual verdict** as a chain-side CAS object.
-//! Pre-TB-7.7 the only chain-side evidence of "Lean accepted this proof"
-//! was a `VerifyTx::Confirm` — but that's a verifier-agent *declaration*,
-//! NOT cryptographic evidence of Lean's exit code. A chain reader could
-//! not, from ChainTape + CAS alone, confirm that Lean actually ran and
-//! accepted a particular proof.
+//! Records the **external checker's actual verdict** as a chain-side CAS
+//! object. Pre-TB-7.7 the only chain-side evidence of "the checker accepted
+//! this proof" was a `VerifyTx::Confirm` — but that's a verifier-agent
+//! *declaration*, NOT cryptographic evidence of the checker's exit code. A
+//! chain reader could not, from ChainTape + CAS alone, confirm that the
+//! checker actually ran and accepted a particular proof. (De-Lean migration
+//! §8 2026-06-15: this CAS object is generic over the math-domain checker;
+//! Lean is one pluggable checker, not a kernel-level identity.)
 //!
 //! TB-7.7 closes this hole by writing a `VerificationResult` to CAS for
 //! every OMEGA-accept the evaluator emits. The CID is then linked into
@@ -36,28 +38,36 @@ const VERIFICATION_RESULT_SCHEMA_ID: &str = "turingosv4.verification_result.v1";
 ///
 /// **Field set (binding)**:
 /// 1. `target_work_tx` — the WorkTx whose proposal was verified
-/// 2. `verifier_agent` — agent that ran Lean (typically same as proposer
-///    for solo runs; may differ in multi-agent verification setups)
-/// 3. `lean_exit_code` — exit code from Lean's verification process;
-///    `0` for success, non-zero for failure
-/// 4. `lean_stdout_hash` — sha256 of Lean's stdout bytes (full stdout
+/// 2. `verifier_agent` — agent that ran the external checker (typically
+///    same as proposer for solo runs; may differ in multi-agent
+///    verification setups)
+/// 3. `exit_code` — exit code from the external checker's verification
+///    process; `0` for success, non-zero for failure
+/// 4. `stdout_hash` — sha256 of the checker's stdout bytes (full stdout
 ///    bytes are NOT stored to avoid chain-of-thought leakage)
-/// 5. `lean_stderr_hash` — sha256 of Lean's stderr bytes (same reason)
-/// 6. `proof_file_hash` — sha256 of the on-disk .lean file Lean verified
+/// 5. `stderr_hash` — sha256 of the checker's stderr bytes (same reason)
+/// 6. `proof_file_hash` — sha256 of the on-disk proof file the checker verified
 /// 7. `proof_artifact_cid` — CAS CID of the proof artifact bytes (links
 ///    back to ProposalTelemetry.proposal_artifact_cid; should match)
-/// 8. `verified` — bool; `true` iff Lean exit_code = 0 AND no rejection
+/// 8. `verified` — bool; `true` iff checker exit_code = 0 AND no rejection
 ///
 /// **Forbidden contents**: raw stdout/stderr, raw proof transcripts, any
 /// chain-of-thought from the verifier. Hashes only. (Inherits TB-6
 /// charter §4.2 "selective shielding" + ProposalTelemetry I91d guard.)
+///
+/// **De-Lean migration (§8 2026-06-15)**: the field NAMES were genericized
+/// (`lean_exit_code`/`lean_stdout_hash`/`lean_stderr_hash` →
+/// `exit_code`/`stdout_hash`/`stderr_hash`). The canonical CAS encoder is
+/// positional bincode (`transition_ledger.rs` big-endian fixed-int), so
+/// field-name renames are wire-safe — historical CAS bytes decode by
+/// position, not by field name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerificationResult {
     pub target_work_tx: TxId,
     pub verifier_agent: AgentId,
-    pub lean_exit_code: i32,
-    pub lean_stdout_hash: Hash,
-    pub lean_stderr_hash: Hash,
+    pub exit_code: i32,
+    pub stdout_hash: Hash,
+    pub stderr_hash: Hash,
     pub proof_file_hash: Hash,
     pub proof_artifact_cid: Cid,
     pub verified: bool,
@@ -66,10 +76,10 @@ pub struct VerificationResult {
 impl VerificationResult {
     /// TRACE_MATRIX FC1-N14: convenience constructor for OMEGA-accept paths.
     /// Computes the verdict from the exit code (0 → verified, else → not).
-    pub fn from_lean_run(
+    pub fn from_verifier_run(
         target_work_tx: TxId,
         verifier_agent: AgentId,
-        lean_exit_code: i32,
+        exit_code: i32,
         proof_artifact_cid: Cid,
         proof_file_path: &str,
         proof_artifact_bytes: &[u8],
@@ -86,17 +96,17 @@ impl VerificationResult {
         // backend hash but we don't enforce.)
         let _redundant_check_for_audit = Hash(h_artifact.finalize().into());
 
-        let lean_stdout_hash = Hash([0u8; 32]); // populated by caller if available
-        let lean_stderr_hash = Hash([0u8; 32]);
+        let stdout_hash = Hash([0u8; 32]); // populated by caller if available
+        let stderr_hash = Hash([0u8; 32]);
 
-        let verified = lean_exit_code == 0;
+        let verified = exit_code == 0;
 
         Self {
             target_work_tx,
             verifier_agent,
-            lean_exit_code,
-            lean_stdout_hash,
-            lean_stderr_hash,
+            exit_code,
+            stdout_hash,
+            stderr_hash,
             proof_file_hash,
             proof_artifact_cid,
             verified,
@@ -179,9 +189,9 @@ mod tests {
         VerificationResult {
             target_work_tx: TxId("worktx-test-1".into()),
             verifier_agent: AgentId("Agent_0".into()),
-            lean_exit_code: if verified { 0 } else { 1 },
-            lean_stdout_hash: Hash([0u8; 32]),
-            lean_stderr_hash: Hash([0u8; 32]),
+            exit_code: if verified { 0 } else { 1 },
+            stdout_hash: Hash([0u8; 32]),
+            stderr_hash: Hash([0u8; 32]),
             proof_file_hash: Hash([0xab; 32]),
             proof_artifact_cid: Cid([0xcd; 32]),
             verified,
@@ -212,10 +222,10 @@ mod tests {
         assert_ne!(cid_v, cid_f);
     }
 
-    /// U-D4.c — `from_lean_run` constructor sets verified correctly per exit code.
+    /// U-D4.c — `from_verifier_run` constructor sets verified correctly per exit code.
     #[test]
-    fn from_lean_run_verified_iff_exit_code_zero() {
-        let r0 = VerificationResult::from_lean_run(
+    fn from_verifier_run_verified_iff_exit_code_zero() {
+        let r0 = VerificationResult::from_verifier_run(
             TxId("worktx-test".into()),
             AgentId("Agent_0".into()),
             0,
@@ -225,7 +235,7 @@ mod tests {
         );
         assert!(r0.verified);
 
-        let r1 = VerificationResult::from_lean_run(
+        let r1 = VerificationResult::from_verifier_run(
             TxId("worktx-test".into()),
             AgentId("Agent_0".into()),
             1,
@@ -250,9 +260,9 @@ mod tests {
         for required in [
             "target_work_tx",
             "verifier_agent",
-            "lean_exit_code",
-            "lean_stdout_hash",
-            "lean_stderr_hash",
+            "exit_code",
+            "stdout_hash",
+            "stderr_hash",
             "proof_file_hash",
             "proof_artifact_cid",
             "verified",
@@ -261,8 +271,8 @@ mod tests {
         }
         // Forbidden field guard (TB-6 §6 #11 inheritance + selective shielding):
         for forbidden in [
-            "lean_stdout",
-            "lean_stderr",
+            "stdout",
+            "stderr",
             "raw_proof",
             "chain_of_thought",
             "model_deliberation",

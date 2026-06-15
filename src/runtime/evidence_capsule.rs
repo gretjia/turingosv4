@@ -66,9 +66,15 @@ pub struct EvidenceCapsule {
     pub solver_agent: Option<AgentId>,
 
     // ── Architect §6.1 mandated counts ───────────────────────────────────
+    // De-Lean migration (§8 2026-06-15): `lean_error_count` /
+    // `sorry_block_count` were genericized to `verifier_error_count` /
+    // `incomplete_proof_block_count`. The canonical CAS encoder is positional
+    // bincode (`transition_ledger.rs` big-endian fixed-int), so these
+    // field-name renames are wire-safe — historical capsule bytes decode by
+    // position, not by field name.
     pub attempt_count: u64,
-    pub lean_error_count: u64,
-    pub sorry_block_count: u64,
+    pub verifier_error_count: u64,
+    pub incomplete_proof_block_count: u64,
     pub protocol_parse_failure_count: u64,
     pub partial_accept_count: u64,
 
@@ -105,8 +111,8 @@ impl Default for EvidenceCapsule {
             task_id: TaskId::default(),
             solver_agent: None,
             attempt_count: 0,
-            lean_error_count: 0,
-            sorry_block_count: 0,
+            verifier_error_count: 0,
+            incomplete_proof_block_count: 0,
             protocol_parse_failure_count: 0,
             partial_accept_count: 0,
             started_at_round: 0,
@@ -127,8 +133,12 @@ impl Default for EvidenceCapsule {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExhaustionCounts {
     pub attempt_count: u64,
-    pub lean_error_count: u64,
-    pub sorry_block_count: u64,
+    // De-Lean migration (§8 2026-06-15): genericized field names (see the
+    // EvidenceCapsule note above). This is a write-API surface struct, not a
+    // separately-serialized canonical tape object, but the names are kept in
+    // lockstep with EvidenceCapsule for clarity.
+    pub verifier_error_count: u64,
+    pub incomplete_proof_block_count: u64,
     pub protocol_parse_failure_count: u64,
     pub partial_accept_count: u64,
 }
@@ -138,20 +148,27 @@ impl EvidenceCapsule {
     /// counts into a public_summary string. Used by the writer to fill
     /// `public_summary` in a deterministic, low-pollution shape.
     ///
-    /// Example:
+    /// **De-Lean migration (§8 2026-06-15)**: the public_summary label
+    /// strings were genericized (`lean errors` → `verifier errors`,
+    /// `sorry-blocks` → `incomplete-proof blocks`) for NEW capsules only.
+    /// `public_summary` is content-hashed into each capsule's CAS object, so
+    /// historical capsules retain their original bytes and are never
+    /// re-emitted; only newly-produced capsules carry the generic labels.
+    ///
+    /// Example (new capsules):
     /// ```text
-    /// "132 attempts; 73 lean errors; 14 sorry-blocks; 26 parse failures; 32 partial accepts; reason=MaxTxExhausted; no accepted proof"
+    /// "132 attempts; 73 verifier errors; 14 incomplete-proof blocks; 26 parse failures; 32 partial accepts; reason=MaxTxExhausted; no accepted proof"
     /// ```
     pub fn format_public_summary(
         counts: &ExhaustionCounts,
         terminal_reason: ExhaustionReason,
     ) -> String {
         format!(
-            "{} attempts; {} lean errors; {} sorry-blocks; {} parse failures; \
-             {} partial accepts; reason={:?}; no accepted proof",
+            "{} attempts; {} verifier errors; {} incomplete-proof blocks; \
+             {} parse failures; {} partial accepts; reason={:?}; no accepted proof",
             counts.attempt_count,
-            counts.lean_error_count,
-            counts.sorry_block_count,
+            counts.verifier_error_count,
+            counts.incomplete_proof_block_count,
             counts.protocol_parse_failure_count,
             counts.partial_accept_count,
             terminal_reason,
@@ -414,8 +431,8 @@ pub fn write_evidence_capsule(
         task_id: task_id.clone(),
         solver_agent: solver_agent.clone(),
         attempt_count: counts.attempt_count,
-        lean_error_count: counts.lean_error_count,
-        sorry_block_count: counts.sorry_block_count,
+        verifier_error_count: counts.verifier_error_count,
+        incomplete_proof_block_count: counts.incomplete_proof_block_count,
         protocol_parse_failure_count: counts.protocol_parse_failure_count,
         partial_accept_count: counts.partial_accept_count,
         started_at_round: rounds.0,
@@ -520,8 +537,8 @@ mod tests {
     fn format_public_summary_contains_all_counts() {
         let counts = ExhaustionCounts {
             attempt_count: 132,
-            lean_error_count: 73,
-            sorry_block_count: 14,
+            verifier_error_count: 73,
+            incomplete_proof_block_count: 14,
             protocol_parse_failure_count: 26,
             partial_accept_count: 32,
         };
@@ -556,12 +573,12 @@ mod tests {
 
         let counts = ExhaustionCounts {
             attempt_count: 132,
-            lean_error_count: 73,
-            sorry_block_count: 14,
+            verifier_error_count: 73,
+            incomplete_proof_block_count: 14,
             protocol_parse_failure_count: 26,
             partial_accept_count: 32,
         };
-        let raw_log = b"FAKE_RUN_LOG\n[attempt 1]: lean error\n[attempt 132]: max-tx exhausted\n";
+        let raw_log = b"FAKE_RUN_LOG\n[attempt 1]: verifier error\n[attempt 132]: max-tx exhausted\n";
 
         let capsule = write_evidence_capsule(
             &cas,
@@ -584,15 +601,15 @@ mod tests {
 
         // Counts faithfully recorded.
         assert_eq!(capsule.attempt_count, 132);
-        assert_eq!(capsule.lean_error_count, 73);
-        assert_eq!(capsule.sorry_block_count, 14);
+        assert_eq!(capsule.verifier_error_count, 73);
+        assert_eq!(capsule.incomplete_proof_block_count, 14);
         assert_eq!(capsule.protocol_parse_failure_count, 26);
         assert_eq!(capsule.partial_accept_count, 32);
         assert_eq!(capsule.terminal_reason, ExhaustionReason::MaxTxExhausted);
 
         // public_summary contains all 5 counts + reason.
         assert!(capsule.public_summary.contains("132 attempts"));
-        assert!(capsule.public_summary.contains("73 lean errors"));
+        assert!(capsule.public_summary.contains("73 verifier errors"));
         assert!(capsule.public_summary.contains("MaxTxExhausted"));
 
         // CAS contains 3 objects: raw log + manifest + capsule itself.
@@ -622,13 +639,13 @@ mod tests {
 
         let counts = ExhaustionCounts {
             attempt_count: 12,
-            lean_error_count: 8,
-            sorry_block_count: 2,
+            verifier_error_count: 8,
+            incomplete_proof_block_count: 2,
             protocol_parse_failure_count: 1,
             partial_accept_count: 1,
         };
-        let raw_log = b"attempt=1 lean_error\nattempt=2 lean_error\nattempt=3 lean_error\n\
-            attempt=4 lean_error\nattempt=5 lean_error\nattempt=6 lean_error\n";
+        let raw_log = b"attempt=1 verifier_error\nattempt=2 verifier_error\nattempt=3 verifier_error\n\
+            attempt=4 verifier_error\nattempt=5 verifier_error\nattempt=6 verifier_error\n";
 
         let capsule = write_evidence_capsule(
             &cas,
@@ -701,8 +718,8 @@ mod tests {
         ));
         let counts = ExhaustionCounts {
             attempt_count: 1,
-            lean_error_count: 1,
-            sorry_block_count: 0,
+            verifier_error_count: 1,
+            incomplete_proof_block_count: 0,
             protocol_parse_failure_count: 0,
             partial_accept_count: 0,
         };
@@ -848,8 +865,8 @@ mod tests {
 
         let counts = ExhaustionCounts {
             attempt_count: 5,
-            lean_error_count: 3,
-            sorry_block_count: 1,
+            verifier_error_count: 3,
+            incomplete_proof_block_count: 1,
             protocol_parse_failure_count: 1,
             partial_accept_count: 0,
         };

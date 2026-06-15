@@ -12,7 +12,7 @@
 //!   "agent_id": "<string>",
 //!   "prompt_context_hash": "<hex>",
 //!   "proposal_artifact_cid": "<cid>",
-//!   "candidate_tactic": "<string>",
+//!   "candidate_label": "<string>",
 //!   "token_counts": {
 //!     "prompt_tokens": 0,
 //!     "completion_tokens": 0,
@@ -28,7 +28,7 @@
 //! - `AgentProposalRecord` records what the Agent **saw** + **submitted** +
 //!   how the system **judged** (predicate results, accept/reject).
 //! - `ProposalTelemetry` records LLM-driven proposal metadata: token usage,
-//!   tool-call manifest, branch chronology, candidate tactic. This is
+//!   tool-call manifest, branch chronology, candidate label. This is
 //!   evidence the chain itself does NOT bind into state but DOES bind via
 //!   `WorkTx.proposal_cid` so chain-derived run facts (golden_path_token_count
 //!   etc.) can be byte-deterministically reconstructed.
@@ -112,11 +112,14 @@ pub struct ToolCallRecord {
 /// 1. `agent_id` — must match `WorkTx.agent_id`
 /// 2. `prompt_context_hash` — 32-byte sha256; same as `AgentProposalRecord.prompt_context_hash`
 /// 3. `proposal_artifact_cid` — CID of the actual proposal payload bytes
-///    (proof artifact / candidate tactic body / tool program); separate from
+///    (proof artifact / candidate body / tool program); separate from
 ///    this telemetry record's own CID
-/// 4. `candidate_tactic` — short identifier for the proposed tactic
+/// 4. `candidate_label` — short identifier for the proposed method/step
 ///    (e.g. "nlinarith", "ring", "rfl", "induction"); aggregated by
-///    `tactic_diversity` in `ChainDerivedRunFacts`
+///    `method_diversity` in `ChainDerivedRunFacts`.
+///    De-Lean (§8 2026-06-15): renamed from `candidate_tactic`. Positional
+///    bincode → wire-safe; `#[serde(alias = "candidate_tactic")]` keeps any
+///    name-keyed (JSON) historical row decodable.
 /// 5. `token_counts` — prompt / completion / tool token counts; aggregated
 ///    by `golden_path_token_count` in `ChainDerivedRunFacts`
 /// 6. `tool_calls` — ordered manifest of tool invocations during proposal
@@ -126,18 +129,19 @@ pub struct ToolCallRecord {
 /// 8. `parent_tx` — `TxId` of the parent WorkTx if this proposal was
 ///    derivative; `None` for root proposals
 /// 9. **TB-7.7 D4**: `verification_result_cid` — optional CID to a
-///    `VerificationResult` CAS object recording the Lean oracle's
+///    `VerificationResult` CAS object recording the verifier oracle's
 ///    verdict (exit code + verified flag + proof artifact hash).
-///    `None` for proposals not yet Lean-verified (append-branch
+///    `None` for proposals not yet verified (append-branch
 ///    intermediate steps); `Some(cid)` for OMEGA-accept proposals
-///    where the evaluator has run Lean and recorded the verdict.
+///    where the evaluator has run the verifier and recorded the verdict.
 ///    Replay readers use this to compute `chain_oracle_verified`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposalTelemetry {
     pub agent_id: AgentId,
     pub prompt_context_hash: Hash,
     pub proposal_artifact_cid: Cid,
-    pub candidate_tactic: String,
+    #[serde(alias = "candidate_tactic")]
+    pub candidate_label: String,
     pub token_counts: TokenCounts,
     pub tool_calls: Vec<ToolCallRecord>,
     pub branch_id: String,
@@ -168,7 +172,7 @@ impl ProposalTelemetry {
         agent_id: AgentId,
         prompt_context_hash: Hash,
         proposal_artifact_cid: Cid,
-        candidate_tactic: String,
+        candidate_label: String,
         token_counts: TokenCounts,
         branch_id: String,
     ) -> Self {
@@ -176,7 +180,7 @@ impl ProposalTelemetry {
             agent_id,
             prompt_context_hash,
             proposal_artifact_cid,
-            candidate_tactic,
+            candidate_label,
             token_counts,
             tool_calls: Vec::new(),
             branch_id,
@@ -210,7 +214,7 @@ impl ProposalTelemetry {
         agent_id: &str,
         proposal_index: u64,
         payload_bytes: &[u8],
-        candidate_tactic: &str,
+        candidate_label: &str,
         token_counts: TokenCounts,
         creator: &str,
         logical_t: u64,
@@ -221,7 +225,7 @@ impl ProposalTelemetry {
             agent_id,
             proposal_index,
             payload_bytes,
-            candidate_tactic,
+            candidate_label,
             token_counts,
             creator,
             logical_t,
@@ -240,7 +244,7 @@ impl ProposalTelemetry {
         agent_id: &str,
         proposal_index: u64,
         payload_bytes: &[u8],
-        candidate_tactic: &str,
+        candidate_label: &str,
         token_counts: TokenCounts,
         creator: &str,
         logical_t: u64,
@@ -268,7 +272,7 @@ impl ProposalTelemetry {
             agent_id: AgentId(agent_id.to_string()),
             prompt_context_hash,
             proposal_artifact_cid,
-            candidate_tactic: candidate_tactic.to_string(),
+            candidate_label: candidate_label.to_string(),
             token_counts,
             tool_calls: Vec::new(),
             branch_id: format!("{}.b{}", agent_id, proposal_index),
@@ -279,7 +283,7 @@ impl ProposalTelemetry {
     }
 
     /// TRACE_MATRIX FC1-N14: TB-7.7 D4 — attach a `VerificationResult`
-    /// CAS object's CID after Lean has run. Used by evaluator OMEGA-accept
+    /// CAS object's CID after the verifier has run. Used by evaluator OMEGA-accept
     /// hot path to record the oracle verdict before the WorkTx is
     /// submitted. Pre-existing telemetry (without this method having been
     /// called) keeps `verification_result_cid: None`.
@@ -358,7 +362,11 @@ struct ProposalTelemetryV1 {
     agent_id: AgentId,
     prompt_context_hash: Hash,
     proposal_artifact_cid: Cid,
-    candidate_tactic: String,
+    // De-Lean (§8 2026-06-15): renamed from `candidate_tactic`. Positional
+    // bincode — the field NAME is not on the wire, so the byte layout of a
+    // historical v1 buffer is unchanged; only the Rust identifier moves.
+    #[serde(alias = "candidate_tactic")]
+    candidate_label: String,
     token_counts: TokenCounts,
     tool_calls: Vec<ToolCallRecord>,
     branch_id: String,
@@ -373,7 +381,7 @@ impl From<ProposalTelemetryV1> for ProposalTelemetry {
             agent_id: v.agent_id,
             prompt_context_hash: v.prompt_context_hash,
             proposal_artifact_cid: v.proposal_artifact_cid,
-            candidate_tactic: v.candidate_tactic,
+            candidate_label: v.candidate_label,
             token_counts: v.token_counts,
             tool_calls: v.tool_calls,
             branch_id: v.branch_id,
@@ -511,7 +519,7 @@ mod tests {
         assert!(obj.contains_key("agent_id"));
         assert!(obj.contains_key("prompt_context_hash"));
         assert!(obj.contains_key("proposal_artifact_cid"));
-        assert!(obj.contains_key("candidate_tactic"));
+        assert!(obj.contains_key("candidate_label"));
         assert!(obj.contains_key("token_counts"));
         assert!(obj.contains_key("tool_calls"));
         assert!(obj.contains_key("branch_id"));
@@ -662,7 +670,7 @@ mod tests {
             agent_id: AgentId("legacy_n1".into()),
             prompt_context_hash: Hash([3u8; 32]),
             proposal_artifact_cid: Cid([9u8; 32]),
-            candidate_tactic: "nlinarith".into(),
+            candidate_label: "nlinarith".into(),
             token_counts: TokenCounts { prompt_tokens: 11, completion_tokens: 22, tool_tokens: 0 },
             tool_calls: Vec::new(),
             branch_id: "legacy_n1.b0".into(),
@@ -683,7 +691,7 @@ mod tests {
         // read_from_cas must still recover it via the v1 fallback, model_id = None.
         let got = read_from_cas(&cas, &cid).expect("read legacy v1 via fallback");
         assert_eq!(got.agent_id, AgentId("legacy_n1".into()));
-        assert_eq!(got.candidate_tactic, "nlinarith");
+        assert_eq!(got.candidate_label, "nlinarith");
         assert_eq!(got.token_counts.total(), 33);
         assert_eq!(got.branch_id, "legacy_n1.b0");
         assert_eq!(got.verification_result_cid, None);

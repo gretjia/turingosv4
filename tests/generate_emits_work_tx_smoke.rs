@@ -989,7 +989,7 @@ fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
         .expect("rejected WorkTx proposal_cid must decode as ProposalTelemetry");
     assert_eq!(telemetry.agent_id, AgentId("worker-alpha".into()));
     assert_eq!(
-        telemetry.candidate_tactic, "generate-artifact-reject",
+        telemetry.candidate_label, "generate-artifact-reject",
         "rejected WorkTx telemetry must declare rejected candidate tactic"
     );
     let rejection_meta = cas

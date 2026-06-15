@@ -1,4 +1,4 @@
-//! TB-18R R5 — audit-tape sampler reaches AttemptTelemetry / LeanResult
+//! TB-18R R5 — audit-tape sampler reaches AttemptTelemetry / VerifierResult
 //! mathematical content (FR-18R.7 / SG-18R.7).
 //!
 //! Asserts `assert_44_attempt_telemetry_retrievable_from_cas` +
@@ -13,13 +13,13 @@ use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::attempt_telemetry::{
-    write_attempt_telemetry_to_cas, write_lean_result_to_cas, AttemptKind, AttemptOutcome,
-    AttemptTelemetry, LeanErrorClass, LeanResult,
+    write_attempt_telemetry_to_cas, write_verifier_result_to_cas, AttemptKind, AttemptOutcome,
+    AttemptTelemetry, VerifierErrorClass, VerifierResult,
 };
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
 
-/// SG-18R.7: AttemptTelemetry + LeanResult populated → both retrievable
+/// SG-18R.7: AttemptTelemetry + VerifierResult populated → both retrievable
 /// + privacy-fence-respecting (only retrievability check, never bytes).
 #[test]
 fn attempt_telemetry_and_lean_result_listable_by_object_type() {
@@ -51,31 +51,31 @@ fn attempt_telemetry_and_lean_result_listable_by_object_type() {
         Hash([0xaa; 32]),
         candidate_payload_cid,
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "nlinarith".into(),
     );
     let _att_cid =
         write_attempt_telemetry_to_cas(&mut cas, &attempt, "test", 1).expect("write att");
 
-    // Write a LeanResult.
-    let lean_result = LeanResult {
+    // Write a VerifierResult.
+    let lean_result = VerifierResult {
         attempt_id: TxId("att-1".into()),
         exit_code: 1,
         verified: false,
         stderr_cid: None,
         stdout_cid: None,
         proof_artifact_cid: None,
-        error_class: Some(LeanErrorClass::LeanFailed),
-        verdict_kind: turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Failed,
+        error_class: Some(VerifierErrorClass::VerifierFailed),
+        verdict_kind: turingosv4::runtime::attempt_telemetry::VerifierVerdictKind::Failed,
     };
-    let _lr_cid = write_lean_result_to_cas(&mut cas, &lean_result, "test", 2).expect("write lr");
+    let _lr_cid = write_verifier_result_to_cas(&mut cas, &lean_result, "test", 2).expect("write lr");
 
     // Sampler walks the index by object_type.
     let att_cids = cas.list_cids_by_object_type(ObjectType::AttemptTelemetry);
     assert_eq!(att_cids.len(), 1, "1 AttemptTelemetry CAS object");
-    let lr_cids = cas.list_cids_by_object_type(ObjectType::LeanResult);
-    assert_eq!(lr_cids.len(), 1, "1 LeanResult CAS object");
+    let lr_cids = cas.list_cids_by_object_type(ObjectType::DomainProofResult);
+    assert_eq!(lr_cids.len(), 1, "1 VerifierResult CAS object");
 }
 
 /// SG-18R.7 privacy fence (CR-18R.4 v2): the sampler does NOT inspect
@@ -106,7 +106,7 @@ fn sampler_only_checks_retrievability_not_content() {
         Hash([0xbb; 32]),
         candidate_cid,
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "rfl".into(),
     );

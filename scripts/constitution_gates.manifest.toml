@@ -81,6 +81,11 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_de_lean_legacy_decode"
+authority = "handover/tracer_bullets/DE_LEAN_KERNEL_MIGRATION_SPEC_2026-06-15.md"
+added = "2026-06-15"
+
+[[gate]]
 name = "constitution_diversity"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"

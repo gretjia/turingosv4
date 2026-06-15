@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::bottom_white::cas::schema::{Cid, ObjectType};
 use crate::bottom_white::cas::store::{CasError, CasStore};
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, LeanVerdictKind,
+    read_attempt_telemetry_shared_slot_from_cas, read_verifier_result_from_cas, VerifierVerdictKind,
 };
 use crate::runtime::economic_judgment::{economic_judgment_cids, read_economic_judgment_from_cas};
 use crate::runtime::ev_decision_trace::{ev_decision_trace_cids, read_ev_decision_trace_from_cas};
@@ -41,7 +41,12 @@ pub struct LibrarianSourceScope {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 /// TRACE_MATRIX FC3: typed evidence classes allowed into Librarian selection.
 pub enum LibrarianEvidenceKind {
-    LeanError,
+    /// De-Lean migration (§8 2026-06-15): renamed from `LeanError`. The serde
+    /// alias keeps historical rows that serialized the `"LeanError"` variant
+    /// name deserializable (Art 0.2 rule 2, defense-in-depth — this enum
+    /// derives Deserialize and is public).
+    #[serde(alias = "LeanError")]
+    VerifierError,
     PartialProgress,
     MarketReason,
     EVReason,
@@ -108,14 +113,25 @@ pub enum VisibilityScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-/// TRACE_MATRIX FC3: sanitized summary of externalized AttemptTelemetry/LeanResult progress.
+/// TRACE_MATRIX FC3: sanitized summary of externalized AttemptTelemetry/VerifierResult progress.
 pub struct PartialProgressSummary {
     pub summary_id: String,
     pub task_id: String,
     pub source_attempt_cid: Cid,
-    pub lean_result_cid: Cid,
+    /// De-Lean migration (§8 2026-06-15): renamed from `lean_result_cid`.
+    /// `PartialProgressSummary` is embedded in `LibrarianDigest`, which is
+    /// serialized to CAS via `serde_json` (by FIELD NAME), so the
+    /// `#[serde(alias)]` is MANDATORY to keep historical digest JSON rows
+    /// deserializable (Art 0.2 rule 2).
+    #[serde(alias = "lean_result_cid")]
+    pub verifier_result_cid: Cid,
     pub progress_kind: ProgressKind,
-    pub tactic_class: Option<String>,
+    /// De-Lean migration (§8 2026-06-15): renamed from `tactic_class` (Lean
+    /// "tactic" → generic "method"). Serde-serialized by FIELD NAME into the
+    /// CAS `LibrarianDigest`, so `#[serde(alias)]` is MANDATORY to keep
+    /// historical digest JSON rows deserializable (Art 0.2 rule 2).
+    #[serde(alias = "tactic_class")]
+    pub method_class: Option<String>,
     pub public_summary: String,
     pub visibility_scope: VisibilityScope,
 }
@@ -412,21 +428,27 @@ pub fn decode_librarian_candidate(
         Some(crate::runtime::market_opportunity_trace::MARKET_OPPORTUNITY_TRACE_SCHEMA_VERSION) => {
             market_opportunity_trace_event(cas, cid, meta.created_at_logical_t).map(Some)
         }
-        Some(schema) if schema == crate::runtime::attempt_telemetry::LEAN_RESULT_SCHEMA_ID => {
-            let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
+        Some(schema)
+            if schema == crate::runtime::attempt_telemetry::VERIFIER_RESULT_SCHEMA_ID =>
+        {
+            let result = read_verifier_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
+            // De-Lean migration (§8 2026-06-15): class labels emitted generic
+            // going forward (`verify:*`); the read-side recognizer below
+            // (`build_librarian_digest`) still accepts the legacy `lean:*`
+            // labels for historical digests.
             let (kind, class_label, progress_kind) = match result.verdict_kind {
-                LeanVerdictKind::PartialAccepted => (
+                VerifierVerdictKind::PartialAccepted => (
                     LibrarianEvidenceKind::PartialProgress,
-                    "lean:PartialAccepted".to_string(),
+                    "verify:PartialAccepted".to_string(),
                     Some(ProgressKind::PartialAccepted),
                 ),
-                LeanVerdictKind::Verified => (
+                VerifierVerdictKind::Verified => (
                     LibrarianEvidenceKind::PartialProgress,
-                    "lean:Verified".to_string(),
+                    "verify:Verified".to_string(),
                     Some(ProgressKind::Verified),
                 ),
-                LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => (
-                    LibrarianEvidenceKind::LeanError,
+                VerifierVerdictKind::Failed | VerifierVerdictKind::IncompleteProofBlocked => (
+                    LibrarianEvidenceKind::VerifierError,
                     format!(
                         "err:{}",
                         result
@@ -439,10 +461,12 @@ pub fn decode_librarian_candidate(
             };
             let summary = match progress_kind {
                 Some(ProgressKind::PartialAccepted) => {
-                    "Externalized Lean attempt made partial progress".to_string()
+                    "Externalized verification attempt made partial progress".to_string()
                 }
-                Some(ProgressKind::Verified) => "Externalized Lean attempt verified".to_string(),
-                _ => "Externalized Lean attempt failed with classified error".to_string(),
+                Some(ProgressKind::Verified) => {
+                    "Externalized verification attempt verified".to_string()
+                }
+                _ => "Externalized verification attempt failed with classified error".to_string(),
             };
             Ok(Some(LibrarianEvidenceEvent {
                 cid: *cid,
@@ -515,32 +539,45 @@ pub fn decode_librarian_candidate(
         }
         Some(schema) => Err(format!("unknown librarian evidence schema: {schema}")),
         None => match meta.object_type {
-            ObjectType::LeanResult => {
-                let result = read_lean_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
+            // De-Lean migration (§8 2026-06-15): the ObjectType variant was
+            // renamed `LeanResult` → `DomainProofResult` in cas/schema.rs.
+            // Its on-wire serde string stays `"LeanResult"` via
+            // `#[serde(rename)]` (it is hashed into the CAS Merkle), so
+            // historical CAS objects keep their identity; only the in-source
+            // variant name changes here.
+            ObjectType::DomainProofResult => {
+                let result = read_verifier_result_from_cas(cas, cid).map_err(|e| e.to_string())?;
+                // De-Lean migration (§8 2026-06-15): class labels emitted
+                // generic going forward (`verify:*`); legacy `lean:*` labels
+                // are still recognized on the read side in
+                // `build_librarian_digest`.
                 let class_label = match result.verdict_kind {
-                    LeanVerdictKind::PartialAccepted => "lean:PartialAccepted".to_string(),
-                    LeanVerdictKind::Verified => "lean:Verified".to_string(),
-                    LeanVerdictKind::Failed | LeanVerdictKind::SorryBlocked => format!(
-                        "err:{}",
-                        result
-                            .error_class
-                            .map(|c| format!("{c:?}"))
-                            .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
-                    ),
+                    VerifierVerdictKind::PartialAccepted => "verify:PartialAccepted".to_string(),
+                    VerifierVerdictKind::Verified => "verify:Verified".to_string(),
+                    VerifierVerdictKind::Failed | VerifierVerdictKind::IncompleteProofBlocked => {
+                        format!(
+                            "err:{}",
+                            result
+                                .error_class
+                                .map(|c| format!("{c:?}"))
+                                .unwrap_or_else(|| format!("{:?}", result.verdict_kind))
+                        )
+                    }
                 };
                 Ok(Some(LibrarianEvidenceEvent {
                     cid: *cid,
                     kind: if matches!(
                         result.verdict_kind,
-                        LeanVerdictKind::PartialAccepted | LeanVerdictKind::Verified
+                        VerifierVerdictKind::PartialAccepted | VerifierVerdictKind::Verified
                     ) {
                         LibrarianEvidenceKind::PartialProgress
                     } else {
-                        LibrarianEvidenceKind::LeanError
+                        LibrarianEvidenceKind::VerifierError
                     },
                     class_label,
                     task_id: None,
-                    public_summary: "Externalized Lean attempt has classified verdict".into(),
+                    public_summary: "Externalized verification attempt has classified verdict"
+                        .into(),
                     head_t: meta.created_at_logical_t,
                 }))
             }
@@ -571,7 +608,9 @@ pub fn select_librarian_events(cas: &CasStore) -> Result<Vec<LibrarianEvidenceEv
     cids.extend(economic_judgment_cids(cas));
     cids.extend(market_review_summary_cids(cas));
     cids.extend(cas.list_cids_by_object_type(ObjectType::Generic));
-    cids.extend(cas.list_cids_by_object_type(ObjectType::LeanResult));
+    // De-Lean migration (§8 2026-06-15): variant renamed `LeanResult` →
+    // `DomainProofResult` (on-wire serde string preserved as `"LeanResult"`).
+    cids.extend(cas.list_cids_by_object_type(ObjectType::DomainProofResult));
     cids.extend(cas.list_cids_by_object_type(ObjectType::AttemptTelemetry));
     cids.sort();
     cids.dedup();
@@ -628,7 +667,7 @@ pub fn build_librarian_digest(
         let count = items.len() as u32;
         let task_tags = task_tags_for(&items);
         match items[0].kind {
-            LibrarianEvidenceKind::LeanError => {
+            LibrarianEvidenceKind::VerifierError => {
                 if count >= 2 {
                     typical_error_clusters.push(TypicalErrorCluster {
                         cluster_id: format!("cluster:{class}"),
@@ -639,7 +678,7 @@ pub fn build_librarian_digest(
                         role_hints: vec![AgentRole::Solver, AgentRole::Verifier],
                         public_summary: format!("{class} repeated {count} times"),
                         action_hint: Some(
-                            "Check the goal/type shape before repeating the tactic".into(),
+                            "Check the goal/type shape before repeating the same step".into(),
                         ),
                         provenance_cids: items.iter().map(|e| e.cid).collect(),
                         staleness,
@@ -648,7 +687,13 @@ pub fn build_librarian_digest(
             }
             LibrarianEvidenceKind::PartialProgress => {
                 for event in items {
-                    let progress_kind = if event.class_label == "lean:Verified" {
+                    // De-Lean migration (§8 2026-06-15): recognize the generic
+                    // `verify:Verified` label going forward AND the legacy
+                    // `lean:Verified` label for historical digests (read-side
+                    // legacy recognition).
+                    let progress_kind = if event.class_label == "verify:Verified"
+                        || event.class_label == "lean:Verified"
+                    {
                         ProgressKind::Verified
                     } else {
                         ProgressKind::PartialAccepted
@@ -657,9 +702,9 @@ pub fn build_librarian_digest(
                         summary_id: format!("partial:{}", event.cid.hex()),
                         task_id: event.task_id.unwrap_or_else(|| "unknown-task".into()),
                         source_attempt_cid: event.cid,
-                        lean_result_cid: event.cid,
+                        verifier_result_cid: event.cid,
                         progress_kind,
-                        tactic_class: Some(class.clone()),
+                        method_class: Some(class.clone()),
                         public_summary: event.public_summary,
                         visibility_scope: VisibilityScope::SameTask,
                     });
@@ -788,10 +833,12 @@ pub fn validate_librarian_digest(digest: &LibrarianDigest) -> Result<(), String>
     }
     for summary in &digest.partial_progress_summaries {
         assert_no_forbidden_broadcast_material(&summary.public_summary)?;
-        if summary.source_attempt_cid == Cid::default() || summary.lean_result_cid == Cid::default()
+        if summary.source_attempt_cid == Cid::default()
+            || summary.verifier_result_cid == Cid::default()
         {
             return Err(
-                "PartialProgressSummary requires source AttemptTelemetry/LeanResult CIDs".into(),
+                "PartialProgressSummary requires source AttemptTelemetry/verifier-result CIDs"
+                    .into(),
             );
         }
     }

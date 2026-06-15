@@ -12,7 +12,7 @@
 //! priced per-task node (WorkTx-Long confidence-scaled + ChallengeTx-Short) so the
 //! market can route refinement effort by price; failed attempts stay on tape as
 //! `is_verified=false` nodes (the market's search frontier). OMEGA fires ONLY on a
-//! `LeanVerdictKind::Verified` attempt — never a `sorry` (prereg §3). PPUT =
+//! `VerifierVerdictKind::Verified` attempt — never a `sorry` (prereg §3). PPUT =
 //! golden-path tokens / (total tokens × wall-clock).
 //!
 //! `--policy` (one binary, all arms — covers P0-A market + P0-G A0 + P0-C baselines):
@@ -69,10 +69,10 @@ use turingosv4::runtime::routing_policy::{
     self, ModelInput, RoutingPolicyConfig, RoutingPolicyGenesisPin,
 };
 // REAL librarian (src/runtime/librarian_broadcast.rs): CAS-derived, role-scoped, shielded
-// collective digest of prior attempts. Fed by the LeanResult sidecar written below; the
+// collective digest of prior attempts. Fed by the VerifierResult sidecar written below; the
 // previous experiment-local `librarian_digest` lookalike is removed.
 use turingosv4::runtime::attempt_telemetry::{
-    write_lean_result_to_cas, LeanResult, LeanVerdictKind,
+    write_verifier_result_to_cas, VerifierResult, VerifierVerdictKind,
 };
 use turingosv4::runtime::librarian_broadcast::{
     build_librarian_digest, derive_current_run_cas_root, project_role_notifications,
@@ -861,13 +861,13 @@ fn reject_class_of(o: &LeanOutcome) -> Option<String> {
         return Some("axiom-rejected".to_string());
     }
     match o.verdict_kind {
-        LeanVerdictKind::SorryBlocked => Some("sorry-blocked".to_string()),
+        VerifierVerdictKind::IncompleteProofBlocked => Some("sorry-blocked".to_string()),
         _ => Some("lean-reject".to_string()),
     }
 }
 
 /// REAL librarian collective digest (src/runtime/librarian_broadcast.rs — the full
-/// constitutional mechanism, NOT a lookalike). Reads the typed LeanResult sidecars this
+/// constitutional mechanism, NOT a lookalike). Reads the typed VerifierResult sidecars this
 /// run already wrote into CAS, builds a deterministic shielded `LibrarianDigest`, and
 /// projects the Solver crop into a bounded "=== Librarian Notices ===" prompt block.
 /// Everything that transits is an opaque error CLASS / pre-written public_summary —
@@ -1982,7 +1982,7 @@ async fn run(args: Args) -> Result<(), String> {
             };
 
             // REAL librarian: shielded collective failure memory derived from the typed
-            // LeanResult sidecars written into CAS on prior attempts (all agents). `lt` is the
+            // VerifierResult sidecars written into CAS on prior attempts (all agents). `lt` is the
             // run's monotonic logical clock → meaningful staleness; the problem id is the scope tag.
             // Compute the librarian ONCE before Stage 1 and reuse the SAME `&lib` for the
             // Stage-2 build_prompt below, so the autonomous Stage-2 proof prompt is
@@ -2457,13 +2457,13 @@ async fn run(args: Args) -> Result<(), String> {
                 failed_count += 1;
             }
 
-            // Feed the REAL librarian: write the typed LeanResult sidecar that
+            // Feed the REAL librarian: write the typed VerifierResult sidecar that
             // `select_librarian_events` consumes. Raw stderr is NOT broadcast (stderr_cid=None);
             // the librarian reads only the shielded error CLASS / verdict kind. Pass LeanOutcome's
             // own fields verbatim so the 4-arm (exit_code, verified, error_class, verdict_kind)
             // byte-consistency (assert_45) holds. Open-per-write (mirrors put_proposal). Non-fatal.
             if let Ok(mut cas_w) = CasStore::open(&args.cas) {
-                let lean_result = LeanResult {
+                let lean_result = VerifierResult {
                     attempt_id: TxId(format!("lm-node{step_idx}-{}", args.run_id)),
                     exit_code: outcome.exit_code,
                     verified: is_verified,
@@ -2474,7 +2474,7 @@ async fn run(args: Args) -> Result<(), String> {
                     verdict_kind: outcome.verdict_kind,
                 };
                 if let Err(e) =
-                    write_lean_result_to_cas(&mut cas_w, &lean_result, "lm-lean-result", lt)
+                    write_verifier_result_to_cas(&mut cas_w, &lean_result, "lm-lean-result", lt)
                 {
                     eprintln!("lm lean_result write skip node{step_idx}: {e:?}");
                 }
@@ -2644,7 +2644,7 @@ async fn run(args: Args) -> Result<(), String> {
             let assembled = judge.assemble(&body);
             if let Ok(artifact_cid) = put_proof_artifact(&args.cas, &assembled, lt) {
                 lt += 1;
-                let vr = VerificationResult::from_lean_run(
+                let vr = VerificationResult::from_verifier_run(
                     TxId(work_tx_id.clone()),
                     AgentId(VERIFIER_AGENT.into()),
                     outcome.exit_code,
@@ -3652,7 +3652,7 @@ mod tests {
     #[test]
     fn l4_reject_class_taxonomy() {
         // §4 reject CLASS is derived correctly from the LeanOutcome → AttemptNode.reject_class.
-        let mk = |vk: LeanVerdictKind, axiom_rejected: bool| LeanOutcome {
+        let mk = |vk: VerifierVerdictKind, axiom_rejected: bool| LeanOutcome {
             verdict_kind: vk,
             error_class: None,
             exit_code: 0,
@@ -3661,18 +3661,18 @@ mod tests {
             axiom_rejected,
             axioms: vec![],
         };
-        assert_eq!(reject_class_of(&mk(LeanVerdictKind::Verified, false)), None);
+        assert_eq!(reject_class_of(&mk(VerifierVerdictKind::Verified, false)), None);
         assert_eq!(
-            reject_class_of(&mk(LeanVerdictKind::Failed, true)).as_deref(),
+            reject_class_of(&mk(VerifierVerdictKind::Failed, true)).as_deref(),
             Some("axiom-rejected"),
             "compiled-but-non-whitelist-axiom is a SOUNDNESS reject"
         );
         assert_eq!(
-            reject_class_of(&mk(LeanVerdictKind::SorryBlocked, false)).as_deref(),
+            reject_class_of(&mk(VerifierVerdictKind::IncompleteProofBlocked, false)).as_deref(),
             Some("sorry-blocked")
         );
         assert_eq!(
-            reject_class_of(&mk(LeanVerdictKind::Failed, false)).as_deref(),
+            reject_class_of(&mk(VerifierVerdictKind::Failed, false)).as_deref(),
             Some("lean-reject")
         );
     }

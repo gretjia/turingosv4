@@ -7,7 +7,7 @@
 //! The H-HET-1 carrier does NOT emit the `lean_hayek_market` JSONL `MarketTape`
 //! (the schema `market_tape_shared::derive_*` + `verify_market_tape` cover). It
 //! writes the **canonical ChainTape (L4 + L4.E)** via the runtime sequencer plus
-//! **CAS sidecars** (`ProposalTelemetry`, `LeanResult`, `VerificationResult`) and a
+//! **CAS sidecars** (`ProposalTelemetry`, `VerifierResult`, `VerificationResult`) and a
 //! separate `Manifest` JSON. So the Art-0.2 reconstructibility question for THIS
 //! carrier is: which architect-named fields are byte-reconstructible from the frozen
 //! `runtime_repo` (L4) + `cas` ALONE, with no manifest / sidecar JSON / stdout?

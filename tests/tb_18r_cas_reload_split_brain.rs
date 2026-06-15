@@ -140,7 +140,7 @@ fn refine_rejection_class_recovers_via_reload_lean_failed() {
     // sequencer_cas was opened — split-brain condition replicated.
     let attempt_cid = write_attempt_via_handle(
         &mut evaluator_cas,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         "leanfail-stale",
     );
     let tx = fixture_failure_work_tx(attempt_cid);
@@ -154,7 +154,7 @@ fn refine_rejection_class_recovers_via_reload_lean_failed() {
     );
     assert_eq!(
         refined,
-        RejectionClass::LeanFailed,
+        RejectionClass::CheckerFailed,
         "R3.fix retry-on-miss must recover the fine-grained class even \
          when sequencer.cas in-memory index is stale wrt the evaluator's \
          AttemptTelemetry write"
@@ -178,7 +178,7 @@ fn refine_rejection_class_reload_integrity_error_fails_closed() {
 
     let attempt_cid = write_attempt_via_handle(
         &mut evaluator_cas,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         "leanfail-tampered-cache",
     );
     let tx = fixture_failure_work_tx(attempt_cid);
@@ -265,7 +265,7 @@ fn refine_rejection_class_falls_back_when_truly_absent_after_reload() {
 fn refine_rejection_class_recovers_sorry_block() {
     // Companion to the LeanFail recovery test: same split-brain pattern,
     // but the AttemptTelemetry has outcome=SorryBlock. Refine must recover
-    // RejectionClass::SorryBlocked = 8.
+    // RejectionClass::IncompleteProofBlocked = 8.
     let dir = TempDir::new().expect("tempdir");
     let sequencer_cas = Arc::new(RwLock::new(
         CasStore::open(dir.path()).expect("open sequencer_cas"),
@@ -274,7 +274,7 @@ fn refine_rejection_class_recovers_sorry_block() {
 
     let attempt_cid = write_attempt_via_handle(
         &mut evaluator_cas,
-        AttemptOutcome::SorryBlock,
+        AttemptOutcome::IncompleteProofBlock,
         "sorry-stale",
     );
     let tx = fixture_failure_work_tx(attempt_cid);
@@ -284,7 +284,7 @@ fn refine_rejection_class_recovers_sorry_block() {
         &tx,
         RejectionClass::PredicateFailed,
     );
-    assert_eq!(refined, RejectionClass::SorryBlocked);
+    assert_eq!(refined, RejectionClass::IncompleteProofBlocked);
     assert_eq!(refined as u8, 8);
 }
 

@@ -122,7 +122,7 @@ fn fc1_n41_privacy_fence_in_action() {
         hash_for("clean-ctx"),
         Cid::from_content(parsed_clean),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         TokenCounts::default(),
         "omega_wtool".into(),
     );

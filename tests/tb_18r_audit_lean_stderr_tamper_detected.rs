@@ -1,11 +1,11 @@
 //! TB-18R R5 — Layer H tamper detection on AttemptTelemetry /
-//! LeanResult CAS objects (FR-18R.7 / SG-18R.7).
+//! VerifierResult CAS objects (FR-18R.7 / SG-18R.7).
 //!
 //! Asserts that flipping a byte in the canonical-encoded
-//! AttemptTelemetry / LeanResult bytes is detected via Cid mismatch on
+//! AttemptTelemetry / VerifierResult bytes is detected via Cid mismatch on
 //! `cas.get`. This is the same defense-in-depth pattern as TB-16
 //! audit_tape_tamper assertions 36-38, extended to AttemptTelemetry /
-//! LeanResult per FR-18R.7.
+//! VerifierResult per FR-18R.7.
 //!
 //! See `handover/ai-direct/TB-18R_R5_preflight_audit_extension.md` §2.2.
 
@@ -14,8 +14,8 @@ use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::attempt_telemetry::{
-    write_attempt_telemetry_to_cas, write_lean_result_to_cas, AttemptKind, AttemptOutcome,
-    AttemptTelemetry, LeanErrorClass, LeanResult,
+    write_attempt_telemetry_to_cas, write_verifier_result_to_cas, AttemptKind, AttemptOutcome,
+    AttemptTelemetry, VerifierErrorClass, VerifierResult,
 };
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
@@ -47,7 +47,7 @@ fn attempt_telemetry_tamper_detected_via_cid_mismatch() {
         Hash([0x44; 32]),
         candidate_cid,
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "nlinarith".into(),
     );
@@ -69,7 +69,7 @@ fn attempt_telemetry_tamper_detected_via_cid_mismatch() {
     );
 }
 
-/// SG-18R.7 random_lean_stderr_tamper_detected: LeanResult CAS objects
+/// SG-18R.7 random_lean_stderr_tamper_detected: VerifierResult CAS objects
 /// detect content tampering via the same Cid mismatch invariant.
 #[test]
 fn lean_result_tamper_detected_via_cid_mismatch() {
@@ -78,17 +78,17 @@ fn lean_result_tamper_detected_via_cid_mismatch() {
     std::fs::create_dir_all(&cas_path).expect("mkdir");
     let mut cas = CasStore::open(&cas_path).expect("open cas");
 
-    let lean_result = LeanResult {
+    let lean_result = VerifierResult {
         attempt_id: TxId("att-lr-tamper".into()),
         exit_code: 1,
         verified: false,
         stderr_cid: None,
         stdout_cid: None,
         proof_artifact_cid: None,
-        error_class: Some(LeanErrorClass::LeanFailed),
-        verdict_kind: turingosv4::runtime::attempt_telemetry::LeanVerdictKind::Failed,
+        error_class: Some(VerifierErrorClass::VerifierFailed),
+        verdict_kind: turingosv4::runtime::attempt_telemetry::VerifierVerdictKind::Failed,
     };
-    let cid = write_lean_result_to_cas(&mut cas, &lean_result, "test", 0).expect("write lr");
+    let cid = write_verifier_result_to_cas(&mut cas, &lean_result, "test", 0).expect("write lr");
 
     assert!(cas.get(&cid).is_ok(), "untampered get must succeed");
 
@@ -97,6 +97,6 @@ fn lean_result_tamper_detected_via_cid_mismatch() {
     let tampered = Cid(tampered_bytes);
     assert!(
         cas.get(&tampered).is_err(),
-        "tampered LeanResult Cid must NOT resolve"
+        "tampered VerifierResult Cid must NOT resolve"
     );
 }

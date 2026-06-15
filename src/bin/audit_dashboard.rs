@@ -514,7 +514,7 @@ fn build_report(
                 let mut oracle_verified: Option<bool> = None;
                 if work.proposal_cid.0 != [0u8; 32] {
                     if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
-                        tactic = Some(tel.candidate_tactic.clone());
+                        tactic = Some(tel.candidate_label.clone());
                         branch_id = Some(tel.branch_id.clone());
                         parent_tx = tel.parent_tx.as_ref().map(|t| t.0.clone());
                         // TB-7.7 D6: payload preview from CAS via proposal_artifact_cid.
@@ -534,7 +534,7 @@ fn build_report(
                                         work.tx_id.0.clone(),
                                         (
                                             work.agent_id.0.clone(),
-                                            tel.candidate_tactic.clone(),
+                                            tel.candidate_label.clone(),
                                             payload_preview.clone().unwrap_or_default(),
                                         ),
                                     );
@@ -949,7 +949,7 @@ fn build_report(
                 if let TypedTx::Work(w) = typed_tx {
                     if w.proposal_cid.0 != [0u8; 32] {
                         if let Ok(tel) = read_proposal_telemetry(&cas, &w.proposal_cid) {
-                            tactic = Some(tel.candidate_tactic.clone());
+                            tactic = Some(tel.candidate_label.clone());
                             branch_id = Some(tel.branch_id.clone());
                         }
                     }
@@ -1415,7 +1415,7 @@ fn render_text(r: &DashboardReport) -> String {
     ));
     s.push_str(&format!(
         "  tactic_diversity        : {}\n",
-        r.run_facts.tactic_diversity
+        r.run_facts.method_diversity
     ));
     s.push_str(&format!(
         "  failed_branch_count     : {}\n",

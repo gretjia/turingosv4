@@ -25,8 +25,8 @@ use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
 use turingosv4::bottom_white::ledger::transition_ledger::{
-    Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind, canonical_decode, canonical_encode,
-    cas_metadata_root_before_logical_t, constitution_source_hash,
+    canonical_decode, canonical_encode, cas_metadata_root_before_logical_t,
+    constitution_source_hash, Git2LedgerWriter, LedgerEntry, LedgerWriter, TxKind,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
 use turingosv4::economy::money::MicroCoin;
@@ -35,22 +35,21 @@ use turingosv4::runtime::adapter::{
     make_real_worktx_signed_by,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
-use turingosv4::runtime::evidence_capsule::{ExhaustionCounts, write_evidence_capsule};
+use turingosv4::runtime::evidence_capsule::{write_evidence_capsule, ExhaustionCounts};
 use turingosv4::runtime::genesis_report::GenesisReport;
 use turingosv4::runtime::proposal_telemetry::{
-    ProposalTelemetry, TokenCounts, write_to_cas as write_proposal_telemetry_to_cas,
+    write_to_cas as write_proposal_telemetry_to_cas, ProposalTelemetry, TokenCounts,
 };
 use turingosv4::runtime::{PinnedPubkeyEntry, PinnedPubkeyManifest};
-use turingosv4::sdk::sanitized_runner::{SanitizedCommand, run_sanitized};
+use turingosv4::sdk::sanitized_runner::{run_sanitized, SanitizedCommand};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
 use turingosv4::state::sequencer::{ApplyError, Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
-    ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
     ArchitectCommitCapsule, ArchitectProposalCapsule, ArchitectProposalKind, ArchitectProposalTx,
-    BootProfileId, CapsulePrivacyPolicy, ExhaustionReason, LogFeedbackArchiveTx,
-    REINIT_REASON_SCHEMA_ID, ReinitReason, ReinitReasonCapsule, RunId, RunOutcome, TickKind,
-    TypedTx, VETO_DECISION_SCHEMA_ID, VetoDecisionCapsule, VetoDecisionTx, VetoReasonCode,
-    VetoVerdict,
+    BootProfileId, CapsulePrivacyPolicy, ExhaustionReason, LogFeedbackArchiveTx, ReinitReason,
+    ReinitReasonCapsule, RunId, RunOutcome, TickKind, TypedTx, VetoDecisionCapsule, VetoDecisionTx,
+    VetoReasonCode, VetoVerdict, ARCHITECT_COMMIT_SCHEMA_ID, ARCHITECT_FEEDBACK_SCHEMA_ID,
+    ARCHITECT_PROPOSAL_SCHEMA_ID, REINIT_REASON_SCHEMA_ID, VETO_DECISION_SCHEMA_ID,
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
@@ -791,8 +790,8 @@ fn put_terminal_evidence_capsule(
         solver_agent,
         ExhaustionCounts {
             attempt_count: 1,
-            lean_error_count: 0,
-            sorry_block_count: 0,
+            verifier_error_count: 0,
+            incomplete_proof_block_count: 0,
             protocol_parse_failure_count: 0,
             partial_accept_count: 0,
         },

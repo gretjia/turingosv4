@@ -114,10 +114,16 @@ impl PredicateRegistrySnapshotCapsule {
 }
 
 /// TRACE_MATRIX FC1-N12: proof verification mode declared by each executable predicate implementation.
+///
+/// Tape-safety: `ExternalCheckerArtifact` keeps the historical ordinal (it is
+/// the 2nd variant, index 1) so the positional-bincode `PredicateProofCapsule`
+/// CAS wire format is byte-identical, and carries `#[serde(alias="LeanArtifact")]`
+/// so any historical name-serialized row still deserializes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PredicateProofKind {
     ReExecute,
-    LeanArtifact,
+    #[serde(alias = "LeanArtifact")]
+    ExternalCheckerArtifact,
 }
 
 /// TRACE_MATRIX FC1-N11 + FC1-N12: CAS-resident proof artifact envelope verified by predicate implementations.
@@ -333,8 +339,8 @@ pub enum PredicateVerifyError {
         max_lines: usize,
         got_lines: usize,
     },
-    LeanCheckerFailed(String),
-    LeanCheckerUnavailable(String),
+    ExternalCheckerFailed(String),
+    ExternalCheckerUnavailable(String),
 }
 
 /// TRACE_MATRIX FC1-N11 + FC1-N12: executable ground-truth predicate contract for sequencer admission.
@@ -624,6 +630,9 @@ impl BootPredicateManifest {
         entries.push(BootPredicateSpec::new(
             "forbidden_patterns_v1",
             BootPredicateKind::ForbiddenPatterns {
+                // Math-domain (Lean) boot-catalog literals: these forbidden
+                // tokens belong to the math-domain boot catalog, NOT to the
+                // generic predicate kind. Behavior unchanged; see atom F.
                 patterns: vec![
                     "native_decide".to_string(),
                     "unsafe".to_string(),
@@ -632,9 +641,20 @@ impl BootPredicateManifest {
             },
             [],
         ));
+        // De-Lean atom D: emit the generic predicate ids going forward, while
+        // KEEPING the legacy ids registered so historical WorkTx / snapshots
+        // that reference `sorry_free_v1` / `lean_artifact_v1` still resolve a
+        // binary impl. The predicate_id is hashed into both the per-predicate
+        // code_hash and the registry merkle root, so this is purely additive:
+        // legacy rows reconstruct against legacy ids, new rows against new ids.
+        entries.push(BootPredicateSpec::new(
+            "forbidden_token_free_v1",
+            BootPredicateKind::ForbiddenTokenFree,
+            [],
+        ));
         entries.push(BootPredicateSpec::new(
             "sorry_free_v1",
-            BootPredicateKind::SorryFree,
+            BootPredicateKind::ForbiddenTokenFree,
             [],
         ));
         entries.push(BootPredicateSpec::new(
@@ -646,8 +666,13 @@ impl BootPredicateManifest {
             [],
         ));
         entries.push(BootPredicateSpec::new(
+            "external_checker_artifact_v1",
+            BootPredicateKind::ExternalCheckerArtifact,
+            [],
+        ));
+        entries.push(BootPredicateSpec::new(
             "lean_artifact_v1",
-            BootPredicateKind::LeanArtifact,
+            BootPredicateKind::ExternalCheckerArtifact,
             [],
         ));
 
@@ -692,15 +717,24 @@ impl BootPredicateSpec {
 }
 
 /// TRACE_MATRIX FC1-N12 + FC2-N19: binary predicate implementation catalog used for boot and replay reconstruction.
+///
+/// Tape-safety: variants are renamed IN PLACE so each keeps its historical
+/// positional ordinal (`ForbiddenTokenFree` stays index 4, `ExternalCheckerArtifact`
+/// stays index 6). `code_hash_for_boot_predicate` hashes `canonical_encode(kind)`
+/// (positional bincode v2), so the derived predicate `code_hash` is byte-identical
+/// after the rename. The `#[serde(alias=...)]` attributes additionally keep any
+/// historical name-serialized manifest row deserializable.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BootPredicateKind {
     StaticTrue,
     StaticBool(bool),
     ProposalPayloadNotEmpty,
     ForbiddenPatterns { patterns: Vec<String> },
-    SorryFree,
+    #[serde(alias = "SorryFree")]
+    ForbiddenTokenFree,
     PayloadSize { max_bytes: usize, max_lines: usize },
-    LeanArtifact,
+    #[serde(alias = "LeanArtifact")]
+    ExternalCheckerArtifact,
 }
 
 /// TRACE_MATRIX FC1-N11 + FC2-N19: deterministic failures while reconstructing a registry snapshot against binary implementations.
@@ -847,12 +881,12 @@ impl ForbiddenPatternsPredicate {
 }
 
 #[derive(Debug, Clone)]
-struct SorryFreePredicate {
+struct ForbiddenTokenFreePredicate {
     id: String,
     code_hash: [u8; 32],
 }
 
-impl Predicate for SorryFreePredicate {
+impl Predicate for ForbiddenTokenFreePredicate {
     fn predicate_id(&self) -> &str {
         &self.id
     }
@@ -877,7 +911,7 @@ impl Predicate for SorryFreePredicate {
     }
 }
 
-impl SorryFreePredicate {
+impl ForbiddenTokenFreePredicate {
     fn verify_payload(&self, ctx: &PredicateContext<'_>) -> Result<bool, PredicateVerifyError> {
         let bytes = proposal_payload_bytes(ctx)?;
         let text = String::from_utf8_lossy(&bytes);
@@ -941,12 +975,12 @@ impl PayloadSizePredicate {
 }
 
 #[derive(Debug, Clone)]
-struct LeanArtifactPredicate {
+struct ExternalCheckerArtifactPredicate {
     id: String,
     code_hash: [u8; 32],
 }
 
-impl Predicate for LeanArtifactPredicate {
+impl Predicate for ExternalCheckerArtifactPredicate {
     fn predicate_id(&self) -> &str {
         &self.id
     }
@@ -971,11 +1005,11 @@ impl Predicate for LeanArtifactPredicate {
             ctx,
             PredicateId(self.id.clone()),
             self.code_hash,
-            PredicateProofKind::LeanArtifact,
+            PredicateProofKind::ExternalCheckerArtifact,
             claim,
         )?;
         let proposal_bytes = proposal_payload_bytes(ctx)?;
-        let expected_statement_hash = lean_expected_statement_hash(
+        let expected_statement_hash = external_checker_expected_statement_hash(
             &self.id,
             self.code_hash,
             ctx.registry_root,
@@ -1004,7 +1038,7 @@ impl Predicate for LeanArtifactPredicate {
         if digest != proof_artifact_sha256 {
             return Err(PredicateVerifyError::ProofArtifactHashMismatch);
         }
-        run_lean_checker(&artifact.bytes)?;
+        run_external_checker(&artifact.bytes)?;
         Ok(capsule.claimed_value)
     }
 }
@@ -1032,7 +1066,7 @@ fn predicate_impl_from_spec(spec: &BootPredicateSpec) -> Arc<dyn Predicate> {
                 patterns: patterns.clone(),
             })
         }
-        BootPredicateKind::SorryFree => Arc::new(SorryFreePredicate {
+        BootPredicateKind::ForbiddenTokenFree => Arc::new(ForbiddenTokenFreePredicate {
             id: spec.metadata.predicate_id.clone(),
             code_hash: spec.metadata.code_hash,
         }),
@@ -1045,7 +1079,7 @@ fn predicate_impl_from_spec(spec: &BootPredicateSpec) -> Arc<dyn Predicate> {
             max_bytes,
             max_lines,
         }),
-        BootPredicateKind::LeanArtifact => Arc::new(LeanArtifactPredicate {
+        BootPredicateKind::ExternalCheckerArtifact => Arc::new(ExternalCheckerArtifactPredicate {
             id: spec.metadata.predicate_id.clone(),
             code_hash: spec.metadata.code_hash,
         }),
@@ -1182,8 +1216,15 @@ fn proposal_payload_bytes(ctx: &PredicateContext<'_>) -> Result<Vec<u8>, Predica
     Ok(obj.bytes)
 }
 
-/// TRACE_MATRIX FC1-N12: deterministic Lean expected-statement digest bound into Lean predicate proof capsules.
-pub fn lean_expected_statement_hash(
+/// TRACE_MATRIX FC1-N12: deterministic external-checker expected-statement digest bound into external-checker predicate proof capsules.
+///
+/// De-Lean atom: the function is renamed to the generic
+/// `external_checker_expected_statement_hash`, but the domain-separation literal
+/// `b"turingosv4.predicate.lean.expected_statement.v1"` is KEPT BYTE-FOR-BYTE —
+/// it is hashed into every historical `expected_statement_hash` / code_hash, so
+/// editing it in place would break historical proof-capsule verification. It is
+/// a frozen historical wire constant, not a name to be modernized.
+pub fn external_checker_expected_statement_hash(
     predicate_id: &str,
     code_hash: [u8; 32],
     registry_root: Hash,
@@ -1199,7 +1240,7 @@ pub fn lean_expected_statement_hash(
     Hash::from_bytes(h.finalize().into())
 }
 
-fn run_lean_checker(bytes: &[u8]) -> Result<(), PredicateVerifyError> {
+fn run_external_checker(bytes: &[u8]) -> Result<(), PredicateVerifyError> {
     let mut h = Sha256::new();
     h.update(bytes);
     let digest: [u8; 32] = h.finalize().into();
@@ -1213,7 +1254,7 @@ fn run_lean_checker(bytes: &[u8]) -> Result<(), PredicateVerifyError> {
     );
     let path = std::env::temp_dir().join(filename);
     fs::write(&path, bytes)
-        .map_err(|e| PredicateVerifyError::LeanCheckerUnavailable(e.to_string()))?;
+        .map_err(|e| PredicateVerifyError::ExternalCheckerUnavailable(e.to_string()))?;
     let cwd = std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir());
     let output = run_sanitized(SanitizedCommand {
         program: "lean".into(),
@@ -1223,13 +1264,13 @@ fn run_lean_checker(bytes: &[u8]) -> Result<(), PredicateVerifyError> {
         stdin: None,
         timeout: Duration::from_secs(30),
     })
-    .map_err(|e| PredicateVerifyError::LeanCheckerUnavailable(e.to_string()));
+    .map_err(|e| PredicateVerifyError::ExternalCheckerUnavailable(e.to_string()));
     let _ = fs::remove_file(&path);
     let output = output?;
     if output.success() {
         Ok(())
     } else {
-        Err(PredicateVerifyError::LeanCheckerFailed(format!(
+        Err(PredicateVerifyError::ExternalCheckerFailed(format!(
             "exit_code={:?} timed_out={}",
             output.exit_code, output.timed_out
         )))

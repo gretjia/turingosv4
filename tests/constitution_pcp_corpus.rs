@@ -49,44 +49,44 @@ use turingosv4::state::typed_tx::{TypedTx, WorkTx};
 const CORPUS_INVALID_TABLE: &[(&str, AttemptOutcome, L4ERejectionClass, u8)] = &[
     (
         "02_mutated_invalid",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
         "03_sorry_insertion",
-        AttemptOutcome::SorryBlock,
-        L4ERejectionClass::SorryBlocked,
+        AttemptOutcome::IncompleteProofBlock,
+        L4ERejectionClass::IncompleteProofBlocked,
         8,
     ),
     (
         "04_type_mismatch",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
         "05_wrong_theorem_name",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
         "06_off_by_one_arith",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
         "07_irrelevant_theorem",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
         "08_partial_then_final_invalid",
-        AttemptOutcome::LeanFail,
-        L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail,
+        L4ERejectionClass::CheckerFailed,
         6,
     ),
     (
@@ -244,17 +244,17 @@ fn pcp_valid_passes() {
         match o {
             // Only LeanPass corresponds to a verified omega proof that may
             // become an accepted WorkTx.
-            AttemptOutcome::LeanPass => true,
-            AttemptOutcome::LeanFail
+            AttemptOutcome::VerifierPass => true,
+            AttemptOutcome::VerifierFail
             | AttemptOutcome::ParseFail
-            | AttemptOutcome::SorryBlock
+            | AttemptOutcome::IncompleteProofBlock
             | AttemptOutcome::LlmErr
             | AttemptOutcome::Aborted
             | AttemptOutcome::PartialAccepted => false,
         }
     }
     assert!(
-        admits_to_l4(AttemptOutcome::LeanPass),
+        admits_to_l4(AttemptOutcome::VerifierPass),
         "G-012: LeanPass is the canonical valid-proof admission route"
     );
 }
@@ -291,11 +291,11 @@ fn pcp_mutated_invalid_fails() {
 #[test]
 fn pcp_sorry_blocked() {
     let (_dir, cas) = fresh_cas();
-    let cid = write_attempt(&cas, AttemptOutcome::SorryBlock, "03_sorry_insertion");
+    let cid = write_attempt(&cas, AttemptOutcome::IncompleteProofBlock, "03_sorry_insertion");
     let tx = fixture_work_tx(cid, "03_sorry_insertion");
     let refined =
         refine_rejection_class_via_attempt_telemetry(&cas, &tx, L4ERejectionClass::PredicateFailed);
-    assert_eq!(refined, L4ERejectionClass::SorryBlocked);
+    assert_eq!(refined, L4ERejectionClass::IncompleteProofBlocked);
     assert_eq!(refined as u8, 8);
 }
 
@@ -305,7 +305,7 @@ fn pcp_sorry_blocked() {
 #[test]
 fn pcp_invalid_never_l4() {
     fn classifies_as_admit(o: AttemptOutcome) -> bool {
-        matches!(o, AttemptOutcome::LeanPass)
+        matches!(o, AttemptOutcome::VerifierPass)
     }
     for (tag, outcome, _, _) in CORPUS_INVALID_TABLE {
         assert!(
@@ -323,10 +323,10 @@ fn pcp_invalid_never_l4() {
 fn pcp_invalid_routes_l4e_or_capsule() {
     fn route_destination(o: AttemptOutcome) -> &'static str {
         match o {
-            AttemptOutcome::LeanPass => "L4_accepted",
-            AttemptOutcome::LeanFail
+            AttemptOutcome::VerifierPass => "L4_accepted",
+            AttemptOutcome::VerifierFail
             | AttemptOutcome::ParseFail
-            | AttemptOutcome::SorryBlock
+            | AttemptOutcome::IncompleteProofBlock
             | AttemptOutcome::LlmErr => "L4_E",
             AttemptOutcome::Aborted => "TerminalAbort_capsule",
             AttemptOutcome::PartialAccepted => "CAS_only",

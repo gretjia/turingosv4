@@ -35,7 +35,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::judges::math_step_judge::{JudgeVerdict, MathStepJudge};
-use crate::runtime::attempt_telemetry::{LeanErrorClass, LeanVerdictKind};
+// De-Lean migration (2026-06-15, §8): the kernel verdict/error enums were renamed
+// generic (LeanVerdictKind -> VerifierVerdictKind, LeanErrorClass -> VerifierErrorClass,
+// variant SorryBlocked -> IncompleteProofBlocked, LeanFailed -> VerifierFailed). This
+// math-domain judge keeps its own Lean-named local types but consumes the renamed kernel
+// enums. Discriminant numbers + serde wire-names are pinned in attempt_telemetry.rs.
+use crate::runtime::attempt_telemetry::{VerifierErrorClass, VerifierVerdictKind};
 use crate::sdk::sanitized_runner::{env_allowlist_from_current, run_sanitized, SanitizedCommand};
 
 /// TRACE_MATRIX FC1a-judge_pi: pinned Lean toolchain for the JudgeAI verifier.
@@ -76,8 +81,8 @@ static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Strict Lean outcome for one candidate proof against the fixed target theorem.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LeanOutcome {
-    pub verdict_kind: LeanVerdictKind,
-    pub error_class: Option<LeanErrorClass>,
+    pub verdict_kind: VerifierVerdictKind,
+    pub error_class: Option<VerifierErrorClass>,
     pub exit_code: i32,
     pub timed_out: bool,
     /// Bounded, shielded failure summary for the retry prompt (empty on Verified).
@@ -97,7 +102,7 @@ pub struct LeanOutcome {
 impl LeanOutcome {
     /// TRACE_MATRIX FC1a-judge_pi: true iff the JudgeAI verdict is a clean OMEGA.
     pub fn is_verified(&self) -> bool {
-        matches!(self.verdict_kind, LeanVerdictKind::Verified)
+        matches!(self.verdict_kind, VerifierVerdictKind::Verified)
     }
 }
 
@@ -160,8 +165,8 @@ impl LeanJudge {
         //    comments first so a `sorry` mentioned in a comment is not a false reject.
         if let Some(tok) = first_bypass_token(candidate_body) {
             return LeanOutcome {
-                verdict_kind: LeanVerdictKind::SorryBlocked,
-                error_class: Some(LeanErrorClass::SorryBlocked),
+                verdict_kind: VerifierVerdictKind::IncompleteProofBlocked,
+                error_class: Some(VerifierErrorClass::IncompleteProofBlocked),
                 exit_code: 0,
                 timed_out: false,
                 feedback: format!("kernel-bypass token `{tok}` is forbidden"),
@@ -304,7 +309,7 @@ impl LeanJudge {
         let axioms: Vec<String> = parsed.into_iter().collect();
         if bad.is_empty() {
             LeanOutcome {
-                verdict_kind: LeanVerdictKind::Verified,
+                verdict_kind: VerifierVerdictKind::Verified,
                 error_class: None,
                 exit_code: 0,
                 timed_out: false,
@@ -339,8 +344,8 @@ impl MathStepJudge for LeanJudge {
 
 fn failed(exit_code: i32, timed_out: bool, feedback: String) -> LeanOutcome {
     LeanOutcome {
-        verdict_kind: LeanVerdictKind::Failed,
-        error_class: Some(LeanErrorClass::LeanFailed),
+        verdict_kind: VerifierVerdictKind::Failed,
+        error_class: Some(VerifierErrorClass::VerifierFailed),
         exit_code,
         timed_out,
         feedback,
@@ -352,7 +357,7 @@ fn failed(exit_code: i32, timed_out: bool, feedback: String) -> LeanOutcome {
 /// Soundness reject: the candidate COMPILED (exit 0) but its `#print axioms` set is not a
 /// subset of `AXIOM_WHITELIST` (or the name/axiom line could not be obtained). Modeled as the
 /// canonical `Failed` arm (exit_code=1, error_class=LeanFailed, !verified) so the CAS
-/// `LeanResult` sidecar stays assert_45-consistent — `LeanVerdictKind` is NOT extended (that
+/// `LeanResult` sidecar stays assert_45-consistent — `VerifierVerdictKind` is NOT extended (that
 /// enum is an out-of-scope, repr-stable, CAS-hash-bearing surface). `axiom_rejected=true`
 /// distinguishes it from a plain compile failure; `axioms` carries the offending set.
 fn axiom_rejected(feedback: String, axioms: Vec<String>) -> LeanOutcome {
@@ -361,8 +366,8 @@ fn axiom_rejected(feedback: String, axioms: Vec<String>) -> LeanOutcome {
         s.push('…');
     }
     LeanOutcome {
-        verdict_kind: LeanVerdictKind::Failed,
-        error_class: Some(LeanErrorClass::LeanFailed),
+        verdict_kind: VerifierVerdictKind::Failed,
+        error_class: Some(VerifierErrorClass::VerifierFailed),
         exit_code: 1,
         timed_out: false,
         feedback: s,
@@ -722,8 +727,8 @@ mod tests {
         let mut j = LeanJudge::new("theorem t : True := by");
         j.lean_bin = PathBuf::from("/nonexistent/lean");
         let o = j.verify("exact sorry");
-        assert_eq!(o.verdict_kind, LeanVerdictKind::SorryBlocked);
-        assert_eq!(o.error_class, Some(LeanErrorClass::SorryBlocked));
+        assert_eq!(o.verdict_kind, VerifierVerdictKind::IncompleteProofBlocked);
+        assert_eq!(o.error_class, Some(VerifierErrorClass::IncompleteProofBlocked));
     }
 
     // ── Real-run tests (gated on the pinned toolchain being present) ──
@@ -757,7 +762,7 @@ mod tests {
         let mut j = LeanJudge::new("theorem t : (2 : Nat) + 2 = 5 := by");
         j.lean_bin = bin;
         let o = j.verify("rfl");
-        assert_eq!(o.verdict_kind, LeanVerdictKind::Failed);
+        assert_eq!(o.verdict_kind, VerifierVerdictKind::Failed);
         assert!(!o.feedback.is_empty());
     }
 
@@ -873,7 +878,7 @@ mod tests {
             o.axioms
         );
         // CAS sidecar consistency: Failed arm shape (exit_code=1, !verified).
-        assert_eq!(o.verdict_kind, LeanVerdictKind::Failed);
+        assert_eq!(o.verdict_kind, VerifierVerdictKind::Failed);
         assert_eq!(o.exit_code, 1);
     }
 }
