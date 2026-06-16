@@ -351,3 +351,19 @@ When a row goes RED (a previously GREEN gate breaks):
 1. Stop ALL feature merges to main per CR-C0.10.
 2. Open an OBS in `handover/alignment/OBS_*.md`.
 3. Treat as constitutional drift; escalate to architect via directive if Class 4.
+
+## H-HET-2 dynamic model-budget experiment-validity gates (GA-0..GA-8, 2026-06-16)
+
+Drift-gated (K-2.3) economic-claim gates for the dynamic model-budget market. Each is failable
+(a mutated fixture turns it red); each directly protects the claim "budget flows to higher-EV
+models while preserving exploration, at ≤ budget".
+
+| gate | protects | failure mode caught |
+|---|---|---|
+| `constitution_h2_policy_hash_frozen` (GA-0) | 🟢 frozen policy == prereg FROZEN_POLICY_HASH | silent post-prereg routing-param drift |
+| `constitution_h2_budget_conservation` (GA-5) | 🟢 per-decision token-budget conservation + Σ≤B_target | budget leak / uncounted overhead |
+| `constitution_h2_decision_source_complete` (GA-6a) | 🟢 allocation attributes to a scored candidate (GA-6b attempt-level pending) | ghost/untraced allocation in the metric |
+| `constitution_h2_headline_recompute` (GA-2) | 🟢 union_delta / budget-share / token-total / PPUT recompute from tape | lying-tape headline inflation |
+| `constitution_h2_dag_reconstructible` (GA-3) | 🟢 BudgetDecision→Proposal→Verification→OMEGA reconstructs from tape | missing funding decision / broken citation edge |
+| `constitution_h2_router_name_lie` (GA-7) | 🟢 UCB bonus varies with pull_count; ε-floor can fire | name-lie / argmax-collapse / dead floor |
+| `constitution_h2_arm_parity` (GA-8) | 🟢 treatment ≤ controls' token/microUSD/proposal budget | treatment silently exceeds budget (Goodhart) |

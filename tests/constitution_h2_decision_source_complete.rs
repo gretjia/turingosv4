@@ -1,6 +1,14 @@
-//! GA-6 — H-HET-2 router-decision provenance completeness.
+//! GA-6a — H-HET-2 ALLOCATION-provenance completeness.
 //!
-//! Authority: `handover/tracer_bullets/H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md` (GA-6).
+//! CLAIM BOUNDARY (architect correction 2026-06-16): this gate protects
+//! `BudgetAllocationTelemetry` ALLOCATION provenance (selected model ⊆ scored candidates) at
+//! the LIB level. It does NOT yet witness every `AttemptNode.action_source/decision_source`
+//! in the actual carrier tape (those live in the `lean_market_agent` bin, not importable by an
+//! integration test). **GA-6b (attempt-level decision_source completeness) is REQUIRED before
+//! any paid confirmatory run** — either by making the carrier telemetry importable/testable or
+//! by a tape-replay witness. Do not read GA-6a as covering attempt-level provenance.
+//!
+//! Authority: `handover/tracer_bullets/H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md` (GA-6a).
 //! ENFORCES (§4): NO untraced allocation enters the primary metric. Every dynamic
 //! model-budget allocation on the tape must attribute to a REAL scored candidate — its
 //! `selected_model_id` must be non-empty AND appear among the `candidates` rows the router

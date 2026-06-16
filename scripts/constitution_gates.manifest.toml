@@ -1018,5 +1018,25 @@ added = "2026-06-16"
 
 [[gate]]
 name = "constitution_h2_decision_source_complete"
-authority = "H-HET-2 Phase-2 gate design GA-6 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Router-decision provenance completeness (§4): no untraced allocation enters the primary metric — every BudgetAllocationTelemetry.selected_model_id must be non-empty and appear among the scored candidates rows. A ghost allocation (selected model absent from scored set) is rejected. Lib-level tape-resident witness of the carrier's action_source/decision_source invariant."
+authority = "H-HET-2 Phase-2 gate design GA-6a (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md; architect claim-boundary correction 2026-06-16). ALLOCATION-provenance completeness (§4): no untraced allocation enters the primary metric — every BudgetAllocationTelemetry.selected_model_id must be non-empty and appear among scored candidates. Lib-level witness only; GA-6b (attempt-level AttemptNode action_source/decision_source) is REQUIRED before any paid confirmatory run and is NOT covered here."
+added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_headline_recompute"
+authority = "H-HET-2 Phase-2 gate design GA-2 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + §17.1-G1 recompute-from-tape. Recomputes the H-HET-2 headline ingredients (union_delta, per-model budget share, token total, PPUT) from a fixture tape; a tampered token count diverges. Protects the economic headline from sidecar/lying-tape inflation."
+added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_dag_reconstructible"
+authority = "H-HET-2 Phase-2 gate design GA-3 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Reconstructs the minimal V3 DAG BudgetDecision->ProposalTelemetry->VerificationResult->OMEGA from a fixture tape (Art 0.2 derive-from-tape). Failable: removing a funding decision or breaking a citation edge makes reconstruction go red."
+added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_router_name_lie"
+authority = "H-HET-2 Phase-2 gate design GA-7 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + §17.3 named-mechanism-must-match. Proves VERIFY_UCB_PRICE_PRIOR_FLOOR_V1 is not a name-lie: the UCB count-bonus varies with pull_count and the epsilon exploration floor can fire (not dead code, not argmax-collapse)."
+added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_arm_parity"
+authority = "H-HET-2 Phase-2 gate design GA-8 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + §4 economic-dominance fairness / §17 G3. Arm-parity shield: the dynamic-budget TREATMENT cannot silently exceed control arms' token/microUSD/proposal budget or B_target. Failable: an over-budget treatment is rejected."
 added = "2026-06-16"
