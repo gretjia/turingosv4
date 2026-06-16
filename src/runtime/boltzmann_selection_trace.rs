@@ -220,8 +220,7 @@ pub fn record_boltzmann_selection_over_econ(
     let masked_nodes: Vec<TxId> = mask.iter().cloned().collect();
 
     // Step 4: honest deterministic branch classification.
-    let selection_branch =
-        recompute_selection_branch(candidate_nodes.len(), policy, rng_seed);
+    let selection_branch = recompute_selection_branch(candidate_nodes.len(), policy, rng_seed);
 
     // Build the trace with trace_id zeroed (R3 self-addressing discipline).
     let mut trace = BoltzmannSelectionTrace {
@@ -299,10 +298,10 @@ pub fn boltzmann_selection_trace_cids(cas: &CasStore) -> Vec<Cid> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::economy::money::MicroCoin;
     use crate::state::price_index::NodeMarketEntry;
     use crate::state::q_state::{AgentId, TaskId};
     use crate::state::typed_tx::{PositionKind, PositionSide};
-    use crate::economy::money::MicroCoin;
     use std::sync::{Arc, RwLock};
     use tempfile::TempDir;
 
@@ -401,7 +400,12 @@ mod tests {
     fn recorder_does_not_mutate_econ() {
         let (_tmp, cas) = open_cas();
         let econ = econ_with(vec![make_position(
-            "p1", "n1", "t1", "a1", PositionSide::Long, 500_000,
+            "p1",
+            "n1",
+            "t1",
+            "a1",
+            PositionSide::Long,
+            500_000,
         )]);
         let before = econ.clone();
         let policy = BoltzmannMaskPolicy::default();
@@ -425,9 +429,8 @@ mod tests {
         let run = || {
             let tmp = TempDir::new().unwrap();
             let mut cas = CasStore::open(tmp.path()).unwrap();
-            let cid =
-                record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, 77, 3)
-                    .unwrap();
+            let cid = record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, 77, 3)
+                .unwrap();
             (tmp, cid)
         };
         let (_t1, a) = run();
@@ -440,7 +443,12 @@ mod tests {
     fn discovery_lists_written_trace() {
         let (_tmp, cas) = open_cas();
         let econ = econ_with(vec![make_position(
-            "p1", "n1", "t1", "a1", PositionSide::Long, 100_000,
+            "p1",
+            "n1",
+            "t1",
+            "a1",
+            PositionSide::Long,
+            100_000,
         )]);
         let policy = BoltzmannMaskPolicy::default();
         let edges = CanonicalNodeGraph::default();
@@ -495,7 +503,10 @@ mod tests {
         // numeric fields (prices, policy, seed) are all integers — assert no
         // float ever serialized into the numeric surface.
         let json = serde_json::to_string(&trace.candidate_nodes).unwrap();
-        assert!(!json.contains('.'), "candidate prices must be integer-rational");
+        assert!(
+            !json.contains('.'),
+            "candidate prices must be integer-rational"
+        );
         let pol = serde_json::to_string(&trace.policy).unwrap();
         assert!(!pol.contains('.'), "policy snapshot must be integer-only");
     }

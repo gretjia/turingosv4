@@ -48,9 +48,9 @@ fn attempt_outcome_failure_set_covers_cluster_source_discriminators() {
     std::fs::create_dir_all(&cas_path).expect("mkdir");
     let mut cas = CasStore::open(&cas_path).expect("open cas");
 
-    write_failure_attempt(&mut cas, AttemptOutcome::LeanFail, "lf");
+    write_failure_attempt(&mut cas, AttemptOutcome::VerifierFail, "lf");
     write_failure_attempt(&mut cas, AttemptOutcome::ParseFail, "pf");
-    write_failure_attempt(&mut cas, AttemptOutcome::SorryBlock, "sb");
+    write_failure_attempt(&mut cas, AttemptOutcome::IncompleteProofBlock, "sb");
     write_failure_attempt(&mut cas, AttemptOutcome::LlmErr, "le");
 
     let cids = cas.list_cids_by_object_type(ObjectType::AttemptTelemetry);
@@ -63,9 +63,9 @@ fn attempt_outcome_failure_set_covers_cluster_source_discriminators() {
     for cid in &cids {
         let att = read_attempt_telemetry_from_cas(&cas, cid).expect("read");
         match att.outcome {
-            AttemptOutcome::LeanFail => has_lean_fail = true,
+            AttemptOutcome::VerifierFail => has_lean_fail = true,
             AttemptOutcome::ParseFail => has_parse_fail = true,
-            AttemptOutcome::SorryBlock => has_sorry_block = true,
+            AttemptOutcome::IncompleteProofBlock => has_sorry_block = true,
             AttemptOutcome::LlmErr => has_llm_err = true,
             _ => {}
         }
@@ -87,8 +87,8 @@ fn attempt_telemetry_is_failure_source_of_truth_not_tool_dist() {
     std::fs::create_dir_all(&cas_path).expect("mkdir");
     let mut cas = CasStore::open(&cas_path).expect("open cas");
 
-    write_failure_attempt(&mut cas, AttemptOutcome::LeanFail, "src1");
-    write_failure_attempt(&mut cas, AttemptOutcome::SorryBlock, "src2");
+    write_failure_attempt(&mut cas, AttemptOutcome::VerifierFail, "src1");
+    write_failure_attempt(&mut cas, AttemptOutcome::IncompleteProofBlock, "src2");
 
     // The AttemptTelemetry CAS path is queryable. tool_dist is NOT
     // present in this view (it's an evaluator-side stdout-tier metric).

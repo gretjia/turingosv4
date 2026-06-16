@@ -46,7 +46,7 @@ fn fc1_n41_attempt_telemetry_round_trip_via_cas() {
         hash_for("prompt-context-001"),
         Cid::from_content(b"parsed candidate: rfl"),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         TokenCounts {
             prompt_tokens: 100,
             completion_tokens: 30,
@@ -63,7 +63,7 @@ fn fc1_n41_attempt_telemetry_round_trip_via_cas() {
     assert_eq!(original, recovered, "round-trip must preserve all fields");
     assert_eq!(recovered.schema_version, ATTEMPT_TELEMETRY_SCHEMA_VERSION);
     assert_eq!(recovered.attempt_kind, AttemptKind::ExternalizedLlmCycle);
-    assert_eq!(recovered.outcome, AttemptOutcome::LeanPass);
+    assert_eq!(recovered.outcome, AttemptOutcome::VerifierPass);
     assert_eq!(
         recovered.attempt_chain_root, None,
         "intermediate / non-terminal attempt must have attempt_chain_root = None"
@@ -80,9 +80,9 @@ fn fc1_n41_attempt_telemetry_failure_path_outcomes_round_trip() {
     let mut cas = CasStore::open(dir.path()).expect("open cas");
 
     for outcome in [
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         AttemptOutcome::ParseFail,
-        AttemptOutcome::SorryBlock,
+        AttemptOutcome::IncompleteProofBlock,
         AttemptOutcome::LlmErr,
         AttemptOutcome::Aborted,
     ] {
@@ -95,7 +95,7 @@ fn fc1_n41_attempt_telemetry_failure_path_outcomes_round_trip() {
             hash_for("prompt-context-002"),
             Cid::from_content(format!("{:?}", outcome).as_bytes()),
             AttemptKind::ExternalizedLlmCycle,
-            AttemptOutcome::LeanPass,
+            AttemptOutcome::VerifierPass,
             TokenCounts::default(),
             "step".into(),
         );
@@ -125,7 +125,7 @@ fn fc1_n41_idempotent_cid_for_byte_identical_attempts() {
         hash_for("idem-prompt"),
         Cid::from_content(b"idem-candidate"),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         TokenCounts::default(),
         "omega_wtool".into(),
     );

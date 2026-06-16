@@ -176,10 +176,9 @@ fn agent_node_not_in_rendered_set_rejected_before_pinned_lookup() {
     );
 
     // REJECT: a bare prefix of a real handle must NOT bind.
-    let prefix = parse_agent_output(
-        r#"<action>{"tool":"invest","node":"worktx","amount":50}</action>"#,
-    )
-    .expect("parse prefix action");
+    let prefix =
+        parse_agent_output(r#"<action>{"tool":"invest","node":"worktx","amount":50}</action>"#)
+            .expect("parse prefix action");
     assert!(
         matches!(
             prefix.resolve_node(&set),
@@ -388,7 +387,10 @@ fn g1_market_node_block_renders_handles_not_worktx_strings() {
 fn rtool_level_4_renders_task_handle_not_bare_task_id() {
     // fix #6: the MinimalHeadOnly fallback shows a content-hash handle of the
     // task id, never the bare canonical `task.id`.
-    let rtool = Rtool::new(Arc::new(MemoryTapeLedger::new()), Arc::new(Tokenizer::new()));
+    let rtool = Rtool::new(
+        Arc::new(MemoryTapeLedger::new()),
+        Arc::new(Tokenizer::new()),
+    );
     let task = Task {
         id: "task-explicit-deadbeef".into(),
         // A long prompt makes levels 1-3 (which embed `task.prompt`) overflow a
@@ -405,9 +407,8 @@ fn rtool_level_4_renders_task_handle_not_bare_task_id() {
     // Budget large enough for the prompt-free level_4 (~17 tokens) but far below
     // the prompt-bearing levels 1-3, so the MinimalHeadOnly branch is selected
     // WITHOUT triggering the char-clip overflow fallback.
-    let level4_budget = Tokenizer::new()
-        .count_text("[VERIFIED_HEAD]\nverified-head-hash\n[TASK_HANDLE]\n")
-        + 8;
+    let level4_budget =
+        Tokenizer::new().count_text("[VERIFIED_HEAD]\nverified-head-hash\n[TASK_HANDLE]\n") + 8;
     let digest =
         rtool.checkout_digest_with_workspace("verified-head-hash", &task, &ws, level4_budget);
     assert_eq!(

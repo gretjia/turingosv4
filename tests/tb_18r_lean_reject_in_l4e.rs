@@ -90,11 +90,11 @@ fn sorry_block_attempt_routes_to_sorry_blocked_class() {
     // Per preflight §3.5: sorry/forbidden_payload candidates map to
     // SorryBlock outcome → SorryBlocked=8 RejectionClass.
     let (_dir, cas) = fresh_cas();
-    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::SorryBlock, "sorry");
+    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::IncompleteProofBlock, "sorry");
     let tx = fixture_failure_work_tx(attempt_cid);
     let refined =
         refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
-    assert_eq!(refined, RejectionClass::SorryBlocked);
+    assert_eq!(refined, RejectionClass::IncompleteProofBlocked);
     assert_eq!(refined as u8, 8);
 }
 
@@ -117,8 +117,8 @@ fn full_outcome_to_rejection_class_mapping_table() {
     let (_dir, cas) = fresh_cas();
     let cases = [
         (
-            AttemptOutcome::LeanFail,
-            RejectionClass::LeanFailed,
+            AttemptOutcome::VerifierFail,
+            RejectionClass::CheckerFailed,
             6u8,
             "leanfail",
         ),
@@ -129,8 +129,8 @@ fn full_outcome_to_rejection_class_mapping_table() {
             "parsefail",
         ),
         (
-            AttemptOutcome::SorryBlock,
-            RejectionClass::SorryBlocked,
+            AttemptOutcome::IncompleteProofBlock,
+            RejectionClass::IncompleteProofBlocked,
             8,
             "sorryblock",
         ),

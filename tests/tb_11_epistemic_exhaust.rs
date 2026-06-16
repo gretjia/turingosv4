@@ -111,7 +111,10 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
     });
-    h.seq.submit_agent_tx(support::resign(open_tx)).await.expect("submit open");
+    h.seq
+        .submit_agent_tx(support::resign(open_tx))
+        .await
+        .expect("submit open");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)
@@ -128,7 +131,10 @@ async fn open_and_fund(h: &mut Harness, sponsor: &str, task: &str, amount_micro:
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 2,
     });
-    h.seq.submit_agent_tx(support::resign(lock_tx)).await.expect("submit lock");
+    h.seq
+        .submit_agent_tx(support::resign(lock_tx))
+        .await
+        .expect("submit lock");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)

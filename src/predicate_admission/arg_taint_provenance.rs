@@ -108,7 +108,7 @@ fn parse_capability(tag: &str) -> Capability {
         "economic_wallet" => Capability::EconomicWallet,
         "proof_validator" => Capability::ProofValidator,
         "network_client" => Capability::NetworkClient,
-        "lean_oracle" => Capability::LeanOracle,
+        "lean_oracle" => Capability::DomainOracle,
         "librarian_board" => Capability::LibrarianBoard,
         "search_tool" => Capability::SearchTool,
         "sandboxed_exec" => Capability::SandboxedExec,
@@ -158,12 +158,21 @@ fn parse_determinism(tag: &str) -> DeterminismClass {
 fn tool_meta_from_json(obj: &serde_json::Value) -> Option<ToolMetadata> {
     let tool_id = obj.get("tool_id")?.as_str()?.to_string();
     let capability = parse_capability(obj.get("capability").and_then(|v| v.as_str()).unwrap_or(""));
-    let permission_policy =
-        parse_permission(obj.get("permission_policy").and_then(|v| v.as_str()).unwrap_or(""));
-    let side_effect_class =
-        parse_side_effect(obj.get("side_effect_class").and_then(|v| v.as_str()).unwrap_or(""));
-    let determinism_class =
-        parse_determinism(obj.get("determinism_class").and_then(|v| v.as_str()).unwrap_or(""));
+    let permission_policy = parse_permission(
+        obj.get("permission_policy")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
+    let side_effect_class = parse_side_effect(
+        obj.get("side_effect_class")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
+    let determinism_class = parse_determinism(
+        obj.get("determinism_class")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    );
     Some(ToolMetadata {
         tool_id,
         version: 0,
@@ -209,7 +218,11 @@ pub fn derive_wtool_call_from_proposal(raw_output: &str) -> WtoolCall {
     let mut args: Vec<LabeledArg> = Vec::new();
     if let Some(arr) = wtool.get("args").and_then(|v| v.as_array()) {
         for a in arr {
-            let name = a.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let name = a
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let value = a.get("value").and_then(|v| v.as_str()).unwrap_or("");
             let source = a.get("source").and_then(|v| v.as_str()).unwrap_or("");
             args.push(LabeledArg::new(
@@ -274,8 +287,9 @@ pay out"#;
         let findings = arg_taint_v1(&call);
         // 1 tainted arg × 2 privileged sinks (wallet tool + wallet/ write key).
         assert_eq!(findings.len(), 2, "got {findings:?}");
-        assert!(findings.iter().all(|f| f.arg_name == "recipient"
-            && f.arg_taint == ArgTaint::UntrustedExternal));
+        assert!(findings
+            .iter()
+            .all(|f| f.arg_name == "recipient" && f.arg_taint == ArgTaint::UntrustedExternal));
     }
 
     /// The SAME declaration but with a TRUSTED-provenance arg produces NO finding
@@ -297,7 +311,10 @@ pay out"#;
 ---BODY---
 search"#;
         let call = derive_wtool_call_from_proposal(raw);
-        assert!(arg_taint_v1(&call).is_empty(), "tainted arg, unprivileged sink → clean");
+        assert!(
+            arg_taint_v1(&call).is_empty(),
+            "tainted arg, unprivileged sink → clean"
+        );
     }
 
     /// Source classification is total + fail-closed on unknown provenance.
@@ -311,7 +328,10 @@ search"#;
         assert_eq!(classify_source("a2a"), ArgTaint::UntrustedExternal);
         assert_eq!(classify_source("EXTERNAL"), ArgTaint::UntrustedExternal);
         // Unknown provenance fails closed to the most-tainted label.
-        assert_eq!(classify_source("garbage-provenance"), ArgTaint::UntrustedExternal);
+        assert_eq!(
+            classify_source("garbage-provenance"),
+            ArgTaint::UntrustedExternal
+        );
     }
 
     /// Replay-stability: identical raw_output → identical derived call (no RNG, no

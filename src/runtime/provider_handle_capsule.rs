@@ -302,7 +302,9 @@ mod tests {
         let json = serde_json::to_string(&capsule).unwrap();
         for needle in ["deepseek", "SiliconFlow", "Qwen", brandy_descriptor] {
             assert!(
-                !json.to_ascii_lowercase().contains(&needle.to_ascii_lowercase()),
+                !json
+                    .to_ascii_lowercase()
+                    .contains(&needle.to_ascii_lowercase()),
                 "capsule JSON leaked brand/descriptor `{needle}`: {json}"
             );
             let raw = String::from_utf8_lossy(&bytes).to_ascii_lowercase();
@@ -326,7 +328,10 @@ mod tests {
         let (cid, _sidecar) =
             write_provider_handle_capsule(&mut cas, "Agent_1", "model-A", "A", "ProvA", 3).unwrap();
         let capsule = read_provider_handle_capsule_from_cas(&cas, &cid).unwrap();
-        assert_eq!(capsule.capsule_id, cid, "R3: capsule_id self-addresses bytes");
+        assert_eq!(
+            capsule.capsule_id, cid,
+            "R3: capsule_id self-addresses bytes"
+        );
         assert_eq!(capsule.agent_id, "Agent_1");
         assert_eq!(capsule.recorded_at_logical_t, 3);
     }
@@ -382,7 +387,10 @@ mod tests {
         let (cid, _s) =
             write_provider_handle_capsule(&mut cas, "Agent_0", "m", "b", "p", 1).unwrap();
         let cids = provider_handle_capsule_cids(&cas);
-        assert!(cids.contains(&cid), "discovery must find the written capsule");
+        assert!(
+            cids.contains(&cid),
+            "discovery must find the written capsule"
+        );
         assert_eq!(cids.len(), 1);
     }
 

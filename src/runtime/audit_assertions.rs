@@ -69,9 +69,11 @@ use crate::bottom_white::ledger::transition_ledger::{
 };
 use crate::bottom_white::tools::registry::ToolRegistry;
 use crate::runtime::agent_keypairs::AgentPubkeyManifest;
+// De-Lean migration (2026-06-15, §8): `read_lean_result_from_cas` ->
+// `read_verifier_result_from_cas`, `LeanResult` -> `VerifierResult` (generic kernel).
 use crate::runtime::attempt_telemetry::{
-    read_attempt_telemetry_shared_slot_from_cas, read_lean_result_from_cas, AttemptOutcome,
-    AttemptTelemetry, LeanResult,
+    read_attempt_telemetry_shared_slot_from_cas, read_verifier_result_from_cas, AttemptOutcome,
+    AttemptTelemetry, VerifierResult,
 };
 use crate::runtime::evidence_capsule::EvidenceCapsule;
 use crate::runtime::genesis_report::AgentModelAssignment;
@@ -1962,21 +1964,21 @@ pub fn assert_24_proposal_telemetry_chain(t: &LoadedTape) -> AssertionResult {
                 );
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
-        {
-            Ok(p) => p,
-            Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
+        let telemetry: ProposalTelemetry =
+            match crate::runtime::proposal_telemetry::decode_bytes(&prop_bytes) {
                 Ok(p) => p,
-                Err(e2) => {
-                    return AssertionResult::halt(
-                        24,
-                        "proposal_telemetry_chain",
-                        AssertionLayer::E,
-                        format!("ProposalTelemetry decode at L4 index {i}: {e2}"),
-                    );
-                }
-            },
-        };
+                Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
+                    Ok(p) => p,
+                    Err(e2) => {
+                        return AssertionResult::halt(
+                            24,
+                            "proposal_telemetry_chain",
+                            AssertionLayer::E,
+                            format!("ProposalTelemetry decode at L4 index {i}: {e2}"),
+                        );
+                    }
+                },
+            };
         if let Some(vc) = telemetry.verification_result_cid {
             let vr_bytes = match t.cas.get(&vc) {
                 Ok(b) => b,
@@ -2299,14 +2301,14 @@ pub fn assert_e_boltzmann_parent_selection_diversity(t: &LoadedTape) -> Assertio
                 continue;
             }
         };
-        let telemetry: ProposalTelemetry = match canonical_decode::<ProposalTelemetry>(&prop_bytes)
-        {
-            Ok(p) => p,
-            Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
+        let telemetry: ProposalTelemetry =
+            match crate::runtime::proposal_telemetry::decode_bytes(&prop_bytes) {
                 Ok(p) => p,
-                Err(_) => continue,
-            },
-        };
+                Err(_) => match serde_json::from_slice::<ProposalTelemetry>(&prop_bytes) {
+                    Ok(p) => p,
+                    Err(_) => continue,
+                },
+            };
         by_task
             .entry(work.task_id.clone())
             .or_default()
@@ -3007,35 +3009,44 @@ pub fn assert_44_attempt_telemetry_retrievable_from_cas(t: &LoadedTape) -> Asser
 /// re-decoded by v2 builds — Phase 3 evidence is fresh on the v2 substrate.
 ///
 /// Empty-tape: SKIPPED.
-pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionResult {
-    let cids = t.cas.list_cids_by_object_type(ObjectType::LeanResult);
+pub fn assert_45_verifier_result_retrievable_from_cas(t: &LoadedTape) -> AssertionResult {
+    // De-Lean migration (2026-06-15, §8): ObjectType::LeanResult ->
+    // DomainProofResult, LeanResult -> VerifierResult, read_lean_result_from_cas ->
+    // read_verifier_result_from_cas. Assertion fn name + display label ALSO renamed
+    // (architect 2026-06-16 ruling: "rename, keep if gates green"). The stable
+    // assertion identity is the NUMBER 45 (unchanged); the display name is a
+    // derived-report string, not an on-tape value, so the rename is source-only
+    // and does not retroactively rewrite any historical evidence.
+    let cids = t
+        .cas
+        .list_cids_by_object_type(ObjectType::DomainProofResult);
     if cids.is_empty() {
         return AssertionResult::skipped(
             45,
-            "lean_result_retrievable_from_cas",
+            "verifier_result_retrievable_from_cas",
             AssertionLayer::G,
-            "no LeanResult CAS objects on this chain".into(),
+            "no DomainProofResult CAS objects on this chain".into(),
         );
     }
     for cid in &cids {
-        let lr: LeanResult = match read_lean_result_from_cas(&t.cas, cid) {
+        let lr: VerifierResult = match read_verifier_result_from_cas(&t.cas, cid) {
             Ok(l) => l,
             Err(e) => {
                 return AssertionResult::halt(
                     45,
-                    "lean_result_retrievable_from_cas",
+                    "verifier_result_retrievable_from_cas",
                     AssertionLayer::G,
-                    format!("LeanResult decode failed for cid {cid}: {e}"),
+                    format!("VerifierResult decode failed for cid {cid}: {e}"),
                 );
             }
         };
         if !lr.is_verdict_kind_consistent() {
             return AssertionResult::fail(
                 45,
-                "lean_result_retrievable_from_cas",
+                "verifier_result_retrievable_from_cas",
                 AssertionLayer::G,
                 format!(
-                    "LeanResult typed-verdict invariant violated for cid {cid}: \
+                    "VerifierResult typed-verdict invariant violated for cid {cid}: \
                      verdict_kind={:?} but (exit_code={}, verified={}, error_class={:?}) \
                      does not match the canonical shape for that kind",
                     lr.verdict_kind, lr.exit_code, lr.verified, lr.error_class
@@ -3043,7 +3054,11 @@ pub fn assert_45_lean_result_retrievable_from_cas(t: &LoadedTape) -> AssertionRe
             );
         }
     }
-    AssertionResult::pass(45, "lean_result_retrievable_from_cas", AssertionLayer::G)
+    AssertionResult::pass(
+        45,
+        "verifier_result_retrievable_from_cas",
+        AssertionLayer::G,
+    )
 }
 
 /// TRACE_MATRIX FC1-N41 (TB-18R R5 charter v2 §1.2 FR-18R.8 +
@@ -3145,9 +3160,9 @@ pub fn assert_g_markov_cluster_source_attempt_telemetry(t: &LoadedTape) -> Asser
         };
         if matches!(
             att.outcome,
-            AttemptOutcome::LeanFail
+            AttemptOutcome::VerifierFail
                 | AttemptOutcome::ParseFail
-                | AttemptOutcome::SorryBlock
+                | AttemptOutcome::IncompleteProofBlock
                 | AttemptOutcome::LlmErr
         ) {
             failure_outcomes_seen += 1;
@@ -3219,10 +3234,10 @@ pub fn assert_47_random_attempt_payload_tamper_detected() -> AssertionResult {
 /// TRACE_MATRIX FC2-N34 (TB-18R R5 charter v2 §1.2 FR-18R.7 +
 /// §1.4 SG-18R.7): tamper detection on a randomly-sampled LeanResult
 /// stderr blob. Exercised by `audit_tape_tamper` binary.
-pub fn assert_48_random_lean_stderr_tamper_detected() -> AssertionResult {
+pub fn assert_48_random_verifier_stderr_tamper_detected() -> AssertionResult {
     AssertionResult::skipped(
         48,
-        "random_lean_stderr_tamper_detected",
+        "random_verifier_stderr_tamper_detected",
         AssertionLayer::H,
         "exercised by audit_tape_tamper binary (TB-18R R5; FC2-N34)".into(),
     )
@@ -3675,7 +3690,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     // attempt_chain_root schema validity; markov cluster source
     // type-system witness.
     r.push(assert_44_attempt_telemetry_retrievable_from_cas(&tape));
-    r.push(assert_45_lean_result_retrievable_from_cas(&tape));
+    r.push(assert_45_verifier_result_retrievable_from_cas(&tape));
     r.push(assert_46_attempt_chain_root_schema_well_formed(&tape));
     r.push(assert_g_markov_cluster_source_attempt_telemetry(&tape));
     r.push(assert_g_no_hidden_model_switch(&tape));
@@ -3685,7 +3700,7 @@ pub fn run_all_assertions(inputs: &AuditInputs) -> Result<Vec<AssertionResult>, 
     r.push(assert_37_tamper_cas_flip_detected());
     r.push(assert_38_tamper_l4_remove_detected());
     r.push(assert_47_random_attempt_payload_tamper_detected());
-    r.push(assert_48_random_lean_stderr_tamper_detected());
+    r.push(assert_48_random_verifier_stderr_tamper_detected());
     Ok(r)
 }
 

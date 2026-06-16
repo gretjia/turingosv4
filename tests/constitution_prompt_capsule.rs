@@ -218,7 +218,7 @@ fn prompt_capsule_referenced_by_attempt_telemetry() {
         prompt_hash,
         Cid::from_content(b"candidate"),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "tag".into(),
     );
@@ -284,7 +284,7 @@ fn prompt_capsule_object_type_is_distinct() {
         match t {
             ObjectType::PromptCapsule => "prompt_capsule",
             ObjectType::AttemptTelemetry => "attempt_telemetry",
-            ObjectType::LeanResult => "lean_result",
+            ObjectType::DomainProofResult => "lean_result",
             ObjectType::TerminalAbortRecord => "terminal_abort",
             ObjectType::EvidenceCapsule => "evidence_capsule",
             ObjectType::EvidenceManifest => "evidence_manifest",

@@ -173,22 +173,21 @@ fn fresh_seq(initial_q: QState) -> SeqHarness {
     );
     // OBS_AGENT_SIG_REPLAY_GAP closure: pin the deterministic test manifest so
     // fail-closed ingress admits the resigned TaskOpen/EscrowLock/Work fixtures.
-    seq.set_agent_pubkeys(Arc::new(support::manifest_for(&["sponsor-g2", "solver-g2"])))
-        .expect("set test manifest once");
-    SeqHarness {
-        _tmp: tmp,
-        seq,
-        rx,
-    }
+    seq.set_agent_pubkeys(Arc::new(support::manifest_for(&[
+        "sponsor-g2",
+        "solver-g2",
+    ])))
+    .expect("set test manifest once");
+    SeqHarness { _tmp: tmp, seq, rx }
 }
 
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId((*name).into()), MicroCoin::from_coin(*coin).unwrap());
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
     }
     q
 }
@@ -233,7 +232,9 @@ fn make_worktx(task: &str, agent: &str, parent: Hash, predicate_passes: bool) ->
         task_id: TaskId(task.into()),
         parent_state_root: parent,
         agent_id: AgentId(agent.into()),
-        read_set: [ReadKey("k.read".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.read".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         write_set: [WriteKey("k.write".into())]
             .into_iter()
             .collect::<BTreeSet<_>>(),

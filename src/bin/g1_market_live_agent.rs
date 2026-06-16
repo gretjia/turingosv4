@@ -469,10 +469,8 @@ async fn run(args: Args) -> Result<(), String> {
             // prompt instead of the sequential `Agent_{i}` token (guessable →
             // hallucination bait). Canonical `AgentId(Agent_i)` stays internal
             // for all state writes; the agent only sees its opaque handle.
-            let self_handle = turingosv4::sdk::id_handle::handle(
-                &format!("g1_self::{}", args.run_id),
-                &agent,
-            );
+            let self_handle =
+                turingosv4::sdk::id_handle::handle(&format!("g1_self::{}", args.run_id), &agent);
             let prompt = format!(
                 "=== Task ===\n{ZETA_TASK}\n=== Market (price is signal, not truth) ===\n{market}\n=== Recent accepted steps ===\n{recent}\n=== Your turn (round {round}, you are {self_handle}) ===\n\
 Propose the NEXT proof step that advances toward the result. If the proof is finished, your step_text MUST contain \"[COMPLETE]\" and \"-1/12\".\n\

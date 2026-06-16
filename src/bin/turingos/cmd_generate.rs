@@ -259,9 +259,7 @@ pub(crate) fn run(args: &[String]) -> ExitCode {
     // any write, reusing the src/main.rs:14 abort-on-tamper semantics.
     if let Err(e) = std::env::current_dir()
         .map_err(|e| format!("trust-root cwd: {e}"))
-        .and_then(|repo| {
-            turingosv4::boot::verify_trust_root(&repo).map_err(|e| format!("{e}"))
-        })
+        .and_then(|repo| turingosv4::boot::verify_trust_root(&repo).map_err(|e| format!("{e}")))
     {
         eprintln!("turingos generate: TRUST_ROOT_TAMPERED: {e}");
         // Actionable hint for the common product-user mistake: `generate` is a
@@ -992,52 +990,52 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                     // already handled above (overall_pass=false -> Err -> exit 2),
                     // before delivery; this softening only covers post-delivery steps.
                     let post_delivery: Result<(), GenError> = (|| {
-                    let root_workspace =
-                        root_workspace_for_polymarket(&workspace).map_err(GenError::Io)?;
-                    mirror_artifact_bundle_to_root(&workspace, &root_workspace, &bundle_cid)?;
-                    mirror_test_run_to_root(&workspace, &root_workspace, &test_run_cid)?;
-                    let workers =
-                        polymarket_worker_roster_for_workspace(&workspace, n_parallel_workers)
-                            .map_err(GenError::Io)?;
-                    let mut candidate_proposals = vec![PolymarketCandidateProposal {
-                        worker_agent: workers[0].clone(),
-                        artifact_cid_hex: bundle_cid.clone(),
-                        predicate_passes: true,
-                    }];
-                    append_generate_progress(
-                        &workspace,
-                        &session_id,
-                        "worker_done",
-                        &workers[0],
-                        Some(&bundle_cid),
-                    );
-                    for worker in workers.iter().skip(1) {
-                        eprintln!("[polymarket] generating candidate for {worker}...");
+                        let root_workspace =
+                            root_workspace_for_polymarket(&workspace).map_err(GenError::Io)?;
+                        mirror_artifact_bundle_to_root(&workspace, &root_workspace, &bundle_cid)?;
+                        mirror_test_run_to_root(&workspace, &root_workspace, &test_run_cid)?;
+                        let workers =
+                            polymarket_worker_roster_for_workspace(&workspace, n_parallel_workers)
+                                .map_err(GenError::Io)?;
+                        let mut candidate_proposals = vec![PolymarketCandidateProposal {
+                            worker_agent: workers[0].clone(),
+                            artifact_cid_hex: bundle_cid.clone(),
+                            predicate_passes: true,
+                        }];
                         append_generate_progress(
                             &workspace,
                             &session_id,
-                            "worker_start",
-                            worker,
-                            None,
+                            "worker_done",
+                            &workers[0],
+                            Some(&bundle_cid),
                         );
-                        let candidate = generate_additional_worker_candidate(
-                            &workspace,
-                            &root_workspace,
-                            &session_id,
-                            worker,
-                            spec_capsule_cid.clone(),
-                            &capsule.spec_source,
-                            &capsule.model_id,
-                            &api_key,
-                            &messages,
-                            blackbox_thinking.clone(),
-                            &tdma_entrypoint,
-                            effective_max_retries,
-                            &tape_backend,
-                            &spec_md,
-                            logical_t,
-                        )?;
-                        eprintln!(
+                        for worker in workers.iter().skip(1) {
+                            eprintln!("[polymarket] generating candidate for {worker}...");
+                            append_generate_progress(
+                                &workspace,
+                                &session_id,
+                                "worker_start",
+                                worker,
+                                None,
+                            );
+                            let candidate = generate_additional_worker_candidate(
+                                &workspace,
+                                &root_workspace,
+                                &session_id,
+                                worker,
+                                spec_capsule_cid.clone(),
+                                &capsule.spec_source,
+                                &capsule.model_id,
+                                &api_key,
+                                &messages,
+                                blackbox_thinking.clone(),
+                                &tdma_entrypoint,
+                                effective_max_retries,
+                                &tape_backend,
+                                &spec_md,
+                                logical_t,
+                            )?;
+                            eprintln!(
                             "[polymarket] candidate ready (agent={}, accepted_by_tests={}, proposal_cid={})",
                             candidate.worker_agent,
                             candidate.predicate_passes,
@@ -1047,63 +1045,63 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                 .take(16)
                                 .collect::<String>()
                         );
-                        append_generate_progress(
-                            &workspace,
-                            &session_id,
-                            "worker_done",
-                            &candidate.worker_agent,
-                            Some(&candidate.artifact_cid_hex),
-                        );
-                        candidate_proposals.push(candidate);
-                    }
-                    match emit_polymarket_market_for_session(
-                        &workspace,
-                        &session_id,
-                        logical_t,
-                        &candidate_proposals,
-                    ) {
-                        Ok(summary) => {
-                            // Live-dashboard marker: market settled; winner is
-                            // authoritative only via ChainTape replay — this is
-                            // a transient hint the committed tree replaces.
                             append_generate_progress(
                                 &workspace,
                                 &session_id,
-                                "market_settled",
-                                &summary.worker_agent,
-                                None,
+                                "worker_done",
+                                &candidate.worker_agent,
+                                Some(&candidate.artifact_cid_hex),
                             );
-                            eprintln!(
+                            candidate_proposals.push(candidate);
+                        }
+                        match emit_polymarket_market_for_session(
+                            &workspace,
+                            &session_id,
+                            logical_t,
+                            &candidate_proposals,
+                        ) {
+                            Ok(summary) => {
+                                // Live-dashboard marker: market settled; winner is
+                                // authoritative only via ChainTape replay — this is
+                                // a transient hint the committed tree replaces.
+                                append_generate_progress(
+                                    &workspace,
+                                    &session_id,
+                                    "market_settled",
+                                    &summary.worker_agent,
+                                    None,
+                                );
+                                eprintln!(
                                 "[polymarket] WorkTx admitted (agent={}, stake={}µ, proposal_cid={})",
                                 summary.worker_agent,
                                 DEFAULT_WORK_STAKE_MICRO,
                                 summary.proposal_cid_hex_prefix,
                             );
-                            if summary.market_opened {
-                                eprintln!(
+                                if summary.market_opened {
+                                    eprintln!(
                                     "[polymarket] MarketSeed admitted (provider=treasury, collateral={}µ, task_id={})",
                                     DEFAULT_MARKET_SEED_MICRO, summary.task_id
                                 );
-                            } else {
-                                eprintln!(
-                                    "[polymarket] no finalized market ({}); MarketSeed skipped",
-                                    summary
-                                        .rejection_note
-                                        .unwrap_or_else(|| "unknown rejection".to_string())
-                                );
+                                } else {
+                                    eprintln!(
+                                        "[polymarket] no finalized market ({}); MarketSeed skipped",
+                                        summary
+                                            .rejection_note
+                                            .unwrap_or_else(|| "unknown rejection".to_string())
+                                    );
+                                }
                             }
-                        }
-                        Err(e) => {
-                            // 1.0 blocker #3 (Art.0.2 tape-first): the artifact
-                            // was ALREADY delivered + success printed above. The
-                            // market-settle leg is a POST-delivery economic
-                            // step; its failure must NOT retract the user's
-                            // working artifact. But the economic break must NOT
-                            // be swallowed silently either — anchor it on the
-                            // tape as a rejection capsule (Art.0.2: if it is not
-                            // on tape, it did not happen), WARN the user, and
-                            // exit 0 (they got their artifact).
-                            let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
+                            Err(e) => {
+                                // 1.0 blocker #3 (Art.0.2 tape-first): the artifact
+                                // was ALREADY delivered + success printed above. The
+                                // market-settle leg is a POST-delivery economic
+                                // step; its failure must NOT retract the user's
+                                // working artifact. But the economic break must NOT
+                                // be swallowed silently either — anchor it on the
+                                // tape as a rejection capsule (Art.0.2: if it is not
+                                // on tape, it did not happen), WARN the user, and
+                                // exit 0 (they got their artifact).
+                                let rej = turingosv4::runtime::rejection_capsule::GenerateRejectionCapsule {
                                 schema_id: turingosv4::runtime::rejection_capsule::GENERATE_REJECTION_CAPSULE_SCHEMA_ID.to_string(),
                                 session_id: session_id.clone(),
                                 spec_capsule_cid: spec_capsule_cid.clone(),
@@ -1130,13 +1128,13 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                 world_head_unchanged: false,
                                 logical_t,
                             };
-                            eprintln!(
+                                eprintln!(
                                 "[polymarket] WARNING: post-delivery market settlement failed: {e}"
                             );
-                            eprintln!(
+                                eprintln!(
                                 "[polymarket] your artifact was delivered successfully; only the economic settlement leg failed."
                             );
-                            match turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
+                                match turingosv4::runtime::rejection_capsule::write_generate_rejection_capsule_observed(&workspace, &rej) {
                                 Ok(rej_cid) => {
                                     eprintln!(
                                         "[polymarket] market settlement failure anchored on tape: rejection_cid={rej_cid}"
@@ -1163,9 +1161,9 @@ fn run_inner(args: &[String]) -> Result<(), GenError> {
                                     );
                                 }
                             }
+                            }
                         }
-                    }
-                    Ok(())
+                        Ok(())
                     })();
                     if let Err(e) = post_delivery {
                         // 1.0 blocker #3: a post-delivery step (root mirror,
@@ -2450,7 +2448,7 @@ fn write_polymarket_proposal_telemetry(
     hctx.update(artifact_cid.0);
     let prompt_context_hash = Hash(hctx.finalize().into());
 
-    let candidate_tactic = if candidate.predicate_passes {
+    let candidate_label = if candidate.predicate_passes {
         "generate-artifact-pass"
     } else {
         "generate-artifact-reject"
@@ -2459,7 +2457,7 @@ fn write_polymarket_proposal_telemetry(
         AgentId(candidate.worker_agent.clone()),
         prompt_context_hash,
         artifact_cid,
-        candidate_tactic.to_string(),
+        candidate_label.to_string(),
         TokenCounts::default(),
         format!("polymarket.{session_id}.b{proposal_index}"),
     );

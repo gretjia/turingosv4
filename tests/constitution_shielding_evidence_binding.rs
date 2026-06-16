@@ -27,7 +27,7 @@
 //! Each `cas/.turingos_cas_index.jsonl` line records `{cid, object_type,
 //! schema_id, size_bytes, creator, schema_id, created_at_logical_t}` for one
 //! real CAS object emitted by the Wave 3 run. If shielding leaked raw Lean
-//! stderr / private diagnostic bodies into a typed surface (LeanResult /
+//! stderr / private diagnostic bodies into a typed surface (VerifierResult /
 //! TransitionError.display / EvidenceCapsule shell / AttemptTelemetry), the
 //! emitted bytes would be measurably larger than the schema-defined sanitized
 //! shape. The size bounds and schema-id whitelist below collectively rule out
@@ -186,12 +186,12 @@ fn aggregate_cas_index() -> (
     (by_schema, by_type, total, all)
 }
 
-/// §D Art. III.1 + §C Art. II.1 — `LeanResult` shape on real tape MUST be
+/// §D Art. III.1 + §C Art. II.1 — `VerifierResult` shape on real tape MUST be
 /// verdict-only, NEVER inline raw Lean stderr.
 ///
 /// Real Lean stderr can be multi-kilobyte. If it leaked into the
 /// `turingosv4.lean_result.v2` schema, the per-object `size_bytes` would
-/// exceed a verdict-only sanity bound. Wave 3 50p produced 447 LeanResult
+/// exceed a verdict-only sanity bound. Wave 3 50p produced 447 VerifierResult
 /// objects with the largest at ~146B, average ~92B — entirely consistent with
 /// `{ verdict: "Ok"|"LeanFailed"|..., success: bool, ... }` structure and
 /// inconsistent with raw-stderr inlining.
@@ -200,14 +200,14 @@ fn wave3_50p_shielding_lean_result_is_verdict_only() {
     let (by_schema, _by_type, _total, _all) = aggregate_cas_index();
     let lr = by_schema
         .get("turingosv4.lean_result.v2")
-        .expect("turingosv4.lean_result.v2 absent — LeanResult shape missing");
+        .expect("turingosv4.lean_result.v2 absent — VerifierResult shape missing");
 
-    // Real-path-under-load coverage: Wave 3 50p has 447 LeanResult on 50
+    // Real-path-under-load coverage: Wave 3 50p has 447 VerifierResult on 50
     // problems. Pin a floor at 400 to allow some run-to-run variance while
     // still requiring substantive coverage.
     assert!(
         lr.count >= 400,
-        "Shielding evidence binding: only {} LeanResult on 50p tape \
+        "Shielding evidence binding: only {} VerifierResult on 50p tape \
          (expected >= 400 — real-path-under-load floor).",
         lr.count
     );
@@ -218,17 +218,17 @@ fn wave3_50p_shielding_lean_result_is_verdict_only() {
     // ...}` JSON.
     assert!(
         lr.max_size <= 1024,
-        "Shielding violation (Art. III.1): largest LeanResult on Wave 3 50p \
+        "Shielding violation (Art. III.1): largest VerifierResult on Wave 3 50p \
          tape is {}B — exceeds 1024B verdict-only ceiling. Raw Lean stderr \
-         likely inlined into LeanResult schema.",
+         likely inlined into VerifierResult schema.",
         lr.max_size
     );
 
     // Defense-in-depth: pin observed shape so a future schema bump that
-    // silently grows the LeanResult fires this gate.
+    // silently grows the VerifierResult fires this gate.
     assert!(
         lr.max_size <= 200,
-        "Shielding evidence binding: LeanResult max size {} drifted above \
+        "Shielding evidence binding: VerifierResult max size {} drifted above \
          observed 146B baseline ceiling 200B — schema may be growing.",
         lr.max_size
     );

@@ -167,7 +167,7 @@ async fn submit_worktx(
 
     // Optionally attach a verified VR (for SingletonGoldenPathValid case).
     if with_vr_verified {
-        let vr = VerificationResult::from_lean_run(
+        let vr = VerificationResult::from_verifier_run(
             expected_work_tx_id.clone(),
             AgentId(agent_id.into()),
             0, // exit code 0 → verified=true

@@ -166,7 +166,10 @@ impl fmt::Display for MembraneError {
         match self {
             MembraneError::MissingId => write!(f, "action missing required id field"),
             MembraneError::NotInCandidateSet(s) => {
-                write!(f, "echoed id/handle '{s}' is not in the rendered candidate set")
+                write!(
+                    f,
+                    "echoed id/handle '{s}' is not in the rendered candidate set"
+                )
             }
         }
     }

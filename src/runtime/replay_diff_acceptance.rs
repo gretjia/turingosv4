@@ -77,9 +77,7 @@ pub fn replay_roots_match_genesis(tape: &LoadedTape) -> bool {
 /// projection so the acceptance rule is a single auditable expression over the
 /// PINNED verifier's output.
 pub fn roots_match(report: &ReplayReport) -> bool {
-    report.ledger_root_verified
-        && report.state_reconstructed
-        && report.economic_state_reconstructed
+    report.ledger_root_verified && report.state_reconstructed && report.economic_state_reconstructed
 }
 
 #[cfg(test)]

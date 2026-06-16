@@ -861,7 +861,7 @@ fn public_summary_for(e: &TransitionError) -> Option<String> {
 ///   unchanged; predicate-failure is the only arm where R3 disambiguates).
 ///
 /// **Failure handling** (preflight §3.6): in `cfg(debug_assertions)`,
-/// inconsistent state (e.g. `outcome=LeanPass` reaching this helper)
+/// inconsistent state (e.g. `outcome=VerifierPass` reaching this helper)
 /// panics for early detection. In release builds, log warn + fall back —
 /// chain continues.
 pub fn refine_rejection_class_via_attempt_telemetry(
@@ -952,15 +952,15 @@ pub fn refine_rejection_class_via_attempt_telemetry_checked(
         },
     };
     let refined = match attempt.outcome {
-        AttemptOutcome::LeanFail => L4ERejectionClass::LeanFailed,
+        AttemptOutcome::VerifierFail => L4ERejectionClass::CheckerFailed,
         AttemptOutcome::ParseFail => L4ERejectionClass::ParseFailed,
-        AttemptOutcome::SorryBlock => L4ERejectionClass::SorryBlocked,
+        AttemptOutcome::IncompleteProofBlock => L4ERejectionClass::IncompleteProofBlocked,
         AttemptOutcome::LlmErr => L4ERejectionClass::LlmError,
-        AttemptOutcome::LeanPass => {
+        AttemptOutcome::VerifierPass => {
             #[cfg(debug_assertions)]
             {
                 panic!(
-                    "TB-18R R3 invariant violation: AttemptTelemetry.outcome=LeanPass \
+                    "TB-18R R3 invariant violation: AttemptTelemetry.outcome=VerifierPass \
                      reached predicate-failure rejection arm; proposal_cid is supposed \
                      to point at a *failed* attempt"
                 );
@@ -968,7 +968,7 @@ pub fn refine_rejection_class_via_attempt_telemetry_checked(
             #[cfg(not(debug_assertions))]
             {
                 log::warn!(
-                    "[tb18r-r3] AttemptTelemetry.outcome=LeanPass on rejection arm; \
+                    "[tb18r-r3] AttemptTelemetry.outcome=VerifierPass on rejection arm; \
                      falling back to PredicateFailed"
                 );
                 base_class
@@ -976,7 +976,7 @@ pub fn refine_rejection_class_via_attempt_telemetry_checked(
         }
         AttemptOutcome::Aborted => base_class,
         // TB-18R Phase 2 (2026-05-06): PartialAccepted is the typed
-        // step_partial_ok outcome (replaces LeanPass-misnomer). Per R3 §1.3
+        // step_partial_ok outcome (replaces VerifierPass-misnomer). Per R3 §1.3
         // amended, step_partial_ok stays CAS-only; reaching the rejection arm
         // here would be an invariant violation (no L4.E entry expected).
         AttemptOutcome::PartialAccepted => {
@@ -7411,13 +7411,13 @@ mod tests {
     }
 
     /// Build an `AgentPubkeyManifest` over the named test agents.
-    fn test_manifest(
-        agents: &[&str],
-    ) -> crate::runtime::agent_keypairs::AgentPubkeyManifest {
+    fn test_manifest(agents: &[&str]) -> crate::runtime::agent_keypairs::AgentPubkeyManifest {
         let mut m = crate::runtime::agent_keypairs::AgentPubkeyManifest::default();
         for a in agents {
-            m.agents
-                .insert((*a).to_string(), test_agent_keypair(a).public_key().to_hex());
+            m.agents.insert(
+                (*a).to_string(),
+                test_agent_keypair(a).public_key().to_hex(),
+            );
         }
         m
     }
@@ -7433,10 +7433,28 @@ mod tests {
     /// behalf of. Pinned into the sequencer manifest so fail-closed ingress
     /// admits their validly-signed txs.
     const TEST_AGENTS: &[&str] = &[
-        "alice", "a", "c", "v", "solver", "sponsor", "treasury",
-        "challenger-u17", "verifier-bob", "sponsor-alice", "solver-x",
-        "solver-u11", "sponsor-u6", "sponsor-u7", "s-u23", "sp-u24",
-        "sp-fwd", "verifier", "challenger", "owner", "provider", "trader",
+        "alice",
+        "a",
+        "c",
+        "v",
+        "solver",
+        "sponsor",
+        "treasury",
+        "challenger-u17",
+        "verifier-bob",
+        "sponsor-alice",
+        "solver-x",
+        "solver-u11",
+        "sponsor-u6",
+        "sponsor-u7",
+        "s-u23",
+        "sp-u24",
+        "sp-fwd",
+        "verifier",
+        "challenger",
+        "owner",
+        "provider",
+        "trader",
         "buyer",
     ];
 
@@ -9301,8 +9319,10 @@ mod tests {
             signature: AgentSignature::from_bytes([0u8; 64]),
             timestamp_logical: 1,
         };
-        escrow_lock.signature =
-            test_sign("sponsor", escrow_lock.to_signing_payload().canonical_digest());
+        escrow_lock.signature = test_sign(
+            "sponsor",
+            escrow_lock.to_signing_payload().canonical_digest(),
+        );
         let r = seq.submit_agent_tx(TypedTx::EscrowLock(escrow_lock)).await;
         assert!(r.is_ok(), "EscrowLock agent variant accepted; got {r:?}");
 

@@ -1041,8 +1041,8 @@ mod boltzmann_tick_tests {
             ..BoltzmannMaskPolicy::default()
         };
         let edges = CanonicalNodeGraph::default();
-        let cid =
-            tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 7, 7).unwrap();
+        let cid = tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 7, 7)
+            .unwrap();
         // Observe-only: borrowing econ mutated nothing.
         assert_eq!(econ, before, "live-tick must not mutate the borrowed econ");
         let section = render_boltzmann_tick_section(&cas, &cid);
@@ -1066,7 +1066,8 @@ mod boltzmann_tick_tests {
         let run = || {
             let tmp = TempDir::new().unwrap();
             let mut cas = CasStore::open(tmp.path()).unwrap();
-            tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 99, 3).unwrap()
+            tick_boltzmann_selection_over_live_econ(&mut cas, &econ, &edges, &policy, 99, 3)
+                .unwrap()
         };
         assert_eq!(run(), run(), "identical inputs+seed → identical trace Cid");
     }
