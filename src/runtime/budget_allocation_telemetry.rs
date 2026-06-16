@@ -138,6 +138,38 @@ impl BudgetAllocationTelemetry {
     }
 }
 
+/// Single-sourced max_tokens cap for ONE Stage-2 proposal (proof) LLM call. The carrier
+/// (`lean_market_agent`) uses this as (1) the proposal `max_tokens`, (2) the truncation
+/// threshold, and (3) the per-tick `allocated_token_budget` reservation upper bound.
+pub const MAX_PROPOSAL_TOKENS: u64 = 900;
+
+/// PURE helper for the run-path budget fields of one routing tick, so the GA-5 conservation
+/// invariant is unit-testable WITHOUT a live LLM/Lean run (the carrier's run path calls this
+/// EXACT function). Returns `(allocated_proposal_budget, allocated_token_budget,
+/// budget_remaining_before, budget_remaining_after)`.
+///
+/// SEMANTICS (audit-critical): the budget BALANCE is denominated in PROPOSAL-CALL units — the
+/// SAME unit as `rt_total_budget = effective_rounds * agents.len()` and the SAME unit
+/// `routing_policy::score_and_select`'s 3rd arg (`remaining_target_budget`) expects: it compares
+/// `remaining` against `Σ floor_quota_remaining`, and `RoutingPolicyConfig::floor_quota` returns
+/// `floor(ε * rt_total_budget)` — also CALL units. One routing tick funds exactly ONE proposal
+/// call ⇒ `allocated_proposal_budget = 1`, `before = rt_total_budget − step_idx`,
+/// `after = before − allocated_proposal_budget`. `allocated_token_budget = MAX_PROPOSAL_TOKENS`
+/// is a SEPARATE token-RESERVATION field, NOT a term in the balance equation (the prior bug
+/// subtracted this TOKEN field from the CALL-unit balance).
+pub fn budget_alloc_fields(rt_total_budget: u64, step_idx: u64) -> (u64, u64, u64, u64) {
+    let allocated_proposal_budget = 1u64;
+    let allocated_token_budget = MAX_PROPOSAL_TOKENS;
+    let budget_remaining_before = rt_total_budget.saturating_sub(step_idx);
+    let budget_remaining_after = budget_remaining_before.saturating_sub(allocated_proposal_budget);
+    (
+        allocated_proposal_budget,
+        allocated_token_budget,
+        budget_remaining_before,
+        budget_remaining_after,
+    )
+}
+
 // ── Errors ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug)]

@@ -38,19 +38,28 @@ adversarial QC done (QC-CONCERNS, no VIOLATION/no blocker, CONTINUE_STEP6) — c
 - ✅ Live mechanism smoke `smoke_ucb_001` (omega + heterogeneous routing on canonical tape; replay byte-clean).
 - ✅ 6-auditor adversarial QC + recursive audit (QC-CONCERNS, no VIOLATION; overstatements corrected).
 
-## Required fixes BEFORE the paid confirmatory run (audit-derived)
-1. **served_model provenance** (dim C) — on-tape model_id is the REQUESTED label, not served-model;
-   proxy echoes requested label + discards upstream resp.model. Fix: return/record served_model + assert + test.
-2. **MODEL_RATES → CAS at genesis** (dim D) — rate table is a compile-time const, not on tape; cost is
-   only recomputable given the external table. Fix: write rates to CAS, CID in GenesisPin.
-3. **Run-path budget CONSERVATION** (dim F) — `allocated_token_budget` hardcoded 900 vs balance −1
-   (`lean_market_agent.rs:2139-2142`); conservation gate fires only on a synthetic fixture.
-4. **BudgetAllocationTelemetry replay reconstruction** (dim E/F) — `verify.rs` reconstructs ProposalTelemetry
-   but not allocation; add so replay witnesses allocation == derive_from_tape.
-5. **binary-hash + HEAD in manifest** (dim E) — no binary↔source binding for the run; emit sha256(binary)+HEAD.
-- **decision_source/action_source tape-canonical promotion** (Class-4) + **GA-9** (`enable_thinking:false`,
+## Audit-derived fixes — status
+- ✅ **#3 Run-path budget CONSERVATION** (dim F) — DONE. Extracted pure `bat::budget_alloc_fields()`
+  (CALL-unit balance, single-sourced `MAX_PROPOSAL_TOKENS`); GA-5 predicate corrected to
+  `before − allocated_proposal_budget == after`; gate now binds the EXACT run-path helper (§17.1 G3).
+  Verified on a real 7-tick smoke (smoke_ucb_003): all 7 records conserve. Opus clean-context audit PROCEED.
+- ✅ **#5 binary-hash + HEAD in manifest** (dim E) — DONE. `binary_sha256` (sha256 of running exe, matches
+  `shasum`) + `source_commit` (CWD/source-repo HEAD — fixed a bug where it queried the runtime output dir
+  → "unknown"; now resolves to the real commit). Additive Manifest fields, verified on smoke_ucb_003.
+- ⬜ **#1 served_model provenance** (dim C) — before paid confirmatory: on-tape model_id is the REQUESTED
+  label; proxy echoes it + discards upstream resp.model. Fix: record served_model + assert + test.
+- ⬜ **#2 MODEL_RATES → CAS at genesis** (dim D) — before paid confirmatory: rate table is a compile-time
+  const, not on tape. Fix: write rates to CAS, CID in GenesisPin (cost tape-recomputable).
+- ⬜ **#4 BudgetAllocationTelemetry replay reconstruction** (dim E/F) — before paid confirmatory:
+  `verify.rs` reconstructs ProposalTelemetry but not allocation; add so replay witnesses allocation == derive_from_tape.
+- ⬜ **decision_source/action_source tape-canonical promotion** (Class-4) + **GA-9** (`enable_thinking:false`,
   pinned llm_http.rs, Class-4 §8) + **prereg freeze** (target pool / policy hash / budget cap / ≥12 seeds).
 - Non-blocking bookkeeping (dim B): populate `axioms` from `parse_axiom_set` on Verified (now `[]`); remove dead `axiom_gate()`.
+
+## New witness (smoke_ucb_003, 7-tick run)
+At 7 budget ticks, tick-4 selection_reason=**UcbScore** (not TieBreak) — the UCB value machinery was
+DECISIVE once enough pull/verify signal accumulated. 4 distinct models funded across the 7 ticks. Still a
+SMOKE (single seed, 1/7 ticks value-driven), but it upgrades the earlier all-TieBreak 2-tick witness.
 
 ## Next allowed action (adjudicator: CONTINUE_STEP6)
 Step 6 deep-chain target-pool calibration (chain ≥10/≥18, tx ≥ agents×20, axiom-clean; long-run discipline:

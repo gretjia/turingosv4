@@ -111,6 +111,11 @@ const VERIFY_BOND_MICRO: i64 = 500;
 const PROOF_TEMPERATURE: f64 = 0.7;
 const ROUTE_TEMPERATURE: f64 = 0.7;
 const BEAR_TEMPERATURE: f64 = 0.3;
+/// Single-sourced Stage-2 proposal max_tokens cap. Defined once in the library
+/// (`budget_allocation_telemetry::MAX_PROPOSAL_TOKENS`) so the run-path cap, the truncation
+/// threshold, and the telemetry token-reservation field cannot drift; re-aliased here so the
+/// `as u32` cast and the `>=` truncation compare read clearly at the call sites. Was a stray `900`.
+const MAX_PROPOSAL_TOKENS: u64 = bat::MAX_PROPOSAL_TOKENS;
 
 /// Default heterogeneous model roster (used when `--models` is absent or parses empty). Single
 /// source of truth so `parse_args` and the cost-resolution self-test reference the SAME list and
@@ -410,7 +415,52 @@ struct Manifest {
     final_state_root_hex: String,
     runtime_repo: String,
     cas: String,
+    // #5 audit-integrity (additive provenance): sha256 of the running executable's bytes
+    // (binds the manifest to the EXACT binary that produced it) and the runtime_repo git HEAD
+    // ("unknown" if `git rev-parse HEAD` fails). Lets an auditor verify the result came from a
+    // specific build at a specific commit, not a stale or drifted binary.
+    binary_sha256: String,
+    source_commit: String,
     nodes: Vec<AttemptNode>,
+}
+
+/// sha256 (64-hex) of the running executable's own bytes; "unknown" on any IO failure.
+/// Reuses the repo's existing sha2 dep — no new dependency.
+fn running_binary_sha256() -> String {
+    match std::env::current_exe().and_then(std::fs::read) {
+        Ok(bytes) => {
+            let mut h = Sha256::new();
+            h.update(&bytes);
+            let digest = h.finalize();
+            digest.iter().map(|b| format!("{b:02x}")).collect()
+        }
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+/// git HEAD of the SOURCE repo the binary runs in = CWD (the same tree the boot trust-root
+/// verifies against — `genesis_payload.toml` is read from CWD). "unknown" on any failure.
+/// MUST be CWD, NOT the `--runtime-repo` output dir: that is a fresh artifact dir, usually
+/// not a git repo, so it resolves to "unknown" and defeats the binary↔source binding (#5).
+fn source_repo_head() -> String {
+    match std::env::current_dir() {
+        Ok(cwd) => repo_head(&cwd),
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+/// `git -C <repo> rev-parse HEAD`; "unknown" on any failure
+/// (not a git repo, git absent, dirty exit code, non-utf8).
+fn repo_head(repo: &Path) -> String {
+    match std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-parse", "HEAD"])
+        .output()
+    {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        _ => "unknown".to_string(),
+    }
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
@@ -1720,6 +1770,8 @@ fn sample_manifest_for_selftest(policy: Policy) -> Manifest {
         final_state_root_hex: String::new(),
         runtime_repo: String::new(),
         cas: String::new(),
+        binary_sha256: "selftest".into(),
+        source_commit: "selftest".into(),
         nodes: vec![],
     }
 }
@@ -1757,6 +1809,11 @@ async fn run(args: Args) -> Result<(), String> {
     turingosv4::boot::verify_trust_root(&trust_root_repo)
         .map_err(|e| format!("TRUST_ROOT_TAMPERED: {e}"))?;
     let t0 = Instant::now();
+
+    // #5 audit-integrity: pin this run to the EXACT binary + runtime-repo commit at run-start,
+    // before any LLM/Lean work, so the manifest provenance is byte-exact and commit-anchored.
+    let binary_sha256 = running_binary_sha256();
+    let source_commit = source_repo_head();
 
     // ── Problem + LeanJudge ──────────────────────────────────────────
     let bank = load_bank(&args.bank)?;
@@ -2122,6 +2179,21 @@ async fn run(args: Args) -> Result<(), String> {
                 )
                 .unwrap_or(Cid([0u8; 32]));
                 lt += 4;
+                // Budget fields via the PURE helper (unit-testable without a live run). The helper
+                // recomputes `before = rt_total_budget - step_idx`, byte-identical to the `remaining`
+                // already passed to score_and_select above (routing inputs UNCHANGED). The balance is
+                // in PROPOSAL-CALL units (conserves against allocated_proposal_budget=1); token_budget
+                // is a SEPARATE reservation field (= MAX_PROPOSAL_TOKENS).
+                let (
+                    alloc_proposal_budget,
+                    alloc_token_budget,
+                    budget_before,
+                    budget_after,
+                ) = bat::budget_alloc_fields(rt_total_budget, step_idx);
+                debug_assert_eq!(
+                    budget_before, remaining,
+                    "budget_alloc_fields before must equal the routing `remaining`"
+                );
                 let record = BudgetAllocationTelemetry {
                     policy_family: routing_cfg.policy_family.clone(),
                     policy_hash: routing_cfg.policy_hash(),
@@ -2136,10 +2208,10 @@ async fn run(args: Args) -> Result<(), String> {
                     candidates: sel.rows.clone(),
                     selected_model_id: sel.selected_model_id.clone(),
                     selection_reason: sel.reason,
-                    allocated_proposal_budget: 1,
-                    allocated_token_budget: 900,
-                    budget_remaining_before: remaining,
-                    budget_remaining_after: remaining.saturating_sub(1),
+                    allocated_proposal_budget: alloc_proposal_budget,
+                    allocated_token_budget: alloc_token_budget,
+                    budget_remaining_before: budget_before,
+                    budget_remaining_after: budget_after,
                     router_overhead_cid,
                     rng_seed: None,
                     rng_draw: None,
@@ -2432,7 +2504,7 @@ async fn run(args: Args) -> Result<(), String> {
                         },
                     ],
                     temperature: Some(PROOF_TEMPERATURE),
-                    max_tokens: Some(900),
+                    max_tokens: Some(MAX_PROPOSAL_TOKENS as u32),
                 })
                 .await
             {
@@ -2443,9 +2515,9 @@ async fn run(args: Args) -> Result<(), String> {
                 }
             };
             llm_calls += 1;
-            // H-HET-2: a truncated proposal (hit the 900-token cap) is a SOFT failure (ruling:
-            // excluded from hard-failure) — captured here for the router counts update below.
-            tick_truncated = resp.completion_tokens as u64 >= 900;
+            // H-HET-2: a truncated proposal (hit the MAX_PROPOSAL_TOKENS cap) is a SOFT failure
+            // (ruling: excluded from hard-failure) — captured here for the router counts update below.
+            tick_truncated = resp.completion_tokens as u64 >= MAX_PROPOSAL_TOKENS;
             // F2: the proposal call's prompt is the proof prompt (build_prompt); for autonomous
             // the route decision rode a SEPARATE Stage-1 call (route_* counters), so this counts
             // only the Stage-2 proof prompt + completion — no double-count.
@@ -2906,6 +2978,8 @@ async fn run(args: Args) -> Result<(), String> {
         final_state_root_hex: hash_hex(&final_root),
         runtime_repo: args.runtime_repo.display().to_string(),
         cas: args.cas.display().to_string(),
+        binary_sha256,
+        source_commit,
         nodes,
     };
     if let Some(p) = args.out.parent() {
@@ -2928,6 +3002,54 @@ async fn run(args: Args) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #5: the run-start binary hash is a real 64-hex sha256 of the running executable's bytes.
+    #[test]
+    fn running_binary_sha256_is_64_hex() {
+        let h = running_binary_sha256();
+        assert_eq!(h.len(), 64, "sha256 hex must be 64 chars, got {h:?}");
+        assert!(
+            h.chars().all(|c| c.is_ascii_hexdigit()),
+            "binary_sha256 must be hex: {h}"
+        );
+    }
+
+    /// #5: source_repo_head (CWD = source repo) and repo_head resolve to a 40-hex HEAD inside a
+    /// git repo and the fail-closed "unknown" sentinel for a non-git path — never panics.
+    #[test]
+    fn source_repo_head_resolves_or_unknown() {
+        // source_commit is taken from CWD (the source repo), NOT --runtime-repo (an output dir).
+        let head = source_repo_head();
+        assert!(
+            head == "unknown" || (head.len() == 40 && head.chars().all(|c| c.is_ascii_hexdigit())),
+            "source_commit must be 40-hex or 'unknown', got {head:?}"
+        );
+        let cwd = std::env::current_dir().expect("cwd");
+        let via_cwd = repo_head(&cwd);
+        assert_eq!(via_cwd, head, "source_repo_head must equal repo_head(CWD)");
+        // A non-existent path must never panic and must fall back to the sentinel.
+        let bogus = repo_head(std::path::Path::new("/nonexistent/path/xyz"));
+        assert_eq!(bogus, "unknown");
+    }
+
+    /// Task A: the run-path budget helper produces a CALL-unit-conserving tick — verified here
+    /// on the EXACT function the run path calls, so conservation needs no live LLM/Lean run.
+    #[test]
+    fn budget_alloc_fields_conserves_call_budget() {
+        let rt_total_budget = 24u64;
+        for step_idx in 0..rt_total_budget {
+            let (proposal, token, before, after) =
+                bat::budget_alloc_fields(rt_total_budget, step_idx);
+            assert_eq!(proposal, 1, "one tick funds one proposal call");
+            assert_eq!(token, MAX_PROPOSAL_TOKENS, "token reservation = the max_tokens cap");
+            assert_eq!(before, rt_total_budget - step_idx);
+            assert_eq!(
+                before - proposal,
+                after,
+                "balance must conserve in CALL units (before - allocated_proposal == after)"
+            );
+        }
+    }
 
     #[test]
     fn own_chain_policies_refine_own_last_not_others() {

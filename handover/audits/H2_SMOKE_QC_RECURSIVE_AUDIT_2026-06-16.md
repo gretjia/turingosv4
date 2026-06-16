@@ -38,3 +38,22 @@ The mechanism is real and sound — NOT seeding, NOT a stub, NOT a §17.3 name-l
 served_model provenance (C) · MODEL_RATES→CAS (D) · run-path conservation (F) · BudgetAllocationTelemetry
 replay reconstruction (E/F) · binary-hash+HEAD in manifest (E) · + decision_source tape promotion (Class-4)
 · GA-9 (Class-4 §8) · prereg freeze. Non-blocking bookkeeping: populate `axioms` from `parse_axiom_set`; remove dead `axiom_gate()`.
+
+---
+
+## Follow-up: 2 cheap fixes implemented + audited (workflow wf_21759d48-051, 2026-06-16)
+
+Closed #3 (run-path budget conservation) + #5 (binary-hash+HEAD in manifest). Implement (Opus) →
+independent clean-context Class-3 audit (Opus) → **verdict PROCEED**: struct byte-identical, no §6
+surface, routing unchanged, conservation semantics coherent (CALL-unit balance — verified against
+`score_and_select`'s 3rd-arg use), GA-5 predicate now binds the EXACT run-path helper (§17.1 G3),
+failability real. 5 suite reds re-confirmed PRE-EXISTING via stash+clean-HEAD.
+
+**Orchestrator real-run verification (NOT trusting self-attestation):** ran fresh smokes with the rebuilt
+binary. Caught a bug the synthetic audit missed — `source_commit` resolved to "unknown" because it queried
+the `--runtime-repo` output dir (not a git repo) instead of the source repo; fixed to query CWD (source
+repo, where boot reads `genesis_payload.toml`). Final smoke `smoke_ucb_003` (7 budget ticks):
+- #5: `binary_sha256`=812df806… (matches `shasum`), `source_commit`=0f85b942… (=git HEAD). ✓
+- #3: all 7 real BudgetAllocationTelemetry records conserve (`before − allocated_proposal_budget == after`). ✓
+- replay byte-clean (`replay_failure=None`); full suite total=206 failed=5 (only pre-existing).
+- New witness: tick-4 `selection_reason=UcbScore` — UCB value machinery decisive once signal accumulated.

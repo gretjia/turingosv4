@@ -1013,7 +1013,7 @@ added = "2026-06-16"
 
 [[gate]]
 name = "constitution_h2_budget_conservation"
-authority = "H-HET-2 Phase-2 gate design GA-5 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Integer conservation of the call/token budget the dynamic model-budget market routes (distinct from INV3 MicroCoin): per router decision budget_remaining_before − allocated_token_budget == budget_remaining_after (u64, no float), router_overhead_cid non-null (§4), and Σ allocated ≤ B_target. Protects the economic claim 'higher union coverage at ≤ budget' from being measured against a silently-grown budget."
+authority = "H-HET-2 Phase-2 gate design GA-5 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Integer conservation of the CALL budget the dynamic model-budget market routes (distinct from INV3 MicroCoin): per router decision budget_remaining_before − allocated_proposal_budget == budget_remaining_after (u64, no float) — CALL units, the same unit as rt_total_budget=effective_rounds*agents.len() and routing_policy::score_and_select's 3rd arg (vs Σ floor_quota); router_overhead_cid non-null (§4); and the SEPARATE token-reservation channel Σ allocated_token_budget ≤ rt_total_budget × MAX_PROPOSAL_TOKENS. Verified on the EXACT run-path helper budget_alloc_fields (not synthetic-only). Unit corrected 2026-06-16 (prior text subtracted the TOKEN field from the CALL balance, false on real records). Protects the economic claim 'higher union coverage at ≤ budget' from being measured against a silently-grown budget."
 added = "2026-06-16"
 
 [[gate]]

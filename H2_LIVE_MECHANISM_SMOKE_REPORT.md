@@ -69,25 +69,25 @@ via the SHA-pinned `RoutingPolicyConfig`).
 - **Routing was tie-break, not value-driven** at this run length (see above) — no PROVEN/value-driven headline.
 - **model_id = requested label, not served model** (no upstream served-model witness).
 - **Cost needs the external MODEL_RATES table** (not on tape).
-- **Run-level budget CONSERVATION is NOT closed:** `allocated_token_budget` hardcoded 900 vs balance −1
-  (`lean_market_agent.rs:2139-2142`); the conservation gate passes only on a synthetic fixture; replay
-  (`verify.rs`) reconstructs ProposalTelemetry but NOT BudgetAllocationTelemetry. This smoke witnesses
-  dynamic model-budget **routing**, not run-level **conservation**.
-- **Binary freshness unverifiable:** manifest records no binary-hash / no source_commit; the on-disk
-  binary postdates the run. Circumstantial case strong (only a docs-only commit separates 205fb5d9 from
-  HEAD; `lean_market_agent.rs` unchanged in 205fb5d9) but not artifact-bound.
+- **Run-level budget CONSERVATION — NOW CLOSED (#3 fixed, post-QC).** Pure `bat::budget_alloc_fields()`
+  (CALL-unit balance) + GA-5 predicate corrected to `before − allocated_proposal_budget == after`, bound to
+  the exact run-path helper. Verified on a fresh 7-tick smoke (`smoke_ucb_003`): all 7 BudgetAllocationTelemetry
+  records conserve. (replay-side allocation reconstruction in `verify.rs` = remaining #4, before paid run.)
+- **Binary freshness — NOW RECORDED (#5 fixed, post-QC).** Manifest carries `binary_sha256` (= `shasum` of the
+  running exe) + `source_commit` (= source-repo/CWD HEAD). Verified on `smoke_ucb_003`.
 - `decision_source/action_source` are BIN-only and null (route_llm_calls=0) → tape-canonical promotion is Class-4.
 
 ## Required fixes BEFORE the paid confirmatory run (audit-derived, tracked)
+- ✅ **#3 Run-path budget conservation** — DONE (CALL-unit helper + corrected GA-5 predicate; 7-tick smoke verified).
+- ✅ **#5 Binary-hash + HEAD in manifest** — DONE (`binary_sha256` + `source_commit`; smoke verified).
 1. **served_model provenance** — proxy returns upstream `resp.model` (or a `served_model` field); driver
    records it on ProposalTelemetry + assert/flag served≠requested + regression test. (dim C)
 2. **MODEL_RATES → CAS at genesis** — write the rate table to CAS, CID in GenesisPin, so cost is
    tape-recomputable without a source side-input. (dim D)
-3. **Run-path budget conservation** — fix `allocated_token_budget` (hardcoded 900) vs balance accounting
-   so `constitution_h2_budget_conservation` fires on real-run records, not just a fixture. (dim F)
 4. **BudgetAllocationTelemetry replay reconstruction** — `verify.rs` reconstructs allocation from tape so
    `replay.json` witnesses allocation == derive_from_tape. (dim E/F)
-5. **Binary-hash + HEAD in manifest** — emit `sha256(binary)` + git HEAD at run-start for source binding. (dim E)
+- New witness (`smoke_ucb_003`, 7 ticks): tick-4 `selection_reason=UcbScore` — the UCB value machinery was
+  decisive once enough pull/verify signal accumulated (upgrades the all-TieBreak 2-tick witness). Still a SMOKE.
 - Plus (non-blocking bookkeeping, dim B): populate the `axioms` field from `parse_axiom_set` on Verified
   (currently emits `[]`), and remove/route the dead `axiom_gate()` method.
 - Plus `decision_source/action_source` tape-canonical promotion (Class-4) + GA-9 (`enable_thinking:false`,
