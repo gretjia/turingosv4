@@ -1005,3 +1005,8 @@ added = "2026-06-14"
 name = "constitution_budget_decision_tape_canonical"
 authority = "H-HET-2 charter §5.4 + architect routing-policy ruling 2026-06-15 (VERIFY_UCB_PRICE_PRIOR_FLOOR_V1): the dynamic model-budget routing DECISION must be tape-canonical (Art 0.2). Recompute-from-tape (§17.1-G1): the allocation recomputes from the frozen BudgetAllocationTelemetry candidate rows via routing_policy::score_and_select (allocation_view == derive_from_tape); a tampered selection diverges; the policy distributes (not argmax-collapse, §17.3); RoutingPolicyGenesisPin pins the frozen config. See handover/tracer_bullets/H_HET_2_ROUTING_POLICY_RULING_2026-06-15.md."
 added = "2026-06-15"
+
+[[gate]]
+name = "constitution_h2_policy_hash_frozen"
+authority = "H-HET-2 Phase-2 gate design GA-0 (handover/tracer_bullets/H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + prereg FROZEN_POLICY_HASH (H_HET_2_DYNAMIC_MODEL_BUDGET_PREREG_2026-06-15.md:45). Frozen-policy anti-drift pin: RoutingPolicyConfig::default().policy_hash() must equal the prereg-frozen literal 9fb0f612...263a, so any post-prereg change to a frozen routing parameter is caught before a paid run. §17-G6: this pins the policy INPUT (provenance), not an experimental outcome."
+added = "2026-06-16"
