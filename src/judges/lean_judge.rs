@@ -44,7 +44,8 @@ use crate::judges::math_step_judge::{JudgeVerdict, MathStepJudge};
 // enums. Discriminant numbers + serde wire-names are pinned in attempt_telemetry.rs.
 use crate::runtime::attempt_telemetry::{VerifierErrorClass, VerifierVerdictKind};
 use crate::sdk::sanitized_runner::{
-    env_allowlist_from_current, run_sanitized, SanitizedCommand, SanitizedOutput,
+    env_allowlist_from_current, run_sanitized, NetworkPolicyClaim, SanitizedCommand,
+    SanitizedOutput,
 };
 
 /// TRACE_MATRIX FC1a-judge_pi: pinned Lean toolchain for the JudgeAI verifier.
@@ -144,6 +145,21 @@ impl LeanOutcome {
     }
 }
 
+/// Which lean-running backend `verify()` dispatches to. `ProcessSpawn` (default) is
+/// the V1-pinned reference path — a fresh `lean -DwarningAsError=true` per run — and
+/// the ground truth the A/B equivalence oracle checks against. `PersistentService`
+/// routes runs to a warm verify-service (`scripts/lean_verify_service.py`, with
+/// `import Mathlib` loaded once) for ~130-260x speedup; it is byte-equivalent on the
+/// decision-bearing fields (verdict_kind / axioms / axiom_rejected / error_class /
+/// exit_code), asserted by the oracle before it is trusted, and is opt-in for
+/// Mathlib-importing candidates only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum VerifyBackend {
+    #[default]
+    ProcessSpawn,
+    PersistentService,
+}
+
 /// TRACE_MATRIX FC1a-judge_pi: pure Lean-kernel JudgeAI verifier (one target theorem).
 /// A pure Lean verifier bound to ONE fixed target theorem.
 #[derive(Debug, Clone)]
@@ -162,6 +178,8 @@ pub struct LeanJudge {
     pub allowed_axioms: BTreeSet<String>,
     /// Per-verify wall-clock timeout.
     pub timeout: Duration,
+    /// Which lean-running backend `verify()` dispatches to (default `ProcessSpawn`).
+    pub backend: VerifyBackend,
 }
 
 impl LeanJudge {
@@ -178,6 +196,7 @@ impl LeanJudge {
                 .map(|axiom| (*axiom).to_string())
                 .collect(),
             timeout: Duration::from_secs(60),
+            backend: VerifyBackend::ProcessSpawn,
         }
     }
 
@@ -253,6 +272,19 @@ impl LeanJudge {
     }
 
     fn run_lean_source(&self, source: &str, label: &str) -> std::io::Result<SanitizedOutput> {
+        match self.backend {
+            VerifyBackend::ProcessSpawn => self.run_lean_source_process(source, label),
+            VerifyBackend::PersistentService => self.run_lean_source_service(source, label),
+        }
+    }
+
+    /// ProcessSpawn backend: a fresh `lean -DwarningAsError=true <tmpfile>` per run
+    /// (the V1-pinned reference path; unchanged from the original `run_lean_source`).
+    fn run_lean_source_process(
+        &self,
+        source: &str,
+        label: &str,
+    ) -> std::io::Result<SanitizedOutput> {
         let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
             "turingos-leanjudge-{label}-{}-{}.lean",
@@ -280,6 +312,71 @@ impl LeanJudge {
         out
     }
 
+    /// PersistentService backend: route the run through the warm verify-service
+    /// singleton, returning the SAME `{exit_code, stdout, stderr}` shape a fresh
+    /// `lean` run produces so `verify()`'s parsing is unchanged. Fail-closed: a
+    /// dead/misconfigured service is an `Err` (mapped upstream to a Failed verdict),
+    /// never a silent wrong result; a stream error drops the conn so the next call
+    /// respawns.
+    fn run_lean_source_service(
+        &self,
+        source: &str,
+        label: &str,
+    ) -> std::io::Result<SanitizedOutput> {
+        use std::io::{BufRead, Write};
+        let req = serde_json::to_string(&serde_json::json!({ "id": label, "source": source }))
+            .map_err(|e| {
+                std::io::Error::new(std::io::ErrorKind::Other, format!("req encode: {e}"))
+            })?;
+        let mut guard = LEAN_SERVICE.lock().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, "lean service mutex poisoned")
+        })?;
+        ensure_lean_service(&mut guard)?;
+        let resp: std::io::Result<LeanServiceResp> = {
+            let conn = guard.as_mut().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::Other, "lean service unavailable")
+            })?;
+            conn.stdin
+                .write_all(req.as_bytes())
+                .and_then(|_| conn.stdin.write_all(b"\n"))
+                .and_then(|_| conn.stdin.flush())
+                .and_then(|_| {
+                    let mut line = String::new();
+                    if conn.stdout.read_line(&mut line)? == 0 {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof,
+                            "lean service closed",
+                        ));
+                    }
+                    serde_json::from_str::<LeanServiceResp>(&line).map_err(|e| {
+                        std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("resp decode: {e}; line={}", line.trim()),
+                        )
+                    })
+                })
+        };
+        let resp = match resp {
+            Ok(r) => r,
+            Err(e) => {
+                if let Some(mut dead) = guard.take() {
+                    let _ = dead.child.kill();
+                }
+                return Err(e);
+            }
+        };
+        Ok(SanitizedOutput {
+            argv: vec!["<lean-verify-service>".to_string(), label.to_string()],
+            cwd: self.cwd.clone(),
+            allowed_env_keys: Vec::new(),
+            stdout: resp.stdout.into_bytes(),
+            stderr: resp.stderr.into_bytes(),
+            exit_code: Some(resp.exit_code),
+            timed_out: resp.timed_out,
+            network_policy_claim: NetworkPolicyClaim::NotEnforced,
+        })
+    }
+
     fn verify_axioms_after_success(&self, source: &str, theorem_name: &str) -> LeanOutcome {
         let probe_source = format!("{source}\n#print axioms {theorem_name}\n");
         match self.run_lean_source(&probe_source, "axioms") {
@@ -287,6 +384,17 @@ impl LeanJudge {
                 let stdout = String::from_utf8_lossy(&o.stdout);
                 let stderr = String::from_utf8_lossy(&o.stderr);
                 let report = classify_axiom_report(&stdout, &stderr, &self.allowed_axioms);
+                // F1 fix (2026-06-17): the live `verify()` path must carry the FULL
+                // transitive `#print axioms` set as the audit-grade soundness footprint
+                // (`axioms`) AND set `axiom_rejected=true` on a non-whitelist reject — to
+                // match the field-doc contract + the `axiom_gate_rejects_hand_declared_axiom`
+                // test. The prior code zeroed both (empty manifest F5 footprint on Verified
+                // nodes; soundness-reject mislabeled as a plain compile failure). The
+                // CAS-borne verdict (exit_code/verified/verdict_kind/error_class) is
+                // unaffected — only the informational footprint/flag is corrected.
+                let full_axioms: Vec<String> = parse_axiom_set(&stdout)
+                    .map(|set| set.into_iter().collect())
+                    .unwrap_or_default();
                 match report.status {
                     AxiomCheckStatus::PassedWhitelisted => LeanOutcome {
                         verdict_kind: VerifierVerdictKind::Verified,
@@ -297,17 +405,14 @@ impl LeanJudge {
                         rejected_axioms: report.rejected_axioms,
                         feedback: String::new(),
                         axiom_rejected: false,
-                        axioms: Vec::new(),
+                        axioms: full_axioms,
                     },
-                    AxiomCheckStatus::RejectedNonWhitelisted => failed_with_axioms(
-                        0,
-                        false,
-                        report.status,
-                        report.rejected_axioms.clone(),
+                    AxiomCheckStatus::RejectedNonWhitelisted => axiom_rejected(
                         format!(
                             "non-whitelisted axioms: {}",
                             report.rejected_axioms.join(", ")
                         ),
+                        full_axioms,
                     ),
                     AxiomCheckStatus::AxiomProbeFailed => failed_with_axioms(
                         0,
@@ -855,6 +960,86 @@ fn shield_lean_diagnostic(stderr: &[u8], stdout: &[u8]) -> String {
         s.push('…');
     }
     s
+}
+
+// ── PersistentService backend internals ──────────────────────────────────────
+// A process-wide singleton client for the warm Lean verify-service
+// (`scripts/lean_verify_service.py`): `import Mathlib` is loaded ONCE, then each
+// verify is a JSON request/response over the child's stdin/stdout. The Mutex
+// serializes verifies (v1: one shared service; per-core parallelism is a later
+// optimization). The service shuts itself down when the parent exits (its stdin
+// EOFs). Equivalence to the ProcessSpawn path is asserted by the A/B oracle before
+// this backend is trusted; the default backend stays ProcessSpawn.
+use std::sync::Mutex;
+
+struct LeanServiceConn {
+    child: std::process::Child,
+    stdin: std::process::ChildStdin,
+    stdout: std::io::BufReader<std::process::ChildStdout>,
+}
+
+static LEAN_SERVICE: Mutex<Option<LeanServiceConn>> = Mutex::new(None);
+
+#[derive(serde::Deserialize)]
+struct LeanServiceResp {
+    exit_code: i32,
+    stdout: String,
+    stderr: String,
+    #[serde(default)]
+    timed_out: bool,
+}
+
+/// Lazily spawn the verify-service and block until it reports `{"ready": true}` (the
+/// one-time `import Mathlib` cold load, ~20s). Fail-closed on any startup problem.
+/// Requires env `TURINGOS_LEAN_VERIFY_PYTHON` (a venv python with lean-interact);
+/// `TURINGOS_LEAN_VERIFY_SERVICE` defaults to `scripts/lean_verify_service.py`. Pins
+/// `ELAN_TOOLCHAIN=leanprover/lean4:v4.24.0` so lake uses the installed toolchain
+/// rather than downloading the elan default (offline-fatal).
+fn ensure_lean_service(guard: &mut Option<LeanServiceConn>) -> std::io::Result<()> {
+    use std::io::BufRead;
+    if guard.is_some() {
+        return Ok(());
+    }
+    let python = std::env::var("TURINGOS_LEAN_VERIFY_PYTHON").map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "TURINGOS_LEAN_VERIFY_PYTHON not set (need a venv python with lean-interact)",
+        )
+    })?;
+    let script = std::env::var("TURINGOS_LEAN_VERIFY_SERVICE")
+        .unwrap_or_else(|_| "scripts/lean_verify_service.py".to_string());
+    let mut child = std::process::Command::new(python)
+        .arg(&script)
+        .env("ELAN_TOOLCHAIN", "leanprover/lean4:v4.24.0")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()?;
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no service stdin"))?;
+    let mut stdout = std::io::BufReader::new(
+        child
+            .stdout
+            .take()
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no service stdout"))?,
+    );
+    let mut ready = String::new();
+    stdout.read_line(&mut ready)?;
+    if !(ready.contains("\"ready\"") && ready.contains("true")) {
+        let _ = child.kill();
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("lean verify-service did not report ready: {}", ready.trim()),
+        ));
+    }
+    *guard = Some(LeanServiceConn {
+        child,
+        stdin,
+        stdout,
+    });
+    Ok(())
 }
 
 #[cfg(test)]

@@ -44,7 +44,9 @@ use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::economy::money::MicroCoin;
-use turingosv4::judges::lean_judge::{default_lean_bin, realign, AxiomCheckStatus, LeanOutcome};
+use turingosv4::judges::lean_judge::{
+    default_lean_bin, realign, AxiomCheckStatus, LeanOutcome, VerifyBackend,
+};
 use turingosv4::judges::lean_theorem_bank::{
     default_lake_bin, load_bank, mathlib_lean_path, LeanTheorem,
 };
@@ -294,6 +296,11 @@ struct Args {
     seed: u64,
     boltzmann_temp: f64,
     continue_past_omega: bool,
+    /// Opt-in: route Lean verifies through the persistent verify-service
+    /// (`scripts/lean_verify_service.py`, `import Mathlib` loaded once) instead of a
+    /// fresh `lean` process per verify (~130-260x faster; A/B-oracle-proven
+    /// byte-equivalent). Requires env `TURINGOS_LEAN_VERIFY_PYTHON`. Default false.
+    lean_verify_service: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -515,6 +522,9 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             .and_then(|s| s.parse().ok())
             .unwrap_or(0.15),
         continue_past_omega: get("continue-past-omega")
+            .map(|s| s == "true")
+            .unwrap_or(false),
+        lean_verify_service: get("lean-verify-service")
             .map(|s| s == "true")
             .unwrap_or(false),
     })
@@ -1842,7 +1852,12 @@ async fn run(args: Args) -> Result<(), String> {
     } else {
         None
     };
-    let judge = theorem.judge(lean_bin.clone(), mathlib_lp.as_deref());
+    let mut judge = theorem.judge(lean_bin.clone(), mathlib_lp.as_deref());
+    if args.lean_verify_service {
+        // Opt-in fast path: the persistent verify-service (A/B-oracle-proven
+        // byte-equivalent to the per-process path; Mathlib-importing pool only).
+        judge.backend = VerifyBackend::PersistentService;
+    }
 
     // F3: single_restart / single_tree_no_price are 1-agent (like Single); parallel_restart is N-agent.
     let one_agent = matches!(
