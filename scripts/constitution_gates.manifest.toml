@@ -1040,3 +1040,8 @@ added = "2026-06-16"
 name = "constitution_h2_arm_parity"
 authority = "H-HET-2 Phase-2 gate design GA-8 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + §4 economic-dominance fairness / §17 G3. Arm-parity shield: the dynamic-budget TREATMENT cannot silently exceed control arms' token/microUSD/proposal budget or B_target. Failable: an over-budget treatment is rejected."
 added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_attempt_decision_source"
+authority = "H-HET-2 Phase-2 gate design GA-6b (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). ATTEMPT-LEVEL decision_source completeness: every AttemptNode must carry a populated decision_source (non-None/non-empty); attempts whose decision_source ∈ {parse_fallback, llm_error, forced_solve} must NOT be counted in the primary solve/coverage/PPUT metric. HONESTY: decision_source is currently a BIN-only field (NOT tape-canonical, Art-0.2 gap). This gate is a LOGIC/EXCLUSION WITNESS ONLY. Promoting decision_source to a tape-canonical ProposalTelemetry/AttemptTelemetry field (versioned schema + legacy decode + replay-equivalence + Veto-AI PASS) is REQUIRED before any paid confirmatory run — that schema change is Class-4 and must be a separate atom. Failable: (a) None decision_source counted in primary → red; (b) parse_fallback counted in primary → red."
+added = "2026-06-16"

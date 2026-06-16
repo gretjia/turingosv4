@@ -367,3 +367,4 @@ models while preserving exploration, at ≤ budget".
 | `constitution_h2_dag_reconstructible` (GA-3) | 🟢 BudgetDecision→Proposal→Verification→OMEGA reconstructs from tape | missing funding decision / broken citation edge |
 | `constitution_h2_router_name_lie` (GA-7) | 🟢 UCB bonus varies with pull_count; ε-floor can fire | name-lie / argmax-collapse / dead floor |
 | `constitution_h2_arm_parity` (GA-8) | 🟢 treatment ≤ controls' token/microUSD/proposal budget | treatment silently exceeds budget (Goodhart) |
+| `constitution_h2_attempt_decision_source` (GA-6b) | ⚠️ LOGIC/EXCLUSION WITNESS ONLY (decision_source BIN-only, NOT tape-canonical — Art-0.2 gap; schema promotion to tape-canonical is Class-4, REQUIRED before paid run) — every attempt has populated decision_source; parse_fallback/llm_error/forced_solve excluded from primary metric | forced-solve inflating solve rate / untraced attempt in primary metric |

@@ -61,10 +61,18 @@ pub const KERNEL_BYPASS_TOKENS: &[&str] = &["sorry", "admit", "native_decide", "
 
 /// TRACE_MATRIX FC1-N12: explicit default axiom whitelist for standalone LeanJudge.
 ///
-/// Lean core proofs commonly report `propext` and `Quot.sound`; callers may
-/// replace `allowed_axioms` for stricter experiments, but any unlisted axiom
-/// remains fail-closed.
-pub const DEFAULT_ALLOWED_AXIOMS: &[&str] = &["propext", "Quot.sound"];
+/// Aligned with `AXIOM_WHITELIST` (the documented banked classical base):
+/// `{propext, Classical.choice, Quot.sound}`. Het det-family proofs use
+/// `Classical.choice` (a BANKED axiom that Lean's standard classical lemmas
+/// depend on); excluding it from the default caused those proofs to be rejected
+/// by `verify_axioms_after_success` even when the Lean kernel accepted them.
+///
+/// Callers that need a STRICTER (constructive-only) gate must explicitly
+/// override `allowed_axioms` after construction — the default is NOT narrowed
+/// here, only aligned to the banked base. Non-banked axioms (`sorryAx`,
+/// `Lean.ofReduceBool` / `Lean.trustCompiler`, any hand-declared axiom) remain
+/// fail-closed because they are absent from both this constant and `AXIOM_WHITELIST`.
+pub const DEFAULT_ALLOWED_AXIOMS: &[&str] = &["propext", "Classical.choice", "Quot.sound"];
 
 /// Max bytes of (shielded) Lean error text fed back into a retry prompt. The error
 /// is the public compiler diagnostic on the agent's OWN candidate (legitimate retry
