@@ -1010,3 +1010,13 @@ added = "2026-06-15"
 name = "constitution_h2_policy_hash_frozen"
 authority = "H-HET-2 Phase-2 gate design GA-0 (handover/tracer_bullets/H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md) + prereg FROZEN_POLICY_HASH (H_HET_2_DYNAMIC_MODEL_BUDGET_PREREG_2026-06-15.md:45). Frozen-policy anti-drift pin: RoutingPolicyConfig::default().policy_hash() must equal the prereg-frozen literal 9fb0f612...263a, so any post-prereg change to a frozen routing parameter is caught before a paid run. §17-G6: this pins the policy INPUT (provenance), not an experimental outcome."
 added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_budget_conservation"
+authority = "H-HET-2 Phase-2 gate design GA-5 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Integer conservation of the call/token budget the dynamic model-budget market routes (distinct from INV3 MicroCoin): per router decision budget_remaining_before − allocated_token_budget == budget_remaining_after (u64, no float), router_overhead_cid non-null (§4), and Σ allocated ≤ B_target. Protects the economic claim 'higher union coverage at ≤ budget' from being measured against a silently-grown budget."
+added = "2026-06-16"
+
+[[gate]]
+name = "constitution_h2_decision_source_complete"
+authority = "H-HET-2 Phase-2 gate design GA-6 (H_HET_2_PHASE2_GATE_DESIGN_2026-06-16.md). Router-decision provenance completeness (§4): no untraced allocation enters the primary metric — every BudgetAllocationTelemetry.selected_model_id must be non-empty and appear among the scored candidates rows. A ghost allocation (selected model absent from scored set) is rejected. Lib-level tape-resident witness of the carrier's action_source/decision_source invariant."
+added = "2026-06-16"
