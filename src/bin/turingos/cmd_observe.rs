@@ -87,13 +87,12 @@ fn run_inner(args: &[String]) -> Result<(), String> {
 
     // Resolve the workspace ROOT (the dir holding genesis_payload.toml). The
     // canonical runtime_repo + cas live there, NOT in a session subdir.
-    let root = find_root_workspace(&workspace)
-        .ok_or_else(|| {
-            format!(
-                "could not locate genesis_payload.toml within 3 parents of {}",
-                workspace.display()
-            )
-        })?;
+    let root = find_root_workspace(&workspace).ok_or_else(|| {
+        format!(
+            "could not locate genesis_payload.toml within 3 parents of {}",
+            workspace.display()
+        )
+    })?;
 
     let runtime_repo = root.join("runtime_repo");
     let cas_dir = root.join("cas");
@@ -156,11 +155,7 @@ fn run_inner(args: &[String]) -> Result<(), String> {
             vec!["FC1:predicates".into()],
             None,
         ),
-        (
-            "fc2_map_reduce_tick".into(),
-            vec!["FC2:tick".into()],
-            None,
-        ),
+        ("fc2_map_reduce_tick".into(), vec!["FC2:tick".into()], None),
         (
             "fc3_governance_loop".into(),
             vec!["FC3:constitution".into()],

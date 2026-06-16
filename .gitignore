@@ -53,3 +53,9 @@ tmp/
 # into commits — L8 root cause for adversarial Task B contamination on
 # 2026-05-20.
 handover/evidence/dev_self_hosting/dev_*/
+
+# P1 v4 raw tape repos + CAS (large; manifests+replay+reports are the committed derived views)
+handover/evidence/p1_v4_2026-06-02/repo_*
+handover/evidence/p1_v4_2026-06-02/cas_*
+handover/evidence/p1_v4_smoke_2026-06-02/repo_*
+handover/evidence/p1_v4_smoke_2026-06-02/cas_*

@@ -56,7 +56,7 @@ fn terminal_composite_attempt_chain_root_round_trips() {
         Some(merkle_root),
         "attempt_chain_root must round-trip byte-identical"
     );
-    assert_eq!(decoded.outcome, AttemptOutcome::LeanPass);
+    assert_eq!(decoded.outcome, AttemptOutcome::VerifierPass);
     assert_eq!(decoded.attempt_kind, AttemptKind::ExternalizedLlmCycle);
 }
 
@@ -81,7 +81,7 @@ fn intermediate_attempt_chain_root_is_none() {
         Hash([0x22; 32]),
         candidate_cid,
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierFail,
         TokenCounts::default(),
         "nlinarith".into(),
     );

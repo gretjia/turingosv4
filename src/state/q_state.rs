@@ -794,7 +794,7 @@ pub struct RunSummaryEntry {
     /// completion (would also produce a FinalizeReward elsewhere); the 4
     /// failure variants for the architect's "RunExhausted" cases.
     pub run_outcome: crate::state::typed_tx::RunOutcome,
-    /// Architect §6.2 — total LLM proposals + Lean attempts in the run.
+    /// Architect §6.2 — total LLM proposals + external-checker attempts in the run.
     pub attempt_count: u64,
     /// Architect §6.2 — CAS reference to the rolled-up evidence bytes.
     /// `None` for OmegaAccepted (success path needs no failure capsule);

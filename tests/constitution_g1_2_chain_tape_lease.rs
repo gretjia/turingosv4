@@ -57,7 +57,9 @@ async fn bootstrap_one_entry_chain(tmp: &TempDir, run_id: &str) -> PathBuf {
         Hash::ZERO,
         run_id,
     );
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
     runtime_repo

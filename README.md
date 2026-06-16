@@ -16,6 +16,14 @@
 > If your CLI has its own discovery file (`GEMINI.md`, `CONVENTIONS.md`,
 > `.cursorrules`, etc.) it's a thin pointer to `AGENTS.md`. **AGENTS.md wins
 > on any conflict.**
+>
+> 📌 **Known residuals (2026-06-16): de-Lean kernel migration milestone landed.**
+> The generic kernel is now Lean-free at the load-bearing level (types / tape enum
+> variants / fields / CAS object-types / error-class output labels), tape-safe + gate-green.
+> A source-only long-tail is **deliberately deferred** and documented — DO NOT "fix" the
+> serde rename/alias wire-strings or the architect-permitted Lean-as-predicate-component;
+> see **`handover/DE_LEAN_RESIDUALS_REMINDER_2026-06-16.md`** before touching anything
+> Lean-named in `src/`.
 
 ---
 

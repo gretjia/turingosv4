@@ -279,7 +279,7 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> LoadedTape {
         submit_id += 1;
     };
     if spec.fc1_step_reject {
-        push_reject(RejectionClass::LeanFailed);
+        push_reject(RejectionClass::CheckerFailed);
     }
     if spec.fc1_parse_fail {
         push_reject(RejectionClass::ParseFailed);

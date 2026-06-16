@@ -122,7 +122,7 @@ pub struct SlashEvidenceCid(pub Cid);
 
 /// TRACE_MATRIX § 1.2 PredicateResultsBundle — boolean predicate verdict
 /// optionally accompanied by an L3 CAS reference to the proof object
-/// (e.g. Lean witness, ZK proof bytes).
+/// (e.g. an external-checker witness, ZK proof bytes).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BoolWithProof {
     pub value: bool,
@@ -906,7 +906,7 @@ const DOMAIN_SYSTEM_TASK_BANKRUPTCY: &[u8] = b"turingosv4.system_sig.task_bankru
                                                                                           // `handover/audits/STAGE_C_POLYMARKET_CPMM_LIFECYCLE_GAP_AUDIT_2026-05-10.md`
                                                                                           // §3.3 (TaskMarketState::Finalized previously READ 5+ sites / WRITE 0 sites).
                                                                                           // Resolution authority: minimal CPMM-completeness path (Option 1 system-emit
-                                                                                          // on lean-verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
+                                                                                          // on external-checker verify outcome per charter §5 + gap audit §4); K.3 ORACLE / K.6
                                                                                           // EXTERNAL forward-bound and can wrap this without breaking B2 invariants.
 const DOMAIN_SYSTEM_EVENT_RESOLVE: &[u8] = b"turingosv4.system_sig.event_resolve.v1"; // TB-N2 B2
 const DOMAIN_SYSTEM_PREDICATE_BINDING_ACTIVATE: &[u8] =

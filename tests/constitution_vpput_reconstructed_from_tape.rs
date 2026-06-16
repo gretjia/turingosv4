@@ -49,7 +49,9 @@ use tempfile::TempDir;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::rejection_evidence::{RejectionClass, RejectionEvidenceWriter};
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass, RejectionEvidenceWriter,
+};
 use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
@@ -115,9 +117,9 @@ fn write_telemetry(
         let vr = VerificationResult {
             target_work_tx: TxId(format!("work:{task}:{branch}")),
             verifier_agent: AgentId("agent:fixture".to_string()),
-            lean_exit_code: 0,
-            lean_stdout_hash: Hash::ZERO,
-            lean_stderr_hash: Hash::ZERO,
+            exit_code: 0,
+            stdout_hash: Hash::ZERO,
+            stderr_hash: Hash::ZERO,
             proof_file_hash: Hash::ZERO,
             proof_artifact_cid: Cid::default(),
             verified: true,
@@ -131,7 +133,8 @@ fn write_telemetry(
         prompt_context_hash: Hash::ZERO,
         // Non-zero artifact cid so the proposal is NOT a zero-CID synthetic seed.
         proposal_artifact_cid: Cid::from_content(format!("artifact:{task}:{branch}").as_bytes()),
-        candidate_tactic: "nlinarith".to_string(),
+        candidate_label: "nlinarith".to_string(),
+        model_id: None,
         token_counts: tokens,
         tool_calls: Vec::new(),
         branch_id: branch.to_string(),
@@ -265,9 +268,21 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> LoadedTape {
 
     // Terminals — OmegaAccepted for all three (so omega gate is satisfied; the
     // oracle witness is the independent gate factor we toggle on task_a).
-    entries.push(terminal_entry(&mut cas, t, "task_a", "run_x", RunOutcome::OmegaAccepted));
+    entries.push(terminal_entry(
+        &mut cas,
+        t,
+        "task_a",
+        "run_x",
+        RunOutcome::OmegaAccepted,
+    ));
     t += 1;
-    entries.push(terminal_entry(&mut cas, t, "task_b", "run_x", RunOutcome::OmegaAccepted));
+    entries.push(terminal_entry(
+        &mut cas,
+        t,
+        "task_b",
+        "run_x",
+        RunOutcome::OmegaAccepted,
+    ));
     t += 1;
     entries.push(terminal_entry(
         &mut cas,
@@ -301,7 +316,7 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> LoadedTape {
             AgentId("agent:fixture".to_string()),
             TxKind::Work,
             rej_cid,
-            RejectionClass::LeanFailed,
+            RejectionClass::CheckerFailed,
             None,
             None,
         );
@@ -332,7 +347,11 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> LoadedTape {
 }
 
 fn held_out() -> Vec<String> {
-    vec!["task_a".to_string(), "task_b".to_string(), "ghost_task".to_string()]
+    vec![
+        "task_a".to_string(),
+        "task_b".to_string(),
+        "ghost_task".to_string(),
+    ]
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -379,7 +398,10 @@ fn reconstructs_per_task_vpput_from_tape_counting_failed_branch_and_tool_stdout(
 
     // Provenance counts are reconstructed, not zero.
     assert_eq!(report.l4_entry_count, tape.entries.len() as u64);
-    assert_eq!(report.l4e_entry_count, 1, "one failed-branch rejection on tape");
+    assert_eq!(
+        report.l4e_entry_count, 1,
+        "one failed-branch rejection on tape"
+    );
 
     let a = report.task("task_a").expect("task_a row reconstructed");
 
@@ -390,7 +412,10 @@ fn reconstructs_per_task_vpput_from_tape_counting_failed_branch_and_tool_stdout(
         "C_i must sum accepted (incl tool stdout) + L4.E failed branch tokens"
     );
     assert_eq!(a.attempt_count, 2, "one accepted + one rejected attempt");
-    assert_eq!(a.failed_branch_attempt_count, 1, "the L4.E branch is counted as failed");
+    assert_eq!(
+        a.failed_branch_attempt_count, 1,
+        "the L4.E branch is counted as failed"
+    );
 
     // The failed branch's tokens are load-bearing: dropping it lowers C_i.
     let tmp2 = TempDir::new().expect("tmp2");
@@ -399,7 +424,10 @@ fn reconstructs_per_task_vpput_from_tape_counting_failed_branch_and_tool_stdout(
     let tape_no_rej = build_tape(&tmp2, spec_no_rej);
     let report_no_rej = reconstruct_vpput_from_tape(&tape_no_rej, &held_out());
     let a_no_rej = report_no_rej.task("task_a").expect("task_a row");
-    assert_eq!(a_no_rej.cost_tokens, 55, "without the failed branch, C_i is accepted-only");
+    assert_eq!(
+        a_no_rej.cost_tokens, 55,
+        "without the failed branch, C_i is accepted-only"
+    );
     assert!(
         a_no_rej.cost_tokens < a.cost_tokens,
         "MUTATION: removing the failed branch lowered C_i ({} !< {})",
@@ -420,8 +448,14 @@ fn progress_is_ground_truth_gated_not_predicate_pass_alone() {
     let tape = build_tape(&tmp, FixtureSpec::full());
     let report = reconstruct_vpput_from_tape(&tape, &held_out());
     let a = report.task("task_a").expect("task_a");
-    assert_eq!(a.progress, 1, "omega terminal + verified oracle = verified golden path");
-    assert!(a.verified_pput_micro > 0, "a solved task has a positive micro metric");
+    assert_eq!(
+        a.progress, 1,
+        "omega terminal + verified oracle = verified golden path"
+    );
+    assert!(
+        a.verified_pput_micro > 0,
+        "a solved task has a positive micro metric"
+    );
 
     // MUTATION: remove ONLY the oracle witness (omega terminal still present).
     // Ground-truth gate (Art.I.1): omega/predicate-pass ALONE is NOT progress.
@@ -440,7 +474,10 @@ fn progress_is_ground_truth_gated_not_predicate_pass_alone() {
         "no ground truth → zero metric regardless of how cheap/fast the run was"
     );
     // The cost was still reconstructed (the work still happened) — only progress gated.
-    assert!(a_no_oracle.cost_tokens > 0, "cost is still tape-reconstructed when unsolved");
+    assert!(
+        a_no_oracle.cost_tokens > 0,
+        "cost is still tape-reconstructed when unsolved"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -463,7 +500,10 @@ fn metric_is_integer_micro_unit_and_cheaper_solve_scores_higher() {
     // both tasks span 4 ticks in this interleaved fixture, so cost is the
     // discriminator here.
     assert_eq!(b.cost_tokens, 5, "task_b is a 5-token solve");
-    assert!(b.wall_clock_ticks >= 1, "task_b has a positive logical-tick span");
+    assert!(
+        b.wall_clock_ticks >= 1,
+        "task_b has a positive logical-tick span"
+    );
     assert_eq!(
         b.verified_pput_micro,
         PPUT_MICRO_SCALE / (b.cost_tokens * b.wall_clock_ticks),
@@ -509,8 +549,14 @@ fn metric_is_integer_micro_unit_and_cheaper_solve_scores_higher() {
     let has_decimal_number = bytes
         .windows(3)
         .any(|w| w[1] == b'.' && w[0].is_ascii_digit() && w[2].is_ascii_digit());
-    assert!(!has_decimal_number, "render must not emit an f64 decimal number");
-    assert!(!s.to_lowercase().contains("stderr"), "render must not leak raw diagnostics");
+    assert!(
+        !has_decimal_number,
+        "render must not emit an f64 decimal number"
+    );
+    assert!(
+        !s.to_lowercase().contains("stderr"),
+        "render must not leak raw diagnostics"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -541,10 +587,17 @@ fn held_out_h_vpput_is_integer_mean_over_present_split_tasks_only() {
     // MUTATION: an empty held-out split yields a zero aggregate (no split → no H).
     let report_empty = reconstruct_vpput_from_tape(&tape, &[]);
     assert_eq!(report_empty.held_out_task_count, 0);
-    assert_eq!(report_empty.h_vpput_micro(), 0, "empty held-out split → zero H-VPPUT");
+    assert_eq!(
+        report_empty.h_vpput_micro(),
+        0,
+        "empty held-out split → zero H-VPPUT"
+    );
 
     // The training task is reconstructed but NOT in the held-out aggregate.
-    assert!(report.task("task_train").is_some(), "train task reconstructed");
+    assert!(
+        report.task("task_train").is_some(),
+        "train task reconstructed"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -573,7 +626,12 @@ fn reconstruction_is_observe_only_and_shielded() {
     // surface and is not referenced by any prompt builder.
     let module_src = std::fs::read_to_string("src/runtime/vpput_reconstruction.rs")
         .expect("read vpput module source");
-    for forbidden in ["assemble_o1_prompt", "build_agent_prompt", "prompt_builder", "into_prompt"] {
+    for forbidden in [
+        "assemble_o1_prompt",
+        "build_agent_prompt",
+        "prompt_builder",
+        "into_prompt",
+    ] {
         assert!(
             !module_src.contains(forbidden),
             "SHIELDED: VPPUT module must not reference prompt assembly (`{forbidden}`)"

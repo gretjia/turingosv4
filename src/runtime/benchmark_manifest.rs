@@ -43,10 +43,16 @@ pub struct BenchmarkManifest {
     pub n_per_problem: u32,
     /// Random seeds for the multi-seed sweep. Sorted, deduplicated.
     pub seeds: Vec<u64>,
-    /// Lean version (e.g. "4.x.y"). Pinned to detect Lean upgrade drift.
-    pub lean_version: String,
-    /// Mathlib commit hash (40-hex). Pinned to detect mathlib drift.
-    pub mathlib_commit: String,
+    /// Verifier version (e.g. Lean "4.x.y"). Pinned to detect verifier upgrade
+    /// drift. De-Lean: renamed from `lean_version`; `#[serde(alias)]` keeps every
+    /// historical JSON manifest deserializable.
+    #[serde(alias = "lean_version")]
+    pub verifier_version: String,
+    /// Verifier library commit hash (40-hex, e.g. mathlib). Pinned to detect
+    /// verifier-library drift. De-Lean: renamed from `mathlib_commit`;
+    /// `#[serde(alias)]` keeps every historical JSON manifest deserializable.
+    #[serde(alias = "mathlib_commit")]
+    pub verifier_library_commit: String,
     /// TuringOS commit hash (40-hex). Pinned to detect runtime drift between
     /// manifest write and batch run; aggregate runner asserts post-run match.
     pub turingos_commit: String,
@@ -76,8 +82,8 @@ pub enum BenchmarkManifestError {
     ZeroN,
     EmptySeeds,
     DuplicateSeed(u64),
-    EmptyLeanVersion,
-    InvalidMathlibCommit(String),
+    EmptyVerifierVersion,
+    InvalidVerifierLibraryCommit(String),
     InvalidTuringosCommit(String),
     EmptyStrategy,
     SchemaIdMismatch(String),
@@ -105,10 +111,10 @@ impl std::fmt::Display for BenchmarkManifestError {
             ZeroN => write!(f, "BenchmarkManifest: n_per_problem == 0"),
             EmptySeeds => write!(f, "BenchmarkManifest: seeds is empty"),
             DuplicateSeed(s) => write!(f, "BenchmarkManifest: duplicate seed {s}"),
-            EmptyLeanVersion => write!(f, "BenchmarkManifest: empty lean_version"),
-            InvalidMathlibCommit(s) => write!(
+            EmptyVerifierVersion => write!(f, "BenchmarkManifest: empty verifier_version"),
+            InvalidVerifierLibraryCommit(s) => write!(
                 f,
-                "BenchmarkManifest: invalid mathlib_commit {s:?} (expected 40-hex)"
+                "BenchmarkManifest: invalid verifier_library_commit {s:?} (expected 40-hex)"
             ),
             InvalidTuringosCommit(s) => write!(
                 f,
@@ -178,11 +184,13 @@ impl BenchmarkManifest {
                 return Err(DuplicateSeed(*s));
             }
         }
-        if self.lean_version.trim().is_empty() {
-            return Err(EmptyLeanVersion);
+        if self.verifier_version.trim().is_empty() {
+            return Err(EmptyVerifierVersion);
         }
-        if !is_40_hex(&self.mathlib_commit) {
-            return Err(InvalidMathlibCommit(self.mathlib_commit.clone()));
+        if !is_40_hex(&self.verifier_library_commit) {
+            return Err(InvalidVerifierLibraryCommit(
+                self.verifier_library_commit.clone(),
+            ));
         }
         if !is_40_hex(&self.turingos_commit) {
             return Err(InvalidTuringosCommit(self.turingos_commit.clone()));
@@ -257,8 +265,8 @@ mod tests {
             max_tx_budget: 64,
             n_per_problem: 3,
             seeds: vec![1, 2, 3],
-            lean_version: "4.7.0".into(),
-            mathlib_commit: "0".repeat(40),
+            verifier_version: "4.7.0".into(),
+            verifier_library_commit: "0".repeat(40),
             turingos_commit: "1".repeat(40),
             strategy: "M1: 2p × n=3 × 3-seed = 18 runs DeepSeek baseline".into(),
             schema_id: BENCHMARK_MANIFEST_SCHEMA_ID.to_string(),
@@ -360,22 +368,52 @@ mod tests {
     }
 
     #[test]
-    fn empty_lean_version_is_blocked() {
+    fn empty_verifier_version_is_blocked() {
         let mut m = good_manifest();
-        m.lean_version = "".into();
-        assert_eq!(m.validate(), Err(BenchmarkManifestError::EmptyLeanVersion));
+        m.verifier_version = "".into();
+        assert_eq!(
+            m.validate(),
+            Err(BenchmarkManifestError::EmptyVerifierVersion)
+        );
     }
 
     #[test]
-    fn invalid_mathlib_commit_is_blocked() {
+    fn invalid_verifier_library_commit_is_blocked() {
         let mut m = good_manifest();
-        m.mathlib_commit = "short".into();
+        m.verifier_library_commit = "short".into();
         match m.validate() {
-            Err(BenchmarkManifestError::InvalidMathlibCommit(s)) => {
+            Err(BenchmarkManifestError::InvalidVerifierLibraryCommit(s)) => {
                 assert_eq!(s, "short")
             }
-            other => panic!("expected InvalidMathlibCommit, got {other:?}"),
+            other => panic!("expected InvalidVerifierLibraryCommit, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn legacy_field_names_still_deserialize() {
+        // De-Lean tape-safety: a historical manifest JSON that used the old
+        // `lean_version` / `mathlib_commit` keys must still deserialize via the
+        // `#[serde(alias)]` attributes.
+        let legacy_json = r#"{
+            "batch_id": "tb_legacy",
+            "problem_ids": ["mathd_algebra_107"],
+            "model_id": "deepseek-chat",
+            "model_ver": "v3",
+            "temperature_decimal": "0.7",
+            "max_tx_budget": 64,
+            "n_per_problem": 3,
+            "seeds": [1, 2, 3],
+            "lean_version": "4.7.0",
+            "mathlib_commit": "0000000000000000000000000000000000000000",
+            "turingos_commit": "1111111111111111111111111111111111111111",
+            "strategy": "legacy",
+            "schema_id": "turingosv4.benchmark_manifest.v1"
+        }"#;
+        let m: BenchmarkManifest =
+            serde_json::from_str(legacy_json).expect("legacy field names deserialize via alias");
+        assert_eq!(m.verifier_version, "4.7.0");
+        assert_eq!(m.verifier_library_commit, "0".repeat(40));
+        m.validate().expect("legacy manifest still validates");
     }
 
     #[test]

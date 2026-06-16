@@ -96,11 +96,20 @@ pub enum ObjectType {
     /// CR-18R.4 v2). See `src/runtime/attempt_telemetry.rs`.
     AttemptTelemetry,
     /// TB-18R R1 (charter v2 §1 + Codex Gate 1 ratified 2026-05-06):
-    /// canonical-encoded `LeanResult` bytes — Lean's verdict on one
-    /// externalized candidate (exit_code + verified + stderr_cid +
-    /// stdout_cid + proof_artifact_cid + error_class). Raw stderr /
-    /// stdout stay shielded behind their own AuditOnly CAS objects.
-    LeanResult,
+    /// canonical-encoded `VerifierResult` bytes — the external checker's
+    /// verdict on one externalized candidate (exit_code + verified +
+    /// stderr_cid + stdout_cid + proof_artifact_cid + error_class). Raw
+    /// stderr / stdout stay shielded behind their own AuditOnly CAS objects.
+    ///
+    /// De-Lean migration (2026-06-15, §8): renamed from `LeanResult` to the
+    /// generic `DomainProofResult`. The on-wire serde NAME is PINNED to
+    /// `"LeanResult"` via `#[serde(rename)]` — that string is hashed into the
+    /// CAS `canonical_hash` Merkle (`canonical_hash` serializes `object_type`
+    /// via `serde_json`), so every historical CAS object must keep decoding
+    /// and re-hashing byte-identically. Changing the wire string would break
+    /// the entire historical Merkle reconstruction.
+    #[serde(rename = "LeanResult")]
+    DomainProofResult,
     /// TB-18R R1 (charter v2 FR-18R.3 v2 + Codex Q4 remediation):
     /// canonical-encoded `TerminalAbortRecord` bytes for one aborted
     /// attempt (externally killed / per-call budget halt / WallClockCap
@@ -296,7 +305,7 @@ mod tests {
             schema_id: None,
             size_bytes: 1,
         };
-        let lean = mk(ObjectType::LeanResult);
+        let lean = mk(ObjectType::DomainProofResult);
         for other in [
             ObjectType::AttemptTelemetry,
             ObjectType::TerminalAbortRecord,
@@ -306,7 +315,7 @@ mod tests {
             assert_ne!(
                 lean.canonical_hash(),
                 mk(other).canonical_hash(),
-                "LeanResult canonical hash must differ from {:?}",
+                "DomainProofResult canonical hash must differ from {:?}",
                 other,
             );
         }
@@ -326,7 +335,7 @@ mod tests {
         let abort = mk(ObjectType::TerminalAbortRecord);
         for other in [
             ObjectType::AttemptTelemetry,
-            ObjectType::LeanResult,
+            ObjectType::DomainProofResult,
             ObjectType::EvidenceCapsule,
             ObjectType::Generic,
         ] {
@@ -384,9 +393,23 @@ mod tests {
             serde_json::to_string(&ObjectType::AttemptTelemetry).expect("serialize"),
             "\"AttemptTelemetry\"",
         );
+        // De-Lean migration (2026-06-15): the variant is now
+        // `DomainProofResult`, but `#[serde(rename = "LeanResult")]` PINS the
+        // on-wire string so the CAS canonical-hash Merkle of every historical
+        // object stays byte-identical. This assertion is the machine check
+        // that the rename did NOT change the wire identity.
         assert_eq!(
-            serde_json::to_string(&ObjectType::LeanResult).expect("serialize"),
-            "\"LeanResult\"",
+            serde_json::to_string(&ObjectType::DomainProofResult).expect("serialize"),
+            "\"VerifierResult\"",
+        );
+        // De-Lean migration (2026-06-15): a historical `"LeanResult"` wire
+        // string MUST still deserialize into the renamed `DomainProofResult`
+        // variant (the `#[serde(rename)]` is bidirectional). This guarantees
+        // every pre-migration CAS object reconstructs to the same in-memory
+        // variant + canonical hash.
+        assert_eq!(
+            serde_json::from_str::<ObjectType>("\"VerifierResult\"").expect("deserialize legacy"),
+            ObjectType::DomainProofResult,
         );
         assert_eq!(
             serde_json::to_string(&ObjectType::TerminalAbortRecord).expect("serialize"),

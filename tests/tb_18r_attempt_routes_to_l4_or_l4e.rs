@@ -97,11 +97,11 @@ fn fixture_work_tx(proposal_cid: Cid) -> TypedTx {
 #[test]
 fn lean_fail_attempt_refines_to_lean_failed_rejection_class() {
     let (_dir, cas) = fresh_cas();
-    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::LeanFail, "leanfail");
+    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::VerifierFail, "leanfail");
     let tx = fixture_work_tx(attempt_cid);
     let refined =
         refine_rejection_class_via_attempt_telemetry(&cas, &tx, RejectionClass::PredicateFailed);
-    assert_eq!(refined, RejectionClass::LeanFailed);
+    assert_eq!(refined, RejectionClass::CheckerFailed);
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn non_predicate_failed_base_class_unchanged() {
     // PredicateFailed". EscrowMissing / InsufficientBalance / etc. keep
     // their existing semantics.
     let (_dir, cas) = fresh_cas();
-    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::LeanFail, "nofbase");
+    let attempt_cid = write_failure_attempt(&cas, AttemptOutcome::VerifierFail, "nofbase");
     let tx = fixture_work_tx(attempt_cid);
     for base in [
         RejectionClass::EscrowMissing,

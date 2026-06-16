@@ -1,7 +1,7 @@
 //! TB-18R Phase 2 — typed-verdict consistency contract witness.
 //!
-//! Exercises `LeanResult::is_verdict_kind_consistent`, the predicate that
-//! `assert_45_lean_result_retrievable_from_cas` enforces over LeanResult CAS
+//! Exercises `VerifierResult::is_verdict_kind_consistent`, the predicate that
+//! `assert_45_lean_result_retrievable_from_cas` enforces over VerifierResult CAS
 //! objects (`src/runtime/audit_assertions.rs:assert_45_lean_result_retrievable_from_cas`).
 //!
 //! Per Phase 2 directive §6 + FC-first analysis §2.4: the four canonical
@@ -14,17 +14,19 @@
 //! TRACE_MATRIX FC2-N34 (TB-18R Phase 2 NEW witness).
 
 use turingosv4::bottom_white::cas::schema::Cid;
-use turingosv4::runtime::attempt_telemetry::{LeanErrorClass, LeanResult, LeanVerdictKind};
+use turingosv4::runtime::attempt_telemetry::{
+    VerifierErrorClass, VerifierResult, VerifierVerdictKind,
+};
 use turingosv4::state::q_state::TxId;
 
 fn make_lr(
     exit_code: i32,
     verified: bool,
-    error_class: Option<LeanErrorClass>,
-    verdict_kind: LeanVerdictKind,
-) -> LeanResult {
+    error_class: Option<VerifierErrorClass>,
+    verdict_kind: VerifierVerdictKind,
+) -> VerifierResult {
     let _ = Cid::from_content(b"placeholder"); // retain Cid in scope to silence unused-import drift
-    LeanResult {
+    VerifierResult {
         attempt_id: TxId("att-test".into()),
         exit_code,
         verified,
@@ -38,7 +40,7 @@ fn make_lr(
 
 #[test]
 fn consistency_passes_on_canonical_verified() {
-    let lr = make_lr(0, true, None, LeanVerdictKind::Verified);
+    let lr = make_lr(0, true, None, VerifierVerdictKind::Verified);
     assert!(lr.is_verdict_kind_consistent());
 }
 
@@ -47,33 +49,33 @@ fn consistency_passes_on_canonical_failed_lean_failed() {
     let lr = make_lr(
         1,
         false,
-        Some(LeanErrorClass::LeanFailed),
-        LeanVerdictKind::Failed,
+        Some(VerifierErrorClass::VerifierFailed),
+        VerifierVerdictKind::Failed,
     );
     assert!(lr.is_verdict_kind_consistent());
 }
 
 #[test]
 fn consistency_passes_on_canonical_failed_parse_failed() {
-    // Failed-class admits any LeanErrorClass at exit_code≠0.
+    // Failed-class admits any VerifierErrorClass at exit_code≠0.
     let lr = make_lr(
         2,
         false,
-        Some(LeanErrorClass::ParseFailed),
-        LeanVerdictKind::Failed,
+        Some(VerifierErrorClass::ParseFailed),
+        VerifierVerdictKind::Failed,
     );
     assert!(lr.is_verdict_kind_consistent());
 }
 
 #[test]
 fn consistency_passes_on_canonical_failed_with_sorry_at_nonzero_exit() {
-    // exit_code=1 + SorryBlocked classifies as Failed at the LeanResult level
-    // (the sorry distinction lives in LeanErrorClass; verdict_kind = Failed).
+    // exit_code=1 + SorryBlocked classifies as Failed at the VerifierResult level
+    // (the sorry distinction lives in VerifierErrorClass; verdict_kind = Failed).
     let lr = make_lr(
         1,
         false,
-        Some(LeanErrorClass::SorryBlocked),
-        LeanVerdictKind::Failed,
+        Some(VerifierErrorClass::IncompleteProofBlocked),
+        VerifierVerdictKind::Failed,
     );
     assert!(lr.is_verdict_kind_consistent());
 }
@@ -81,7 +83,7 @@ fn consistency_passes_on_canonical_failed_with_sorry_at_nonzero_exit() {
 #[test]
 fn consistency_passes_on_canonical_partial_accepted() {
     // The state that round-1 VETO surfaced — Phase 2 makes it explicit.
-    let lr = make_lr(0, false, None, LeanVerdictKind::PartialAccepted);
+    let lr = make_lr(0, false, None, VerifierVerdictKind::PartialAccepted);
     assert!(lr.is_verdict_kind_consistent());
 }
 
@@ -90,8 +92,8 @@ fn consistency_passes_on_canonical_sorry_blocked() {
     let lr = make_lr(
         0,
         false,
-        Some(LeanErrorClass::SorryBlocked),
-        LeanVerdictKind::SorryBlocked,
+        Some(VerifierErrorClass::IncompleteProofBlocked),
+        VerifierVerdictKind::IncompleteProofBlocked,
     );
     assert!(lr.is_verdict_kind_consistent());
 }
@@ -101,7 +103,7 @@ fn consistency_fails_on_drift_verified_with_false_verified_flag() {
     // Drift: verdict_kind=Verified but verified=false. The Phase 2 typed
     // invariant catches this — the round-1 R8 form would have missed the
     // drift because it used implication (=>) not equality (==).
-    let lr = make_lr(0, false, None, LeanVerdictKind::Verified);
+    let lr = make_lr(0, false, None, VerifierVerdictKind::Verified);
     assert!(!lr.is_verdict_kind_consistent());
 }
 
@@ -110,8 +112,8 @@ fn consistency_fails_on_drift_verified_with_error_class_set() {
     let lr = make_lr(
         0,
         true,
-        Some(LeanErrorClass::LeanFailed),
-        LeanVerdictKind::Verified,
+        Some(VerifierErrorClass::VerifierFailed),
+        VerifierVerdictKind::Verified,
     );
     assert!(!lr.is_verdict_kind_consistent());
 }
@@ -123,8 +125,8 @@ fn consistency_fails_on_drift_partial_accepted_with_error_class_set() {
     let lr = make_lr(
         0,
         false,
-        Some(LeanErrorClass::LeanFailed),
-        LeanVerdictKind::PartialAccepted,
+        Some(VerifierErrorClass::VerifierFailed),
+        VerifierVerdictKind::PartialAccepted,
     );
     assert!(!lr.is_verdict_kind_consistent());
 }
@@ -136,8 +138,8 @@ fn consistency_fails_on_drift_failed_with_exit_code_zero() {
     let lr = make_lr(
         0,
         false,
-        Some(LeanErrorClass::LeanFailed),
-        LeanVerdictKind::Failed,
+        Some(VerifierErrorClass::VerifierFailed),
+        VerifierVerdictKind::Failed,
     );
     assert!(!lr.is_verdict_kind_consistent());
 }
@@ -146,26 +148,26 @@ fn consistency_fails_on_drift_failed_with_exit_code_zero() {
 fn consistency_fails_on_drift_failed_with_no_error_class() {
     // Failed kind requires error_class.is_some(). None at exit_code≠0 with
     // Failed kind would silently swallow a missing-classification defect.
-    let lr = make_lr(1, false, None, LeanVerdictKind::Failed);
+    let lr = make_lr(1, false, None, VerifierVerdictKind::Failed);
     assert!(!lr.is_verdict_kind_consistent());
 }
 
 #[test]
 fn consistency_fails_on_drift_sorry_blocked_with_wrong_error_class() {
     // SorryBlocked verdict_kind requires error_class == Some(SorryBlocked);
-    // any other LeanErrorClass is drift.
+    // any other VerifierErrorClass is drift.
     let lr = make_lr(
         0,
         false,
-        Some(LeanErrorClass::LeanFailed),
-        LeanVerdictKind::SorryBlocked,
+        Some(VerifierErrorClass::VerifierFailed),
+        VerifierVerdictKind::IncompleteProofBlocked,
     );
     assert!(!lr.is_verdict_kind_consistent());
 }
 
 #[test]
 fn consistency_fails_on_drift_sorry_blocked_with_no_error_class() {
-    let lr = make_lr(0, false, None, LeanVerdictKind::SorryBlocked);
+    let lr = make_lr(0, false, None, VerifierVerdictKind::IncompleteProofBlocked);
     assert!(!lr.is_verdict_kind_consistent());
 }
 
@@ -176,40 +178,40 @@ fn consistency_fails_on_drift_sorry_blocked_at_nonzero_exit() {
     let lr = make_lr(
         1,
         false,
-        Some(LeanErrorClass::SorryBlocked),
-        LeanVerdictKind::SorryBlocked,
+        Some(VerifierErrorClass::IncompleteProofBlocked),
+        VerifierVerdictKind::IncompleteProofBlocked,
     );
     assert!(!lr.is_verdict_kind_consistent());
 }
 
 #[test]
 fn consistency_canonical_round_trip_via_canonical_codec() {
-    // The canonical-encoded LeanResult round-trips byte-stable AND the
+    // The canonical-encoded VerifierResult round-trips byte-stable AND the
     // recovered record passes the consistency check. This is the durability
-    // guarantee for v2 LeanResult records on Phase 3 evidence.
+    // guarantee for v2 VerifierResult records on Phase 3 evidence.
     use turingosv4::bottom_white::ledger::transition_ledger::{canonical_decode, canonical_encode};
 
-    let canonical_shapes: [(i32, bool, Option<LeanErrorClass>, LeanVerdictKind); 4] = [
-        (0, true, None, LeanVerdictKind::Verified),
+    let canonical_shapes: [(i32, bool, Option<VerifierErrorClass>, VerifierVerdictKind); 4] = [
+        (0, true, None, VerifierVerdictKind::Verified),
         (
             1,
             false,
-            Some(LeanErrorClass::LeanFailed),
-            LeanVerdictKind::Failed,
+            Some(VerifierErrorClass::VerifierFailed),
+            VerifierVerdictKind::Failed,
         ),
-        (0, false, None, LeanVerdictKind::PartialAccepted),
+        (0, false, None, VerifierVerdictKind::PartialAccepted),
         (
             0,
             false,
-            Some(LeanErrorClass::SorryBlocked),
-            LeanVerdictKind::SorryBlocked,
+            Some(VerifierErrorClass::IncompleteProofBlocked),
+            VerifierVerdictKind::IncompleteProofBlocked,
         ),
     ];
     for (ec, v, errc, kind) in canonical_shapes {
         let lr = make_lr(ec, v, errc, kind);
         assert!(lr.is_verdict_kind_consistent());
         let bytes = canonical_encode(&lr).expect("encode");
-        let decoded: LeanResult = canonical_decode(&bytes).expect("decode");
+        let decoded: VerifierResult = canonical_decode(&bytes).expect("decode");
         assert_eq!(decoded, lr);
         assert!(decoded.is_verdict_kind_consistent());
     }

@@ -54,7 +54,9 @@ use tempfile::TempDir;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::rejection_evidence::{RejectionClass, RejectionEvidenceWriter};
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass, RejectionEvidenceWriter,
+};
 use turingosv4::bottom_white::ledger::system_keypair::{
     Ed25519Keypair, PinnedSystemPubkeys, SystemEpoch,
 };
@@ -76,8 +78,8 @@ use turingosv4::runtime::real5_roles::{
 use turingosv4::state::q_state::{AgentId, Hash, QState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
-    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind, LogFeedbackArchiveTx,
-    VetoVerdict as TypedVetoVerdict, ARCHITECT_FEEDBACK_SCHEMA_ID,
+    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind,
+    LogFeedbackArchiveTx, VetoVerdict as TypedVetoVerdict, ARCHITECT_FEEDBACK_SCHEMA_ID,
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
@@ -166,8 +168,8 @@ fn seed_rejection_cluster(h: &Harness) {
     let mut rej = h.rejections.write().expect("l4e write");
     let stub_cid = Cid::from_content(b"fc3-closure-rejection-stub");
     for (i, class) in [
-        RejectionClass::LeanFailed,
-        RejectionClass::LeanFailed,
+        RejectionClass::CheckerFailed,
+        RejectionClass::CheckerFailed,
         RejectionClass::ParseFailed,
     ]
     .into_iter()
@@ -310,7 +312,8 @@ async fn fc3_meta_loop_closes_with_committed_reinit() {
     // activation so we can prove the closing leg never touched it. The real
     // genesis_payload.toml lives at the repo root; CARGO_MANIFEST_DIR is the repo
     // root for an integration test.
-    let real_manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("genesis_payload.toml");
+    let real_manifest =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("genesis_payload.toml");
     let real_manifest_before =
         std::fs::read(&real_manifest).expect("read real genesis_payload.toml before activation");
     let prior_q = h.seq.q_snapshot().expect("q snapshot");

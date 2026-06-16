@@ -7,7 +7,7 @@ use turingosv4::judges::lean_judge::{
     classify_axiom_report, AxiomCheckStatus, LeanJudge, DEFAULT_ALLOWED_AXIOMS,
     KERNEL_BYPASS_TOKENS,
 };
-use turingosv4::runtime::attempt_telemetry::{LeanErrorClass, LeanVerdictKind};
+use turingosv4::runtime::attempt_telemetry::{VerifierErrorClass, VerifierVerdictKind};
 
 #[test]
 fn axiom_report_with_no_axioms_passes_whitelist_gate() {
@@ -56,8 +56,14 @@ fn unsafe_shortcut_is_source_rejected_before_lean_runs() {
     judge.lean_bin = PathBuf::from("/definitely/not/a/lean/binary");
     let outcome = judge.verify("unsafe exact trivial");
 
-    assert_eq!(outcome.verdict_kind, LeanVerdictKind::SorryBlocked);
-    assert_eq!(outcome.error_class, Some(LeanErrorClass::SorryBlocked));
+    assert_eq!(
+        outcome.verdict_kind,
+        VerifierVerdictKind::IncompleteProofBlocked
+    );
+    assert_eq!(
+        outcome.error_class,
+        Some(VerifierErrorClass::IncompleteProofBlocked)
+    );
     assert_eq!(
         outcome.axiom_check_status,
         AxiomCheckStatus::SourceForbiddenPattern

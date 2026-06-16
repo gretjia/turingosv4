@@ -171,14 +171,16 @@ fn arg_taint_v1_flags_tainted_arg_into_privileged_sink() {
          got {findings:?}"
     );
     assert!(
-        findings.iter().all(|f| f.arg_name == "recipient"
-            && f.arg_taint == ArgTaint::UntrustedExternal),
+        findings
+            .iter()
+            .all(|f| f.arg_name == "recipient" && f.arg_taint == ArgTaint::UntrustedExternal),
         "every finding must name the tainted recipient arg: {findings:?}"
     );
     assert!(
         findings
             .iter()
-            .any(|f| f.sink == "wallet.transfer" && f.sink_reason == SinkReason::PrivilegedCapability),
+            .any(|f| f.sink == "wallet.transfer"
+                && f.sink_reason == SinkReason::PrivilegedCapability),
         "the economic-wallet tool must be a privileged-capability sink: {findings:?}"
     );
     assert!(
@@ -279,7 +281,10 @@ fn kernel_rejects_tainted_arg_into_privileged_sink() {
     // tainted-arg → privileged-sink Proceed. (The non-advancing rejection is
     // committed via handle_rejection with the ArgTaintIntoPrivilegedSink
     // reject_class / arg_taint_v1 failed-predicate marker.)
-    assert_eq!(head, "H0", "verified head must remain at the genesis H0 (no advance)");
+    assert_eq!(
+        head, "H0",
+        "verified head must remain at the genesis H0 (no advance)"
+    );
 }
 
 /// POSITIVE CONTROL (positive leg) — the SAME kernel leg fed a TRUSTED-arg call

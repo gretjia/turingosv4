@@ -460,10 +460,13 @@ fn generate_emits_work_tx_and_market_seed_on_canonical_chain() {
         let meta = store
             .metadata(&cid)
             .unwrap_or_else(|| panic!("proposal CID {cid_hex} must resolve in CAS"));
-        assert_eq!(
-            meta.schema_id.as_deref(),
-            Some("turingosv4.proposal_telemetry.v1"),
-            "WorkTx.proposal_cid {cid_hex} must be ProposalTelemetry for verify_chaintape Gate 5"
+        assert!(
+            matches!(
+                meta.schema_id.as_deref(),
+                Some("turingosv4.proposal_telemetry.v1") | Some("turingosv4.proposal_telemetry.v2")
+            ),
+            "WorkTx.proposal_cid {cid_hex} must be ProposalTelemetry (v1 or §8 v2) for verify_chaintape Gate 5, got {:?}",
+            meta.schema_id.as_deref()
         );
         let telemetry = read_proposal_telemetry(&store, &cid)
             .unwrap_or_else(|e| panic!("proposal telemetry {cid_hex} must decode: {e}"));
@@ -986,7 +989,7 @@ fn generate_no_files_failure_emits_rejected_worktx_on_canonical_chain() {
         .expect("rejected WorkTx proposal_cid must decode as ProposalTelemetry");
     assert_eq!(telemetry.agent_id, AgentId("worker-alpha".into()));
     assert_eq!(
-        telemetry.candidate_tactic, "generate-artifact-reject",
+        telemetry.candidate_label, "generate-artifact-reject",
         "rejected WorkTx telemetry must declare rejected candidate tactic"
     );
     let rejection_meta = cas

@@ -284,7 +284,7 @@ fn is_agent_write_ingress(k: TxKind) -> bool {
 /// `LlmError → llm_err`. Returns `None` for non-FC1-arm rejection classes.
 fn fc1_failure_arm(rc: L4ERejectionClass) -> Option<&'static str> {
     match rc {
-        L4ERejectionClass::LeanFailed => Some("step_reject"),
+        L4ERejectionClass::CheckerFailed => Some("step_reject"),
         L4ERejectionClass::ParseFailed => Some("parse_fail"),
         L4ERejectionClass::LlmError => Some("llm_err"),
         _ => None,
@@ -401,10 +401,7 @@ fn reconstruct_footprints(tape: &LoadedTape) -> TapeFootprints {
     // by schema_id then structurally confirm (terminal == sandbox:canary_only).
     use crate::runtime::real5_roles::fc3_canary::FC3_METRIC_ESTIMATE_SCHEMA_ID;
     for cid in tape.cas.list_all_cids() {
-        let is_canary_schema = tape
-            .cas
-            .metadata(&cid)
-            .and_then(|m| m.schema_id.as_deref())
+        let is_canary_schema = tape.cas.metadata(&cid).and_then(|m| m.schema_id.as_deref())
             == Some(FC3_METRIC_ESTIMATE_SCHEMA_ID);
         if is_canary_schema && cas_object_is_canary_metric(&tape.cas, &cid) {
             fp.canary_metric_capsules += 1;
@@ -442,9 +439,21 @@ fn fc1_rows(fp: &TapeFootprints) -> Vec<FcNodeLiveness> {
     });
 
     // Three failure arms.
-    rows.push(arm_row("FC1:failure_arm/step_reject", "L4E:LeanFailed", fp.step_reject));
-    rows.push(arm_row("FC1:failure_arm/parse_fail", "L4E:ParseFailed", fp.parse_fail));
-    rows.push(arm_row("FC1:failure_arm/llm_err", "L4E:LlmError", fp.llm_err));
+    rows.push(arm_row(
+        "FC1:failure_arm/step_reject",
+        "L4E:LeanFailed",
+        fp.step_reject,
+    ));
+    rows.push(arm_row(
+        "FC1:failure_arm/parse_fail",
+        "L4E:ParseFailed",
+        fp.parse_fail,
+    ));
+    rows.push(arm_row(
+        "FC1:failure_arm/llm_err",
+        "L4E:LlmError",
+        fp.llm_err,
+    ));
 
     // rtool→wtool typed write ingress bridge (agent proposal reached L4).
     rows.push(if fp.rtool_wtool_bridge > 0 {
@@ -590,9 +599,7 @@ fn claim_footprint_present(claim: &LivenessInventoryClaim, fp: &TapeFootprints) 
                 || fp.terminals > 0;
         } else if a.starts_with("fc3") {
             any_fc = true;
-            present = present
-                || fp.real_architect_proposals > 0
-                || fp.canary_metric_capsules > 0;
+            present = present || fp.real_architect_proposals > 0 || fp.canary_metric_capsules > 0;
         }
     }
     // Claims with no FC anchor are treated as substrate present iff the tape has
@@ -782,10 +789,7 @@ pub fn render_fc_liveness_summary(report: &FcLivenessReport) -> String {
         } else if r.footprint_present {
             "footprint-present".to_string()
         } else {
-            format!(
-                "excused:{}",
-                r.excused_reason.as_deref().unwrap_or("?")
-            )
+            format!("excused:{}", r.excused_reason.as_deref().unwrap_or("?"))
         };
         out.push_str(&format!("    {:<40} {}\n", r.module, verdict));
     }
@@ -803,11 +807,13 @@ pub fn build_inventory(
 ) -> LivenessInventory {
     let claims = rows
         .into_iter()
-        .map(|(module, constitutional_anchors, excused_reason)| LivenessInventoryClaim {
-            module,
-            constitutional_anchors,
-            excused_reason,
-        })
+        .map(
+            |(module, constitutional_anchors, excused_reason)| LivenessInventoryClaim {
+                module,
+                constitutional_anchors,
+                excused_reason,
+            },
+        )
         .collect();
     LivenessInventory { claims }
 }
@@ -832,15 +838,24 @@ mod tests {
             ..TapeFootprints::default()
         };
         let rows = fc1_rows(&fp);
-        let advance = rows.iter().find(|r| r.node_id == "FC1:predicate_gated_advance").unwrap();
+        let advance = rows
+            .iter()
+            .find(|r| r.node_id == "FC1:predicate_gated_advance")
+            .unwrap();
         assert_eq!(advance.status, FcNodeStatus::Live);
         assert_eq!(advance.footprint_count, 3);
 
-        let llm = rows.iter().find(|r| r.node_id == "FC1:failure_arm/llm_err").unwrap();
+        let llm = rows
+            .iter()
+            .find(|r| r.node_id == "FC1:failure_arm/llm_err")
+            .unwrap();
         assert_eq!(llm.status, FcNodeStatus::Live);
         assert_eq!(llm.footprint_count, 2);
 
-        let step = rows.iter().find(|r| r.node_id == "FC1:failure_arm/step_reject").unwrap();
+        let step = rows
+            .iter()
+            .find(|r| r.node_id == "FC1:failure_arm/step_reject")
+            .unwrap();
         // Unfired arm: honest ReachableNotFired, NOT a zombie.
         assert_eq!(step.status, FcNodeStatus::ReachableNotFired);
         assert_ne!(step.status, FcNodeStatus::Zombie);
@@ -857,7 +872,10 @@ mod tests {
         };
         let rows = fc2_rows(&fp);
         assert!(rows.iter().all(|r| r.status == FcNodeStatus::Live));
-        let tick = rows.iter().find(|r| r.node_id == "FC2:map_reduce_tick").unwrap();
+        let tick = rows
+            .iter()
+            .find(|r| r.node_id == "FC2:map_reduce_tick")
+            .unwrap();
         assert_eq!(tick.footprint_count, 5);
     }
 
@@ -899,7 +917,11 @@ mod tests {
     fn no_zombie_distinguishes_zombie_from_excused() {
         let fp = TapeFootprints::default(); // empty tape → no footprints
         let inv = build_inventory(vec![
-            ("zombie_mod".to_string(), vec!["FC3:constitution".to_string()], None),
+            (
+                "zombie_mod".to_string(),
+                vec!["FC3:constitution".to_string()],
+                None,
+            ),
             (
                 "excused_mod".to_string(),
                 vec!["FC3:constitution".to_string()],
@@ -936,11 +958,23 @@ mod tests {
     /// fc1_failure_arm maps the three FC1 reject classes and ignores others.
     #[test]
     fn fc1_failure_arm_maps_three_classes() {
-        assert_eq!(fc1_failure_arm(L4ERejectionClass::LeanFailed), Some("step_reject"));
-        assert_eq!(fc1_failure_arm(L4ERejectionClass::ParseFailed), Some("parse_fail"));
-        assert_eq!(fc1_failure_arm(L4ERejectionClass::LlmError), Some("llm_err"));
+        assert_eq!(
+            fc1_failure_arm(L4ERejectionClass::CheckerFailed),
+            Some("step_reject")
+        );
+        assert_eq!(
+            fc1_failure_arm(L4ERejectionClass::ParseFailed),
+            Some("parse_fail")
+        );
+        assert_eq!(
+            fc1_failure_arm(L4ERejectionClass::LlmError),
+            Some("llm_err")
+        );
         assert_eq!(fc1_failure_arm(L4ERejectionClass::PredicateFailed), None);
-        assert_eq!(fc1_failure_arm(L4ERejectionClass::SorryBlocked), None);
+        assert_eq!(
+            fc1_failure_arm(L4ERejectionClass::IncompleteProofBlocked),
+            None
+        );
     }
 
     /// The shielded render emits only bounded labels + integer counts — no '.'

@@ -489,11 +489,17 @@ mod tests {
     fn cheaper_or_faster_verified_solve_scores_higher() {
         let cheap = TaskVpput::compute_micro(1, 10, 2); // cost*ticks = 20
         let dear = TaskVpput::compute_micro(1, 100, 2); // cost*ticks = 200
-        assert!(cheap > dear, "fewer tokens must score higher: {cheap} !> {dear}");
+        assert!(
+            cheap > dear,
+            "fewer tokens must score higher: {cheap} !> {dear}"
+        );
 
         let fast = TaskVpput::compute_micro(1, 10, 1); // cost*ticks = 10
         let slow = TaskVpput::compute_micro(1, 10, 10); // cost*ticks = 100
-        assert!(fast > slow, "fewer ticks must score higher: {fast} !> {slow}");
+        assert!(
+            fast > slow,
+            "fewer ticks must score higher: {fast} !> {slow}"
+        );
     }
 
     /// Ground-truth gate: omega-terminal WITHOUT an oracle witness is NOT
@@ -505,15 +511,27 @@ mod tests {
             oracle_verified: false,
             ..TaskAccum::default()
         };
-        assert_eq!(acc.progress(), 0, "omega without oracle witness is not progress");
+        assert_eq!(
+            acc.progress(),
+            0,
+            "omega without oracle witness is not progress"
+        );
         acc.oracle_verified = true;
-        assert_eq!(acc.progress(), 1, "omega + oracle witness is the verified golden path");
+        assert_eq!(
+            acc.progress(),
+            1,
+            "omega + oracle witness is the verified golden path"
+        );
         let mut oracle_only = TaskAccum {
             omega_terminal: false,
             oracle_verified: true,
             ..TaskAccum::default()
         };
-        assert_eq!(oracle_only.progress(), 0, "oracle witness without omega terminal is not progress");
+        assert_eq!(
+            oracle_only.progress(),
+            0,
+            "oracle witness without omega terminal is not progress"
+        );
         oracle_only.omega_terminal = true;
         assert_eq!(oracle_only.progress(), 1);
     }
@@ -565,13 +583,23 @@ mod tests {
             },
         ];
         // held-out = {held_a, held_b, ghost_d}; ghost_d not on tape → ignored.
-        let held = vec!["held_a".to_string(), "held_b".to_string(), "ghost_d".to_string()];
+        let held = vec![
+            "held_a".to_string(),
+            "held_b".to_string(),
+            "ghost_d".to_string(),
+        ];
         let held_set: BTreeSet<&str> = held.iter().map(String::as_str).collect();
-        let present: Vec<&TaskVpput> =
-            tasks.iter().filter(|t| held_set.contains(t.task_id.as_str())).collect();
+        let present: Vec<&TaskVpput> = tasks
+            .iter()
+            .filter(|t| held_set.contains(t.task_id.as_str()))
+            .collect();
         assert_eq!(present.len(), 2, "ghost_d has no tape footprint → excluded");
         let sum: u64 = present.iter().map(|t| t.verified_pput_micro).sum();
-        assert_eq!(sum / present.len() as u64, 750_000, "(1_000_000 + 500_000)/2");
+        assert_eq!(
+            sum / present.len() as u64,
+            750_000,
+            "(1_000_000 + 500_000)/2"
+        );
     }
 
     /// The shielded render emits status + integer counts + integer micro values
@@ -604,9 +632,9 @@ mod tests {
         assert!(!s.to_lowercase().contains("stderr"));
         assert!(!s.to_lowercase().contains("autopsy"));
         let bytes = s.as_bytes();
-        let has_decimal_number = bytes.windows(3).any(|w| {
-            w[1] == b'.' && w[0].is_ascii_digit() && w[2].is_ascii_digit()
-        });
+        let has_decimal_number = bytes
+            .windows(3)
+            .any(|w| w[1] == b'.' && w[0].is_ascii_digit() && w[2].is_ascii_digit());
         assert!(
             !has_decimal_number,
             "no f64 decimal point may appear on a numeric surface"

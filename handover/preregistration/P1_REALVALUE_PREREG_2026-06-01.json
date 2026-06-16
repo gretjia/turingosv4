@@ -1,0 +1,77 @@
+{
+  "preregistration": "P1 REAL-VALUE — does NON-LOCAL price-routed tree search out-SOLVE honest baselines at equal budget? The first experiment that tests BOTH constitutional dimensions: {loss-bearing YES/NO price} x {non-local tree search: agents read the full-chain price landscape and restart from any earlier node to open new branches}.",
+  "date": "2026-06-01",
+  "status": "LOCKED v2 (2026-06-01) — hard set filled from the single-scan; autonomous arm + REAL librarian added (commit 05184f60, workflow-audited PROCEED); re-SHA-pinned BEFORE the counted sweep. WINS metric applies to BOTH price-routing arms (autonomous + market); autonomous-vs-market is the secondary scientific routing comparison. Counted comparison read ONLY after a POST-DATA §17 clean-context audit under handover/audits/.",
+  "supersedes_framing": "The forensic retrospective (SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md) demoted the flat-allocation T2/T-proxy experiments (they test scheduling order, not the constitution's value) and the rigged/synthetic emergence positives. This is the corrective primary experiment on the VERIFIED real substrate.",
+
+  "substrate_verified_2026-06-01": "src/bin/lean_market_agent.rs on the REAL ChainTape (not the lite tape): loss-bearing price (WorkTx-Long confidence-scaled + Bear ChallengeTx-Short -> compute_price_index) + TRUE softmax over the FULL live price index (actor.rs:115, non-local) + arbitrary-parent restart. Smoke: 13/16 non-local restarts across 7 distinct parents, distinct_price_ratios=5, verify_chaintape exit 0 (state + economic_state RECONSTRUCTED from L4, 86 entries, all signatures verified). Budget-parity bug FIXED (single now runs n_agents*n_rounds rounds = equal total proposals; commit 30bffe33).",
+
+  "design_reorientation_2026-06-01": "Architect insight: EASY theorems breed PSEUDO results — model-size/capability/lucky-guess and uncontrolled variables can manufacture a 'market win' on a problem single could also do. HARD theorems where single CANNOT solve SHIELD those confounds: 'if it can't be done, it can't be done' flattens model/luck to a 0-floor, so the ONLY remaining variable is the agent ORGANIZATION. Therefore the decisive test is NOT a 10-40% band (confound-prone) but: on theorems where single RELIABLY FAILS, does the MARKET (price-routed non-local tree search) CRACK them at equal budget? Each cracked theorem = one confound-shielded proof that the organization, not the model, is stronger.",
+
+  "the_question": "On HARD theorems where a single chain (same model, same total budget) RELIABLY FAILS (0/N seeds), does the MARKET (non-local softmax tree search with loss-bearing price) SOLVE them — and is the win attributable to PRICE + NON-LOCALITY (market also beats parallel N-chains [swarm], shuffled_price, and no_price)? A market solve where single AND parallel AND shuffled_price AND no_price all fail is a clean, confound-shielded proof that price-routed non-local tree search is a superior agent organization.",
+
+  "ADDENDUM_2026-06-01_librarian_and_autonomous": "Architect's two diagnostic catches (the forced market underperformed an unfair-to-itself setup): (1) the LIBRARIAN (collective failure memory) was a lookalike — now the REAL src/runtime/librarian_broadcast.rs is wired into EVERY price arm (select_librarian_events -> build_librarian_digest -> project_role_notifications(Solver), fed by a LeanResult CAS sidecar, shielded to error-classes), HELD CONSTANT across price arms so it is a control not a confound; (2) routing was harness-FORCED softmax only — now there is a NEW 'autonomous' arm where the AGENT reads the full-chain landscape and freely chooses where to build/branch (incl early nodes), vs 'market' which is the harness-FORCED softmax push. Implemented via workflow research->impl->sandbox->audit (PROCEED, no bugs; commit 05184f60). The SCIENTIFIC comparison is autonomous (Path-1, agent chooses) vs market (Path-2, softmax forced) with model/librarian/price/budget/theorems/seeds ALL held equal — the only variable is who chooses the node. Token cost of autonomy (its single call also picks a node) reported alongside equal proof-attempts.",
+
+  "PARITY_LOCK_2026-06-02_routing_algorithms": "Routing-parity-audit workflow (12 agents, adversarial; EQUAL-RIGOR-PROCEED; commit 329fad1e) found + fixed an information-DEPTH asymmetry AGAINST autonomous and rejected a tune-to-win trap. LOCKED for the counted run: (1) FIXED softmax temperature = boltzmann_temp 0.15, NO tau-annealing — preregistered fixed; adding the Router-v0.2 tau_t schedule (which exists elsewhere in the codebase) is FORBIDDEN here because it would give the forced-router a late-commit edge the autonomous LLM arm structurally lacks (the LLM's sampling temp is fixed 0.7) → a NEW asymmetry favoring softmax. (2) EQUAL REPAIR-DEPTH: autonomous shows the SAME shielded lean-error line (shield_lean_diagnostic, FEEDBACK_MAX=240) for its top-6-by-price nodes that market gets for its one chosen parent — so 'free choice' is not silently paid for in repair quality; both shielded (no raw stderr). (3) PRICE BYTE-IDENTICAL across arms (actor.rs + price_index.rs untouched) — the shared signal cannot favor either arm. (4) ROUTE TELEMETRY: route_valid_index_hit / route_deliberate_fresh_root / route_hallucinated_out_of_range recorded per autonomous cell, so the routing claim is FALSIFIABLE (a hallucinating model is distinguishable from a deliberate explorer; a latest-index chain-collapse is visible). (5) call-count parity is necessary NOT sufficient — depth parity (above) is the load-bearing fairness control.",
+
+  "arms": {
+    "autonomous": "PATH-1: in ONE call the AGENT reads the full-chain landscape (every node: index+price+conf+error-class+snippet, incl EARLY nodes) + the librarian digest, and freely returns {parent_node, proof_body, confidence} — its own choice of which node to extend or which early node to branch from. Loss-bearing price + Bear shorts.",
+    "market": "PATH-2: the harness picks the parent by TRUE softmax over the full live price index (forced push, non-local-capable) + loss-bearing price + Bear shorts + librarian. The forced-routing contrast to autonomous.",
+    "single": "1 agent, 1 chain, the SAME total proposal budget (n_agents*n_rounds rounds). The hard floor: theorems where THIS reliably fails (0/N) are the test set.",
+    "parallel": "N independent chains (each agent refines only its OWN last node), same budget — the SWARM control. > parallel rules out 'just more independent samples' and isolates COORDINATION.",
+    "shuffled_price": "softmax over the PERMUTED price vector (same distribution, wrong assignment) — isolates whether the PRICE (not just the tree) routes.",
+    "no_price": "random parent over the shared tape (tree, no price signal) — isolates whether the PRICE (not just shared non-local re-expansion) is load-bearing.",
+    "librarian_control": "the REAL librarian collective-failure digest is in EVERY price arm (autonomous/market/shuffled_price/no_price); single sees its own chain's failures. Held constant so the autonomous-vs-market contrast is purely the routing mode."
+  },
+
+  "phased_design": {
+    "phase_1_find_wins": "market + single on the HARD set H (single-failures), >=3 seeds. A WIN theorem = market SOLVES (>=1 seed) where single solves 0 across all its seeds. Cheap: 2 arms only.",
+    "phase_2_attribute": "on the WIN theorems ONLY, run parallel + shuffled_price + no_price (>=3 seeds). A CONFIRMED win = market solves it where single AND parallel AND shuffled_price AND no_price all solve 0 — attributed to price-routed non-local tree search, not swarm/greed/luck.",
+    "rationale": "don't spend control-arm compute on theorems market can't crack; only the WINS need attribution."
+  },
+
+  "metric": {
+    "primary": "CONFIRMED WINS = count of HARD theorems (single 0/seeds) that market solves (>=1 seed) AND parallel/shuffled_price/no_price all solve 0. Each is a confound-shielded proof point. Headline = 'market cracked N theorems that single, parallel, shuffled-price and no-price all could not, at equal budget.'",
+    "support_test": "paired EXACT McNemar (one-sided) market vs each of {single, parallel, shuffled_price, no_price} on the SOLVED indicator over (theorem,seed); Holm over the 4. SOLVED = omega_reached (full LeanVerdictKind::Verified, verified_count>0).",
+    "replay_gate": "a cell counts ONLY if verify_chaintape returns economic_state_reconstructed=true (replay-RECOMPUTE from L4, not byte-only) — §17.2. Non-clean cells EXCLUDED + reported.",
+    "axiom_gate": "every market-solved proof body must additionally pass #print axioms subset {propext, Classical.choice, Quot.sound} (no native_decide/sorry); a solve that fails the whitelist does not count.",
+    "secondary": "time-to-first-proof, PPUT, distinct_price_ratios, non-local-restart counts (descriptive, never the gate)."
+  },
+
+  "claim_integrity_§17": "Any 'market > single' / cracked-it headline must pass AGENTS.md §17 G1-G6 (/no-proven-checklist): G1 recompute-from-tape (verify_chaintape), G2 real model+verifier (satisfied by construction), G3 fair equal-budget baseline (single/parallel same model+budget; no rigged rival), G4 >=N seeds + a later-day re-run (no single-day flip), G5 post-data clean-context audit persisted under handover/audits/, G6 no literal pass-condition. Else the result is stated scoped/non-causal.",
+
+  "budget_parity": "EQUAL total proposals per arm = n_agents * n_rounds LLM proposals + the matching Lean verifies, IDENTICAL across arms (single auto-compensated). llm_calls in each manifest makes realized parity auditable; cells whose llm_calls deviate materially are flagged.",
+
+  "locked_config": {
+    "model": "deepseek-v4-pro via the de-branded gateway (Stage-1 pass@1 0.256 — leaves dynamic range; if calibration shows single solves the band trivially, drop to a weaker model and re-pin BEFORE counting)",
+    "n_agents": 4,
+    "n_rounds": 6,
+    "total_proposal_budget_per_cell": 24,
+    "seeds": ">=3 (phase-1); the unit of proof is the THEOREM (single 0/seeds vs market >=1/seed), so few seeds suffice to establish 'market can, single can't'; expand only if a theorem is borderline.",
+    "theorem_band": "LOCKED FROM SINGLE-SCAN (all 44, v4-pro, 1 chain, 24-deep, every cell replay-clean): single FAILS (omega=false, 24/24 attempts) on 24/44 = the HARD SET H = [lm_c, lm_coeff_mul, lm_deriv1, lm_deriv2, lm_det_zero, lm_e, lm_f, lm_fact, lm_finset_sup, lm_ineq1, lm_ineq2, lm_ineq3, lm_inf_sup_le, lm_lim1, lm_lt_min_max, lm_median, lm_median_probe, lm_monotone_glue, lm_natdeg_pow, lm_natdeg_sum, lm_nt_cop_cubic, lm_nt_gcd2, lm_probe1, lm_probeC3]. single SOLVES the other 20 (excluded — no confound shield). PHASE-1 SUBSET (12, topic spread): [lm_deriv1, lm_deriv2, lm_ineq1, lm_ineq2, lm_ineq3, lm_coeff_mul, lm_natdeg_pow, lm_nt_cop_cubic, lm_nt_gcd2, lm_median, lm_e, lm_lim1]. Phase-1 re-runs single seeds 1-3 to confirm robust failure (0/3) before a theorem counts as a market WIN.",
+    "bank": "tests/fixtures/lean_theorems_pool.jsonl",
+    "model_note": "deepseek-v4-pro is STRONG (architect: a strong model + hard problems shields capability/luck confounds better than a weak model on easy problems). The hardness comes from the THEOREM, not a crippled model."
+  },
+
+  "two_level_verdict": {
+    "A_price_causal_nonlocal_tree": "GO iff market out-solves single AND shuffled_price AND no_price, all Holm-p<0.05, every counted cell replay-clean. This is the constitution's REAL value (both dimensions). Honest prior: unknown — the prior proxy experiments were confounded; this is the first fair test.",
+    "B_governance_floor": "every counted cell is verify_chaintape replay-clean (economic_state reconstructed) — the auditable, replay-sound substrate. Held as the EXTERNAL posture until A passes. A is NEVER inferred from B."
+  },
+
+  "honest_discipline_from_the_retrospective": [
+    "FAIR BASELINES: single gets equal total budget; shuffled_price/no_price get the same tree minus the price — no rigged/force-suicided/definitional-floor rival.",
+    "REAL run: every cell is a real LLM + real Lean + real ChainTape; NO synthetic skill, NO frozen-matrix simulation.",
+    "REPLAY-RECOMPUTE: the SOLVED count is gated on verify_chaintape reconstructing economic_state from L4, not on a byte-chain badge.",
+    "AUDIT-AFTER-DATA: the clean-context audit runs AFTER the [FILL]s are replaced, persisted as an independent artifact under handover/audits/ referencing the manifest set — NOT prose against blank tables.",
+    "NO PROVEN: no causal/PROVEN headline; the result is GO/NO-GO/INCONCLUSIVE vs this lock, and external claims stay at Verdict B until A passes."
+  ],
+
+  "NOGO_report_honestly": [
+    "market ~ shuffled_price (the tree, not the price, does the work)",
+    "market ~ no_price (shared non-local re-expansion, not the price)",
+    "market <= single (the market does not beat a single chain at equal budget)",
+    "any counted cell fails replay -> excluded, not retconned"
+  ],
+
+  "discipline": "FC1/FC2/FC3 untouched; no Section-6 surface; integer money; de-branded multi-channel; PR-only; this prereg SHA-pinned (sibling .sha256) before any counted cell is read."
+}

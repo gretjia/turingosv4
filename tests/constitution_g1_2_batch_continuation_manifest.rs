@@ -72,7 +72,9 @@ async fn run_task_inproc(
         parent_state_root,
         run_id,
     );
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
     let (head_hex, _, len) = snapshot_head_t(runtime_repo).expect("snapshot post-task");

@@ -338,7 +338,7 @@ struct ProposalFlowEntry {
     tx_kind: String,
     agent_id: Option<String>,
     tx_id: Option<String>,
-    candidate_tactic: Option<String>,
+    candidate_label: Option<String>,
     branch_id: Option<String>,
     rejection_class: Option<String>,
     /// TB-7.7 D6: payload preview from CAS (first 80 bytes of proposal_artifact_cid content).
@@ -361,7 +361,7 @@ struct GoldenPathStep {
     depth: usize,
     tx_id: String,
     agent_id: String,
-    candidate_tactic: String,
+    candidate_label: String,
     payload_preview: String,
     oracle_verified: bool,
 }
@@ -488,7 +488,7 @@ fn build_report(
     // golden-path reconstruction.
     let mut oracle_verified_worktx: BTreeMap<
         String,
-        (String, String, String), // (agent_id, candidate_tactic, payload_preview)
+        (String, String, String), // (agent_id, candidate_label, payload_preview)
     > = BTreeMap::new();
     let mut work_parent_by_tx_id: BTreeMap<String, Option<String>> = BTreeMap::new();
     use turingosv4::runtime::verification_result::read_from_cas as read_verification_result;
@@ -514,7 +514,7 @@ fn build_report(
                 let mut oracle_verified: Option<bool> = None;
                 if work.proposal_cid.0 != [0u8; 32] {
                     if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
-                        tactic = Some(tel.candidate_tactic.clone());
+                        tactic = Some(tel.candidate_label.clone());
                         branch_id = Some(tel.branch_id.clone());
                         parent_tx = tel.parent_tx.as_ref().map(|t| t.0.clone());
                         // TB-7.7 D6: payload preview from CAS via proposal_artifact_cid.
@@ -534,7 +534,7 @@ fn build_report(
                                         work.tx_id.0.clone(),
                                         (
                                             work.agent_id.0.clone(),
-                                            tel.candidate_tactic.clone(),
+                                            tel.candidate_label.clone(),
                                             payload_preview.clone().unwrap_or_default(),
                                         ),
                                     );
@@ -557,7 +557,7 @@ fn build_report(
                     tx_kind: "Work".into(),
                     agent_id: Some(work.agent_id.0.clone()),
                     tx_id: Some(work.tx_id.0.clone()),
-                    candidate_tactic: tactic,
+                    candidate_label: tactic,
                     branch_id,
                     rejection_class: None,
                     proposal_artifact_preview: payload_preview,
@@ -615,7 +615,7 @@ fn build_report(
                     tx_kind: "Challenge".into(),
                     agent_id: Some(challenge.challenger_agent.0.clone()),
                     tx_id: Some(challenge.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -633,7 +633,7 @@ fn build_report(
                     tx_kind: "Verify".into(),
                     agent_id: Some(verify.verifier_agent.0.clone()),
                     tx_id: Some(verify.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -697,7 +697,7 @@ fn build_report(
                     tx_kind: "FinalizeReward".into(),
                     agent_id: Some(format!("system (solver={})", fr.solver.0)),
                     tx_id: Some(fr.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -726,7 +726,7 @@ fn build_report(
                     tx_kind: "TaskOpen".into(),
                     agent_id: Some(task.sponsor_agent.0.clone()),
                     tx_id: Some(task.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -750,7 +750,7 @@ fn build_report(
                     tx_kind: "EscrowLock".into(),
                     agent_id: Some(lock.sponsor_agent.0.clone()),
                     tx_id: Some(lock.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -782,7 +782,7 @@ fn build_report(
                     tx_kind: "TerminalSummary".into(),
                     agent_id: ts.solver_agent.as_ref().map(|a| a.0.clone()),
                     tx_id: Some(ts.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -804,7 +804,7 @@ fn build_report(
                     tx_kind: "TaskExpire".into(),
                     agent_id: Some(expire.sponsor_agent.0.clone()),
                     tx_id: Some(expire.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -826,7 +826,7 @@ fn build_report(
                     tx_kind: "TaskBankruptcy".into(),
                     agent_id: None,
                     tx_id: Some(bk.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -842,7 +842,7 @@ fn build_report(
                     tx_kind: "BuyWithCoinRouter".into(),
                     agent_id: Some(router.buyer.0.clone()),
                     tx_id: Some(router.tx_id.0.clone()),
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -856,7 +856,7 @@ fn build_report(
                     tx_kind: format!("{:?}", typed_tx.tx_kind()),
                     agent_id: None,
                     tx_id: None,
-                    candidate_tactic: None,
+                    candidate_label: None,
                     branch_id: None,
                     rejection_class: None,
                     proposal_artifact_preview: None,
@@ -895,7 +895,7 @@ fn build_report(
                 chain.push((
                     parent.clone(),
                     p.agent_id.clone().unwrap_or_default(),
-                    p.candidate_tactic.clone().unwrap_or_default(),
+                    p.candidate_label.clone().unwrap_or_default(),
                     p.proposal_artifact_preview.clone().unwrap_or_default(),
                     p.oracle_verified.unwrap_or(false),
                 ));
@@ -917,7 +917,7 @@ fn build_report(
                 depth,
                 tx_id,
                 agent_id: ag,
-                candidate_tactic: tac,
+                candidate_label: tac,
                 payload_preview: pl,
                 oracle_verified: vr,
             });
@@ -949,7 +949,7 @@ fn build_report(
                 if let TypedTx::Work(w) = typed_tx {
                     if w.proposal_cid.0 != [0u8; 32] {
                         if let Ok(tel) = read_proposal_telemetry(&cas, &w.proposal_cid) {
-                            tactic = Some(tel.candidate_tactic.clone());
+                            tactic = Some(tel.candidate_label.clone());
                             branch_id = Some(tel.branch_id.clone());
                         }
                     }
@@ -962,7 +962,7 @@ fn build_report(
             tx_kind: format!("{:?}", record.tx_kind),
             agent_id: Some(record.agent_id.0.clone()),
             tx_id: None,
-            candidate_tactic: tactic,
+            candidate_label: tactic,
             branch_id,
             rejection_class: Some(format!("{:?}", record.rejection_class)),
             proposal_artifact_preview: None,
@@ -1414,8 +1414,8 @@ fn render_text(r: &DashboardReport) -> String {
         r.run_facts.gp_path.as_deref().unwrap_or("-")
     ));
     s.push_str(&format!(
-        "  tactic_diversity        : {}\n",
-        r.run_facts.tactic_diversity
+        "  method_diversity        : {}\n",
+        r.run_facts.method_diversity
     ));
     s.push_str(&format!(
         "  failed_branch_count     : {}\n",
@@ -1486,7 +1486,7 @@ fn render_text(r: &DashboardReport) -> String {
                 entry.logical_t,
                 entry.tx_kind,
                 entry.agent_id.as_deref().unwrap_or("-"),
-                entry.candidate_tactic.as_deref().unwrap_or("-"),
+                entry.candidate_label.as_deref().unwrap_or("-"),
                 entry.branch_id.as_deref().unwrap_or("-"),
                 oracle_marker,
                 entry.rejection_class.as_deref().unwrap_or("-"),
@@ -1557,7 +1557,7 @@ fn render_text(r: &DashboardReport) -> String {
                     "        "
                 },
                 step.agent_id,
-                step.candidate_tactic,
+                step.candidate_label,
                 step.tx_id,
             ));
             if !step.payload_preview.is_empty() {

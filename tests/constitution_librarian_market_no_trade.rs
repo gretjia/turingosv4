@@ -205,6 +205,11 @@ fn selector_skips_known_safe_non_broadcast_generic_schemas() {
         "turingosv4.librarian_broadcast_epoch.v1",
         "turingosv4.verification_result.v1",
         "turingosv4.proposal_telemetry.v1",
+        // §8 regression: the carrier writes v2 ProposalTelemetry; the librarian selector
+        // must classify it as known-safe-ignore, NOT hard-error ("unknown librarian
+        // evidence schema"). Before the §8 librarian fix this entry made select_librarian_events
+        // return Err and the .unwrap() below panicked.
+        "turingosv4.proposal_telemetry.v2",
     ] {
         let payload = format!(r#"{{"schema_version":"{schema}","public":"metadata"}}"#);
         cas.put(

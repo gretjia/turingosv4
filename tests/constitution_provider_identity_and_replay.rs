@@ -50,6 +50,7 @@
 
 use tempfile::TempDir;
 
+use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::kernel::Kernel;
 use turingosv4::runtime::adapter::make_synthetic_task_open;
@@ -60,7 +61,6 @@ use turingosv4::runtime::agent_scheduler::provider_handle_capsule::{
 };
 use turingosv4::runtime::agent_scheduler::replay_diff_acceptance::replay_roots_match_genesis_at_paths;
 use turingosv4::runtime::{build_chaintape_sequencer, RuntimeChaintapeConfig};
-use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::sdk::id_handle;
 
 mod support;
@@ -109,7 +109,11 @@ fn two_distinct_providers_reconstructable_from_canonical_cas() {
     // sidecar, no filesystem side-store — only `cas.get` → restore.
     let cids = provider_handle_capsule_cids(&cas);
     assert!(cids.contains(&cid_a) && cids.contains(&cid_b));
-    assert_eq!(cids.len(), 2, "exactly the two capsules we anchored are discoverable");
+    assert_eq!(
+        cids.len(),
+        2,
+        "exactly the two capsules we anchored are discoverable"
+    );
 
     let cap_a = read_provider_handle_capsule_from_cas(&cas, &cid_a).expect("restore A");
     let cap_b = read_provider_handle_capsule_from_cas(&cas, &cid_b).expect("restore B");
@@ -268,9 +272,15 @@ async fn from_genesis_replay_reconstructs_identical_roots_and_tamper_flips_red()
     // manifest. Pin the deterministic test manifest on the bootstrapped
     // sequencer and re-sign the TaskOpen so it admits.
     support::pin_common_manifest(&bundle.sequencer);
-    let task_open =
-        support::resign(make_synthetic_task_open("task-prov", "sponsor-prov", boot_root, "prov-1"));
-    bus.submit_typed_tx(task_open).await.expect("submit TaskOpen");
+    let task_open = support::resign(make_synthetic_task_open(
+        "task-prov",
+        "sponsor-prov",
+        boot_root,
+        "prov-1",
+    ));
+    bus.submit_typed_tx(task_open)
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 

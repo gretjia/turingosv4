@@ -38,7 +38,7 @@ fn sanitized_digest_and_prompt_pass_no_leak_scan() {
         vec![
             LibrarianEvidenceEvent {
                 cid: Cid::from_content(b"e1"),
-                kind: LibrarianEvidenceKind::LeanError,
+                kind: LibrarianEvidenceKind::VerifierError,
                 class_label: "err:type_mismatch".into(),
                 task_id: Some("task".into()),
                 public_summary: "Repeated type mismatch class".into(),
@@ -46,7 +46,7 @@ fn sanitized_digest_and_prompt_pass_no_leak_scan() {
             },
             LibrarianEvidenceEvent {
                 cid: Cid::from_content(b"e2"),
-                kind: LibrarianEvidenceKind::LeanError,
+                kind: LibrarianEvidenceKind::VerifierError,
                 class_label: "err:type_mismatch".into(),
                 task_id: Some("task".into()),
                 public_summary: "Repeated type mismatch class".into(),

@@ -43,7 +43,7 @@ use sha2::{Digest, Sha256};
 
 use crate::bottom_white::cas::schema::Cid;
 use crate::bottom_white::ledger::transition_ledger::TxKind;
-use crate::runtime::attempt_telemetry::LeanErrorClass;
+use crate::runtime::attempt_telemetry::VerifierErrorClass;
 use crate::state::q_state::{AgentId, Hash};
 
 /// TB-6 Atom 1.2 — JSONL-backend shadow struct.
@@ -245,38 +245,58 @@ pub enum RejectionClass {
     /// renumbering of existing variants.
     InsufficientBalance = 5,
     /// **TB-18R R3** (`feedback_chaintape_externalized_proposal` + charter
-    /// §0.A Q8 remediation): Lean tactic returned a failure verdict
-    /// (type error / unification failure / undefined symbol / etc.) on the
-    /// runtime evaluator hot path. Mirrors `LeanErrorClass::LeanFailed = 6`
-    /// from R1 `attempt_telemetry.rs`. Stable repr-u8 = 6; tail-append, no
+    /// §0.A Q8 remediation): the external domain checker returned a failure
+    /// verdict (type error / unification failure / undefined symbol / etc.)
+    /// on the runtime evaluator hot path. Stable repr-u8 = 6; tail-append, no
     /// renumbering of existing variants 0..5.
-    LeanFailed = 6,
-    /// **TB-18R R3**: evaluator could not parse a candidate from the LLM
-    /// output (no recognizable lean code block, malformed wrapper). Mirrors
-    /// `LeanErrorClass::ParseFailed = 7`. Stable repr-u8 = 7; tail-append.
+    ///
+    /// De-Lean migration (2026-06-15, §8): renamed from `LeanFailed` to the
+    /// generic `CheckerFailed`. The discriminant NUMBER (6) is UNCHANGED — it
+    /// is hashed into the L4.E `compute_hash` via `(rejection_class as u8)`,
+    /// so every historical record re-hashes byte-identically. The serde
+    /// variant NAME is serialized into the JSONL L4.E sidecar, so
+    /// `#[serde(alias = "LeanFailed")]` keeps every historical `"LeanFailed"`
+    /// row deserializing into this variant (alias-on-read).
+    #[serde(alias = "LeanFailed")]
+    CheckerFailed = 6,
+    /// **TB-18R R3**: evaluator could not parse a candidate from the model
+    /// output (no recognizable proof code block, malformed wrapper). Mirrors
+    /// `VerifierErrorClass::ParseFailed = 7`. Stable repr-u8 = 7; tail-append.
     ParseFailed = 7,
-    /// **TB-18R R3**: candidate uses `sorry` or another forbidden incomplete
-    /// proof token. Mirrors `LeanErrorClass::SorryBlocked = 8`. Stable repr-u8
-    /// = 8; tail-append.
-    SorryBlocked = 8,
+    /// **TB-18R R3**: candidate uses a forbidden incomplete-proof token
+    /// (e.g. `sorry`). Stable repr-u8 = 8; tail-append.
+    ///
+    /// De-Lean migration (2026-06-15, §8): renamed from `SorryBlocked` to the
+    /// generic `IncompleteProofBlocked`. The discriminant NUMBER (8) is
+    /// UNCHANGED (hashed into `compute_hash`), and
+    /// `#[serde(alias = "SorryBlocked")]` keeps historical `"SorryBlocked"`
+    /// JSONL rows deserializing into this variant.
+    #[serde(alias = "SorryBlocked")]
+    IncompleteProofBlocked = 8,
     /// **TB-18R R3**: LLM API itself errored (HTTP non-200, timeout,
     /// rate-limit, JSON parse fail on the LLM client side). Mirrors
-    /// `LeanErrorClass::LlmError = 9`. Stable repr-u8 = 9; tail-append.
+    /// `VerifierErrorClass::LlmError = 9`. Stable repr-u8 = 9; tail-append.
     LlmError = 9,
 }
 
 /// TB-18R R3 (preflight `handover/ai-direct/TB-18R_R3_STEP_B_admission.md` §3.3):
-/// transcode the evaluator-side `LeanErrorClass` (from `attempt_telemetry.rs`,
-/// shipped in R1) into the sequencer-side `RejectionClass`. The discriminator
-/// values match (6/7/8/9 on both sides) so this is a no-op-byte transcode that
-/// preserves repr-u8.
-impl From<LeanErrorClass> for RejectionClass {
-    fn from(lec: LeanErrorClass) -> Self {
-        match lec {
-            LeanErrorClass::LeanFailed => RejectionClass::LeanFailed,
-            LeanErrorClass::ParseFailed => RejectionClass::ParseFailed,
-            LeanErrorClass::SorryBlocked => RejectionClass::SorryBlocked,
-            LeanErrorClass::LlmError => RejectionClass::LlmError,
+/// transcode the evaluator-side `VerifierErrorClass` (from
+/// `attempt_telemetry.rs`, shipped in R1) into the sequencer-side
+/// `RejectionClass`. The discriminator values match (6/7/8/9 on both sides) so
+/// this is a no-op-byte transcode that preserves repr-u8.
+///
+/// De-Lean migration (2026-06-15, §8): `LeanErrorClass` → `VerifierErrorClass`
+/// (variants `VerifierFailed`/`IncompleteProofBlocked`), and the target
+/// `RejectionClass` variants renamed `LeanFailed`→`CheckerFailed` /
+/// `SorryBlocked`→`IncompleteProofBlocked`. Discriminant numbers unchanged on
+/// both sides — the transcode stays a no-op-byte mapping.
+impl From<VerifierErrorClass> for RejectionClass {
+    fn from(vec_: VerifierErrorClass) -> Self {
+        match vec_ {
+            VerifierErrorClass::VerifierFailed => RejectionClass::CheckerFailed,
+            VerifierErrorClass::ParseFailed => RejectionClass::ParseFailed,
+            VerifierErrorClass::IncompleteProofBlocked => RejectionClass::IncompleteProofBlocked,
+            VerifierErrorClass::LlmError => RejectionClass::LlmError,
         }
     }
 }
@@ -867,5 +887,40 @@ mod tests {
             r,
             Err(RejectionEvidenceError::HashMismatch { at: 0 })
         ));
+    }
+
+    #[test]
+    fn de_lean_rejection_class_discriminants_and_aliases_stable() {
+        // De-Lean migration (2026-06-15, §8): the renamed variants MUST keep
+        // their discriminant NUMBERS (hashed into `compute_hash` via
+        // `rejection_class as u8`) so every historical L4.E record re-hashes
+        // byte-identically.
+        assert_eq!(RejectionClass::CheckerFailed as u8, 6);
+        assert_eq!(RejectionClass::IncompleteProofBlocked as u8, 8);
+        // Unchanged neighbours, for guard against accidental renumbering.
+        assert_eq!(RejectionClass::PredicateFailed as u8, 0);
+        assert_eq!(RejectionClass::ParseFailed as u8, 7);
+        assert_eq!(RejectionClass::LlmError as u8, 9);
+
+        // Forward serde NAME is the new generic one.
+        assert_eq!(
+            serde_json::to_string(&RejectionClass::CheckerFailed).expect("serialize"),
+            "\"CheckerFailed\"",
+        );
+        assert_eq!(
+            serde_json::to_string(&RejectionClass::IncompleteProofBlocked).expect("serialize"),
+            "\"IncompleteProofBlocked\"",
+        );
+        // Alias-on-read: a historical JSONL row that serialized the legacy
+        // names MUST still deserialize into the renamed variants.
+        assert_eq!(
+            serde_json::from_str::<RejectionClass>("\"LeanFailed\"").expect("legacy LeanFailed"),
+            RejectionClass::CheckerFailed,
+        );
+        assert_eq!(
+            serde_json::from_str::<RejectionClass>("\"SorryBlocked\"")
+                .expect("legacy SorryBlocked"),
+            RejectionClass::IncompleteProofBlocked,
+        );
     }
 }

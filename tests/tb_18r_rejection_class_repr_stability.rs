@@ -5,8 +5,8 @@
 //! - Pre-R3 variants 0..5 unchanged repr (no renumbering).
 //! - New R3 variants 6..9 (LeanFailed / ParseFailed / SorryBlocked / LlmError)
 //!   tail-append with stable repr-u8.
-//! - `From<LeanErrorClass> for RejectionClass` preserves the discriminator
-//!   1:1 (R1 LeanErrorClass repr 6/7/8/9 ↔ R3 RejectionClass repr 6/7/8/9).
+//! - `From<VerifierErrorClass> for RejectionClass` preserves the discriminator
+//!   1:1 (R1 VerifierErrorClass repr 6/7/8/9 ↔ R3 RejectionClass repr 6/7/8/9).
 //! - Pre-R3 vs R3-new variants occupy disjoint u8 ranges. The
 //!   `RejectedSubmissionRecord::compute_hash` byte stream depends on
 //!   `rejection_class as u8`; disjoint ranges guarantee post-R3 source
@@ -18,7 +18,7 @@
 use std::collections::HashSet;
 
 use turingosv4::bottom_white::ledger::rejection_evidence::RejectionClass;
-use turingosv4::runtime::attempt_telemetry::LeanErrorClass;
+use turingosv4::runtime::attempt_telemetry::VerifierErrorClass;
 
 #[test]
 fn rejection_class_repr_stable_with_new_variants() {
@@ -31,25 +31,33 @@ fn rejection_class_repr_stable_with_new_variants() {
     assert_eq!(RejectionClass::InsufficientBalance as u8, 5);
 
     // R3 NEW variants 6..9 — tail-append per charter §0.A Q8 remediation.
-    assert_eq!(RejectionClass::LeanFailed as u8, 6);
+    assert_eq!(RejectionClass::CheckerFailed as u8, 6);
     assert_eq!(RejectionClass::ParseFailed as u8, 7);
-    assert_eq!(RejectionClass::SorryBlocked as u8, 8);
+    assert_eq!(RejectionClass::IncompleteProofBlocked as u8, 8);
     assert_eq!(RejectionClass::LlmError as u8, 9);
 }
 
 #[test]
 fn lean_error_class_to_rejection_class_repr_preserved() {
-    // Per preflight §3.3: From<LeanErrorClass> for RejectionClass is a
+    // Per preflight §3.3: From<VerifierErrorClass> for RejectionClass is a
     // no-op-discriminator transcode. Repr u8 preserved 1:1.
     let cases = [
-        (LeanErrorClass::LeanFailed, RejectionClass::LeanFailed, 6u8),
-        (LeanErrorClass::ParseFailed, RejectionClass::ParseFailed, 7),
         (
-            LeanErrorClass::SorryBlocked,
-            RejectionClass::SorryBlocked,
+            VerifierErrorClass::VerifierFailed,
+            RejectionClass::CheckerFailed,
+            6u8,
+        ),
+        (
+            VerifierErrorClass::ParseFailed,
+            RejectionClass::ParseFailed,
+            7,
+        ),
+        (
+            VerifierErrorClass::IncompleteProofBlocked,
+            RejectionClass::IncompleteProofBlocked,
             8,
         ),
-        (LeanErrorClass::LlmError, RejectionClass::LlmError, 9),
+        (VerifierErrorClass::LlmError, RejectionClass::LlmError, 9),
     ];
     for (lec, expected_rc, expected_u8) in cases {
         let rc: RejectionClass = lec.into();
@@ -63,7 +71,7 @@ fn lean_error_class_to_rejection_class_repr_preserved() {
         );
         assert_eq!(
             lec as u8, expected_u8,
-            "LeanErrorClass discriminator drifted"
+            "VerifierErrorClass discriminator drifted"
         );
     }
 }
@@ -89,9 +97,9 @@ fn pre_r3_and_r3_new_variants_occupy_disjoint_u8_ranges() {
     .map(|r| *r as u8)
     .collect();
     let r3_new: HashSet<u8> = [
-        RejectionClass::LeanFailed,
+        RejectionClass::CheckerFailed,
         RejectionClass::ParseFailed,
-        RejectionClass::SorryBlocked,
+        RejectionClass::IncompleteProofBlocked,
         RejectionClass::LlmError,
     ]
     .iter()

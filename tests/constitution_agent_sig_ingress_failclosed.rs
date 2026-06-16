@@ -39,12 +39,12 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 
+use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::runtime::adapter::{
     make_real_challengetx_signed_by, make_real_complete_set_mint_signed_by,
     make_real_escrow_lock_signed_by, make_real_market_seed_signed_by,
     make_real_task_open_signed_by, make_real_verifytx_signed_by, make_real_worktx_signed_by,
 };
-use turingosv4::bottom_white::cas::schema::Cid;
 use turingosv4::runtime::agent_keypairs::{AgentKeypairRegistry, AgentPubkeyManifest};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TxId};
 use turingosv4::state::sequencer::SubmitError;
@@ -66,7 +66,8 @@ fn registry_with(agents: &[&str]) -> (TempDir, AgentKeypairRegistry, Arc<AgentPu
     let dir = TempDir::new().expect("registry dir");
     let mut reg = AgentKeypairRegistry::open(dir.path()).expect("open registry");
     for a in agents {
-        reg.get_or_create(&AgentId((*a).into())).expect("get_or_create");
+        reg.get_or_create(&AgentId((*a).into()))
+            .expect("get_or_create");
     }
     let manifest = Arc::new(reg.manifest());
     (dir, reg, manifest)
@@ -179,7 +180,8 @@ async fn assert_four_states(
     variant: &str,
 ) {
     // State 1 — valid signature, manifest set → ACCEPT.
-    assert_ingress_with_manifest(manifest, valid.clone(), Ok(()), &format!("{variant}/valid")).await;
+    assert_ingress_with_manifest(manifest, valid.clone(), Ok(()), &format!("{variant}/valid"))
+        .await;
 
     // State 2 — forged (all-zero) signature, manifest set → AgentSignatureInvalid.
     let forged = forge_zero_sig(&valid);
@@ -242,7 +244,15 @@ async fn work_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_worktx_signed_by(
-        &mut reg, "task-fc1", SIGNER, parent, 1_000_000, "fc", placeholder_proposal_cid(), true, 7,
+        &mut reg,
+        "task-fc1",
+        SIGNER,
+        parent,
+        1_000_000,
+        "fc",
+        placeholder_proposal_cid(),
+        true,
+        7,
     )
     .expect("build work");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);
@@ -254,7 +264,14 @@ async fn verify_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_verifytx_signed_by(
-        &mut reg, parent, TxId("target-work".into()), SIGNER, 1_000_000, "fc", true, 8,
+        &mut reg,
+        parent,
+        TxId("target-work".into()),
+        SIGNER,
+        1_000_000,
+        "fc",
+        true,
+        8,
     )
     .expect("build verify");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);
@@ -266,8 +283,14 @@ async fn challenge_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_challengetx_signed_by(
-        &mut reg, parent, TxId("target-work".into()), SIGNER, 1_000_000,
-        placeholder_proposal_cid(), "fc", 9,
+        &mut reg,
+        parent,
+        TxId("target-work".into()),
+        SIGNER,
+        1_000_000,
+        placeholder_proposal_cid(),
+        "fc",
+        9,
     )
     .expect("build challenge");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);
@@ -289,7 +312,13 @@ async fn escrow_lock_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_escrow_lock_signed_by(
-        &mut reg, "task-fc-open", SIGNER, 50_000_000, parent, "fc", 11,
+        &mut reg,
+        "task-fc-open",
+        SIGNER,
+        50_000_000,
+        parent,
+        "fc",
+        11,
     )
     .expect("build escrow_lock");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);
@@ -303,7 +332,13 @@ async fn complete_set_mint_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_complete_set_mint_signed_by(
-        &mut reg, parent, "task-fc-event", SIGNER, 1_000_000, "fc", 12,
+        &mut reg,
+        parent,
+        "task-fc-event",
+        SIGNER,
+        1_000_000,
+        "fc",
+        12,
     )
     .expect("build mint");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);
@@ -315,7 +350,13 @@ async fn market_seed_ingress_fail_closed_four_states() {
     let (_dir, mut reg, manifest) = registry_with(&[SIGNER, IMPOSTOR]);
     let parent = Hash::ZERO;
     let valid = make_real_market_seed_signed_by(
-        &mut reg, parent, "task-fc-event", SIGNER, 5_000_000, "fc", 13,
+        &mut reg,
+        parent,
+        "task-fc-event",
+        SIGNER,
+        5_000_000,
+        "fc",
+        13,
     )
     .expect("build market_seed");
     let impostor = impostor_resign(&mut reg, &valid, IMPOSTOR);

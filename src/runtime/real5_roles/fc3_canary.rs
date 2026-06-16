@@ -137,7 +137,9 @@ impl std::fmt::Display for CanaryError {
             Self::PredicateNotRegistered(id) => {
                 write!(f, "fc3 canary: predicate not registered: {id}")
             }
-            Self::PredicateVerify(class) => write!(f, "fc3 canary: predicate verify failed: {class}"),
+            Self::PredicateVerify(class) => {
+                write!(f, "fc3 canary: predicate verify failed: {class}")
+            }
             Self::Cas(e) => write!(f, "fc3 canary cas error: {e}"),
             Self::Codec(e) => write!(f, "fc3 canary codec error: {e}"),
         }
@@ -172,8 +174,8 @@ fn verify_error_class(err: &PredicateVerifyError) -> &'static str {
         PredicateVerifyError::ForbiddenPattern(_) => "forbidden_pattern",
         PredicateVerifyError::PayloadTooLarge { .. } => "payload_too_large",
         PredicateVerifyError::PayloadTooManyLines { .. } => "payload_too_many_lines",
-        PredicateVerifyError::LeanCheckerFailed(_) => "lean_checker_failed",
-        PredicateVerifyError::LeanCheckerUnavailable(_) => "lean_checker_unavailable",
+        PredicateVerifyError::ExternalCheckerFailed(_) => "lean_checker_failed",
+        PredicateVerifyError::ExternalCheckerUnavailable(_) => "lean_checker_unavailable",
     }
 }
 

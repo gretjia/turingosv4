@@ -236,11 +236,9 @@ pub fn loaded_tape_spend_tokens(tape: &LoadedTape) -> u64 {
 /// Pure read; observe-only; deterministic. Same tape ⇒ same spend.
 /// TRACE_MATRIX FC1-N34 + FC1a-tape_t: live-loop tape-derived integer spend.
 pub fn live_tape_spend_tokens<L: ImmutableTapeLedger>(tape: &L) -> u64 {
-    tape.dump_all_nodes()
-        .iter()
-        .fold(0u64, |acc, (_, node)| {
-            acc.saturating_add(node.token_count.unwrap_or(0) as u64)
-        })
+    tape.dump_all_nodes().iter().fold(0u64, |acc, (_, node)| {
+        acc.saturating_add(node.token_count.unwrap_or(0) as u64)
+    })
 }
 
 /// Sum the integer `token_count` over an explicit node slice — the pure kernel
@@ -345,7 +343,10 @@ mod tests {
     fn reject_label_is_the_pinned_budget_exceeded_variant() {
         // Reusing the existing RejectionClass::BudgetExceeded (typed_tx.rs:174).
         assert_eq!(reject_class_label(), "BudgetExceeded");
-        assert_eq!(reject_class_label(), format!("{:?}", RejectionClass::BudgetExceeded));
+        assert_eq!(
+            reject_class_label(),
+            format!("{:?}", RejectionClass::BudgetExceeded)
+        );
     }
 
     // ── FORWARD-ONLY: zero ceiling = unlimited, never rejects ──
@@ -431,7 +432,11 @@ mod tests {
         };
         // Accepted node (10) + failed-branch node (7) + a None-cost node (0) = 17.
         // Failed branches MUST count (mirrors VPPUT C_i).
-        let nodes = vec![node(Some(10), true), node(Some(7), false), node(None, false)];
+        let nodes = vec![
+            node(Some(10), true),
+            node(Some(7), false),
+            node(None, false),
+        ];
         assert_eq!(node_slice_spend_tokens(&nodes), 17);
         // Dropping the failed branch lowers the spend (non-vacuous: the failed
         // branch genuinely contributes).

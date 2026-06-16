@@ -132,13 +132,19 @@ impl std::fmt::Display for CommitReinitError {
         match self {
             Self::VetoNotAccepted => write!(f, "fc3 commit refused: Veto-AI verdict != Accept"),
             Self::ConstitutionInRange => {
-                write!(f, "fc3 commit refused: constitution.md is out of rewrite range")
+                write!(
+                    f,
+                    "fc3 commit refused: constitution.md is out of rewrite range"
+                )
             }
             Self::TrustRootRecompute(c) => {
                 write!(f, "fc3 sandbox trust-root recompute failed: {c}")
             }
             Self::ConstitutionHashDrift => {
-                write!(f, "fc3 commit refused: constitution hash drifted across recompute")
+                write!(
+                    f,
+                    "fc3 commit refused: constitution hash drifted across recompute"
+                )
             }
             Self::Irreversible => write!(f, "fc3 commit refused: activation is not reversible"),
             Self::Sandbox(e) => write!(f, "fc3 sandbox error: {e}"),
@@ -210,7 +216,9 @@ fn render_sandbox_manifest(payloads: &[(String, String)]) -> String {
     out.push_str("signed_at = \"2026-06-07T00:00:00+00:00\"\n");
     out.push_str("schema_version = 1\n");
     out.push_str(&format!("amendment_predicate_hash = \"{empty_sha}\"\n"));
-    out.push_str(&format!("initial_predicate_registry_root = \"{empty_sha}\"\n"));
+    out.push_str(&format!(
+        "initial_predicate_registry_root = \"{empty_sha}\"\n"
+    ));
     out.push_str(&format!("initial_tool_registry_root = \"{empty_sha}\"\n"));
     out.push_str("boot_attestation_hash = \"SANDBOX_NON_PRODUCTION\"\n\n");
     out.push_str("[trust_root]\n");

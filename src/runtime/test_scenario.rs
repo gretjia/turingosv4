@@ -70,12 +70,8 @@ impl TestScenario {
             TestScenario::EntrypointExists => {
                 ("EntrypointExists".to_string(), recorded_detail.to_string())
             }
-            TestScenario::HtmlParses => {
-                ("HtmlParses".to_string(), recorded_detail.to_string())
-            }
-            TestScenario::PythonParses => {
-                ("PythonParses".to_string(), recorded_detail.to_string())
-            }
+            TestScenario::HtmlParses => ("HtmlParses".to_string(), recorded_detail.to_string()),
+            TestScenario::PythonParses => ("PythonParses".to_string(), recorded_detail.to_string()),
             TestScenario::SandboxPolicyPreserved { .. } => (
                 "SandboxPolicyPreserved".to_string(),
                 recorded_detail.to_string(),
@@ -217,14 +213,14 @@ fn derive_required_text(spec_text: &str) -> Option<(String, String)> {
     //    commands like `turingos spec` / `python3 main.py`, and filename/path
     //    tokens like `index.html` — see `is_non_functional_token`).
     if let Some(tok) = first_delimited_filtered(&body, '`', '`', is_non_functional_token) {
-        return Some((format!("required control `{tok}`"), tok.to_ascii_lowercase()));
+        return Some((
+            format!("required control `{tok}`"),
+            tok.to_ascii_lowercase(),
+        ));
     }
     // 2. double-quoted token.
     if let Some(tok) = first_delimited_filtered(&body, '"', '"', is_non_functional_token) {
-        return Some((
-            format!("required text \"{tok}\""),
-            tok.to_ascii_lowercase(),
-        ));
+        return Some((format!("required text \"{tok}\""), tok.to_ascii_lowercase()));
     }
     None
 }
@@ -253,8 +249,20 @@ fn is_non_functional_token(tok: &str) -> bool {
     }
     // (1)+(2) command / usage invocations — a usage example, not a control.
     const CMD_PREFIXES: [&str; 14] = [
-        "turingos ", "python3 ", "python ", "node ", "npm ", "npx ", "bash ",
-        "sh ", "cargo ", "pip ", "pip3 ", "deno ", "ruby ", "./",
+        "turingos ",
+        "python3 ",
+        "python ",
+        "node ",
+        "npm ",
+        "npx ",
+        "bash ",
+        "sh ",
+        "cargo ",
+        "pip ",
+        "pip3 ",
+        "deno ",
+        "ruby ",
+        "./",
     ];
     if t == "turingos" || CMD_PREFIXES.iter().any(|p| t.starts_with(p)) {
         return true;
@@ -262,12 +270,10 @@ fn is_non_functional_token(tok: &str) -> bool {
     // (3) filename / path tokens — any whitespace-separated word ending in a
     // known source / asset / data extension.
     const FILE_EXTS: [&str; 22] = [
-        ".html", ".htm", ".py", ".js", ".ts", ".jsx", ".tsx", ".css", ".json",
-        ".md", ".txt", ".csv", ".toml", ".yaml", ".yml", ".xml", ".svg",
-        ".png", ".jpg", ".rs", ".sh", ".lean",
+        ".html", ".htm", ".py", ".js", ".ts", ".jsx", ".tsx", ".css", ".json", ".md", ".txt",
+        ".csv", ".toml", ".yaml", ".yml", ".xml", ".svg", ".png", ".jpg", ".rs", ".sh", ".lean",
     ];
-    if t
-        .split_whitespace()
+    if t.split_whitespace()
         .any(|w| FILE_EXTS.iter().any(|ext| w.ends_with(ext)))
     {
         return true;

@@ -16,10 +16,10 @@ use turingosv4::runtime::attempt_telemetry::AttemptOutcome;
 fn attempt_outcome_existing_discriminants_unchanged_post_phase_2() {
     // Per CLAUDE.md Code Standard + R1 ratification: pre-Phase-2 variants
     // 0..5 must NOT renumber. Phase 2 only tail-adds PartialAccepted=6.
-    assert_eq!(AttemptOutcome::LeanPass as u8, 0);
-    assert_eq!(AttemptOutcome::LeanFail as u8, 1);
+    assert_eq!(AttemptOutcome::VerifierPass as u8, 0);
+    assert_eq!(AttemptOutcome::VerifierFail as u8, 1);
     assert_eq!(AttemptOutcome::ParseFail as u8, 2);
-    assert_eq!(AttemptOutcome::SorryBlock as u8, 3);
+    assert_eq!(AttemptOutcome::IncompleteProofBlock as u8, 3);
     assert_eq!(AttemptOutcome::LlmErr as u8, 4);
     assert_eq!(AttemptOutcome::Aborted as u8, 5);
 }
@@ -35,10 +35,10 @@ fn attempt_outcome_serde_round_trip_all_variants() {
     // bincode v2 BE+fixed-int round-trip for all seven variants. Each
     // discriminator rides into the canonical hash via `#[repr(u8)]`.
     for outcome in [
-        AttemptOutcome::LeanPass,
-        AttemptOutcome::LeanFail,
+        AttemptOutcome::VerifierPass,
+        AttemptOutcome::VerifierFail,
         AttemptOutcome::ParseFail,
-        AttemptOutcome::SorryBlock,
+        AttemptOutcome::IncompleteProofBlock,
         AttemptOutcome::LlmErr,
         AttemptOutcome::Aborted,
         AttemptOutcome::PartialAccepted,
@@ -64,5 +64,5 @@ fn attempt_outcome_partial_accepted_canonical_byte_sequence() {
 fn attempt_outcome_partial_accepted_default_unchanged() {
     // R1 ratified: AttemptOutcome::default() = LeanPass. Phase 2 tail-add
     // does NOT change the default. (Test-time impl Default for AttemptOutcome.)
-    assert_eq!(AttemptOutcome::default(), AttemptOutcome::LeanPass);
+    assert_eq!(AttemptOutcome::default(), AttemptOutcome::VerifierPass);
 }

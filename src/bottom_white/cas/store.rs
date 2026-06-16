@@ -1135,7 +1135,7 @@ mod tests {
         let cid_b = s
             .put(
                 b"beta",
-                ObjectType::LeanResult,
+                ObjectType::DomainProofResult,
                 "lean-runner",
                 11,
                 Some("schema/lean-result.v1".into()),
@@ -1251,7 +1251,7 @@ mod tests {
         let new_cid = s
             .put(
                 b"new-forward-object",
-                ObjectType::LeanResult,
+                ObjectType::DomainProofResult,
                 "runner",
                 2,
                 None,
@@ -1562,7 +1562,7 @@ mod tests {
         let cid_c = s
             .put(
                 b"lean-result",
-                ObjectType::LeanResult,
+                ObjectType::DomainProofResult,
                 "alice",
                 9,
                 Some("schema/lean.v1".into()),

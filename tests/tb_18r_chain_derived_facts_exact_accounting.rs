@@ -62,7 +62,8 @@ async fn compute_with_invariant_populates_all_six_fields() {
     // keys for the real-signature WorkTx side) so fail-closed ingress admits.
     let agents = ["agent_a", "agent_b", "agent_c"];
     for a in agents {
-        reg.get_or_create(&AgentId(a.into())).expect("register agent");
+        reg.get_or_create(&AgentId(a.into()))
+            .expect("register agent");
     }
     support::pin_merged_manifest(&bundle.sequencer, &reg);
 
@@ -239,9 +240,9 @@ async fn terminal_abort_record_count_from_cas_index() {
             let record = TerminalAbortRecord {
                 attempt_id: TxId(format!("aborted-{i}")),
                 run_id: "tb18r-r4-aborted".into(),
-                cause: AbortCause::WallClockCapDuringLean,
+                cause: AbortCause::WallClockCapDuringVerify,
                 aborted_at_logical_t: i,
-                partial_lean_result_cid: None,
+                partial_verifier_result_cid: None,
             };
             write_terminal_abort_record_to_cas(&mut cas, &record, "test", i)
                 .expect("write abort record");

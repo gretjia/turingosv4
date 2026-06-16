@@ -384,11 +384,13 @@ fn generate_artifact_runner_uses_external_endpoint_and_replays_artifact_chain() 
         .list_cids_by_object_type(ObjectType::Generic)
         .into_iter()
         .filter(|cid| {
-            store
-                .metadata(cid)
-                .and_then(|m| m.schema_id.clone())
-                .as_deref()
-                == Some("turingosv4.proposal_telemetry.v1")
+            matches!(
+                store
+                    .metadata(cid)
+                    .and_then(|m| m.schema_id.clone())
+                    .as_deref(),
+                Some("turingosv4.proposal_telemetry.v1") | Some("turingosv4.proposal_telemetry.v2")
+            )
         })
         .any(|cid| read_proposal_telemetry(&store, &cid).is_ok());
     assert!(

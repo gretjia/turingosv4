@@ -262,7 +262,10 @@ async fn bootstrap_task_for_alice(h: &mut Harness, task: &str, escrow_micro: i64
     // OBS_AGENT_SIG_REPLAY_GAP closure: fail-closed ingress requires the
     // TaskOpen/EscrowLock to carry alice's REAL keypair signature (the same
     // keypair the WorkTx side uses + that is in the pinned manifest).
-    let open = sign_tx_with_keypairs(&mut h.keypairs, make_task_open(task, "alice", parent, "open"));
+    let open = sign_tx_with_keypairs(
+        &mut h.keypairs,
+        make_task_open(task, "alice", parent, "open"),
+    );
     let parent = submit_and_apply(h, open).await;
     let lock = sign_tx_with_keypairs(
         &mut h.keypairs,
@@ -283,7 +286,9 @@ fn sign_tx_with_keypairs(reg: &mut AgentKeypairRegistry, tx: TypedTx) -> TypedTx
         }
         TypedTx::EscrowLock(mut t) => {
             let digest = t.to_signing_payload().canonical_digest();
-            t.signature = reg.sign(&t.sponsor_agent, digest).expect("sign escrow_lock");
+            t.signature = reg
+                .sign(&t.sponsor_agent, digest)
+                .expect("sign escrow_lock");
             TypedTx::EscrowLock(t)
         }
         other => other,

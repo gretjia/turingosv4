@@ -24,22 +24,22 @@ use crate::state::typed_tx::EventId;
 // pinned in genesis_payload.toml, so declaring these here needs no rehash.
 // Explicit `#[path]` keeps Rust 2018 module resolution and the production
 // module-liveness scanner agreed on the on-disk `real5_roles/<mod>.rs` layout.
-/// TRACE_MATRIX FC3-N33: FC3 observable proposer runtime (REAL ArchitectProposal
-/// capsule synthesis; observe-only, never commits/vetoes/re-inits).
-#[path = "real5_roles/fc3_proposer.rs"]
-pub mod fc3_proposer;
 /// TRACE_MATRIX FC3-N33: FC3 canary runtime (predicate-driven integer
 /// MetricEstimate to tape; terminal status stays `sandbox:canary_only`).
 #[path = "real5_roles/fc3_canary.rs"]
 pub mod fc3_canary;
-/// TRACE_MATRIX FC3-N32/N43: FC3 runtime Veto-AI deterministic constitutionality
-/// clause-walker (`{Accept,Reject}`, fail-closed; gates the irreversible leg).
-#[path = "real5_roles/fc3_veto.rs"]
-pub mod fc3_veto;
 /// TRACE_MATRIX FC3-N44/N45: FC3 PASS-gated commit + SANDBOX trust-root recompute
 /// + re-init driver (the loop-closing leg; never touches the real boot manifest).
 #[path = "real5_roles/fc3_commit_reinit.rs"]
 pub mod fc3_commit_reinit;
+/// TRACE_MATRIX FC3-N33: FC3 observable proposer runtime (REAL ArchitectProposal
+/// capsule synthesis; observe-only, never commits/vetoes/re-inits).
+#[path = "real5_roles/fc3_proposer.rs"]
+pub mod fc3_proposer;
+/// TRACE_MATRIX FC3-N32/N43: FC3 runtime Veto-AI deterministic constitutionality
+/// clause-walker (`{Accept,Reject}`, fail-closed; gates the irreversible leg).
+#[path = "real5_roles/fc3_veto.rs"]
+pub mod fc3_veto;
 
 pub const ROLE_ASSIGNMENT_MANIFEST_SCHEMA_ID: &str = "real5.role_assignment_manifest.v1";
 pub const ROLE_TURN_TRACE_SCHEMA_ID: &str = "real5.role_turn_trace.v1";
@@ -347,11 +347,31 @@ impl DerivedViewInput {
             read_set: vec![Cid::default()],
             price_signals: Vec::new(),
             local_errors: vec![PublicErrorSummary {
-                class: "lean_failed".into(),
+                // De-Lean atom: demo fixture error-class label genericized. This
+                // is a freshly-computed test/demo input (not a frozen historical
+                // CAS byte), so the rename is wire-safe.
+                class: "verifier_failed".into(),
                 public_summary: "local L4.E summary".into(),
             }],
         }
     }
+}
+
+/// De-Lean atom: versioned role-section template selector.
+///
+/// Tape-safety: the role `public_sections` vector is hashed into
+/// `visible_context_cid` (and thereby into every historical PromptCapsule that
+/// embedded a Solver view). `V1Legacy` reproduces the original section labels
+/// BYTE-FOR-BYTE (notably the Solver `"Lean goal"` label) so replay of historical
+/// HEAD bytes stays exact. `V2Generic` emits the de-Lean'd generic label
+/// (`"proof goal"`) and is used ONLY for new views going forward. The default
+/// entry points stay pinned to `V1Legacy`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RoleSectionTemplate {
+    /// Frozen historical template — reproduces pre-de-Lean bytes exactly.
+    V1Legacy,
+    /// De-Lean'd generic template — used for new views only.
+    V2Generic,
 }
 
 pub fn derive_role_view(
@@ -365,9 +385,29 @@ pub fn derive_role_view_with_context_bytes(
     request: DerivedViewRequest,
     input: DerivedViewInput,
 ) -> Result<(DerivedView, Vec<u8>), String> {
+    // Default entry point stays pinned to the frozen legacy template so historical
+    // HEAD replay reproduces the original `visible_context_cid` bytes exactly.
+    derive_role_view_with_context_bytes_versioned(request, input, RoleSectionTemplate::V1Legacy)
+}
+
+/// De-Lean atom: derive a role view under an explicit role-section template
+/// version. New callers may pass `V2Generic`; replay/legacy callers use
+/// `V1Legacy` (the byte-exact historical template).
+pub fn derive_role_view_with_context_bytes_versioned(
+    request: DerivedViewRequest,
+    input: DerivedViewInput,
+    template: RoleSectionTemplate,
+) -> Result<(DerivedView, Vec<u8>), String> {
+    // The Solver proof-goal label is the only section that differs across
+    // template versions; everything else is identical so non-Solver views are
+    // byte-stable regardless of template.
+    let solver_proof_goal_label = match template {
+        RoleSectionTemplate::V1Legacy => "Lean goal",
+        RoleSectionTemplate::V2Generic => "proof goal",
+    };
     let public_sections = match request.role {
         AgentRole::Solver => vec![
-            "Lean goal".into(),
+            solver_proof_goal_label.into(),
             "local proof context".into(),
             "local errors".into(),
             "bounty".into(),

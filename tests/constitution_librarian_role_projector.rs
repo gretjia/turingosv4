@@ -20,7 +20,7 @@ fn digest() -> turingosv4::runtime::librarian_broadcast::LibrarianDigest {
         vec![
             LibrarianEvidenceEvent {
                 cid: Cid::from_content(b"e1"),
-                kind: LibrarianEvidenceKind::LeanError,
+                kind: LibrarianEvidenceKind::VerifierError,
                 class_label: "err:type_mismatch".into(),
                 task_id: Some("task".into()),
                 public_summary: "Repeated Lean type mismatch".into(),
@@ -28,7 +28,7 @@ fn digest() -> turingosv4::runtime::librarian_broadcast::LibrarianDigest {
             },
             LibrarianEvidenceEvent {
                 cid: Cid::from_content(b"e2"),
-                kind: LibrarianEvidenceKind::LeanError,
+                kind: LibrarianEvidenceKind::VerifierError,
                 class_label: "err:type_mismatch".into(),
                 task_id: Some("task".into()),
                 public_summary: "Repeated Lean type mismatch".into(),

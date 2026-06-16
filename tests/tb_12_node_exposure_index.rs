@@ -125,7 +125,10 @@ async fn open_task(h: &mut Harness, sponsor: &str, task: &str) {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 1,
     });
-    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit open");
+    h.seq
+        .submit_agent_tx(support::resign(tx))
+        .await
+        .expect("submit open");
     let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok");
 }
 
@@ -140,7 +143,10 @@ async fn lock_escrow(h: &mut Harness, sponsor: &str, task: &str, micro: i64) {
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 2,
     });
-    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit lock");
+    h.seq
+        .submit_agent_tx(support::resign(tx))
+        .await
+        .expect("submit lock");
     let _ = h.seq.try_apply_one(&mut h.rx).expect("env").expect("ok");
 }
 
@@ -211,7 +217,10 @@ async fn submit_challenge(
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 4,
     });
-    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit challenge");
+    h.seq
+        .submit_agent_tx(support::resign(tx))
+        .await
+        .expect("submit challenge");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)
@@ -239,7 +248,10 @@ async fn submit_verify(
         signature: AgentSignature::from_bytes([0u8; 64]),
         timestamp_logical: 5,
     });
-    h.seq.submit_agent_tx(support::resign(tx)).await.expect("submit verify");
+    h.seq
+        .submit_agent_tx(support::resign(tx))
+        .await
+        .expect("submit verify");
     let _ = h
         .seq
         .try_apply_one(&mut h.rx)

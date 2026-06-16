@@ -71,7 +71,9 @@ pub const SKILL_CAPSULE_SCHEMA_ID: &str = "v1/skill_capsule";
 /// enforcing the Tier-1 "system-authored, agent-read-only" boundary. Adding an
 /// agent-writable author would be a Tier-2 change requiring a separate §8.
 /// TRACE_MATRIX FC3-N43 + Inv 10: capsule authorship marker (always System).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Default,
+)]
 pub enum SkillAuthor {
     /// The runtime/system distilled this capsule from failure/feedback
     /// evidence. The ONLY legal author.

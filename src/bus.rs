@@ -178,12 +178,14 @@ impl TuringBus {
 
     /// Phase 2.1 (C-043 candidate): bypass agent-facing gates for ∏p-blessed payloads.
     /// The forbidden_patterns list (C-011) exists to prevent agents from appending
-    /// brute-force tactics (e.g. bare `decide`, `omega`, `native_decide`) as scratch
-    /// work. Once the Lean oracle has accepted a full proof, those same tactics are
-    /// by construction legitimate — re-rejecting at bus level would block the
+    /// brute-force shortcut steps (the math-domain checker driver supplies the
+    /// concrete forbidden-token catalog; in the Lean driver that is e.g. bare
+    /// `decide` / `omega` / `native_decide`) as scratch work. Once the external
+    /// checker oracle has accepted a full artifact, those same steps are by
+    /// construction legitimate — re-rejecting at bus level would block the
     /// wtool write that Art. IV mandates. Only oracle-accepted payloads should
-    /// take this path. Payload-size caps are also relaxed (proofs are longer than
-    /// agent scratch steps).
+    /// take this path. Payload-size caps are also relaxed (full artifacts are
+    /// longer than agent scratch steps).
     pub fn append_oracle_accepted(
         &mut self,
         author: &str,
@@ -333,6 +335,16 @@ impl TuringBus {
     ///   - "veto:forbidden", "veto:size", "veto:lines", "veto:wallet", "veto:tool_other"
     ///     (bus-internal veto classes)
     ///   - "err:other" catchall
+    ///
+    /// De-Lean migration (2026-06-15): the canonical go-forward `err:*` set is
+    /// the generic `err:tool_*` / domain-agnostic vocabulary emitted by
+    /// `sdk::error_abstraction::OracleErrClass::label()` (the SOURCE OF TRUTH —
+    /// this match MUST mirror it exactly). The legacy `err:tactic_*` /
+    /// `err:heartbeat` / `err:unknown_const` / `err:unsolved_goals` strings are
+    /// still RECOGNIZED here and returned verbatim, so historical tape rows that
+    /// carry the old `error_class` String pass the finite-set shield unchanged
+    /// instead of collapsing to `err:other`. Recognition-on-read only — never a
+    /// rewrite of any stored value.
     pub fn bus_classify(reason: &str) -> &'static str {
         // If caller already produced an "err:..." class label, trust it.
         // Validate prefix; the length is bounded because the enum of labels is finite.
@@ -341,6 +353,22 @@ impl TuringBus {
             // For simplicity we allocate a leaked &'static; safer: fixed mapping of known labels.
             // Here we collapse unknown "err:*" to err:other to preserve finite-set invariant.
             return match reason {
+                // Go-forward generic labels (mirror of OracleErrClass::label()).
+                "err:tool_method_arith" => "err:tool_method_arith",
+                "err:tool_method_no_progress" => "err:tool_method_no_progress",
+                "err:tool_method_algebra" => "err:tool_method_algebra",
+                "err:tool_method_numeric" => "err:tool_method_numeric",
+                "err:tool_method_other" => "err:tool_method_other",
+                "err:unknown_symbol" => "err:unknown_symbol",
+                "err:unsolved_obligations" => "err:unsolved_obligations",
+                "err:resource_exceeded" => "err:resource_exceeded",
+                // Already-generic labels (unchanged across the migration).
+                "err:unexpected_token" => "err:unexpected_token",
+                "err:type_mismatch" => "err:type_mismatch",
+                "err:rewrite_no_match" => "err:rewrite_no_match",
+                "err:other" => "err:other",
+                // Legacy pre-de-Lean labels — recognized on read, returned
+                // verbatim (mirror of OracleErrClass::legacy_labels()).
                 "err:tactic_linarith" => "err:tactic_linarith",
                 "err:tactic_simp_noprog" => "err:tactic_simp_noprog",
                 "err:tactic_ring" => "err:tactic_ring",
@@ -348,11 +376,7 @@ impl TuringBus {
                 "err:tactic_other" => "err:tactic_other",
                 "err:unknown_const" => "err:unknown_const",
                 "err:unsolved_goals" => "err:unsolved_goals",
-                "err:unexpected_token" => "err:unexpected_token",
-                "err:type_mismatch" => "err:type_mismatch",
-                "err:rewrite_no_match" => "err:rewrite_no_match",
                 "err:heartbeat" => "err:heartbeat",
-                "err:other" => "err:other",
                 _ => "err:other",
             };
         }
@@ -654,9 +678,19 @@ mod tests {
             TuringBus::bus_classify("Too many lines: 50 > 18"),
             "veto:lines"
         );
+        // Legacy pre-de-Lean label still recognized on read (verbatim).
         assert_eq!(
             TuringBus::bus_classify("err:tactic_linarith"),
             "err:tactic_linarith"
+        );
+        // Go-forward generic label passes through (mirror of OracleErrClass).
+        assert_eq!(
+            TuringBus::bus_classify("err:tool_method_arith"),
+            "err:tool_method_arith"
+        );
+        assert_eq!(
+            TuringBus::bus_classify("err:resource_exceeded"),
+            "err:resource_exceeded"
         );
         assert_eq!(
             TuringBus::bus_classify("err:unknown_variant_we_dont_track"),

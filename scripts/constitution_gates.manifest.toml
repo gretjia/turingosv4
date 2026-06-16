@@ -106,6 +106,11 @@ authority = "handover/directives/2026-05-09_STAGE_C_POLYMARKET_VETO_REMEDIATION_
 added = "2026-05-20"
 
 [[gate]]
+name = "constitution_de_lean_legacy_decode"
+authority = "handover/tracer_bullets/DE_LEAN_KERNEL_MIGRATION_SPEC_2026-06-15.md"
+added = "2026-06-15"
+
+[[gate]]
 name = "constitution_diversity"
 authority = "TB-C0 baseline (constitution.md direct binding)"
 added = "2026-05-20"
@@ -918,8 +923,8 @@ added = "2026-06-05"
 
 [[gate]]
 name = "constitution_router_name_matches_mechanism"
-authority = "A05 Tape Event Envelope and Projection Trait: mechanism names must match implementation; softmax labels over argmax-like routers are rejected as claim drift"
-added = "2026-06-05"
+authority = "Forensic retrospective 2026-06-01 (handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md §1.C/§1.A, failure-mode #4) + AGENTS.md §17.3: named mechanism must match implementation. The softmax router must DISTRIBUTE (not argmax-collapse); a price-routing claim must carry a real price identifier in code; lean_market_agent.rs is the canonical priced-softmax substrate."
+added = "2026-06-01"
 
 [[gate]]
 name = "constitution_tc_boot_trust_root_manifest"
@@ -985,3 +990,18 @@ added = "2026-06-08"
 name = "constitution_e2e_1_0_product_flow"
 authority = "E2E 1.0 product-flow hardening (claude/e2e-1.0-hardening): locks the four turingos generate / observe product-flow fixes, each property paired with a documented mutation that flips a dedicated assert RED. Class 1-2; ZERO genesis-pinned-file edits — all touched product files are pin-count 0 (src/bin/turingos.rs, src/bin/turingos/cmd_generate.rs, src/bin/turingos/cmd_observe.rs, src/runtime/test_scenario.rs, src/runtime/test_run.rs); genesis_payload.toml + constitution.md NOT in diff. (1) DELIVERY-SUCCESS-EXIT (blocker #3, Art. 0.2 tape-first): an artifact delivered + spec-derived tests passed but whose POST-delivery market-settle leg FAILS must exit 0 (NOT exit 2), WARN, and ANCHOR the economic break on tape as a market_settle_failed rejection capsule — never swallow it silently. Behavioral leg: the exact production anchoring call write_generate_rejection_capsule_observed writes a reason=market_settle_failed:{e}, retryable=false, world_head_unchanged=true capsule that is reconstructable from CAS by CID. Source-structural leg: print_generate_success fires BEFORE the market-settle match; the Err(e) arm of match emit_polymarket_market_for_session WARNs + anchors and does NOT contain `return Err`/`ExitCode::from(2)` (the exit-2-on-market-fail regression flips this RED). (2) PYTHON-BUNDLE-PASSES (blocker #1): a correct main.py bundle passes (no HtmlParses false-reject) and a syntactically broken main.py FAILS; HtmlParses is derived ONLY for .html entrypoints (re-introducing the unconditional HtmlParses push gives a .py bundle an HtmlParses scenario that fails the doctype → RED). (3) FUNCTIONAL-REJECTS-WRONG (blocker #2): the spec-derived RequiredTextPresent functional scenario is NON-VACUOUS — it REJECTS a well-formed-but-wrong HTML artifact that omits the spec-required control and PASSES one that surfaces it (both pass the structural gate; weakening the producer to exists=>pass flips this RED); the needle is spec-derived and lives in a separate self-describing CAS scenario-set object, NOT injected into the generation prompt (C11 / Art. III.4 hidden oracle). (4) OBSERVE-ROLLUP (blocker #5): turingos observe --workspace <WS> over a constructed real bootstrapped chaintape prints the FC1/FC2/FC3 liveness observer + no-zombie verdict (zombie_count/no_zombie) + the per-task integer VPPUT rollup (ground_truth_solved), READ-ONLY (no head advance, no economic state)."
 added = "2026-06-09"
+
+[[gate]]
+name = "constitution_headline_recompute_from_tape"
+authority = "Forensic retrospective 2026-06-01 (handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md §1.D, failure-mode #1) + AGENTS.md §17.2: replay-green != correctness. Locks recompute-from-tape — derive_* reproduces an honest manifest, catches a lying manifest while the byte chain stays green, and is a function of the tape not the manifest."
+added = "2026-06-01"
+
+[[gate]]
+name = "constitution_het_tape_reconstructibility"
+authority = "Architect independent audit 2026-06-14 §5 Gate D (H-HET-1 carrier hard-gate): Art 0.2 Tape-Canonical witness for the heterogeneous autonomous-market carrier — asserts which decision signals (chosen_action, price snapshot, wallet delta, tx linkage, judge verdict, tokens) ARE reconstructible from frozen tape, and is a negative witness that model_id/provider is NOT a field on carrier CAS objects (the documented Art-0.2 GAP pending joint close-vs-scope decision). See handover/audits/TAPE_RECONSTRUCTIBILITY_GAP_2026-06-14.md."
+added = "2026-06-14"
+
+[[gate]]
+name = "constitution_budget_decision_tape_canonical"
+authority = "H-HET-2 charter §5.4 + architect routing-policy ruling 2026-06-15 (VERIFY_UCB_PRICE_PRIOR_FLOOR_V1): the dynamic model-budget routing DECISION must be tape-canonical (Art 0.2). Recompute-from-tape (§17.1-G1): the allocation recomputes from the frozen BudgetAllocationTelemetry candidate rows via routing_policy::score_and_select (allocation_view == derive_from_tape); a tampered selection diverges; the policy distributes (not argmax-collapse, §17.3); RoutingPolicyGenesisPin pins the frozen config. See handover/tracer_bullets/H_HET_2_ROUTING_POLICY_RULING_2026-06-15.md."
+added = "2026-06-15"

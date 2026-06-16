@@ -25,9 +25,9 @@ use tempfile::TempDir;
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::runtime::attempt_telemetry::{
-    read_attempt_telemetry_from_cas, read_lean_result_from_cas, write_attempt_telemetry_to_cas,
-    write_lean_result_to_cas, AttemptKind, AttemptOutcome, AttemptTelemetry, LeanErrorClass,
-    LeanResult,
+    read_attempt_telemetry_from_cas, read_verifier_result_from_cas, write_attempt_telemetry_to_cas,
+    write_verifier_result_to_cas, AttemptKind, AttemptOutcome, AttemptTelemetry,
+    VerifierErrorClass, VerifierResult,
 };
 use turingosv4::runtime::proposal_telemetry::TokenCounts;
 use turingosv4::state::q_state::{AgentId, Hash, TxId};
@@ -47,7 +47,7 @@ fn write_path(
     candidate_bytes: &[u8],
     tool_name: &str,
     outcome: AttemptOutcome,
-    error_class: Option<LeanErrorClass>,
+    error_class: Option<VerifierErrorClass>,
     lean_result: Option<(i32, bool)>,
     is_omega_success: bool,
 ) -> (Cid, AttemptTelemetry) {
@@ -61,12 +61,15 @@ fn write_path(
             None,
         )
         .expect("put candidate");
-    let lean_result_cid = if let Some((exit_code, verified)) = lean_result {
+    let verifier_result_cid = if let Some((exit_code, verified)) = lean_result {
         let proof_artifact_cid = if verified { Some(candidate_cid) } else { None };
-        let verdict_kind =
-            LeanResult::derive_verdict_kind_from_legacy_fields(exit_code, verified, error_class)
-                .unwrap_or_default();
-        let lr = LeanResult {
+        let verdict_kind = VerifierResult::derive_verdict_kind_from_legacy_fields(
+            exit_code,
+            verified,
+            error_class,
+        )
+        .unwrap_or_default();
+        let lr = VerifierResult {
             attempt_id: attempt_id.clone(),
             exit_code,
             verified,
@@ -76,7 +79,7 @@ fn write_path(
             error_class,
             verdict_kind,
         };
-        Some(write_lean_result_to_cas(cas, &lr, "test", 0).expect("write lean result"))
+        Some(write_verifier_result_to_cas(cas, &lr, "test", 0).expect("write lean result"))
     } else {
         None
     };
@@ -98,7 +101,7 @@ fn write_path(
         },
         tool_name.into(),
     );
-    attempt.lean_result_cid = lean_result_cid;
+    attempt.verifier_result_cid = verifier_result_cid;
     let cid = write_attempt_telemetry_to_cas(cas, &attempt, "test", 0).expect("write attempt");
     (cid, attempt)
 }
@@ -113,17 +116,17 @@ fn r2_path_1_omega_wtool_full_attempt_telemetry_shape() {
         "worktx-task-test-run-r2-omega-full-0",
         parsed_candidate,
         "omega_wtool",
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         None,
         Some((0, true)),
         true,
     );
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(recovered, original);
-    assert_eq!(recovered.outcome, AttemptOutcome::LeanPass);
+    assert_eq!(recovered.outcome, AttemptOutcome::VerifierPass);
     assert_eq!(recovered.tool_name, "omega_wtool");
     assert_eq!(recovered.attempt_chain_root, None);
-    let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
+    let lr = read_verifier_result_from_cas(&cas, recovered.verifier_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(lr.exit_code, 0);
     assert!(lr.verified);
@@ -150,19 +153,19 @@ fn r2_path_2_omega_wtool_pertactic_attempt_telemetry_shape() {
         "worktx-task-test-run-r2-omega-pertactic-3",
         tactic_bytes,
         "omega_wtool_pertactic",
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         None,
         Some((0, true)),
         true,
     );
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(recovered, original);
-    assert_eq!(recovered.outcome, AttemptOutcome::LeanPass);
+    assert_eq!(recovered.outcome, AttemptOutcome::VerifierPass);
     assert_eq!(
         recovered.tool_name, "omega_wtool_pertactic",
         "path 2 disambiguates from path 1 via tool_name (preflight §3.7)"
     );
-    let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
+    let lr = read_verifier_result_from_cas(&cas, recovered.verifier_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(lr.exit_code, 0);
     assert!(lr.verified);
@@ -179,7 +182,7 @@ fn r2_path_3_step_partial_ok_attempt_telemetry_shape() {
         "att-test-run-r2-agent_0-7-step_partial_ok",
         tactic_bytes,
         "step_partial_ok",
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         None,
         Some((0, false)),
         false,
@@ -187,11 +190,11 @@ fn r2_path_3_step_partial_ok_attempt_telemetry_shape() {
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(
         recovered.outcome,
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         "intermediate partial-accept maps to LeanPass per R1 mapping"
     );
     assert_eq!(recovered.tool_name, "step_partial_ok");
-    let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
+    let lr = read_verifier_result_from_cas(&cas, recovered.verifier_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(lr.exit_code, 0);
     assert!(
@@ -215,21 +218,21 @@ fn r2_path_4a_step_reject_lean_failed_attempt_telemetry_shape() {
         "att-test-run-r2-agent_0-9-step_reject",
         tactic_bytes,
         "step_reject",
-        AttemptOutcome::LeanFail,
-        Some(LeanErrorClass::LeanFailed),
+        AttemptOutcome::VerifierFail,
+        Some(VerifierErrorClass::VerifierFailed),
         Some((1, false)),
         false,
     );
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
-    assert_eq!(recovered.outcome, AttemptOutcome::LeanFail);
-    let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
+    assert_eq!(recovered.outcome, AttemptOutcome::VerifierFail);
+    let lr = read_verifier_result_from_cas(&cas, recovered.verifier_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(lr.exit_code, 1);
     assert!(!lr.verified);
     assert!(lr.proof_artifact_cid.is_none());
     assert_eq!(
         lr.error_class,
-        Some(LeanErrorClass::LeanFailed),
+        Some(VerifierErrorClass::VerifierFailed),
         "non-sorry rejection must classify as LeanFailed (mirrors R3 RejectionClass=6)"
     );
 }
@@ -244,22 +247,22 @@ fn r2_path_4b_step_reject_sorry_block_attempt_telemetry_shape() {
         "att-test-run-r2-agent_0-11-step_reject",
         tactic_bytes,
         "step_reject",
-        AttemptOutcome::SorryBlock,
-        Some(LeanErrorClass::SorryBlocked),
+        AttemptOutcome::IncompleteProofBlock,
+        Some(VerifierErrorClass::IncompleteProofBlocked),
         Some((1, false)),
         false,
     );
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(
         recovered.outcome,
-        AttemptOutcome::SorryBlock,
+        AttemptOutcome::IncompleteProofBlock,
         "sorry / forbidden_payload rejection maps to SorryBlock (preflight §3.5)"
     );
-    let lr = read_lean_result_from_cas(&cas, recovered.lean_result_cid.as_ref().unwrap())
+    let lr = read_verifier_result_from_cas(&cas, recovered.verifier_result_cid.as_ref().unwrap())
         .expect("read lean result");
     assert_eq!(
         lr.error_class,
-        Some(LeanErrorClass::SorryBlocked),
+        Some(VerifierErrorClass::IncompleteProofBlocked),
         "sorry rejection must classify as SorryBlocked (mirrors R3 RejectionClass=8)"
     );
 }
@@ -285,8 +288,8 @@ fn r2_path_5_parse_fail_attempt_telemetry_shape() {
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(recovered.outcome, AttemptOutcome::ParseFail);
     assert!(
-        recovered.lean_result_cid.is_none(),
-        "Lean was not invoked on parse_fail; no LeanResult should exist"
+        recovered.verifier_result_cid.is_none(),
+        "Lean was not invoked on parse_fail; no VerifierResult should exist"
     );
     let payload_bytes = cas
         .get(&recovered.candidate_payload_cid)
@@ -316,8 +319,8 @@ fn r2_path_6_llm_err_attempt_telemetry_shape() {
     let recovered = read_attempt_telemetry_from_cas(&cas, &cid).expect("read");
     assert_eq!(recovered.outcome, AttemptOutcome::LlmErr);
     assert!(
-        recovered.lean_result_cid.is_none(),
-        "Lean was not invoked on llm_err; no LeanResult should exist"
+        recovered.verifier_result_cid.is_none(),
+        "Lean was not invoked on llm_err; no VerifierResult should exist"
     );
     let payload_bytes = cas
         .get(&recovered.candidate_payload_cid)
@@ -335,13 +338,13 @@ fn r2_six_paths_have_distinct_outcome_values() {
     // — guards against accidental enum collapse in a future R-series revision.
     use std::collections::HashSet;
     let outcomes: HashSet<u8> = [
-        AttemptOutcome::LeanPass as u8,   // path 1
-        AttemptOutcome::LeanPass as u8,   // path 2 (same kind, distinguished by tool_name)
-        AttemptOutcome::LeanPass as u8, // path 3 (intermediate; distinguished by proof_artifact_cid=None)
-        AttemptOutcome::LeanFail as u8, // path 4a
-        AttemptOutcome::SorryBlock as u8, // path 4b
-        AttemptOutcome::ParseFail as u8, // path 5
-        AttemptOutcome::LlmErr as u8,   // path 6
+        AttemptOutcome::VerifierPass as u8,         // path 1
+        AttemptOutcome::VerifierPass as u8, // path 2 (same kind, distinguished by tool_name)
+        AttemptOutcome::VerifierPass as u8, // path 3 (intermediate; distinguished by proof_artifact_cid=None)
+        AttemptOutcome::VerifierFail as u8, // path 4a
+        AttemptOutcome::IncompleteProofBlock as u8, // path 4b
+        AttemptOutcome::ParseFail as u8,    // path 5
+        AttemptOutcome::LlmErr as u8,       // path 6
     ]
     .iter()
     .copied()

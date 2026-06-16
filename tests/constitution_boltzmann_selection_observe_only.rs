@@ -107,7 +107,14 @@ fn three_distinct_priced_nodes() -> EconomicState {
         position("pM_l", "node_mid", "t", "aM", PositionSide::Long, 500_000),
         position("pM_s", "node_mid", "t", "aM2", PositionSide::Short, 500_000),
         position("pH_l", "node_high", "t", "aH", PositionSide::Long, 900_000),
-        position("pH_s", "node_high", "t", "aH2", PositionSide::Short, 100_000),
+        position(
+            "pH_s",
+            "node_high",
+            "t",
+            "aH2",
+            PositionSide::Short,
+            100_000,
+        ),
     ])
 }
 
@@ -162,7 +169,9 @@ fn trace_is_reconstructable_from_cas() {
         .expect("record trace");
 
     // Self-addressed: the stored bytes hash to the returned Cid.
-    let stored = cas.get(&cid).expect("Art. 0.2: cas.get(&trace_id) MUST succeed");
+    let stored = cas
+        .get(&cid)
+        .expect("Art. 0.2: cas.get(&trace_id) MUST succeed");
     assert_eq!(
         Cid::from_content(&stored),
         cid,
@@ -209,8 +218,9 @@ fn recorded_pick_equals_fresh_boltzmann_select_parent_v2() {
     let logical_t: u64 = 11;
 
     let mut cas = CasStore::open(&cas_dir).expect("cas open");
-    let cid = record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, seed, logical_t)
-        .expect("record");
+    let cid =
+        record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, seed, logical_t)
+            .expect("record");
     let recorded = read_boltzmann_selection_from_cas(&cas, &cid).expect("read");
 
     // FRESH, independent re-derivation with identical inputs + seed.
@@ -232,8 +242,9 @@ fn recorded_pick_equals_fresh_boltzmann_select_parent_v2() {
     // identical self-addressed trace_id.
     let (_p2, dir2) = open_cas_dir();
     let mut cas2 = CasStore::open(&dir2).expect("cas2");
-    let cid2 = record_boltzmann_selection_over_econ(&mut cas2, &econ, &edges, &policy, seed, logical_t)
-        .expect("record again");
+    let cid2 =
+        record_boltzmann_selection_over_econ(&mut cas2, &econ, &edges, &policy, seed, logical_t)
+            .expect("record again");
     assert_eq!(cid, cid2, "identical inputs+seed → identical trace_id");
 }
 
@@ -304,8 +315,11 @@ fn epsilon_branch_is_reachable_with_firing_seed() {
         if trace.selection_branch == SelectionBranch::EpsilonExploration {
             found_exploration = true;
             // The exploration branch's pick must still be a real candidate.
-            let candidate_ids: BTreeSet<TxId> =
-                trace.candidate_nodes.iter().map(|(id, _)| id.clone()).collect();
+            let candidate_ids: BTreeSet<TxId> = trace
+                .candidate_nodes
+                .iter()
+                .map(|(id, _)| id.clone())
+                .collect();
             assert!(
                 trace
                     .selected_parent
@@ -378,7 +392,8 @@ fn recorder_creates_no_filesystem_side_store() {
     let edges = CanonicalNodeGraph::default();
     {
         let mut cas = CasStore::open(&cas_dir).expect("cas open");
-        record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, 3, 1).expect("record");
+        record_boltzmann_selection_over_econ(&mut cas, &econ, &edges, &policy, 3, 1)
+            .expect("record");
     }
 
     let after: BTreeSet<String> = std::fs::read_dir(parent.path())
