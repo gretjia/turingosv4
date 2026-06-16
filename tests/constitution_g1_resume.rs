@@ -145,7 +145,9 @@ async fn sg_g1_2_resume_on_n_entry_chain_sets_next_logical_t_to_n() {
         "g1_2-1",
     );
     support::pin_common_manifest(&bundle.sequencer);
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);
 
@@ -246,7 +248,9 @@ async fn sg_g1_3_resume_balances_reconstruction_matches_forward_replay() {
         "g1_3-1",
     );
     support::pin_common_manifest(&bundle.sequencer);
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown forward");
     drop(bus);
     let q_forward = seq_forward.q_snapshot().expect("q_snapshot forward");
@@ -335,7 +339,9 @@ async fn sg_g1_4_non_empty_runtime_repo_only_fires_when_resume_false() {
         "g1_4",
     );
     support::pin_common_manifest(&bundle.sequencer);
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -416,7 +422,9 @@ async fn sg_g1_5_pinned_pubkeys_preserved_across_resume() {
         "g1_5",
     );
     support::pin_common_manifest(&bundle.sequencer);
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown phase 1");
     drop(bus);
 

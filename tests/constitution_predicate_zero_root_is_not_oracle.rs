@@ -133,10 +133,10 @@ fn fresh_seq(initial_q: QState) -> SeqHarness {
 fn genesis_with_balances(pairs: &[(&str, i64)]) -> QState {
     let mut q = QState::genesis();
     for (name, coin) in pairs {
-        q.economic_state_t
-            .balances_t
-            .0
-            .insert(AgentId((*name).into()), MicroCoin::from_coin(*coin).unwrap());
+        q.economic_state_t.balances_t.0.insert(
+            AgentId((*name).into()),
+            MicroCoin::from_coin(*coin).unwrap(),
+        );
     }
     q
 }
@@ -184,7 +184,9 @@ fn make_self_asserted_worktx(task: &str, agent: &str, parent: Hash) -> TypedTx {
         task_id: TaskId(task.into()),
         parent_state_root: parent,
         agent_id: AgentId(agent.into()),
-        read_set: [ReadKey("k.read".into())].into_iter().collect::<BTreeSet<_>>(),
+        read_set: [ReadKey("k.read".into())]
+            .into_iter()
+            .collect::<BTreeSet<_>>(),
         write_set: [WriteKey("k.write".into())]
             .into_iter()
             .collect::<BTreeSet<_>>(),

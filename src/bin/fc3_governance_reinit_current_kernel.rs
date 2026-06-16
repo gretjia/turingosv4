@@ -796,8 +796,8 @@ fn put_terminal_evidence_capsule(
         solver_agent,
         ExhaustionCounts {
             attempt_count: 1,
-            lean_error_count: 0,
-            sorry_block_count: 0,
+            verifier_error_count: 0,
+            incomplete_proof_block_count: 0,
             protocol_parse_failure_count: 0,
             partial_accept_count: 0,
         },

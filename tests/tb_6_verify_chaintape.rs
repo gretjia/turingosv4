@@ -248,7 +248,9 @@ async fn i90d_tampered_cas_index_breaks_verify_chaintape() {
         bundle.sequencer.clone(),
     );
     let task_open = make_synthetic_task_open("task-i90d", "sponsor-i90d", Hash::ZERO, "i90d-1");
-    bus.submit_typed_tx(support::resign(task_open)).await.expect("submit");
+    bus.submit_typed_tx(support::resign(task_open))
+        .await
+        .expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -302,7 +304,9 @@ async fn i90e_tampered_l4e_row_breaks_chain_open() {
     );
     // Submit a synthetic zero-stake WorkTx → L4.E row.
     let bad_work = make_synthetic_worktx("task-i90e", "agent-i90e", Hash::ZERO, 0, "i90e-1", true);
-    bus.submit_typed_tx(support::resign(bad_work)).await.expect("submit");
+    bus.submit_typed_tx(support::resign(bad_work))
+        .await
+        .expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 
@@ -358,7 +362,9 @@ async fn i90f_absent_l4e_is_legitimate_empty_chain_not_tamper() {
         bundle.sequencer.clone(),
     );
     let task_open = make_synthetic_task_open("task-i90f", "sponsor-i90f", Hash::ZERO, "i90f-1");
-    bus.submit_typed_tx(support::resign(task_open)).await.expect("submit");
+    bus.submit_typed_tx(support::resign(task_open))
+        .await
+        .expect("submit");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 

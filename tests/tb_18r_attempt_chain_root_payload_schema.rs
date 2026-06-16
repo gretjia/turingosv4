@@ -64,7 +64,7 @@ fn fc1_n41_intermediate_attempts_have_none_chain_root() {
         hash_for("ctx"),
         Cid::from_content(b"intermediate-payload"),
         AttemptKind::ExternalizedLlmCycle,
-        AttemptOutcome::LeanPass,
+        AttemptOutcome::VerifierPass,
         TokenCounts::default(),
         "step_partial_ok".into(),
     );
@@ -97,7 +97,7 @@ fn fc1_n41_terminal_composite_has_some_chain_root() {
     );
 
     assert_eq!(terminal.attempt_chain_root, Some(merkle_root));
-    assert_eq!(terminal.outcome, AttemptOutcome::LeanPass);
+    assert_eq!(terminal.outcome, AttemptOutcome::VerifierPass);
     assert_eq!(terminal.attempt_kind, AttemptKind::ExternalizedLlmCycle);
 }
 

@@ -104,7 +104,8 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     // WorkTx agents so the pinned manifest covers them (fail-closed ingress). ──
     let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open agent_keypairs");
     for a in ["n1", "swarm_a", "swarm_b"] {
-        reg.get_or_create(&AgentId(a.into())).expect("register agent");
+        reg.get_or_create(&AgentId(a.into()))
+            .expect("register agent");
     }
     // OBS_AGENT_SIG_REPLAY_GAP closure: pin a MERGED manifest — COMMON
     // deterministic agents (for the synthetic TaskOpen sponsor) + the registry
@@ -248,7 +249,7 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
     // tactic_diversity counts WorkTx whose ProposalTelemetry CAS object
     // is reachable, which for L4.E-only paths is empty since L4.E entries
     // aren't decoded for proposal_telemetry. Asserts shape, not exact count.)
-    assert!(facts.tactic_diversity <= 3);
+    assert!(facts.method_diversity <= 3);
     // tool_dist count keys ≤ 3.
     assert!(facts.tool_dist.len() <= 3);
 
@@ -309,7 +310,7 @@ async fn i110_chain_backed_smoke_end_to_end_synthetic_llm() {
                  \n\
                  - **Real LLM proposals**: the synthetic agents (`n1` / `swarm_a` / `swarm_b`) emit deterministic WorkTx + VerifyTx pairs to exercise the routing, NOT real DeepSeek-generated Lean proofs. The full real-LLM smoke is a manual procedure (see test header).\n\
                  - **Accepted-L4 economic settlement**: zero-stake WorkTx by design routes to L4.E. The TaskOpen at L4 is the natural accept; no FinalizeRewardTx (RSP-4 / TB-9 territory).\n\
-                 - **gp_proof_file**: chain doesn't bind file paths (charter §4.4 excluded); stays in evaluator stdout.\n",
+                 - **gp_output_file**: chain doesn't bind file paths (charter §4.4 excluded); stays in evaluator stdout.\n",
                 l4 = report.l4_entries,
                 l4e = report.l4e_entries,
                 all_pass = report.all_indicators_pass(),

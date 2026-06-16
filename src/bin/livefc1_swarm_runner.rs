@@ -40,7 +40,9 @@ use sha2::{Digest, Sha256};
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::rejection_evidence::{RejectionClass, RejectionEvidenceWriter};
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass, RejectionEvidenceWriter,
+};
 use turingosv4::bottom_white::ledger::transition_ledger::TxKind;
 use turingosv4::drivers::llm_http::{GenerateRequest, Message, ResilientLLMClient};
 use turingosv4::economy::money::MicroCoin;
@@ -197,7 +199,9 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             .find(|&&kk| kk == k)
             .ok_or_else(|| format!("unknown arg: {k}"))?;
         i += 1;
-        let v = argv.get(i).ok_or_else(|| format!("missing value after {key}"))?;
+        let v = argv
+            .get(i)
+            .ok_or_else(|| format!("missing value after {key}"))?;
         m.insert(key, v.clone());
         i += 1;
     }
@@ -564,7 +568,8 @@ async fn run(args: Args) -> Result<(), String> {
                         continue;
                     }
                     Ok((final_answer, rationale)) => {
-                        let correct = normalize(&final_answer) == normalize(&cell.sample.expected_answer);
+                        let correct =
+                            normalize(&final_answer) == normalize(&cell.sample.expected_answer);
                         // Write ProposalTelemetry (carries REAL token counts) →
                         // referenced by WorkTx.proposal_cid → VPPUT cost reconstructs.
                         let (work_tx_id, proposal_cid, new_root) = submit_work_spine(
@@ -891,8 +896,7 @@ async fn submit_work_spine(
     Ok((work_tx_id, proposal_cid, after_work))
 }
 
-type SharedRejectionWriter =
-    std::sync::Arc<std::sync::RwLock<RejectionEvidenceWriter>>;
+type SharedRejectionWriter = std::sync::Arc<std::sync::RwLock<RejectionEvidenceWriter>>;
 
 /// Append a REAL L4.E `LlmError` rejection record THROUGH the sequencer's own
 /// shared rejection writer (the single owner of `rejections.jsonl`). The
@@ -908,7 +912,17 @@ fn write_l4e_llm_error(
     prompt_sha: &str,
     raw_err: &str,
 ) -> Result<u64, String> {
-    write_l4e(args, rej, parent_state_root, agent, sample_id, prompt_sha, raw_err, RejectionClass::LlmError, "llm_err")
+    write_l4e(
+        args,
+        rej,
+        parent_state_root,
+        agent,
+        sample_id,
+        prompt_sha,
+        raw_err,
+        RejectionClass::LlmError,
+        "llm_err",
+    )
 }
 
 fn write_l4e_parse_fail(
@@ -920,7 +934,17 @@ fn write_l4e_parse_fail(
     prompt_sha: &str,
     raw_err: &str,
 ) -> Result<u64, String> {
-    write_l4e(args, rej, parent_state_root, agent, sample_id, prompt_sha, raw_err, RejectionClass::ParseFailed, "parse_fail")
+    write_l4e(
+        args,
+        rej,
+        parent_state_root,
+        agent,
+        sample_id,
+        prompt_sha,
+        raw_err,
+        RejectionClass::ParseFailed,
+        "parse_fail",
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -961,7 +985,8 @@ fn write_l4e(
         "agent_id": agent,
         "public_class": public_class,
     });
-    let attempt_bytes = serde_json::to_vec(&attempt_payload).map_err(|e| format!("ser att: {e}"))?;
+    let attempt_bytes =
+        serde_json::to_vec(&attempt_payload).map_err(|e| format!("ser att: {e}"))?;
     let attempt_cid = cas
         .put(
             &attempt_bytes,
@@ -1072,7 +1097,13 @@ fn boxed(a: &str) -> Option<&str> {
 
 fn sanitize(v: &str) -> String {
     v.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -1085,7 +1116,10 @@ fn write_pretty<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
 }
 
 fn sha256_hex(input: impl AsRef<[u8]>) -> String {
-    Sha256::digest(input.as_ref()).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(input.as_ref())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn hash_from_hex(hex: &str) -> Result<Hash, String> {

@@ -159,15 +159,9 @@ impl LabeledArg {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrivilegedSink {
     /// A registered tool whose `ToolMetadata` makes it privileged.
-    Tool {
-        tool_id: String,
-        reason: SinkReason,
-    },
+    Tool { tool_id: String, reason: SinkReason },
     /// A write-set key whose name lands in a privileged namespace.
-    WriteKey {
-        key: String,
-        reason: SinkReason,
-    },
+    WriteKey { key: String, reason: SinkReason },
 }
 
 impl PrivilegedSink {
@@ -243,7 +237,7 @@ pub fn classify_tool_sink(meta: &ToolMetadata) -> Option<SinkReason> {
     }
     if matches!(
         meta.capability,
-        Capability::EconomicWallet | Capability::LeanOracle | Capability::SandboxedExec
+        Capability::EconomicWallet | Capability::DomainOracle | Capability::SandboxedExec
     ) {
         return Some(SinkReason::PrivilegedCapability);
     }
@@ -515,7 +509,10 @@ mod tests {
             SideEffectClass::FilesystemWrite,
             DeterminismClass::IdempotentWrite,
         );
-        assert_eq!(classify_tool_sink(&meta), Some(SinkReason::ExternalSideEffect));
+        assert_eq!(
+            classify_tool_sink(&meta),
+            Some(SinkReason::ExternalSideEffect)
+        );
     }
 
     #[test]
@@ -570,14 +567,21 @@ mod tests {
         let findings = arg_taint_v1(&call);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].sink, "wallet/agent-7/balance");
-        assert_eq!(findings[0].sink_reason, SinkReason::PrivilegedWriteNamespace);
+        assert_eq!(
+            findings[0].sink_reason,
+            SinkReason::PrivilegedWriteNamespace
+        );
     }
 
     #[test]
     fn trusted_arg_into_privileged_sink_is_clean() {
         // POSITIVE CONTROL: a Trusted arg into a wallet sink must NOT be flagged.
         let call = WtoolCall {
-            args: vec![LabeledArg::new("amount", b"100".to_vec(), ArgTaint::Trusted)],
+            args: vec![LabeledArg::new(
+                "amount",
+                b"100".to_vec(),
+                ArgTaint::Trusted,
+            )],
             target_tools: vec![wallet_tool("wallet.pay")],
             write_keys: vec!["wallet/agent-7/balance".to_string()],
         };

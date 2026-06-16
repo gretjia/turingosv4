@@ -370,7 +370,12 @@ fn python_correct_main_py_passes_broken_fails() {
         "a correct main.py must NOT carry an HTML-doctype gate"
     );
 
-    let good_cid = put_bundle(ws, "main.py", b"def main():\n    print(1 + 2)\n\nmain()\n", t);
+    let good_cid = put_bundle(
+        ws,
+        "main.py",
+        b"def main():\n    print(1 + 2)\n\nmain()\n",
+        t,
+    );
     let good = run_test_scenario_set(ws, &good_cid, &scenario_set).expect("run good");
     let py_ok = pass_of(&good.results, &TestScenario::PythonParses);
 
@@ -396,7 +401,10 @@ fn python_correct_main_py_passes_broken_fails() {
             good.overall_pass,
             "a correct main.py bundle must pass overall (no HtmlParses false-reject)"
         );
-        assert!(!bad.overall_pass, "a broken main.py bundle must fail overall");
+        assert!(
+            !bad.overall_pass,
+            "a broken main.py bundle must fail overall"
+        );
     }
 }
 
@@ -438,7 +446,10 @@ fn functional_gate_rejects_wrong_passes_right() {
         pass_of(&correct_run.results, &functional_probe),
         "the correct artifact surfaces the required control => functional gate PASS"
     );
-    assert!(correct_run.overall_pass, "the correct artifact passes overall");
+    assert!(
+        correct_run.overall_pass,
+        "the correct artifact passes overall"
+    );
 
     // WRONG-BUT-VALID artifact: perfectly well-formed HTML implementing the
     // WRONG thing (a clock) and omitting the required `New Game` control.

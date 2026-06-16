@@ -63,8 +63,8 @@ use turingosv4::runtime::real5_roles::fc3_proposer::{
 use turingosv4::state::q_state::{AgentId, Hash, QState, TxId};
 use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SystemEmitCommand};
 use turingosv4::state::typed_tx::{
-    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind, LogFeedbackArchiveTx,
-    PredicateId, TypedTx, VetoVerdict, ARCHITECT_FEEDBACK_SCHEMA_ID,
+    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind,
+    LogFeedbackArchiveTx, PredicateId, TypedTx, VetoVerdict, ARCHITECT_FEEDBACK_SCHEMA_ID,
 };
 use turingosv4::top_white::predicates::registry::{BootPredicateManifest, PredicateRegistry};
 
@@ -89,9 +89,8 @@ fn harness() -> Harness {
     let pinned = Arc::new(pinned_map);
     // v8 production predicate catalog — the canary scores candidates against the
     // EXISTING executable `acc1` (ProposalPayloadNotEmpty) predicate.
-    let registry =
-        PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
-            .expect("v8 predicate registry");
+    let registry = PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
+        .expect("v8 predicate registry");
     let (seq, rx) = Sequencer::new(
         Arc::clone(&cas),
         keypair,
@@ -160,8 +159,8 @@ fn seed_rejection_cluster(h: &Harness) {
     let mut rej = h.rejections.write().expect("l4e write");
     let stub_cid = Cid::from_content(b"fc3-observable-rejection-stub");
     for (i, class) in [
-        RejectionClass::LeanFailed,
-        RejectionClass::LeanFailed,
+        RejectionClass::CheckerFailed,
+        RejectionClass::CheckerFailed,
         RejectionClass::ParseFailed,
     ]
     .into_iter()
@@ -331,9 +330,8 @@ async fn fc3_canary_writes_metric_and_loop_stays_open() {
     // Run the canary against the real executable `acc1` predicate
     // (ProposalPayloadNotEmpty) — the candidate artifact bytes are non-empty,
     // so the predicate PASSES and the metric is +1/1.
-    let registry =
-        PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
-            .expect("v8 predicate registry");
+    let registry = PredicateRegistry::from_boot_manifest(BootPredicateManifest::v8_production())
+        .expect("v8 predicate registry");
     let registry_root = registry.merkle_root_hash();
     let request = CanaryRequest {
         candidate_artifact_cid,
@@ -359,7 +357,10 @@ async fn fc3_canary_writes_metric_and_loop_stays_open() {
     );
     assert_eq!(outcome.metric.numerator_delta, 1);
     assert_eq!(outcome.metric.denominator, 1);
-    assert_eq!(outcome.capsule.predicate_id, PredicateId("acc1".to_string()));
+    assert_eq!(
+        outcome.capsule.predicate_id,
+        PredicateId("acc1".to_string())
+    );
 
     // The MetricEstimate evidence capsule is tape-anchored and reconstructable.
     let cas = h.cas.read().expect("cas read");
@@ -384,8 +385,7 @@ async fn fc3_canary_writes_metric_and_loop_stays_open() {
     // dead-end; it must NOT be a loop-closing re-init / commit. This is the
     // inverse of the standing-pending G5 leg (B).
     assert_eq!(
-        outcome.capsule.terminal_status,
-        CANARY_ONLY_TERMINAL_STATUS,
+        outcome.capsule.terminal_status, CANARY_ONLY_TERMINAL_STATUS,
         "canary terminal status must be the sandbox-canary dead-end"
     );
     assert!(

@@ -36,8 +36,8 @@ use crate::bottom_white::ledger::transition_ledger::{
 use crate::state::q_state::Hash;
 use crate::state::sequencer::SystemEmitCommand;
 use crate::state::typed_tx::{
-    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind, LogFeedbackArchiveTx,
-    ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
+    ArchitectFeedbackCapsule, ArchitectProposalCapsule, ArchitectProposalKind,
+    LogFeedbackArchiveTx, ARCHITECT_FEEDBACK_SCHEMA_ID, ARCHITECT_PROPOSAL_SCHEMA_ID,
 };
 
 /// TRACE_MATRIX FC3-N33: CAS schema id for the runtime candidate artifact bytes
@@ -82,9 +82,9 @@ impl FailureCluster {
         for rec in rejections.records() {
             cluster.total_rejections += 1;
             match rec.rejection_class {
-                RejectionClass::LeanFailed => cluster.lean_failed += 1,
+                RejectionClass::CheckerFailed => cluster.lean_failed += 1,
                 RejectionClass::ParseFailed => cluster.parse_failed += 1,
-                RejectionClass::SorryBlocked => cluster.sorry_blocked += 1,
+                RejectionClass::IncompleteProofBlocked => cluster.sorry_blocked += 1,
                 RejectionClass::LlmError => cluster.llm_error += 1,
                 RejectionClass::PredicateFailed => cluster.predicate_failed += 1,
                 _ => {}

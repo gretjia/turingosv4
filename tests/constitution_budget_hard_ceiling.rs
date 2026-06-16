@@ -121,13 +121,22 @@ fn zero_ceiling_is_unlimited_run_advances_as_before() {
     // advancing — a zero ceiling never halts, no matter the spend.
     let mut last_head = k.tape.get_verified_head();
     for _ in 0..5 {
-        let step = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 1_000_000);
+        let step = k.step_forward_with_budget(
+            &task,
+            ok_env("t"),
+            Default::default(),
+            &Default::default(),
+            1_000_000,
+        );
         assert!(
             is_proceed(&step),
             "FORWARD-ONLY: zero ceiling must admit (proceed) regardless of spend"
         );
         let new_head = k.tape.get_verified_head();
-        assert_ne!(new_head, last_head, "head must advance under a zero ceiling");
+        assert_ne!(
+            new_head, last_head,
+            "head must advance under a zero ceiling"
+        );
         last_head = new_head;
     }
 
@@ -158,23 +167,52 @@ fn positive_ceiling_halts_run_with_no_head_advance() {
     };
 
     // Step 1: 60 tokens. Prior spend = 0 < 100 → admits, head advances, records 60.
-    let step1 = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 60);
+    let step1 = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        60,
+    );
     assert!(is_proceed(&step1), "first step within budget must proceed");
     let head_after_1 = k.tape.get_verified_head();
-    assert_eq!(live_tape_spend_tokens(&k.tape), 60, "spend after step 1 = 60");
+    assert_eq!(
+        live_tape_spend_tokens(&k.tape),
+        60,
+        "spend after step 1 = 60"
+    );
 
     // Step 2: another 60 tokens. Prior spend = 60 < 100 → admits, records 60 more
     // → cumulative spend = 120.
-    let step2 = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 60);
-    assert!(is_proceed(&step2), "second step (prior spend 60 < 100) must proceed");
+    let step2 = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        60,
+    );
+    assert!(
+        is_proceed(&step2),
+        "second step (prior spend 60 < 100) must proceed"
+    );
     let head_after_2 = k.tape.get_verified_head();
     assert_ne!(head_after_2, head_after_1, "head advanced on step 2");
-    assert_eq!(live_tape_spend_tokens(&k.tape), 120, "cumulative spend = 120 >= ceiling 100");
+    assert_eq!(
+        live_tape_spend_tokens(&k.tape),
+        120,
+        "cumulative spend = 120 >= ceiling 100"
+    );
 
     // Step 3: prior spend 120 >= ceiling 100 → THE FC2-HALT. The proposal is a
     // valid Proceed header, yet it is REJECTED purely on budget. The head MUST
     // NOT advance.
-    let step3 = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 5);
+    let step3 = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        5,
+    );
     assert!(
         !is_proceed(&step3),
         "FC2-HALT: a positive-ceiling breach must NOT proceed (mutation: drop the \
@@ -195,8 +233,17 @@ fn positive_ceiling_halts_run_with_no_head_advance() {
     );
 
     // STICKY HALT: a further proposal also rejects (the run is out of fuel).
-    let step4 = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 1);
-    assert!(!is_proceed(&step4), "halt is sticky: every further proposal rejects");
+    let step4 = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        1,
+    );
+    assert!(
+        !is_proceed(&step4),
+        "halt is sticky: every further proposal rejects"
+    );
     assert_eq!(
         k.tape.get_verified_head(),
         head_after_2,
@@ -218,13 +265,25 @@ fn raising_ceiling_resumes_the_halted_run() {
     };
 
     // Step 1: 50 tokens (prior spend 0 < 50) → admits, spend becomes 50.
-    let step1 = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 50);
+    let step1 = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        50,
+    );
     assert!(is_proceed(&step1));
     let checkpoint_head = k.tape.get_verified_head();
     assert_eq!(live_tape_spend_tokens(&k.tape), 50);
 
     // Step 2: prior spend 50 >= ceiling 50 → HALT, head frozen at the checkpoint.
-    let halted = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 10);
+    let halted = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        10,
+    );
     assert!(!is_proceed(&halted), "run halts at the tight ceiling");
     assert_eq!(
         k.tape.get_verified_head(),
@@ -236,7 +295,13 @@ fn raising_ceiling_resumes_the_halted_run() {
     // The tape is append-only and the head never moved, so the previously-halted
     // proposal now admits FROM THE SAME CHECKPOINT HEAD.
     k.cost_ceiling_microcoin = MicroCoin::from_micro_units(10_000);
-    let resumed = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 10);
+    let resumed = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        10,
+    );
     assert!(
         is_proceed(&resumed),
         "CHECKPOINT-RESUME: a raised ceiling must let the halted proposal admit \
@@ -272,17 +337,45 @@ fn ceiling_derives_from_signed_manifest_file_and_moves_the_boundary() {
         prompt: "do".into(),
     };
     // Spend 100 (== ceiling) over one step, then the next halts.
-    let _ = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 100);
-    let halted = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 1);
-    assert!(!is_proceed(&halted), "spend 100 >= manifest ceiling 100 → halt");
+    let _ = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        100,
+    );
+    let halted = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        1,
+    );
+    assert!(
+        !is_proceed(&halted),
+        "spend 100 >= manifest ceiling 100 → halt"
+    );
 
     // MUTATE the manifest file to a LARGER ceiling: the SAME spend now admits —
     // proving the boundary is the manifest's integer, not a hardcoded const.
-    std::fs::write(&manifest_path, "cost_ceiling_micro_units = 100000\n").expect("rewrite manifest");
+    std::fs::write(&manifest_path, "cost_ceiling_micro_units = 100000\n")
+        .expect("rewrite manifest");
     let raised = BudgetManifest::from_file(&manifest_path).expect("reload manifest");
     let mut k2 = fresh_kernel(raised.ceiling_micro());
-    let _ = k2.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 100);
-    let admitted = k2.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 1);
+    let _ = k2.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        100,
+    );
+    let admitted = k2.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        1,
+    );
     assert!(
         is_proceed(&admitted),
         "mutating the manifest ceiling 100→100000 moves the boundary (mutation \
@@ -291,7 +384,10 @@ fn ceiling_derives_from_signed_manifest_file_and_moves_the_boundary() {
 
     // Integer-only: a float ceiling in the manifest is a parse error — no f64.
     let float_err = BudgetManifest::from_toml_str("cost_ceiling_micro_units = 1.5");
-    assert!(float_err.is_err(), "a float ceiling must be rejected (no f64 on the money path)");
+    assert!(
+        float_err.is_err(),
+        "a float ceiling must be rejected (no f64 on the money path)"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -303,7 +399,10 @@ fn reject_class_is_the_existing_pinned_budget_exceeded_variant() {
     // The label is derived FROM the pinned variant's Debug name — if the variant
     // were renamed/removed this line would fail to compile, so the label can
     // never silently drift from the pinned enum.
-    assert_eq!(reject_class_label(), format!("{:?}", RejectionClass::BudgetExceeded));
+    assert_eq!(
+        reject_class_label(),
+        format!("{:?}", RejectionClass::BudgetExceeded)
+    );
     assert_eq!(reject_class_label(), "BudgetExceeded");
 
     // And the live membrane stamps exactly this label (no second/new class).
@@ -312,8 +411,20 @@ fn reject_class_is_the_existing_pinned_budget_exceeded_variant() {
         id: "t".into(),
         prompt: "do".into(),
     };
-    let _ = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 10);
-    let _ = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 1);
+    let _ = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        10,
+    );
+    let _ = k.step_forward_with_budget(
+        &task,
+        ok_env("t"),
+        Default::default(),
+        &Default::default(),
+        1,
+    );
     assert_eq!(
         latest_reject_class(&k).as_deref(),
         Some("BudgetExceeded"),
@@ -336,7 +447,13 @@ fn spend_is_deterministic_tape_derived_and_counts_failed_branches() {
         };
         // One accepted step costing 60, then a FAILED step costing 50 (success:false
         // → rejection path, but its tokens still cost budget). Cumulative = 110.
-        let _ = k.step_forward_with_budget(&task, ok_env("t"), Default::default(), &Default::default(), 60);
+        let _ = k.step_forward_with_budget(
+            &task,
+            ok_env("t"),
+            Default::default(),
+            &Default::default(),
+            60,
+        );
         let failed_env = EnvironmentResult {
             raw_output: r#"{"schema_version":"tdma-state-update/v1","status":"Retry","task_id":"t","action":"RETRY","failed_predicate":"x.y","reject_class":"schema-fail"}
 ---BODY---
@@ -345,7 +462,13 @@ nope"#
             raw_stderr: "boom\n".into(),
             success: false,
         };
-        let _ = k.step_forward_with_budget(&task, failed_env, Default::default(), &Default::default(), 50);
+        let _ = k.step_forward_with_budget(
+            &task,
+            failed_env,
+            Default::default(),
+            &Default::default(),
+            50,
+        );
         let spend = live_tape_spend_tokens(&k.tape);
         // The next proposal's verdict under the ceiling.
         let next_halts = !is_proceed(&k.step_forward_with_budget(
@@ -365,8 +488,14 @@ nope"#
     // FAILED BRANCHES COUNT: 60 (accepted) + 50 (failed) = 110, and 110 >= 100 ⇒
     // the next proposal halts. Dropping the failed branch (110→60) would NOT halt
     // — the failed branch genuinely pushed spend over the ceiling (mutation witness).
-    assert_eq!(spend_a, 110, "spend counts the failed branch (60 accepted + 50 failed)");
-    assert!(halt_a, "spend 110 >= ceiling 100 ⇒ halt; the failed branch was decisive");
+    assert_eq!(
+        spend_a, 110,
+        "spend counts the failed branch (60 accepted + 50 failed)"
+    );
+    assert!(
+        halt_a,
+        "spend 110 >= ceiling 100 ⇒ halt; the failed branch was decisive"
+    );
 
     // Cross-check the pure decision function agrees with the live verdict.
     assert!(

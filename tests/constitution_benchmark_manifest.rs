@@ -28,8 +28,8 @@ fn ref_manifest() -> BenchmarkManifest {
         max_tx_budget: 64,
         n_per_problem: 3,
         seeds: vec![1, 2, 3],
-        lean_version: "4.7.0".into(),
-        mathlib_commit: "a".repeat(40),
+        verifier_version: "4.7.0".into(),
+        verifier_library_commit: "a".repeat(40),
         turingos_commit: "b".repeat(40),
         strategy: "M1: 3p × n=3 × 3-seed = 27 runs DeepSeek baseline".into(),
         schema_id: BENCHMARK_MANIFEST_SCHEMA_ID.to_string(),
@@ -76,8 +76,10 @@ fn benchmark_manifest_no_field_omission_allowed() {
         ("max_tx_budget", |m| m.max_tx_budget = 0),
         ("n_per_problem", |m| m.n_per_problem = 0),
         ("seeds", |m| m.seeds.clear()),
-        ("lean_version", |m| m.lean_version.clear()),
-        ("mathlib_commit", |m| m.mathlib_commit = "short".into()),
+        ("verifier_version", |m| m.verifier_version.clear()),
+        ("verifier_library_commit", |m| {
+            m.verifier_library_commit = "short".into()
+        }),
         ("turingos_commit", |m| m.turingos_commit = "short".into()),
         ("strategy", |m| m.strategy.clear()),
     ];

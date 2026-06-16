@@ -19,8 +19,8 @@
 //!      objects in the same store.
 //!   3. `partial_accept_count` field equals the count of AttemptTelemetry
 //!      records with `outcome == AttemptOutcome::PartialAccepted`.
-//!   4. `lean_error_count` field equals the count with outcome == LeanFail.
-//!   5. `sorry_block_count` field equals the count with outcome == SorryBlock.
+//!   4. `verifier_error_count` field equals the count with outcome == LeanFail.
+//!   5. `incomplete_proof_block_count` field equals the count with outcome == SorryBlock.
 //!   6. `protocol_parse_failure_count` field equals the count with
 //!      outcome == ParseFail.
 //!
@@ -61,8 +61,8 @@ const SECONDARY_PROBLEM_DIRS: &[&str] = &[
 #[derive(Default, Debug, Clone, Copy)]
 struct DerivedCounts {
     attempt_count: u64,
-    lean_error_count: u64,
-    sorry_block_count: u64,
+    verifier_error_count: u64,
+    incomplete_proof_block_count: u64,
     parse_failure_count: u64,
     partial_accept_count: u64,
 }
@@ -74,8 +74,8 @@ fn derive_counts_from_attempt_telemetry(cas: &CasStore) -> DerivedCounts {
     for cid in at_cids {
         match read_attempt_telemetry_from_cas(cas, &cid) {
             Ok(at) => match at.outcome {
-                AttemptOutcome::LeanFail => counts.lean_error_count += 1,
-                AttemptOutcome::SorryBlock => counts.sorry_block_count += 1,
+                AttemptOutcome::VerifierFail => counts.verifier_error_count += 1,
+                AttemptOutcome::IncompleteProofBlock => counts.incomplete_proof_block_count += 1,
                 AttemptOutcome::ParseFail => counts.parse_failure_count += 1,
                 AttemptOutcome::PartialAccepted => counts.partial_accept_count += 1,
                 _ => {}
@@ -212,14 +212,14 @@ fn fc3_inv1_capsule_outcome_counts_match_at_walk_p08() {
     let capsule = read_capsule_for_problem(&prob_dir);
 
     assert_eq!(
-        capsule.lean_error_count, derived.lean_error_count,
-        "FC3-INV1: capsule lean_error_count={} vs derived={}",
-        capsule.lean_error_count, derived.lean_error_count
+        capsule.verifier_error_count, derived.verifier_error_count,
+        "FC3-INV1: capsule verifier_error_count={} vs derived={}",
+        capsule.verifier_error_count, derived.verifier_error_count
     );
     assert_eq!(
-        capsule.sorry_block_count, derived.sorry_block_count,
-        "FC3-INV1: capsule sorry_block_count={} vs derived={}",
-        capsule.sorry_block_count, derived.sorry_block_count
+        capsule.incomplete_proof_block_count, derived.incomplete_proof_block_count,
+        "FC3-INV1: capsule incomplete_proof_block_count={} vs derived={}",
+        capsule.incomplete_proof_block_count, derived.incomplete_proof_block_count
     );
     assert_eq!(
         capsule.protocol_parse_failure_count, derived.parse_failure_count,

@@ -86,7 +86,10 @@ fn put_bundle(ws: &Path, entrypoint: &str, content: &[u8], t: u64) -> String {
         .hex()
 }
 
-fn pass_of(results: &[turingosv4::runtime::test_run::TestScenarioResult], want: &TestScenario) -> bool {
+fn pass_of(
+    results: &[turingosv4::runtime::test_run::TestScenarioResult],
+    want: &TestScenario,
+) -> bool {
     results
         .iter()
         .find(|r| std::mem::discriminant(&r.scenario) == std::mem::discriminant(want))
@@ -103,7 +106,12 @@ fn has_scenario(set: &[TestScenario], want: &TestScenario) -> bool {
 /// HTML doctype; the structural gate is entrypoint-aware.
 #[test]
 fn html_parses_never_applies_to_python_entrypoint() {
-    let set = derive_scenario_set_from_spec(b"Crunch some numbers and print a table", "cid", "main.py", 1);
+    let set = derive_scenario_set_from_spec(
+        b"Crunch some numbers and print a table",
+        "cid",
+        "main.py",
+        1,
+    );
     assert!(
         has_scenario(&set.scenarios, &TestScenario::PythonParses),
         "a .py entrypoint must get PythonParses"
@@ -122,15 +130,19 @@ fn python_parses_rejects_broken_and_accepts_valid() {
     let ws = dir.path();
     let t = now_t();
 
-    let scenario_set =
-        derive_scenario_set_from_spec(b"Crunch some numbers", "cid", "main.py", t);
+    let scenario_set = derive_scenario_set_from_spec(b"Crunch some numbers", "cid", "main.py", t);
     assert!(
         has_scenario(&scenario_set.scenarios, &TestScenario::PythonParses),
         "precondition: PythonParses derived for .py"
     );
 
     // Valid Python entrypoint.
-    let good_cid = put_bundle(ws, "main.py", b"def main():\n    print(1 + 2)\n\nmain()\n", t);
+    let good_cid = put_bundle(
+        ws,
+        "main.py",
+        b"def main():\n    print(1 + 2)\n\nmain()\n",
+        t,
+    );
     let good = run_test_scenario_set(ws, &good_cid, &scenario_set).expect("run good");
     let py_ok = pass_of(&good.results, &TestScenario::PythonParses);
 
@@ -172,10 +184,13 @@ fn functional_gate_fails_wrong_but_valid_html() {
     let spec = b"Build a snake game. The page MUST have a `New Game` button to restart.";
     let scenario_set = derive_scenario_set_from_spec(spec, "cid", "index.html", t);
     assert!(
-        has_scenario(&scenario_set.scenarios, &TestScenario::RequiredTextPresent {
-            label: String::new(),
-            needle: String::new(),
-        }),
+        has_scenario(
+            &scenario_set.scenarios,
+            &TestScenario::RequiredTextPresent {
+                label: String::new(),
+                needle: String::new(),
+            }
+        ),
         "precondition: a functional RequiredTextPresent gate must be derived"
     );
 

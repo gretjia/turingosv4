@@ -192,7 +192,9 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             .find(|&&kk| kk == k)
             .ok_or_else(|| format!("unknown arg: {k}"))?;
         i += 1;
-        let v = argv.get(i).ok_or_else(|| format!("missing value after {key}"))?;
+        let v = argv
+            .get(i)
+            .ok_or_else(|| format!("missing value after {key}"))?;
         m.insert(key, v.clone());
         i += 1;
     }
@@ -221,7 +223,10 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             .get("--proxy-url")
             .cloned()
             .unwrap_or_else(|| "http://localhost:8123".into()),
-        model: m.get("--model").cloned().unwrap_or_else(|| "deepseek-chat".into()),
+        model: m
+            .get("--model")
+            .cloned()
+            .unwrap_or_else(|| "deepseek-chat".into()),
         brand_provider: m
             .get("--brand-provider")
             .cloned()
@@ -528,7 +533,7 @@ async fn run(args: Args) -> Result<(), String> {
                 )
                 .map_err(|e| format!("put proof artifact: {e}"))?
             };
-            let vr = VerificationResult::from_lean_run(
+            let vr = VerificationResult::from_verifier_run(
                 TxId(format!("worktx-{task}-leanv{ord}")),
                 AgentId(VERIFIER_AGENT.into()),
                 outcome.exit_code,
@@ -571,8 +576,13 @@ async fn run(args: Args) -> Result<(), String> {
                     format!("{agent}.lean.b{ord}"),
                 )
                 .with_verification_result(vr_cid);
-                write_proposal_telemetry_to_cas(&mut cas, &tel, "lean-proposal-telemetry", logical_t)
-                    .map_err(|e| format!("write ProposalTelemetry: {e}"))?
+                write_proposal_telemetry_to_cas(
+                    &mut cas,
+                    &tel,
+                    "lean-proposal-telemetry",
+                    logical_t,
+                )
+                .map_err(|e| format!("write ProposalTelemetry: {e}"))?
             };
 
             last_body = Some(body.clone());
@@ -615,7 +625,7 @@ async fn run(args: Args) -> Result<(), String> {
                     last_root,
                     &agent,
                     failed_work_cid,
-                    RejectionClass::LeanFailed,
+                    RejectionClass::CheckerFailed,
                     &format!(
                         "lean_failed: {} (token-spent attempt; failed branch counted)",
                         truncate(&outcome.feedback, 120)
@@ -714,7 +724,10 @@ async fn run(args: Args) -> Result<(), String> {
             .await;
             match terminal {
                 Ok(_) => {
-                    if tb8_await_state_root_advance(&seq, last_root, 8_000).await.is_ok() {
+                    if tb8_await_state_root_advance(&seq, last_root, 8_000)
+                        .await
+                        .is_ok()
+                    {
                         omega_emitted = true;
                         any_omega = true;
                         if let Ok(q) = seq.q_snapshot() {
@@ -969,7 +982,11 @@ fn load_tape_ro(args: &Args) -> Result<LoadedTape, String> {
     load_tape(&inputs).map_err(|e| format!("load_tape: {e}"))
 }
 
-fn build_prompt(thm: &LeanTheorem, parent_body: Option<&str>, parent_feedback: Option<&str>) -> String {
+fn build_prompt(
+    thm: &LeanTheorem,
+    parent_body: Option<&str>,
+    parent_feedback: Option<&str>,
+) -> String {
     let mut p = String::new();
     p.push_str("You are proving a theorem in Lean 4 (core/Std only; Mathlib is NOT available). Output ONLY a JSON object.\n\n");
     p.push_str("=== Target (prove the goal after `:= by`) ===\n");
@@ -997,13 +1014,11 @@ fn extract_proof_body(content: &str) -> Option<String> {
         .trim_start_matches("```")
         .trim_end_matches("```")
         .trim();
-    let v: serde_json::Value = serde_json::from_str(t)
-        .ok()
-        .or_else(|| {
-            let s = t.find('{')?;
-            let e = t.rfind('}')?;
-            serde_json::from_str(&t[s..=e]).ok()
-        })?;
+    let v: serde_json::Value = serde_json::from_str(t).ok().or_else(|| {
+        let s = t.find('{')?;
+        let e = t.rfind('}')?;
+        serde_json::from_str(&t[s..=e]).ok()
+    })?;
     v.get("proof_body")
         .and_then(|x| x.as_str())
         .map(|s| s.to_string())
@@ -1011,7 +1026,13 @@ fn extract_proof_body(content: &str) -> Option<String> {
 
 fn sanitize(v: &str) -> String {
     v.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect()
 }
 
@@ -1028,7 +1049,10 @@ fn write_pretty<T: Serialize>(path: &PathBuf, value: &T) -> Result<(), String> {
 }
 
 fn sha256_hex(input: impl AsRef<[u8]>) -> String {
-    Sha256::digest(input.as_ref()).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(input.as_ref())
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 fn hash_from_hex(hex: &str) -> Result<Hash, String> {

@@ -74,7 +74,9 @@ async fn bootstrap_single_entry_chain(
         Hash::ZERO,
         run_id,
     );
-    bus.submit_typed_tx(support::resign(tx)).await.expect("submit TaskOpen");
+    bus.submit_typed_tx(support::resign(tx))
+        .await
+        .expect("submit TaskOpen");
     bundle.shutdown().await.expect("shutdown");
     drop(bus);
 

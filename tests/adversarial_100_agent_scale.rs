@@ -81,13 +81,11 @@ use turingosv4::bottom_white::ledger::transition_ledger::{
     canonical_decode, replay_full_transition, InMemoryLedgerWriter, LedgerWriter,
 };
 use turingosv4::bottom_white::tools::registry::ToolRegistry;
-use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::economy::monetary_invariant::total_supply_micro;
+use turingosv4::economy::money::{MicroCoin, StakeMicroCoin};
 use turingosv4::runtime::agent_keypairs::{verify_agent_signature, AgentKeypairRegistry};
 use turingosv4::state::q_state::{AgentId, Hash, QState, TaskId, TxId};
-use turingosv4::state::sequencer::{
-    Sequencer, SubmissionEnvelope, SubmitError,
-};
+use turingosv4::state::sequencer::{Sequencer, SubmissionEnvelope, SubmitError};
 use turingosv4::state::typed_tx::{
     AgentSignature, BoolWithProof, ClaimId, EscrowLockTx, FinalizeRewardTx, PredicateId,
     PredicateResultsBundle, ReadKey, SafetyOrCreation, TaskOpenTx, TypedTx, WorkTx, WriteKey,
@@ -361,9 +359,7 @@ async fn g2_system_tx_forbidden_on_agent_ingress() {
         epoch: SystemEpoch::new(1),
         timestamp_logical: 1,
         system_signature:
-            turingosv4::bottom_white::ledger::system_keypair::SystemSignature::from_bytes(
-                [0u8; 64],
-            ),
+            turingosv4::bottom_white::ledger::system_keypair::SystemSignature::from_bytes([0u8; 64]),
     });
 
     let err = h
@@ -513,9 +509,7 @@ async fn g4_queue_backpressure_returns_queue_full_not_panic() {
         }
     }
 
-    eprintln!(
-        "G4: cap={cap} fired={total_fired} ok={ok} queue_full={queue_full} (no panic)"
-    );
+    eprintln!("G4: cap={cap} fired={total_fired} ok={ok} queue_full={queue_full} (no panic)");
 
     // Back-pressure must have engaged: more fired than the channel can hold.
     assert!(
@@ -651,7 +645,9 @@ async fn g6_replay_at_scale_reconstructs_100_agent_tape() {
     let entries = {
         let w = h.writer.read().expect("writer");
         let n = w.len();
-        (1..=n).map(|t| w.read_at(t).expect("read_at")).collect::<Vec<_>>()
+        (1..=n)
+            .map(|t| w.read_at(t).expect("read_at"))
+            .collect::<Vec<_>>()
     };
     eprintln!(
         "G6: N={N_AGENTS} | l4_entries={} | live_state_root={} | live_supply={live_supply}",
@@ -671,19 +667,11 @@ async fn g6_replay_at_scale_reconstructs_100_agent_tape() {
     let tools = ToolRegistry::new();
     let replayed = {
         let cas = h.cas.read().expect("cas read");
-        replay_full_transition(
-            &initial_q,
-            &entries,
-            &*cas,
-            &h.pinned,
-            &predicates,
-            &tools,
-        )
-        .expect("replay_full_transition must reconstruct the 100-agent tape")
+        replay_full_transition(&initial_q, &entries, &*cas, &h.pinned, &predicates, &tools)
+            .expect("replay_full_transition must reconstruct the 100-agent tape")
     };
 
-    let replay_supply =
-        total_supply_micro(&replayed.economic_state_t).expect("replay supply");
+    let replay_supply = total_supply_micro(&replayed.economic_state_t).expect("replay supply");
 
     eprintln!(
         "G6: replay_state_root={} | replay_supply={replay_supply}",
@@ -873,7 +861,9 @@ async fn s1_forged_work_signature_characterizes_replay_gap() {
     let entries = {
         let w = h.writer.read().expect("writer");
         let n = w.len();
-        (1..=n).map(|t| w.read_at(t).expect("read_at")).collect::<Vec<_>>()
+        (1..=n)
+            .map(|t| w.read_at(t).expect("read_at"))
+            .collect::<Vec<_>>()
     };
     let mut forged_work_found_on_tape = false;
     {

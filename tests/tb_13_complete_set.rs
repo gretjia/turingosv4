@@ -989,7 +989,11 @@ async fn tb13_auth_submit_time_signature_verification() {
         timestamp_logical: 502,
     };
     let imp_sig = support::deterministic_agent_keypair("bob")
-        .sign_digest(mint_impostor_unsigned.to_signing_payload().canonical_digest())
+        .sign_digest(
+            mint_impostor_unsigned
+                .to_signing_payload()
+                .canonical_digest(),
+        )
         .expect("sign_digest");
     let impostor_mint = CompleteSetMintTx {
         signature: imp_sig,

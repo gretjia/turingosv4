@@ -103,7 +103,7 @@ fn wave3_problem_dirs_with_sidecar_fixture() -> (Option<TempDir>, Vec<PathBuf>) 
 /// §I FC3-INV3 — Raw logs not in agent read view, run-time witness on
 /// Wave 3 50p tape. The kill condition is "agent prompt contains raw
 /// stderr". The agent's read view (`UniverseSnapshot` / `prompt.rs`)
-/// is constructed from typed CAS surfaces — `LeanResult.v2`,
+/// is constructed from typed CAS surfaces — `VerifierResult.v2`,
 /// `TransitionError.display.v1`, `EvidenceCapsule` shell. If raw
 /// stderr leaked into any of those, the per-object `size_bytes` would
 /// blow past sanitized bounds.

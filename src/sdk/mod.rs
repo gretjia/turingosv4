@@ -1,12 +1,4 @@
 pub mod actor;
-/// TRACE_MATRIX FC1a-output_edge + FC1 rtool/wtool read-view shielding
-/// (Art. III) — EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08: shared
-/// content-hash ID-handle helper for the render/parse membrane. Renders
-/// explicit canonical ids as opaque sha256 short-prefix HANDLES in
-/// LLM-visible projections, and resolves agent-echoed handles back to
-/// canonical ids by EXACT-membership-or-REJECT. Display/parse seam only —
-/// canonical identity types and state are unchanged.
-pub mod id_handle;
 /// TRACE_MATRIX FC1-N7 + §13: TB-N1-AGENT-ECONOMY A2 (session #35
 /// 2026-05-10) — renderer for the agent-perceived economic position
 /// block embedded in build_agent_prompt under
@@ -16,6 +8,14 @@ pub mod id_handle;
 /// structurally landed but invisible to agent at prompt layer".
 pub mod econ_position;
 pub mod error_abstraction;
+/// TRACE_MATRIX FC1a-output_edge + FC1 rtool/wtool read-view shielding
+/// (Art. III) — EXPLICIT_ID_HALLUCINATION_EXPOSURE_AUDIT_2026-06-08: shared
+/// content-hash ID-handle helper for the render/parse membrane. Renders
+/// explicit canonical ids as opaque sha256 short-prefix HANDLES in
+/// LLM-visible projections, and resolves agent-echoed handles back to
+/// canonical ids by EXACT-membership-or-REJECT. Display/parse seam only —
+/// canonical identity types and state are unchanged.
+pub mod id_handle;
 /// TRACE_MATRIX FC1-N7 + §15 + G-Phase directive §0.6 amendment G-2 —
 /// TB-G G2P.1 (charter §1 Module G2P): per-viewer renderer for the
 /// `=== Pending Peer Reviews ===` prompt block. Surfaces the queue of

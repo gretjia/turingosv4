@@ -145,31 +145,31 @@ fn predicate_pass_required_for_l4() {
 
 /// Art. I.1 + TB-18R R1 — A `VerifyTx::Confirm` (i.e., verified=true
 /// signal in evidence) requires real Lean acceptance behind it. The
-/// `LeanVerdictKind` enum + `LeanResult` CAS schema enforce typed
-/// verdict tracking; a `verified=true` claim without `LeanVerdictKind::Verified`
+/// `VerifierVerdictKind` enum + `VerifierResult` CAS schema enforce typed
+/// verdict tracking; a `verified=true` claim without `VerifierVerdictKind::Verified`
 /// in CAS is an admission fault.
 #[test]
 fn lean_verified_required_for_verified_worktx() {
     let tel_src = std::fs::read_to_string("src/runtime/attempt_telemetry.rs")
         .expect("attempt_telemetry.rs readable");
     assert!(
-        tel_src.contains("pub enum LeanVerdictKind") && tel_src.contains("Verified"),
-        "Predicate gate violation: LeanVerdictKind::Verified missing — \
+        tel_src.contains("pub enum VerifierVerdictKind") && tel_src.contains("Verified"),
+        "Predicate gate violation: VerifierVerdictKind::Verified missing — \
          verified WorkTx cannot be type-distinguished from un-verified."
     );
-    // The schema must include CAS-payload routing — `write_lean_result_to_cas`
-    // and `read_lean_result_from_cas` exist.
+    // The schema must include CAS-payload routing — `write_verifier_result_to_cas`
+    // and `read_verifier_result_from_cas` exist.
     assert!(
-        tel_src.contains("pub fn write_lean_result_to_cas")
-            && tel_src.contains("pub fn read_lean_result_from_cas"),
-        "Predicate gate violation: LeanResult CAS read/write missing — \
+        tel_src.contains("pub fn write_verifier_result_to_cas")
+            && tel_src.contains("pub fn read_verifier_result_from_cas"),
+        "Predicate gate violation: VerifierResult CAS read/write missing — \
          Lean verdict cannot be persisted as predicate evidence."
     );
     // PartialAccepted is typed (TB-18R Phase 2): a PartialAccepted verdict
     // must NOT silently flatten to verified=true with error_class=None.
     assert!(
         tel_src.contains("PartialAccepted"),
-        "Predicate gate violation: LeanVerdictKind::PartialAccepted missing \
+        "Predicate gate violation: VerifierVerdictKind::PartialAccepted missing \
          — un-typed PartialAccepted ambiguity (TB-18R Phase 2 fix) could \
          re-emerge."
     );

@@ -55,7 +55,9 @@ use tempfile::TempDir;
 
 use turingosv4::bottom_white::cas::schema::{Cid, ObjectType};
 use turingosv4::bottom_white::cas::store::CasStore;
-use turingosv4::bottom_white::ledger::rejection_evidence::{RejectionClass, RejectionEvidenceWriter};
+use turingosv4::bottom_white::ledger::rejection_evidence::{
+    RejectionClass, RejectionEvidenceWriter,
+};
 use turingosv4::bottom_white::ledger::system_keypair::{
     PinnedSystemPubkeys, SystemEpoch, SystemSignature,
 };
@@ -65,7 +67,7 @@ use turingosv4::runtime::agent_scheduler::vpput_reconstruction::reconstruct_vppu
 use turingosv4::runtime::audit_assertions::LoadedTape;
 use turingosv4::runtime::proposal_telemetry::{
     read_from_cas as read_proposal_telemetry, write_to_cas as write_proposal_telemetry,
-    ProposalTelemetry, ToolCallRecord, TokenCounts,
+    ProposalTelemetry, TokenCounts, ToolCallRecord,
 };
 use turingosv4::runtime::verification_result::{
     write_to_cas as write_verification_result, VerificationResult,
@@ -105,8 +107,14 @@ fn ledger_entry(logical_t: u64, kind: TxKind, payload_cid: Cid) -> LedgerEntry {
 
 fn put_typed(cas: &mut CasStore, tx: &TypedTx) -> Cid {
     let bytes = canonical_encode(tx).expect("canonical_encode TypedTx");
-    cas.put(&bytes, ObjectType::Generic, "anti-goodhart-fixture", 0, None)
-        .expect("cas put TypedTx")
+    cas.put(
+        &bytes,
+        ObjectType::Generic,
+        "anti-goodhart-fixture",
+        0,
+        None,
+    )
+    .expect("cas put TypedTx")
 }
 
 /// Write a `ProposalTelemetry` to CAS and return its CID. `tool_calls` carries the
@@ -124,9 +132,9 @@ fn write_telemetry(
         let vr = VerificationResult {
             target_work_tx: TxId(format!("work:{task}:{branch}")),
             verifier_agent: AgentId("agent:fixture".to_string()),
-            lean_exit_code: 0,
-            lean_stdout_hash: Hash::ZERO,
-            lean_stderr_hash: Hash::ZERO,
+            exit_code: 0,
+            stdout_hash: Hash::ZERO,
+            stderr_hash: Hash::ZERO,
             proof_file_hash: Hash::ZERO,
             proof_artifact_cid: Cid::default(),
             verified: true,
@@ -139,7 +147,8 @@ fn write_telemetry(
         agent_id: AgentId("agent:fixture".to_string()),
         prompt_context_hash: Hash::ZERO,
         proposal_artifact_cid: Cid::from_content(format!("artifact:{task}:{branch}").as_bytes()),
-        candidate_tactic: "nlinarith".to_string(),
+        candidate_label: "nlinarith".to_string(),
+        model_id: None,
         token_counts: tokens,
         tool_calls,
         branch_id: branch.to_string(),
@@ -169,7 +178,10 @@ fn accepted_work_entry(
         ..WorkTx::default()
     });
     let work_cid = put_typed(cas, &work);
-    (ledger_entry(logical_t, TxKind::Work, work_cid), proposal_cid)
+    (
+        ledger_entry(logical_t, TxKind::Work, work_cid),
+        proposal_cid,
+    )
 }
 
 fn terminal_entry(
@@ -287,9 +299,21 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> (LoadedTape, Cid) {
     entries.push(train_entry);
     t += 1;
 
-    entries.push(terminal_entry(&mut cas, t, "task_a", "run_x", RunOutcome::OmegaAccepted));
+    entries.push(terminal_entry(
+        &mut cas,
+        t,
+        "task_a",
+        "run_x",
+        RunOutcome::OmegaAccepted,
+    ));
     t += 1;
-    entries.push(terminal_entry(&mut cas, t, "task_b", "run_x", RunOutcome::OmegaAccepted));
+    entries.push(terminal_entry(
+        &mut cas,
+        t,
+        "task_b",
+        "run_x",
+        RunOutcome::OmegaAccepted,
+    ));
     t += 1;
     entries.push(terminal_entry(
         &mut cas,
@@ -329,7 +353,7 @@ fn build_tape(tmp: &TempDir, spec: FixtureSpec) -> (LoadedTape, Cid) {
             AgentId("agent:fixture".to_string()),
             TxKind::Work,
             rej_cid,
-            RejectionClass::LeanFailed,
+            RejectionClass::CheckerFailed,
             None,
             None,
         );
@@ -537,9 +561,7 @@ fn no_hidden_unmetered_generation() {
     let mut unmetered: Vec<String> = Vec::new();
     for file in &gen_files {
         let src = read(file);
-        let metered = TOKEN_ACCOUNTING_MARKERS
-            .iter()
-            .all(|m| src.contains(m));
+        let metered = TOKEN_ACCOUNTING_MARKERS.iter().all(|m| src.contains(m));
         if !metered {
             unmetered.push(file.clone());
         }
@@ -564,12 +586,16 @@ fn no_hidden_unmetered_generation() {
     let metered_src = "client.generate(&GenerateRequest{..}); let p = response.prompt_tokens; let c = response.completion_tokens;";
     let unmetered_src = "client.generate(&GenerateRequest{..}); /* tokens dropped */";
     assert!(
-        TOKEN_ACCOUNTING_MARKERS.iter().all(|m| metered_src.contains(m)),
+        TOKEN_ACCOUNTING_MARKERS
+            .iter()
+            .all(|m| metered_src.contains(m)),
         "#3 MUTANT control: a token-wired generation source must read as metered"
     );
     assert!(
         unmetered_src.contains(GENERATION_MARKER)
-            && !TOKEN_ACCOUNTING_MARKERS.iter().all(|m| unmetered_src.contains(m)),
+            && !TOKEN_ACCOUNTING_MARKERS
+                .iter()
+                .all(|m| unmetered_src.contains(m)),
         "#3 MUTANT control: a generation source with NO token wiring must be \
          detected as hidden-unmetered (the detector is not vacuous)"
     );
@@ -619,7 +645,11 @@ fn problem_id_hardcode_offenses(src: &str) -> Vec<String> {
         let is_comment = l.starts_with("//") || l.starts_with("*") || l.starts_with("#");
         for fam in ["putnam_2024", "putnam_2025", "minif2f_", "math_problem_"] {
             if !is_comment && l.contains(&format!("\"{fam}")) {
-                hits.push(format!("{}: hardcoded problem literal `{fam}`: {}", i + 1, l));
+                hits.push(format!(
+                    "{}: hardcoded problem literal `{fam}`: {}",
+                    i + 1,
+                    l
+                ));
             }
         }
     }
@@ -700,8 +730,7 @@ fn no_metric_file_access_by_agents() {
     );
     // And behaviorally: a prompt carrying a metric scalar (as if read from a
     // metric file) is BLOCKED by the same guard.
-    let result =
-        std::panic::catch_unwind(|| assert_no_metric_leak("context: H-VPPUT=0.42 leaked"));
+    let result = std::panic::catch_unwind(|| assert_no_metric_leak("context: H-VPPUT=0.42 leaked"));
     assert!(
         result.is_err(),
         "#5 no_metric_file_access_by_agents: assert_no_metric_leak must BLOCK a \
@@ -733,7 +762,10 @@ fn golden_path_requires_ground_truth_acceptance() {
         "#6 golden_path_requires_ground_truth_acceptance: a verified golden path \
          (omega + oracle witness) is progress=1"
     );
-    assert!(a.verified_pput_micro > 0, "#6: solved golden path scores positive");
+    assert!(
+        a.verified_pput_micro > 0,
+        "#6: solved golden path scores positive"
+    );
 
     // CAUGHT MUTANT — omega terminal WITHOUT the ground-truth oracle witness.
     let tmp2 = TempDir::new().expect("tmp2");
@@ -749,7 +781,10 @@ fn golden_path_requires_ground_truth_acceptance() {
         "#6 MUTANT: omega/predicate-pass WITHOUT a verified ground-truth witness \
          is NOT progress (no golden path)"
     );
-    assert_eq!(a2.verified_pput_micro, 0, "#6 MUTANT: no ground truth → zero metric");
+    assert_eq!(
+        a2.verified_pput_micro, 0,
+        "#6 MUTANT: no ground truth → zero metric"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -785,7 +820,10 @@ fn failed_branches_count_toward_total_cost() {
         .task("task_a")
         .cloned()
         .expect("task_a");
-    assert_eq!(a2.failed_branch_attempt_count, 0, "#7 MUTANT: no failed branch counted");
+    assert_eq!(
+        a2.failed_branch_attempt_count, 0,
+        "#7 MUTANT: no failed branch counted"
+    );
     assert!(
         a2.cost_tokens < with_failed,
         "#7 MUTANT: removing the failed branch lowers C_i ({} !< {})",

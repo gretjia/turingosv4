@@ -175,7 +175,8 @@ fn read_prior_rejection_feedback_via_lib(workspace: &Path, session_id: &str) -> 
                                         // exactly as read_failed_scenarios_by_cid does, so this
                                         // replica never re-introduces the C11 needle/label leak
                                         // (Art.III.4) it is supposed to be testing against.
-                                        let (name, detail) = r.scenario.shielded_feedback(&r.detail);
+                                        let (name, detail) =
+                                            r.scenario.shielded_feedback(&r.detail);
                                         failed.push((name, detail));
                                     }
                                 }

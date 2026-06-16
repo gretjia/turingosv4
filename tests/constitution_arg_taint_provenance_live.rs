@@ -210,11 +210,20 @@ fn declared_provenance_is_the_sole_discriminator() {
 fn production_provenance_verdict_is_replay_stable() {
     let a = production_step_forward_admits(external_arg_into_wallet_proceed());
     let b = production_step_forward_admits(external_arg_into_wallet_proceed());
-    assert_eq!(a, b, "replay-stability: identical proposal → identical verdict");
-    assert!(!a, "the external-provenance proposal must reject on every replay");
+    assert_eq!(
+        a, b,
+        "replay-stability: identical proposal → identical verdict"
+    );
+    assert!(
+        !a,
+        "the external-provenance proposal must reject on every replay"
+    );
 
     let c = production_step_forward_admits(ordinary_proceed());
     let d = production_step_forward_admits(ordinary_proceed());
-    assert_eq!(c, d, "replay-stability: identical ordinary proposal → identical verdict");
+    assert_eq!(
+        c, d,
+        "replay-stability: identical ordinary proposal → identical verdict"
+    );
     assert!(c, "the ordinary proposal must admit on every replay");
 }

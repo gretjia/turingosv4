@@ -14,7 +14,7 @@
 //! priced per-task node (WorkTx-Long confidence-scaled + ChallengeTx-Short) so the
 //! market can route refinement effort by price; failed attempts stay on tape as
 //! `is_verified=false` nodes (the market's search frontier). OMEGA fires ONLY on a
-//! `LeanVerdictKind::Verified` attempt — never a `sorry` (prereg §3). PPUT =
+//! `VerifierVerdictKind::Verified` attempt — never a `sorry` (prereg §3). PPUT =
 //! golden-path tokens / (total tokens × wall-clock).
 //!
 //! `--policy` (one binary, all arms — covers P0-A market + P0-G A0 + P0-C baselines):
@@ -860,7 +860,7 @@ async fn run(args: Args) -> Result<(), String> {
             let assembled = judge.assemble(&body);
             if let Ok(artifact_cid) = put_proof_artifact(&args.cas, &assembled, lt) {
                 lt += 1;
-                let vr = VerificationResult::from_lean_run(
+                let vr = VerificationResult::from_verifier_run(
                     TxId(work_tx_id.clone()),
                     AgentId(VERIFIER_AGENT.into()),
                     outcome.exit_code,

@@ -78,6 +78,17 @@ const KEEP_ANCHORS: &[(&str, &[&str])] = &[
         "Autonomy stop-points §4.4 (§14a reconciliation, not a stop reason)",
         &["不是停机理由", "all-merged"],
     ),
+    (
+        "§17 Claim Integrity Gates (forensic 2026-06-01)",
+        &[
+            "## 17. Claim Integrity Gates",
+            "no-proven-checklist",
+            "recomputed from the tape",
+            "anti-tamper",
+            "constitution_headline_recompute_from_tape.rs",
+            "constitution_router_name_matches_mechanism.rs",
+        ],
+    ),
 ];
 
 /// Read `AGENTS.md` from the package root (where `cargo test` runs). Mirrors the

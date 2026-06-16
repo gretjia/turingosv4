@@ -24,7 +24,16 @@ pub enum Capability {
     EconomicWallet,
     ProofValidator,
     NetworkClient,
-    LeanOracle,
+    /// De-Lean migration (2026-06-15, §8): renamed from `LeanOracle` to the
+    /// generic `DomainOracle` (an external math-domain checker is one pluggable
+    /// oracle, not a kernel concept). The on-wire serde NAME is PINNED to
+    /// `"LeanOracle"` via `#[serde(rename)]` — `ToolMetadata::canonical_hash`
+    /// serializes `capability` through `serde_json`, so that string is hashed
+    /// into the tool registry Merkle and must stay byte-identical for every
+    /// historical tool object. `#[serde(rename)]` is bidirectional, so a
+    /// historical `"LeanOracle"` wire string still deserializes here.
+    #[serde(rename = "LeanOracle")]
+    DomainOracle,
     LibrarianBoard,
     SearchTool,
     SandboxedExec,
@@ -238,17 +247,35 @@ mod tests {
             .unwrap();
         reg.register(sample_meta("wallet_b", Capability::EconomicWallet))
             .unwrap();
-        reg.register(sample_meta("oracle", Capability::LeanOracle))
+        reg.register(sample_meta("oracle", Capability::DomainOracle))
             .unwrap();
 
         let wallets = reg.find_by_capability(&Capability::EconomicWallet);
         assert_eq!(wallets.len(), 2, "two wallets registered");
 
-        let oracles = reg.find_by_capability(&Capability::LeanOracle);
+        let oracles = reg.find_by_capability(&Capability::DomainOracle);
         assert_eq!(oracles.len(), 1);
 
         let nones = reg.find_by_capability(&Capability::NetworkClient);
         assert_eq!(nones.len(), 0);
+    }
+
+    #[test]
+    fn capability_domain_oracle_wire_string_pinned() {
+        // De-Lean migration (2026-06-15): `Capability::DomainOracle` (formerly
+        // `LeanOracle`) MUST serialize to the PINNED on-wire string
+        // `"LeanOracle"` and a historical `"LeanOracle"` wire string MUST still
+        // deserialize back to it. That string is hashed into
+        // `ToolMetadata::canonical_hash` (the tool registry Merkle), so the
+        // wire identity of every historical tool object stays byte-identical.
+        assert_eq!(
+            serde_json::to_string(&Capability::DomainOracle).expect("serialize"),
+            "\"LeanOracle\"",
+        );
+        assert_eq!(
+            serde_json::from_str::<Capability>("\"LeanOracle\"").expect("deserialize legacy"),
+            Capability::DomainOracle,
+        );
     }
 
     #[test]

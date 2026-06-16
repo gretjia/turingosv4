@@ -49,16 +49,30 @@ struct Args {
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut m: BTreeMap<&str, String> = BTreeMap::new();
-    let keys = ["--runtime-repo", "--cas", "--constitution", "--genesis", "--out-dir"];
+    let keys = [
+        "--runtime-repo",
+        "--cas",
+        "--constitution",
+        "--genesis",
+        "--out-dir",
+    ];
     let mut i = 0;
     while i < argv.len() {
         let k = argv[i].as_str();
         if k == "--help" {
             return Err("usage: livefc1_swarm_verify --runtime-repo <P> --cas <P> --constitution <P> --genesis <P> --out-dir <P>".into());
         }
-        let key = keys.iter().find(|&&kk| kk == k).ok_or_else(|| format!("unknown arg {k}"))?;
+        let key = keys
+            .iter()
+            .find(|&&kk| kk == k)
+            .ok_or_else(|| format!("unknown arg {k}"))?;
         i += 1;
-        m.insert(key, argv.get(i).ok_or_else(|| format!("missing value after {key}"))?.clone());
+        m.insert(
+            key,
+            argv.get(i)
+                .ok_or_else(|| format!("missing value after {key}"))?
+                .clone(),
+        );
         i += 1;
     }
     let g = |k: &str| m.get(k).cloned().ok_or_else(|| format!("{k} required"));
@@ -171,7 +185,11 @@ fn run(args: &Args) -> Result<(), String> {
     // tape); FC3 claimed but honestly excused (this workload does not drive the
     // architect/canary leg, so it is not a zombie).
     let inventory = build_inventory(vec![
-        ("fc1_predicate_gated_advance".into(), vec!["FC1:predicates".into()], None),
+        (
+            "fc1_predicate_gated_advance".into(),
+            vec!["FC1:predicates".into()],
+            None,
+        ),
         ("fc2_map_reduce_tick".into(), vec!["FC2:tick".into()], None),
         (
             "fc3_governance_loop".into(),
@@ -182,12 +200,14 @@ fn run(args: &Args) -> Result<(), String> {
     let report = observe_fc_liveness(&tape, &inventory);
     println!("{}", render_fc_liveness_summary(&report));
 
-    let find = |rows: &[turingosv4::runtime::agent_scheduler::fc_liveness_observer::FcNodeLiveness], id: &str| {
-        rows.iter()
-            .find(|r| r.node_id == id)
-            .map(|r| status_str(r.status))
-            .unwrap_or_else(|| "MISSING".into())
-    };
+    let find =
+        |rows: &[turingosv4::runtime::agent_scheduler::fc_liveness_observer::FcNodeLiveness],
+         id: &str| {
+            rows.iter()
+                .find(|r| r.node_id == id)
+                .map(|r| status_str(r.status))
+                .unwrap_or_else(|| "MISSING".into())
+        };
     let fc1_live_nodes: Vec<String> = report
         .fc1_nodes
         .iter()
@@ -232,7 +252,12 @@ fn run(args: &Args) -> Result<(), String> {
         .filter(|t| t.cost_tokens > 0 && t.wall_clock_ticks > 0)
         .min_by_key(|t| t.cost_tokens.saturating_mul(t.wall_clock_ticks));
     let best_vpput_task = best.map(|t| t.task_id.clone());
-    let best_vpput_micro = recon.tasks.iter().map(|t| t.verified_pput_micro).max().unwrap_or(0);
+    let best_vpput_micro = recon
+        .tasks
+        .iter()
+        .map(|t| t.verified_pput_micro)
+        .max()
+        .unwrap_or(0);
 
     // ── (C) Phase-6 distinct provider handles (heterogeneity, brand-free) ───
     let cas = CasStore::open(&args.cas).map_err(|e| format!("open CAS: {e}"))?;
@@ -308,13 +333,29 @@ fn run(args: &Args) -> Result<(), String> {
     println!("\n==================== LIVE-FC1 ON-TAPE VERIFICATION ====================");
     println!("(A) FC-liveness:");
     println!("    FC1 live nodes: {fc1_live_nodes:?}");
-    println!("    FC1 failure arms: step_reject={fc1_step} parse_fail={fc1_parse} llm_err={fc1_llm}");
+    println!(
+        "    FC1 failure arms: step_reject={fc1_step} parse_fail={fc1_parse} llm_err={fc1_llm}"
+    );
     println!("    FC2: boot={fc2_boot} tick={fc2_tick} terminal={fc2_terminal}");
-    println!("    FC3: disposition={} proposer={fc3_proposer} canary={fc3_canary}", report.fc3_disposition);
-    println!("    zombie_count={} no_zombie={}", report.zombie_count, report.no_zombies());
-    println!("    L4 entries={} L4.E entries={}", report.l4_entry_count, report.l4e_entry_count);
-    println!("(B) VPPUT: ground_truth_solved={} best_would-be_task={:?} best_micro={}",
-        recon.ground_truth_solved_count(), metrics.best_vpput_task, best_vpput_micro);
+    println!(
+        "    FC3: disposition={} proposer={fc3_proposer} canary={fc3_canary}",
+        report.fc3_disposition
+    );
+    println!(
+        "    zombie_count={} no_zombie={}",
+        report.zombie_count,
+        report.no_zombies()
+    );
+    println!(
+        "    L4 entries={} L4.E entries={}",
+        report.l4_entry_count, report.l4e_entry_count
+    );
+    println!(
+        "(B) VPPUT: ground_truth_solved={} best_would-be_task={:?} best_micro={}",
+        recon.ground_truth_solved_count(),
+        metrics.best_vpput_task,
+        best_vpput_micro
+    );
     println!("    (progress=0 honest: no Lean oracle on a math workload)");
     println!("(C) distinct provider handles (brand-free) = {distinct_handles} (capsules={handle_capsule_count})");
     println!("(D) replay_roots_match_genesis = {replay_ok}");

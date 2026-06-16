@@ -30,13 +30,13 @@
 //!    proposal_cids contribute 0
 //! 6. `gp_payload` — best-effort: the proposal_artifact_cid of the first
 //!    accepted WorkTx whose VerifyTx confirmed; `None` otherwise
-//! 7. `gp_path` — best-effort: candidate_tactic ("append" / "complete" /
+//! 7. `gp_path` — best-effort: candidate_label ("append" / "complete" /
 //!    "step_complete") of the winning proposal; `None` otherwise
-//! 8. `gp_proof_file` — `None` (chain doesn't bind file paths; this stays
+//! 8. `gp_output_file` — `None` (chain doesn't bind file paths; this stays
 //!    in evaluator stdout per charter §4.4 excluded fields)
-//! 9. `tactic_diversity` — count of unique `candidate_tactic` values
+//! 9. `method_diversity` — count of unique `candidate_label` values
 //!    across all WorkTx ProposalTelemetry
-//! 10. `tool_dist` — histogram of `candidate_tactic` → count
+//! 10. `tool_dist` — histogram of `candidate_label` → count
 //! 11. `failed_branch_count` — number of L4.E entries
 //!
 //! **Excluded from chain derivation (per charter §4.4)**: time-sensitive
@@ -138,8 +138,14 @@ pub struct ChainDerivedRunFacts {
     pub golden_path_token_count: u64,
     pub gp_payload: Option<String>,
     pub gp_path: Option<String>,
-    pub gp_proof_file: Option<String>,
-    pub tactic_diversity: u64,
+    /// De-Lean migration (§8 2026-06-15): renamed from `gp_proof_file`.
+    /// `ChainDerivedRunFacts` is a derived-only / dashboard-rendered view
+    /// (pre-land Gate 1 CLOSED: not persisted to canonical tape via serde),
+    /// so the field-name rename is safe.
+    pub gp_output_file: Option<String>,
+    /// De-Lean migration (§8 2026-06-15): renamed from `tactic_diversity`.
+    /// Count of unique candidate-label values across all WorkTx telemetry.
+    pub method_diversity: u64,
     pub tool_dist: BTreeMap<String, u64>,
     pub failed_branch_count: u64,
     /// **TB-7.7 D5 NEW**: Oracle-level acceptance signal. `true` iff
@@ -376,7 +382,9 @@ pub fn compute_run_facts_from_chain(
     // Step 4: walk L4 entries, decode TypedTx, accumulate facts.
     let mut proposal_count: u64 = 0;
     let mut golden_path_token_count: u64 = 0;
-    let mut tactic_set: BTreeSet<String> = BTreeSet::new();
+    // De-Lean migration (§8 2026-06-15): renamed local `tactic_set` →
+    // `label_set` (set of unique candidate-label values).
+    let mut label_set: BTreeSet<String> = BTreeSet::new();
     let mut tool_dist: BTreeMap<String, u64> = BTreeMap::new();
     let mut accepted_worktx_by_tx_id: BTreeMap<TxId, (Option<String>, Option<String>)> =
         BTreeMap::new();
@@ -408,16 +416,16 @@ pub fn compute_run_facts_from_chain(
                 proposal_count += 1;
                 // Skip the zero-CID legacy synthetic seed; only real
                 // ProposalTelemetry-linked WorkTx contributes to
-                // golden_path_token_count + tactic_diversity + tool_dist.
+                // golden_path_token_count + method_diversity + tool_dist.
                 if work.proposal_cid.0 != [0u8; 32] {
                     if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
                         golden_path_token_count =
                             golden_path_token_count.saturating_add(tel.token_counts.total());
-                        tactic_set.insert(tel.candidate_tactic.clone());
-                        *tool_dist.entry(tel.candidate_tactic.clone()).or_insert(0) += 1;
+                        label_set.insert(tel.candidate_label.clone());
+                        *tool_dist.entry(tel.candidate_label.clone()).or_insert(0) += 1;
                         // Track this as an accepted WorkTx (it landed in L4).
                         // First winner candidate: store proposal_artifact_cid
-                        // (hex) + candidate_tactic for gp_payload / gp_path
+                        // (hex) + candidate_label for gp_payload / gp_path
                         // (best-effort first-OMEGA derivation).
                         let cid_hex: String = tel
                             .proposal_artifact_cid
@@ -427,7 +435,7 @@ pub fn compute_run_facts_from_chain(
                             .collect();
                         accepted_worktx_by_tx_id.insert(
                             work.tx_id.clone(),
-                            (Some(cid_hex), Some(tel.candidate_tactic.clone())),
+                            (Some(cid_hex), Some(tel.candidate_label.clone())),
                         );
                         // TB-7.7 D5: capture verification_result_cid for
                         // later chain_oracle_verified check.
@@ -503,8 +511,8 @@ pub fn compute_run_facts_from_chain(
                 if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
                     golden_path_token_count =
                         golden_path_token_count.saturating_add(tel.token_counts.total());
-                    tactic_set.insert(tel.candidate_tactic.clone());
-                    *tool_dist.entry(tel.candidate_tactic.clone()).or_insert(0) += 1;
+                    label_set.insert(tel.candidate_label.clone());
+                    *tool_dist.entry(tel.candidate_label.clone()).or_insert(0) += 1;
                     // TB-7R: L4.E rejected real-LLM WorkTx still counts as
                     // an externalized proposal for parent_tx state. The
                     // architect's verdict treats L4 + L4.E uniformly under
@@ -573,10 +581,10 @@ pub fn compute_run_facts_from_chain(
         golden_path_token_count,
         gp_payload,
         gp_path,
-        // gp_proof_file: chain doesn't bind file paths (charter §4.4
+        // gp_output_file: chain doesn't bind file paths (charter §4.4
         // excluded fields). Stays None on chain-derived side.
-        gp_proof_file: None,
-        tactic_diversity: tactic_set.len() as u64,
+        gp_output_file: None,
+        method_diversity: label_set.len() as u64,
         tool_dist,
         failed_branch_count: l4e_count,
         chain_oracle_verified,
@@ -1110,7 +1118,7 @@ mod tests {
         assert_eq!(facts.proposal_count, 0);
         assert_eq!(facts.golden_path_token_count, 0);
         assert!(facts.gp_payload.is_none());
-        assert_eq!(facts.tactic_diversity, 0);
+        assert_eq!(facts.method_diversity, 0);
         assert!(facts.tool_dist.is_empty());
         assert_eq!(facts.failed_branch_count, 0);
     }
@@ -1199,10 +1207,10 @@ mod tests {
             facts.proposal_count
         );
         // The L4.E telemetry resolution should also have populated
-        // tactic_diversity / tool_dist / golden_path_token_count.
+        // method_diversity / tool_dist / golden_path_token_count.
         assert!(
-            facts.tactic_diversity >= 1,
-            "tactic_diversity must include rejected WorkTx telemetry"
+            facts.method_diversity >= 1,
+            "method_diversity must include rejected WorkTx telemetry"
         );
         assert!(
             !facts.tool_dist.is_empty(),
