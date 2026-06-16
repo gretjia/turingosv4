@@ -1,7 +1,11 @@
 # H2_AGENT_ECONOMY_STATE — 2026-06-16
 
-**Branch:** `claude/het-converge-2026-06-16` @ `d288a63e` (6 commits ahead of `origin/main`, NOT pushed).
-**Tree:** 0 tracked-dirty; 4 untracked (reports/scratch + this file). cargo check --all-targets → **exit 0**.
+**Branch:** `claude/het-converge-2026-06-16` (≥9 commits ahead of `origin/main`, NOT pushed).
+**Tree:** cargo check --all-targets → **exit 0**.
+**Latest:** Phase-4 trust-root rehash applied (`205fb5d9`, boot gate 8/8); live mechanism smoke
+`smoke_ucb_001` PASS (omega + heterogeneous routing on replay-green tape, `ee006e54`); 6-auditor
+adversarial QC done (QC-CONCERNS, no VIOLATION/no blocker, CONTINUE_STEP6) — claims rescoped. See
+`H2_LIVE_MECHANISM_SMOKE_REPORT.md`.
 
 ## Constitutional Veto Findings
 - Art-0.2: H-HET-2 routing/budget DECISIONS are tape-canonical (GA-2/3/5/6a green). **Open gap:**
@@ -27,18 +31,28 @@
 - 2 `obl005_final_closure_witness` — OBLIGATIONS union truthfully has OBL-018/021 open (het-baseline).
 - 1 `production_module_liveness` + 1 `script_liveness_inventory` — pre-existing documented liveness.
 
-## Blockers before live-smoke / confirmatory (status this increment)
-1. **Classical.choice axiom whitelist** — `DEFAULT_ALLOWED_AXIOMS=[propext,Quot.sound]` excludes the
-   banked `Classical.choice` (in `AXIOM_WHITELIST`); het det-family proofs rejected. → **fixing now**
-   (Step 2, surgical, §11.5-compliant). Gates live verification.
-2. **GA-6b** attempt-level decision_source completeness — **implementing now** (Step 3, logic-witness;
-   tape-canonical promotion flagged Class-4 before confirmatory).
-3. **Phase-4 trust-root rehash** (Class-4 §8 on merged bytes) — needed for ship/replay-trusted run.
-4. **GA-9** (`enable_thinking:false`, pinned llm_http.rs, Class-4 §8) — needed for valid hard-target run.
-5. **Prereg freeze** (target pool / policy hash / budget cap / exclusions / ≥12 seeds) — before confirmatory.
+## DONE this increment
+- ✅ Classical.choice axiom whitelist aligned (het reds RED→GREEN; non-banked still fail-closed; audit dim-B PASS).
+- ✅ GA-6b attempt-level decision_source (logic-witness; tape-canonical promotion still Class-4).
+- ✅ Phase-4 trust-root rehash (Class-4 §6-Step-4, Veto-AI PASS, constitution.md untouched; boot 8/8).
+- ✅ Live mechanism smoke `smoke_ucb_001` (omega + heterogeneous routing on canonical tape; replay byte-clean).
+- ✅ 6-auditor adversarial QC + recursive audit (QC-CONCERNS, no VIOLATION; overstatements corrected).
 
-## Next allowed action
-Integrate Step-2 (axiom) + Step-3 (GA-6b) → run ONE tiny live dynamic-router mechanism smoke
-(gateway localhost:8123 reachable, Lean ~/.elan present) → `H2_LIVE_MECHANISM_SMOKE_REPORT.md`.
-Then deep-chain target-pool calibration → prereg freeze → confirmatory pilot. No paid hard-target
-confirmatory run until GA-6b(tape)/GA-9/trust-root/prereg resolved (§11).
+## Required fixes BEFORE the paid confirmatory run (audit-derived)
+1. **served_model provenance** (dim C) — on-tape model_id is the REQUESTED label, not served-model;
+   proxy echoes requested label + discards upstream resp.model. Fix: return/record served_model + assert + test.
+2. **MODEL_RATES → CAS at genesis** (dim D) — rate table is a compile-time const, not on tape; cost is
+   only recomputable given the external table. Fix: write rates to CAS, CID in GenesisPin.
+3. **Run-path budget CONSERVATION** (dim F) — `allocated_token_budget` hardcoded 900 vs balance −1
+   (`lean_market_agent.rs:2139-2142`); conservation gate fires only on a synthetic fixture.
+4. **BudgetAllocationTelemetry replay reconstruction** (dim E/F) — `verify.rs` reconstructs ProposalTelemetry
+   but not allocation; add so replay witnesses allocation == derive_from_tape.
+5. **binary-hash + HEAD in manifest** (dim E) — no binary↔source binding for the run; emit sha256(binary)+HEAD.
+- **decision_source/action_source tape-canonical promotion** (Class-4) + **GA-9** (`enable_thinking:false`,
+  pinned llm_http.rs, Class-4 §8) + **prereg freeze** (target pool / policy hash / budget cap / ≥12 seeds).
+- Non-blocking bookkeeping (dim B): populate `axioms` from `parse_axiom_set` on Verified (now `[]`); remove dead `axiom_gate()`.
+
+## Next allowed action (adjudicator: CONTINUE_STEP6)
+Step 6 deep-chain target-pool calibration (chain ≥10/≥18, tx ≥ agents×20, axiom-clean; long-run discipline:
+inner-unit checkpoint + --resume + binding-budget pilot) → Step 7 prereg freeze → Step 8 confirmatory pilot.
+No paid hard-target run until the 5 fixes + GA-9 + prereg resolve (§11).
