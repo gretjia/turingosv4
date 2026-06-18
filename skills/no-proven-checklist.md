@@ -1,63 +1,101 @@
-# No-PROVEN Claim Integrity Checklist
+# No-PROVEN Pre-Claim Checklist (`/no-proven-checklist`)
 
-Status: active guidance
-Class: 0
-Parent plan: `handover/directives/2026-06-05_AGENTIC_OS_PIVOT_EXECUTION_PLAN_DRAFT.md`
+**Invoke this BEFORE emitting any `PROVEN` / `DEFINITIVE` / `FINAL` / `causal` /
+`isolated lever` / `X > Y` efficiency headline** — in a report, a commit
+message, `LATEST.md`, a verdict, or a user-facing summary.
 
-Use this checklist before any PR, report, dashboard, README, or benchmark
-headline uses strong claim language.
+This is a mechanism, not advice. It exists because the 2026-06-01 forensic
+retrospective (`handover/reports/SESSION_FORENSIC_RETROSPECTIVE_2026-06-01.md`)
+found that this campaign's most-cited positives — "combination economy PROVEN
+3.81 > 3.00 > 1.50", "capital-at-risk is the ISOLATED causal lever 10/10", "the
+routing A/B crossover reproduced on real DeepSeek+Lean" — were built on rigged
+baselines, synthetic data presented as real, mislabeled "price" code, and
+argmax-collapse routing. The price-causal verdict flip-flopped
+NEGATIVE→NEGATIVE→POSITIVE three times in ~2h, each declared DEFINITIVE on
+un-replicated single-day code.
 
-## Banned Without Evidence Packet
+The gate is conjunctive: a headline ships only if **every** box is checked. A
+single missing box ⇒ the legal output is a **scoped, non-causal** statement
+(e.g. "consistent with", "on N seeds of single-day code", "Verdict B:
+Sybil-resistance/governance, NOT single-shot causal efficiency"), never PROVEN.
 
-Do not use these terms unless G1-G6 below are all satisfied and cited:
+## The six gates (copy-paste; answer each with a file:line or command output)
 
-```text
-PROVEN
-DEFINITIVE
-causal
-world-first
-TASK-PASS
-market beats
-market failed
-price is worse
-```
+- [ ] **G1 — RECOMPUTE-FROM-TAPE (#1).** The load-bearing number is
+      reconstructed from the frozen tape LINES ALONE (`derive_* == manifest`,
+      integer/byte-equal) — NOT merely byte-chain-intact. Paste the
+      `verify_market_tape` `replay_clean=true` line *with* the
+      `derived` vs `manifest` block, or the equivalent recompute.
+      - The arm emits a `GenesisPin`-first tape and passes through
+        `verify_market_tape`. An arm that emits **no GenesisPin** and never
+        recomputes (e.g. skillsweep, reputation Δ numbers) has **no headline
+        warrant**, regardless of any "replay-green" footer.
+      - "replay-green / matrix_drift 3/3" = **anti-tamper + constitution-untouched
+        ONLY**. It is NOT a correctness warrant. Do not write footers that claim
+        otherwise. Enforced by `tests/constitution_headline_recompute_from_tape.rs`.
 
-## G1-G6 Evidence Checklist
+- [ ] **G2 — REAL MODEL + REAL VERIFIER IN THE DECISION LOOP (#2).** The
+      selection/decision loop contains a real LLM call AND a real verifier
+      (Lean/judge) call. A synthetic skill axis (`est = skill*truth +
+      (1-skill)*noise`, a fixed accuracy ceiling, a Monte-Carlo noise model) is
+      **not** a "real-data / 真题" result, even if real models are called
+      elsewhere in the binary. Name the file:line of the real model call and the
+      real verifier call **on the path that produces the number**.
 
-```text
-G1. Claim names exact regime, workload, agent set, budget, and verifier.
-G2. Claim is recomputed from ChainTape/GitTape/CAS, not a manifest-only value.
-G3. Claim has a positive control that would fail for a lying headline.
-G4. Claim distinguishes TASK-PASS from FLOW-PASS, SYSTEM-PASS, smoke, or canary.
-G5. Claim states unsupported adjacent claims.
-G6. Class 2+ claim has clean-context audit after local evidence exists.
-```
+- [ ] **G3 — FAIR EQUAL-BUDGET BASELINE (#3).** The baseline `Y` in any `X > Y`
+      claim gets the **same signal**, the **same compute/budget**, and is **not**
+      constructed to lose. Reject if the baseline is: denied a signal `X` uses
+      (e.g. `elim_global` denied `conf[a][fi]`); force-suicided (terminal
+      elimination + strict specialists); a definitional floor (`single_spec` =
+      1-of-4 families); or a silent degenerate fallback (coordinator → index
+      order). State the baseline's signal/budget parity explicitly.
 
-## Required Claim Boundary Block
+- [ ] **G4 — ≥ N SEEDS + PAIRED STATS, REPLICATED (#5).** ≥ N seeds (preregister
+      N; default ≥ 12 for a within-seed paired design when each arm re-runs a
+      stochastic shared step), paired Wilcoxon + Holm where
+      applicable, and the verdict is **stable across a re-run on a later day** —
+      not a single-day flip-flop. A verdict that reversed under a confound/fix in
+      the prior 24h is NOT yet PROVEN.
 
-```text
-Supported:
-  <exact claim and evidence path>
+- [ ] **G5 — CLEAN-CONTEXT AUDIT *AFTER* DATA LANDS (#6).** A fresh
+      clean-context auditor (no implementation transcript, per AGENTS.md §9) ran
+      **after** the real numbers landed — never against `[FILL ON COMPLETION]`
+      tables — and its verdict is persisted as an **independent artifact under
+      `handover/audits/`** that references the run **manifest SHA(s)**. An audit
+      PROCEED captured as **prose inside the result report** does not count.
 
-Unsupported:
-  <adjacent claims this artifact does not prove>
-```
+- [ ] **G6 — NO LITERAL "PASSING" CONDITIONS (#7).** No box in the success
+      criterion is asserted against a **compile-time literal** (`c9_shielding =
+      true`, `roles = ["a","b","c","d"]`, a fixed 4-node DAG literal). Every
+      pass-condition must be a value **derived from the run** that *can* differ
+      from the asserted value. "A test/condition that cannot fail is
+      documentation, not a gate" (AGENTS.md §7).
 
-## Market Claim Template
+## Mechanisms this checklist is bound to (not prose)
 
-```text
-In the tested regime <regime>, <mechanism> produced <metric> relative to
-<controls>. This supports <narrow claim>. It does not test <untested market
-functions>. It does not prove broad agent market economy success or failure.
-```
+- `tests/constitution_headline_recompute_from_tape.rs` — G1: recompute reproduces
+  an honest manifest, **catches a lying manifest while the byte chain stays
+  green** (replay-green ≠ correctness), and `derive_*` is a function of the tape.
+- `tests/constitution_router_name_matches_mechanism.rs` — name-lie guard (#4): the
+  softmax router must DISTRIBUTE (argmax collapses), and a "price routing" claim
+  must carry a real `price` identifier in code. (A name-lie is the most common
+  way G2/G3 are silently violated.)
+- `verify_market_tape` (`src/bin/verify_market_tape.rs`) — the recompute the
+  G1 evidence command runs.
+- AGENTS.md §17 — the contract entry that makes this checklist load-bearing
+  across every agent runtime.
 
-## Acceptance Commands
+## Legal outputs when a box is unchecked
 
-```bash
-claim_hits=$(grep -RInE 'PROVEN|DEFINITIVE|causal|world-first|TASK-PASS|market beats|market failed' \
-  handover src tests AGENTS.md CLAUDE.md .github \
-  | grep -vE 'no-proven-checklist|CLAIM_INTEGRITY|pull_request_template|AGENTIC_OS_PIVOT_EXECUTION_PLAN_DRAFT|P1_REALVALUE_SCOPE_CORRECTION|A14_WORKLOAD_ADAPTER_BOUNDARY_PREFLIGHT' || true)
-test -z "$claim_hits" || { printf '%s\n' "$claim_hits"; exit 1; }
-grep -RInE '(^|[^A-Za-z])(mod|use)[[:space:]]+market_tape_shared|[m]arket_tape_shared::' \
-  AGENTS.md CLAUDE.md skills .github handover/directives && exit 1 || true
-```
+- Missing G1 → "byte-chain-intact (anti-tamper) only; headline NOT
+  recomputed" — no Δ headline.
+- Missing G2 → "synthetic / model-of-a-model result" — never "real / 真题".
+- Missing G3 → report the negative or the unfair-baseline caveat; no `X > Y`
+  causal/efficiency claim.
+- Missing G4 → "single-day, N seeds, not replicated" — no PROVEN/DEFINITIVE.
+- Missing G5 → "self-asserted; no post-data independent witness" — blocks ship.
+- Missing G6 → "contains a literal pass-condition; not a falsifiable gate".
+
+The genuine results from this campaign survive every box (Stage-2
+JUST_SAMPLING; the fair-ablation NEGATIVES; Sybil-resistance / governance =
+**Verdict B**). State those at full strength. Down-scope the rest.

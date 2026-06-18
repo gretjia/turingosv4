@@ -113,7 +113,9 @@ pub struct PredicateClaimSet {
 /// TRACE_MATRIX FC1a-predicates + FC1b-Q_{t+1}: admission verdict gating advance.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AdmissionVerdict {
-    Pass { registry_root_hex: String },
+    Pass {
+        registry_root_hex: String,
+    },
     Fail {
         failed_predicate: String,
         reason: AdmissionFailReason,

@@ -53,11 +53,9 @@ cases. Only then wrap steps 1–6 in an unattended `while` driver (cron / `/loop
 GATE-1 are identical in both modes; only the human-confirm in step 6 is removed. Keep the human rail —
 SmartPause re-escalates when GATE-2 confidence drops below threshold.
 
-## Example instantiation (worked example, not shipped here)
+## H-HET-2 instantiation (the first loop)
 
-A concrete experiment config (e.g. an `*.config.json` per the schema in `autoloop.py init`) drives a
-specific run. The H-HET-2 dynamic-model-budget experiment's config + live tape live on the research
-branch, not in this harness PR; the shape below is the reference for writing your own:
+`h2_calibration.config.json` drives the H-HET-2 dynamic-model-budget experiment.
 - Goal predicate = prereg §4 (Primary-A positive ∧ ≥1 Primary-B, replay+axiom-clean, §17 G1–G6).
 - V1 harness = `lean_judge.rs` + `routing_policy.rs` + `budget_allocation_telemetry.rs` + `verify_chaintape.rs`.
 - V2 positive control = the carrier on `calib_core_add_comm` (must reach omega).

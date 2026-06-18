@@ -527,6 +527,9 @@ pub fn decode_librarian_candidate(
                 // frozen-policy pin/config, and the routing-decision input blobs. These are audit
                 // telemetry (replay/Goodhart-shield), NOT librarian broadcast evidence — ignore so
                 // the fail-closed selector does not HARD-ERROR scanning the carrier CAS (§8 lesson).
+                || schema == "turingosv4.budget_allocation_telemetry.v1"
+                || schema == "turingosv4.routing_policy_genesis_pin.v1"
+                || schema == "turingosv4.routing_policy_config.v1"
                 || schema == "het2.price_vector.v1"
                 || schema == "het2.failure_features.v1"
                 || schema == "het2.routing_input.v1"

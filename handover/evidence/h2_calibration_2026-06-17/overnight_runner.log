@@ -1,0 +1,441 @@
+06-18 03:23:54 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 140 cells, JOBS=2 ===
+06-18 03:23:56 iter 1: 0/140 cells done; launching sweep
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q32HOMO GLMHOMO Q397HOMO] seeds=[42]
+[run ] lm_c/DSHOMO/s42 @ 03:23:56
+[run ] lm_c/Q32HOMO/s42 @ 03:23:56
+[done] lm_c/DSHOMO/s42 omega=False verified=0 tokens=54448
+[run ] lm_c/GLMHOMO/s42 @ 04:34:51
+[done] lm_c/Q32HOMO/s42 omega=False verified=0 tokens=43906
+[run ] lm_c/Q397HOMO/s42 @ 04:35:34
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+[done] lm_c/Q397HOMO/s42 omega=? verified=? tokens=?
+[done] lm_c/GLMHOMO/s42 omega=? verified=? tokens=?
+[run ] lm_coeff_mul/DSHOMO/s42 @ 05:18:07
+[run ] lm_coeff_mul/Q32HOMO/s42 @ 05:18:07
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+[done] lm_coeff_mul/Q32HOMO/s42 omega=? verified=? tokens=?
+[done] lm_coeff_mul/DSHOMO/s42 omega=? verified=? tokens=?
+[run ] lm_coeff_mul/GLMHOMO/s42 @ 05:19:06
+[run ] lm_coeff_mul/Q397HOMO/s42 @ 05:19:06
+scripts/calibration_sweep.sh: 第 47 行：34445 Killed: 9                  "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+scripts/calibration_sweep.sh: 第 47 行：34442 Killed: 9                  "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+[done] lm_coeff_mul/GLMHOMO/s42 omega=? verified=? tokens=?
+[done] lm_coeff_mul/Q397HOMO/s42 omega=? verified=? tokens=?
+[run ] lm_comm_conj/DSHOMO/s42 @ 05:19:18
+[run ] lm_comm_conj/Q32HOMO/s42 @ 05:19:18
+[done] lm_comm_conj/DSHOMO/s42 omega=True verified=1 tokens=321
+[run ] lm_comm_conj/GLMHOMO/s42 @ 05:19:32
+06-18 05:21:40 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 140 cells, JOBS=2 ===
+06-18 05:21:42 iter 1: 3/140 cells done; launching sweep
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q32HOMO GLMHOMO Q397HOMO] seeds=[42]
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q32HOMO/s42
+[run ] lm_c/GLMHOMO/s42 @ 05:21:42
+[run ] lm_c/Q397HOMO/s42 @ 05:21:42
+[done] lm_c/Q397HOMO/s42 omega=False verified=0 tokens=49763
+[run ] lm_coeff_mul/DSHOMO/s42 @ 05:36:09
+[done] lm_coeff_mul/DSHOMO/s42 omega=False verified=0 tokens=29388
+[run ] lm_coeff_mul/Q32HOMO/s42 @ 05:51:52
+[done] lm_coeff_mul/Q32HOMO/s42 omega=False verified=0 tokens=32675
+[run ] lm_coeff_mul/GLMHOMO/s42 @ 06:08:51
+06-18 06:19:32 iter 1: sweep returned; 6/140 cells done
+06-18 06:19:32 incomplete (6/140); heal + resume in 15s
+06-18 06:19:37 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 140 cells, JOBS=2 ===
+06-18 06:19:39 iter 1: 6/140 cells done; launching sweep (fast arms first, GLM deferred)
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q32HOMO Q397HOMO] seeds=[42]
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q32HOMO/s42
+[skip] lm_c/Q397HOMO/s42
+[skip] lm_coeff_mul/DSHOMO/s42
+[skip] lm_coeff_mul/Q32HOMO/s42
+[skip] lm_comm_conj/DSHOMO/s42
+[run ] lm_coeff_mul/Q397HOMO/s42 @ 06:19:39
+[run ] lm_comm_conj/Q32HOMO/s42 @ 06:19:41
+[done] lm_coeff_mul/Q397HOMO/s42 omega=False verified=0 tokens=28351
+[run ] lm_comm_conj/Q397HOMO/s42 @ 06:38:51
+[done] lm_comm_conj/Q32HOMO/s42 omega=False verified=0 tokens=42248
+[run ] lm_commute_pow/DSHOMO/s42 @ 06:48:45
+[done] lm_commute_pow/DSHOMO/s42 omega=True verified=1 tokens=265
+[run ] lm_commute_pow/Q32HOMO/s42 @ 06:48:55
+[done] lm_comm_conj/Q397HOMO/s42 omega=False verified=0 tokens=40503
+[run ] lm_commute_pow/Q397HOMO/s42 @ 06:51:44
+[done] lm_commute_pow/Q397HOMO/s42 omega=True verified=1 tokens=20022
+[run ] lm_cube4/DSHOMO/s42 @ 06:57:20
+[done] lm_cube4/DSHOMO/s42 omega=True verified=1 tokens=7769
+[run ] lm_cube4/Q32HOMO/s42 @ 07:00:27
+[done] lm_commute_pow/Q32HOMO/s42 omega=False verified=0 tokens=38481
+[run ] lm_cube4/Q397HOMO/s42 @ 07:06:21
+[done] lm_cube4/Q397HOMO/s42 omega=True verified=1 tokens=813
+[run ] lm_deriv1/DSHOMO/s42 @ 07:06:41
+[done] lm_cube4/Q32HOMO/s42 omega=False verified=0 tokens=42237
+[run ] lm_deriv1/Q32HOMO/s42 @ 07:22:00
+[done] lm_deriv1/DSHOMO/s42 omega=False verified=0 tokens=48352
+[run ] lm_deriv1/Q397HOMO/s42 @ 07:30:35
+[done] lm_deriv1/Q397HOMO/s42 omega=True verified=1 tokens=1511
+[run ] lm_deriv2/DSHOMO/s42 @ 07:31:03
+[done] lm_deriv2/DSHOMO/s42 omega=True verified=1 tokens=4304
+[run ] lm_deriv2/Q32HOMO/s42 @ 07:32:58
+[done] lm_deriv1/Q32HOMO/s42 omega=False verified=0 tokens=36568
+[run ] lm_deriv2/Q397HOMO/s42 @ 07:40:05
+[done] lm_deriv2/Q397HOMO/s42 omega=True verified=1 tokens=9211
+[run ] lm_deriv3/DSHOMO/s42 @ 07:42:42
+[done] lm_deriv3/DSHOMO/s42 omega=True verified=1 tokens=4758
+[run ] lm_deriv3/Q32HOMO/s42 @ 07:44:33
+[done] lm_deriv2/Q32HOMO/s42 omega=False verified=0 tokens=28370
+[run ] lm_deriv3/Q397HOMO/s42 @ 07:48:58
+[done] lm_deriv3/Q397HOMO/s42 omega=True verified=1 tokens=429
+[run ] lm_e/DSHOMO/s42 @ 07:49:12
+[done] lm_deriv3/Q32HOMO/s42 omega=False verified=0 tokens=25120
+[run ] lm_e/Q32HOMO/s42 @ 07:58:20
+[done] lm_e/DSHOMO/s42 omega=False verified=0 tokens=45830
+[run ] lm_e/Q397HOMO/s42 @ 08:09:04
+[done] lm_e/Q32HOMO/s42 omega=False verified=0 tokens=36713
+[run ] lm_f/DSHOMO/s42 @ 08:14:10
+[done] lm_e/Q397HOMO/s42 omega=False verified=0 tokens=31286
+[run ] lm_f/Q32HOMO/s42 @ 08:21:19
+[done] lm_f/DSHOMO/s42 omega=False verified=0 tokens=36461
+[run ] lm_f/Q397HOMO/s42 @ 08:31:35
+[done] lm_f/Q32HOMO/s42 omega=False verified=0 tokens=41849
+[run ] lm_fact/DSHOMO/s42 @ 08:42:59
+[done] lm_f/Q397HOMO/s42 omega=False verified=0 tokens=38557
+[run ] lm_fact/Q32HOMO/s42 @ 08:46:08
+[done] lm_fact/DSHOMO/s42 omega=False verified=0 tokens=32391
+[run ] lm_fact/Q397HOMO/s42 @ 09:01:11
+[done] lm_fact/Q397HOMO/s42 omega=True verified=1 tokens=2788
+[run ] lm_finset_sup/DSHOMO/s42 @ 09:01:57
+[done] lm_finset_sup/DSHOMO/s42 omega=True verified=1 tokens=852
+[run ] lm_finset_sup/Q32HOMO/s42 @ 09:02:21
+[done] lm_fact/Q32HOMO/s42 omega=False verified=0 tokens=38186
+[run ] lm_finset_sup/Q397HOMO/s42 @ 09:22:00
+[done] lm_finset_sup/Q397HOMO/s42 omega=False verified=0 tokens=30707
+[run ] lm_geom_eval/DSHOMO/s42 @ 09:35:56
+[done] lm_geom_eval/DSHOMO/s42 omega=True verified=1 tokens=1841
+[run ] lm_geom_eval/Q32HOMO/s42 @ 09:36:42
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[GLMHOMO] seeds=[42]
+[run ] lm_c/GLMHOMO/s42 @ 09:38:33
+[run ] lm_coeff_mul/GLMHOMO/s42 @ 09:38:33
+06-18 09:38:45 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 140 cells, JOBS=2 ===
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+Terminated: 15             "$BIN" --runtime-repo "$repo" --cas "$cas" --run-id "$rid" --problem "$thm" --policy verify_ucb_price_floor --models "$models" --n-agents "$NA" --n-rounds "$NR" --seed "$s" --bank "$BANK" --mathlib-dir "$MATHLIB" --lean-verify-service true --proxy-url "$PROXY" --out "$cell.json" >> "$OUT/run_${rid}.log" 2>&1
+[done] lm_c/GLMHOMO/s42 omega=? verified=? tokens=?
+[done] lm_coeff_mul/GLMHOMO/s42 omega=? verified=? tokens=?
+[run ] lm_comm_conj/GLMHOMO/s42 @ 09:38:47
+[run ] lm_commute_pow/GLMHOMO/s42 @ 09:38:47
+06-18 09:38:47 iter 1: 36/140 cells done; launching sweep (fast arms first, GLM deferred)
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q397HOMO] seeds=[42]
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q397HOMO/s42
+[skip] lm_coeff_mul/DSHOMO/s42
+[skip] lm_coeff_mul/Q397HOMO/s42
+[skip] lm_comm_conj/DSHOMO/s42
+[skip] lm_comm_conj/Q397HOMO/s42
+[skip] lm_commute_pow/DSHOMO/s42
+[skip] lm_commute_pow/Q397HOMO/s42
+[skip] lm_cube4/DSHOMO/s42
+[skip] lm_cube4/Q397HOMO/s42
+[skip] lm_deriv1/DSHOMO/s42
+[skip] lm_deriv1/Q397HOMO/s42
+[skip] lm_deriv2/DSHOMO/s42
+[skip] lm_deriv2/Q397HOMO/s42
+[skip] lm_deriv3/DSHOMO/s42
+[skip] lm_deriv3/Q397HOMO/s42
+[skip] lm_e/DSHOMO/s42
+[skip] lm_e/Q397HOMO/s42
+[skip] lm_f/DSHOMO/s42
+[skip] lm_f/Q397HOMO/s42
+[skip] lm_fact/DSHOMO/s42
+[skip] lm_fact/Q397HOMO/s42
+[skip] lm_finset_sup/DSHOMO/s42
+[skip] lm_finset_sup/Q397HOMO/s42
+[skip] lm_geom_eval/DSHOMO/s42
+[run ] lm_geom_eval/Q397HOMO/s42 @ 09:38:47
+[run ] lm_ineq1/DSHOMO/s42 @ 09:38:47
+[done] lm_geom_eval/Q397HOMO/s42 omega=True verified=1 tokens=292
+[run ] lm_ineq1/Q397HOMO/s42 @ 09:39:02
+06-18 09:39:35 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 140 cells, JOBS=2 ===
+06-18 09:39:37 iter 1: 37/140 cells done; launching sweep (fast arms first, GLM deferred)
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q397HOMO] seeds=[42]
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q397HOMO/s42
+[skip] lm_coeff_mul/DSHOMO/s42
+[skip] lm_coeff_mul/Q397HOMO/s42
+[skip] lm_comm_conj/DSHOMO/s42
+[skip] lm_comm_conj/Q397HOMO/s42
+[skip] lm_commute_pow/DSHOMO/s42
+[skip] lm_commute_pow/Q397HOMO/s42
+[skip] lm_cube4/DSHOMO/s42
+[skip] lm_cube4/Q397HOMO/s42
+[skip] lm_deriv1/DSHOMO/s42
+[skip] lm_deriv1/Q397HOMO/s42
+[skip] lm_deriv2/DSHOMO/s42
+[skip] lm_deriv2/Q397HOMO/s42
+[skip] lm_deriv3/DSHOMO/s42
+[skip] lm_deriv3/Q397HOMO/s42
+[skip] lm_e/DSHOMO/s42
+[skip] lm_e/Q397HOMO/s42
+[skip] lm_f/DSHOMO/s42
+[skip] lm_f/Q397HOMO/s42
+[skip] lm_fact/DSHOMO/s42
+[skip] lm_fact/Q397HOMO/s42
+[skip] lm_finset_sup/DSHOMO/s42
+[skip] lm_finset_sup/Q397HOMO/s42
+[skip] lm_geom_eval/DSHOMO/s42
+[skip] lm_geom_eval/Q397HOMO/s42
+[run ] lm_ineq1/DSHOMO/s42 @ 09:39:37
+[run ] lm_ineq1/Q397HOMO/s42 @ 09:39:37
+06-18 09:49:30 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 156 cells, JOBS=2 ===
+06-18 09:49:32 iter 1: 37/156 cells done; launching sweep (fast arms first, GLM deferred)
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_B1 lm_median_probe lm_probe1 lm_probeC3 lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q397HOMO] seeds=[42]
+[run ] lm_B1/DSHOMO/s42 @ 09:49:33
+[run ] lm_B1/Q397HOMO/s42 @ 09:49:33
+[done] lm_B1/Q397HOMO/s42 omega=True verified=1 tokens=261
+[run ] lm_median_probe/DSHOMO/s42 @ 09:49:43
+[done] lm_B1/DSHOMO/s42 omega=True verified=1 tokens=300
+[run ] lm_median_probe/Q397HOMO/s42 @ 09:49:45
+[done] lm_median_probe/Q397HOMO/s42 omega=False verified=0 tokens=48108
+[run ] lm_probe1/DSHOMO/s42 @ 10:06:37
+[done] lm_median_probe/DSHOMO/s42 omega=True verified=1 tokens=50157
+[run ] lm_probe1/Q397HOMO/s42 @ 10:13:26
+[done] lm_probe1/Q397HOMO/s42 omega=True verified=1 tokens=2212
+[run ] lm_probeC3/DSHOMO/s42 @ 10:13:54
+[done] lm_probe1/DSHOMO/s42 omega=False verified=0 tokens=44092
+[run ] lm_probeC3/Q397HOMO/s42 @ 10:29:40
+[done] lm_probeC3/Q397HOMO/s42 omega=True verified=1 tokens=2231
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q397HOMO/s42
+[skip] lm_coeff_mul/DSHOMO/s42
+[skip] lm_coeff_mul/Q397HOMO/s42
+[skip] lm_comm_conj/DSHOMO/s42
+[skip] lm_comm_conj/Q397HOMO/s42
+[skip] lm_commute_pow/DSHOMO/s42
+[skip] lm_commute_pow/Q397HOMO/s42
+[skip] lm_cube4/DSHOMO/s42
+[skip] lm_cube4/Q397HOMO/s42
+[skip] lm_deriv1/DSHOMO/s42
+[skip] lm_deriv1/Q397HOMO/s42
+[skip] lm_deriv2/DSHOMO/s42
+[skip] lm_deriv2/Q397HOMO/s42
+[skip] lm_deriv3/DSHOMO/s42
+[skip] lm_deriv3/Q397HOMO/s42
+[skip] lm_e/DSHOMO/s42
+[skip] lm_e/Q397HOMO/s42
+[skip] lm_f/DSHOMO/s42
+[skip] lm_f/Q397HOMO/s42
+[skip] lm_fact/DSHOMO/s42
+[skip] lm_fact/Q397HOMO/s42
+[skip] lm_finset_sup/DSHOMO/s42
+[skip] lm_finset_sup/Q397HOMO/s42
+[skip] lm_geom_eval/DSHOMO/s42
+[skip] lm_geom_eval/Q397HOMO/s42
+[run ] lm_ineq1/DSHOMO/s42 @ 10:31:07
+[done] lm_probeC3/DSHOMO/s42 omega=False verified=0 tokens=77767
+[run ] lm_ineq1/Q397HOMO/s42 @ 10:48:08
+[done] lm_ineq1/DSHOMO/s42 omega=False verified=0 tokens=31479
+[run ] lm_ineq2/DSHOMO/s42 @ 10:50:01
+[done] lm_ineq2/DSHOMO/s42 omega=True verified=1 tokens=4992
+[run ] lm_ineq2/Q397HOMO/s42 @ 10:52:16
+[done] lm_ineq2/Q397HOMO/s42 omega=True verified=1 tokens=278
+[run ] lm_ineq3/DSHOMO/s42 @ 10:52:26
+[done] lm_ineq3/DSHOMO/s42 omega=True verified=1 tokens=1726
+[run ] lm_ineq3/Q397HOMO/s42 @ 10:53:12
+[done] lm_ineq3/Q397HOMO/s42 omega=True verified=1 tokens=399
+[run ] lm_inf_sup_le/DSHOMO/s42 @ 10:53:24
+[done] lm_ineq1/Q397HOMO/s42 omega=True verified=1 tokens=25758
+[run ] lm_inf_sup_le/Q397HOMO/s42 @ 10:56:36
+[done] lm_inf_sup_le/Q397HOMO/s42 omega=False verified=0 tokens=37628
+[run ] lm_lim1/DSHOMO/s42 @ 11:11:16
+[done] lm_inf_sup_le/DSHOMO/s42 omega=False verified=0 tokens=54402
+[run ] lm_lim1/Q397HOMO/s42 @ 11:19:28
+[done] lm_lim1/Q397HOMO/s42 omega=False verified=0 tokens=35352
+[run ] lm_lt_min_max/DSHOMO/s42 @ 11:34:02
+[done] lm_lt_min_max/DSHOMO/s42 omega=True verified=1 tokens=1018
+[run ] lm_lt_min_max/Q397HOMO/s42 @ 11:34:32
+[done] lm_lim1/DSHOMO/s42 omega=False verified=0 tokens=40114
+[run ] lm_median/DSHOMO/s42 @ 11:35:37
+[done] lm_lt_min_max/Q397HOMO/s42 omega=False verified=0 tokens=41051
+[run ] lm_median/Q397HOMO/s42 @ 11:48:04
+[done] lm_median/DSHOMO/s42 omega=False verified=0 tokens=76431
+[run ] lm_mono/DSHOMO/s42 @ 12:05:18
+[done] lm_median/Q397HOMO/s42 omega=False verified=0 tokens=61609
+[run ] lm_mono/Q397HOMO/s42 @ 12:05:53
+[done] lm_mono/Q397HOMO/s42 omega=True verified=1 tokens=235
+[run ] lm_mono_comp/DSHOMO/s42 @ 12:06:03
+[done] lm_mono_comp/DSHOMO/s42 omega=True verified=1 tokens=205
+[run ] lm_mono_comp/Q397HOMO/s42 @ 12:06:15
+[done] lm_mono_comp/Q397HOMO/s42 omega=True verified=1 tokens=235
+[run ] lm_monotone_glue/DSHOMO/s42 @ 12:06:25
+[done] lm_monotone_glue/DSHOMO/s42 omega=True verified=1 tokens=468
+[run ] lm_monotone_glue/Q397HOMO/s42 @ 12:06:37
+[done] lm_monotone_glue/Q397HOMO/s42 omega=True verified=1 tokens=762
+[run ] lm_natdeg_pow/DSHOMO/s42 @ 12:06:51
+[done] lm_mono/DSHOMO/s42 omega=True verified=1 tokens=28322
+[run ] lm_natdeg_pow/Q397HOMO/s42 @ 12:17:03
+[done] lm_natdeg_pow/DSHOMO/s42 omega=True verified=1 tokens=58427
+[run ] lm_natdeg_sum/DSHOMO/s42 @ 12:25:58
+[done] lm_natdeg_pow/Q397HOMO/s42 omega=False verified=0 tokens=49529
+[run ] lm_natdeg_sum/Q397HOMO/s42 @ 12:31:07
+[done] lm_natdeg_sum/Q397HOMO/s42 omega=False verified=0 tokens=37862
+[run ] lm_nt_cop_cubic/DSHOMO/s42 @ 12:44:51
+[done] lm_natdeg_sum/DSHOMO/s42 omega=False verified=0 tokens=59828
+[run ] lm_nt_cop_cubic/Q397HOMO/s42 @ 12:51:02
+06-18 12:55:48 === OVERNIGHT SWEEP START: 35 named theorems x 4 models = 156 cells, JOBS=2 ===
+06-18 12:55:50 iter 1: 69/156 cells done; launching sweep (fast arms first, GLM deferred)
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_B1 lm_median_probe lm_probe1 lm_probeC3 lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[DSHOMO Q397HOMO] seeds=[42]
+[skip] lm_B1/DSHOMO/s42
+[skip] lm_B1/Q397HOMO/s42
+[skip] lm_median_probe/DSHOMO/s42
+[skip] lm_median_probe/Q397HOMO/s42
+[skip] lm_probe1/DSHOMO/s42
+[skip] lm_probe1/Q397HOMO/s42
+[skip] lm_probeC3/DSHOMO/s42
+[skip] lm_probeC3/Q397HOMO/s42
+[skip] lm_c/DSHOMO/s42
+[skip] lm_c/Q397HOMO/s42
+[skip] lm_coeff_mul/DSHOMO/s42
+[skip] lm_coeff_mul/Q397HOMO/s42
+[skip] lm_comm_conj/DSHOMO/s42
+[skip] lm_comm_conj/Q397HOMO/s42
+[skip] lm_commute_pow/DSHOMO/s42
+[skip] lm_commute_pow/Q397HOMO/s42
+[skip] lm_cube4/DSHOMO/s42
+[skip] lm_cube4/Q397HOMO/s42
+[skip] lm_deriv1/DSHOMO/s42
+[skip] lm_deriv1/Q397HOMO/s42
+[skip] lm_deriv2/DSHOMO/s42
+[skip] lm_deriv2/Q397HOMO/s42
+[skip] lm_deriv3/DSHOMO/s42
+[skip] lm_deriv3/Q397HOMO/s42
+[skip] lm_e/DSHOMO/s42
+[skip] lm_e/Q397HOMO/s42
+[skip] lm_f/DSHOMO/s42
+[skip] lm_f/Q397HOMO/s42
+[skip] lm_fact/DSHOMO/s42
+[skip] lm_fact/Q397HOMO/s42
+[skip] lm_finset_sup/DSHOMO/s42
+[skip] lm_finset_sup/Q397HOMO/s42
+[skip] lm_geom_eval/DSHOMO/s42
+[skip] lm_geom_eval/Q397HOMO/s42
+[skip] lm_ineq1/DSHOMO/s42
+[skip] lm_ineq1/Q397HOMO/s42
+[skip] lm_ineq2/DSHOMO/s42
+[skip] lm_ineq2/Q397HOMO/s42
+[skip] lm_ineq3/DSHOMO/s42
+[skip] lm_ineq3/Q397HOMO/s42
+[skip] lm_inf_sup_le/DSHOMO/s42
+[skip] lm_inf_sup_le/Q397HOMO/s42
+[skip] lm_lim1/DSHOMO/s42
+[skip] lm_lim1/Q397HOMO/s42
+[skip] lm_lt_min_max/DSHOMO/s42
+[skip] lm_lt_min_max/Q397HOMO/s42
+[skip] lm_median/DSHOMO/s42
+[skip] lm_median/Q397HOMO/s42
+[skip] lm_mono/DSHOMO/s42
+[skip] lm_mono/Q397HOMO/s42
+[skip] lm_mono_comp/DSHOMO/s42
+[skip] lm_mono_comp/Q397HOMO/s42
+[skip] lm_monotone_glue/DSHOMO/s42
+[skip] lm_monotone_glue/Q397HOMO/s42
+[skip] lm_natdeg_pow/DSHOMO/s42
+[skip] lm_natdeg_pow/Q397HOMO/s42
+[skip] lm_natdeg_sum/DSHOMO/s42
+[skip] lm_natdeg_sum/Q397HOMO/s42
+[run ] lm_nt_cop_cubic/DSHOMO/s42 @ 12:55:51
+[run ] lm_nt_cop_cubic/Q397HOMO/s42 @ 12:55:51
+[done] lm_nt_cop_cubic/Q397HOMO/s42 omega=True verified=1 tokens=38427
+[run ] lm_nt_gcd2/DSHOMO/s42 @ 13:02:29
+[done] lm_nt_cop_cubic/DSHOMO/s42 omega=False verified=0 tokens=49789
+[run ] lm_nt_gcd2/Q397HOMO/s42 @ 13:19:00
+[done] lm_nt_gcd2/Q397HOMO/s42 omega=True verified=1 tokens=27543
+[run ] lm_poly_eval_factor/DSHOMO/s42 @ 13:24:25
+[done] lm_nt_gcd2/DSHOMO/s42 omega=False verified=0 tokens=49972
+[run ] lm_poly_eval_factor/Q397HOMO/s42 @ 13:25:37
+[done] lm_poly_eval_factor/Q397HOMO/s42 omega=True verified=1 tokens=557
+[run ] lm_prod/DSHOMO/s42 @ 13:25:51
+[done] lm_poly_eval_factor/DSHOMO/s42 omega=True verified=1 tokens=4484
+[run ] lm_prod/Q397HOMO/s42 @ 13:25:57
+[done] lm_prod/DSHOMO/s42 omega=True verified=1 tokens=903
+[run ] lm_ring_nilp/DSHOMO/s42 @ 13:26:17
+[done] lm_ring_nilp/DSHOMO/s42 omega=True verified=1 tokens=662
+[run ] lm_ring_nilp/Q397HOMO/s42 @ 13:26:36
+[done] lm_ring_nilp/Q397HOMO/s42 omega=True verified=1 tokens=1176
+[run ] lm_smoke/DSHOMO/s42 @ 13:26:54
+[done] lm_smoke/DSHOMO/s42 omega=True verified=1 tokens=141
+[run ] lm_smoke/Q397HOMO/s42 @ 13:27:04
+[done] lm_smoke/Q397HOMO/s42 omega=True verified=1 tokens=147
+[run ] lm_strictmono_nat/DSHOMO/s42 @ 13:27:14
+[done] lm_strictmono_nat/DSHOMO/s42 omega=True verified=1 tokens=2028
+[run ] lm_strictmono_nat/Q397HOMO/s42 @ 13:28:20
+[done] lm_strictmono_nat/Q397HOMO/s42 omega=True verified=1 tokens=866
+[run ] lm_sum_cubes/DSHOMO/s42 @ 13:28:34
+[done] lm_prod/Q397HOMO/s42 omega=False verified=0 tokens=27358
+[run ] lm_sum_cubes/Q397HOMO/s42 @ 13:38:14
+[done] lm_sum_cubes/Q397HOMO/s42 omega=True verified=1 tokens=480
+[run ] lm_trace_prod/DSHOMO/s42 @ 13:38:30
+[done] lm_sum_cubes/DSHOMO/s42 omega=False verified=0 tokens=37940
+[run ] lm_trace_prod/Q397HOMO/s42 @ 13:50:45
+[done] lm_trace_prod/DSHOMO/s42 omega=False verified=0 tokens=36292
+[run ] lm_units_comm/DSHOMO/s42 @ 14:00:06
+[done] lm_units_comm/DSHOMO/s42 omega=True verified=1 tokens=316
+[run ] lm_units_comm/Q397HOMO/s42 @ 14:00:22
+[done] lm_units_comm/Q397HOMO/s42 omega=True verified=1 tokens=1941
+[done] lm_trace_prod/Q397HOMO/s42 omega=False verified=0 tokens=32712
+=== sweep complete (78 cells) -> handover/evidence/h2_calibration_2026-06-17 ===
+
+=== per-(theorem,model) coverage (omega) ===
+  lm_B1                    solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_median_probe          solved=['DSHOMO'] failed=['Q397HOMO']  -> GOLDILOCKS
+  lm_probe1                solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_probeC3               solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_c                     solved=[] failed=['DSHOMO', 'Q32HOMO', 'Q397HOMO']  -> all-fail
+  lm_coeff_mul             solved=[] failed=['DSHOMO', 'Q32HOMO', 'Q397HOMO']  -> all-fail
+  lm_comm_conj             solved=['DSHOMO'] failed=['Q32HOMO', 'Q397HOMO']  -> GOLDILOCKS
+  lm_commute_pow           solved=['DSHOMO', 'Q397HOMO'] failed=['Q32HOMO']  -> GOLDILOCKS
+  lm_cube4                 solved=['DSHOMO', 'Q397HOMO'] failed=['Q32HOMO']  -> GOLDILOCKS
+  lm_deriv1                solved=['Q397HOMO'] failed=['DSHOMO', 'Q32HOMO']  -> GOLDILOCKS
+  lm_deriv2                solved=['DSHOMO', 'Q397HOMO'] failed=['Q32HOMO']  -> GOLDILOCKS
+  lm_deriv3                solved=['DSHOMO', 'Q397HOMO'] failed=['Q32HOMO']  -> GOLDILOCKS
+  lm_e                     solved=[] failed=['DSHOMO', 'Q32HOMO', 'Q397HOMO']  -> all-fail
+  lm_f                     solved=[] failed=['DSHOMO', 'Q32HOMO', 'Q397HOMO']  -> all-fail
+  lm_fact                  solved=['Q397HOMO'] failed=['DSHOMO', 'Q32HOMO']  -> GOLDILOCKS
+  lm_finset_sup            solved=['DSHOMO'] failed=['Q397HOMO']  -> GOLDILOCKS
+  lm_geom_eval             solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_ineq1                 solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_ineq2                 solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_ineq3                 solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_inf_sup_le            solved=[] failed=['DSHOMO', 'Q397HOMO']  -> all-fail
+  lm_lim1                  solved=[] failed=['DSHOMO', 'Q397HOMO']  -> all-fail
+  lm_lt_min_max            solved=['DSHOMO'] failed=['Q397HOMO']  -> GOLDILOCKS
+  lm_median                solved=[] failed=['DSHOMO', 'Q397HOMO']  -> all-fail
+  lm_mono                  solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_mono_comp             solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_monotone_glue         solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_natdeg_pow            solved=['DSHOMO'] failed=['Q397HOMO']  -> GOLDILOCKS
+  lm_natdeg_sum            solved=[] failed=['DSHOMO', 'Q397HOMO']  -> all-fail
+  lm_nt_cop_cubic          solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_nt_gcd2               solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_poly_eval_factor      solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_prod                  solved=['DSHOMO'] failed=['Q397HOMO']  -> GOLDILOCKS
+  lm_ring_nilp             solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_smoke                 solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_strictmono_nat        solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+  lm_sum_cubes             solved=['Q397HOMO'] failed=['DSHOMO']  -> GOLDILOCKS
+  lm_trace_prod            solved=[] failed=['DSHOMO', 'Q397HOMO']  -> all-fail
+  lm_units_comm            solved=['DSHOMO', 'Q397HOMO'] failed=[]  -> all-solve
+
+GOLDILOCKS targets (no-single-model-one-shot ∧ models-differ): ['lm_median_probe', 'lm_probe1', 'lm_probeC3', 'lm_comm_conj', 'lm_commute_pow', 'lm_cube4', 'lm_deriv1', 'lm_deriv2', 'lm_deriv3', 'lm_fact', 'lm_finset_sup', 'lm_ineq1', 'lm_lt_min_max', 'lm_natdeg_pow', 'lm_nt_cop_cubic', 'lm_nt_gcd2', 'lm_prod', 'lm_sum_cubes']
+=== H-HET-2 calibration sweep -> handover/evidence/h2_calibration_2026-06-17 (JOBS=2 budget=NA4xNR20) ===
+    theorems=[lm_B1 lm_median_probe lm_probe1 lm_probeC3 lm_c lm_coeff_mul lm_comm_conj lm_commute_pow lm_cube4 lm_deriv1 lm_deriv2 lm_deriv3 lm_e lm_f lm_fact lm_finset_sup lm_geom_eval lm_ineq1 lm_ineq2 lm_ineq3 lm_inf_sup_le lm_lim1 lm_lt_min_max lm_median lm_mono lm_mono_comp lm_monotone_glue lm_natdeg_pow lm_natdeg_sum lm_nt_cop_cubic lm_nt_gcd2 lm_poly_eval_factor lm_prod lm_ring_nilp lm_smoke lm_strictmono_nat lm_sum_cubes lm_trace_prod lm_units_comm] models=[Q32HOMO] seeds=[42]
+[run ] lm_B1/Q32HOMO/s42 @ 14:03:34
+[run ] lm_median_probe/Q32HOMO/s42 @ 14:03:34
+[done] lm_B1/Q32HOMO/s42 omega=True verified=1 tokens=263
+[run ] lm_probe1/Q32HOMO/s42 @ 14:03:54

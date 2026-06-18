@@ -22,10 +22,10 @@ use std::sync::Arc;
 
 use crate::charter_core::CharterCore;
 use crate::distiller::{compress_belief_state, deterministic_trace_slicer, TraceView};
+use crate::economy::money::MicroCoin;
 use crate::ledger::{
     AttemptScope, CommitRequest, ImmutableTapeLedger, NodeKind, RetryBeliefState, RetryConstraint,
 };
-use crate::economy::money::MicroCoin;
 use crate::predicate_admission::{
     decide_admission_with_taint, hash_to_hex, AdmissionVerdict, ArgTaintFinding, PredicateClaimSet,
 };
@@ -40,14 +40,14 @@ use crate::runtime::agent_scheduler::budget_ceiling::{
 };
 use crate::state::q_state::Hash;
 use crate::state_update::{parse_prefix_json, StateStatus, StateUpdate};
-use crate::top_white::predicates::registry::{
-    BootPredicateManifest, EmptyPredicateCasView, PredicateCasView, PredicateRegistry,
-};
 use crate::token_budget::{
     B_CTL, B_D, B_DISTILL_IN, B_G, B_H, B_HEADER, B_HEADER_SCAN, B_PROMPT_MAX, B_S, B_T,
     MAX_RETRIES, ZERO_GAIN_K,
 };
 use crate::tokenizer::Tokenizer;
+use crate::top_white::predicates::registry::{
+    BootPredicateManifest, EmptyPredicateCasView, PredicateCasView, PredicateRegistry,
+};
 
 // ── Public types ─────────────────────────────────────────────────
 
@@ -314,9 +314,10 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         // `decide_admission_with_taint` delegates to the unchanged
         // `decide_admission` and admits EXACTLY as before. Only genuine
         // external/tool provenance INTO a privileged sink newly produces a finding.
-        let call = crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
-            &env_result.raw_output,
-        );
+        let call =
+            crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
+                &env_result.raw_output,
+            );
         let taint_findings = crate::predicate_admission::arg_taint::arg_taint_v1(&call);
         self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings)
     }
@@ -347,11 +348,13 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
         // Record this attempt's integer cost so the node committed on this tick
         // carries it (→ next tick's tape-derived spend reflects it).
         self.pending_step_cost_tokens = step_cost_tokens;
-        let call = crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
-            &env_result.raw_output,
-        );
+        let call =
+            crate::predicate_admission::arg_taint_provenance::derive_wtool_call_from_proposal(
+                &env_result.raw_output,
+            );
         let taint_findings = crate::predicate_admission::arg_taint::arg_taint_v1(&call);
-        let step = self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings);
+        let step =
+            self.step_forward_with_taint(task, env_result, claims, workspace, &taint_findings);
         // Reset so a subsequent cost-blind call does not inherit this cost.
         self.pending_step_cost_tokens = 0;
         step
@@ -438,7 +441,13 @@ impl<L: ImmutableTapeLedger> MemoryKernel<L> {
                 ),
                 evidence_hash: None,
             };
-            return self.handle_rejection(task, verified_head, budget_header, env_result, workspace);
+            return self.handle_rejection(
+                task,
+                verified_head,
+                budget_header,
+                env_result,
+                workspace,
+            );
         }
 
         let parsed_header = parse_prefix_json(&env_result.raw_output, B_HEADER_SCAN, B_HEADER);

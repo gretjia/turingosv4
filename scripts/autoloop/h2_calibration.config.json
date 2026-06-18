@@ -1,0 +1,60 @@
+{
+  "loop_id": "h2-dynamic-model-budget",
+  "loop_state": "scripts/autoloop/h2_loop_state.json",
+  "goal_predicate": {
+    "description": "H-HET-2 SUPPORTED: Primary-A positive (paired McNemar on per-(model,target) Delta_union over seed x target cells) AND >=1 Primary-B existence witness (a target TREAT solves >=6/12 seeds AND BestHOMO 0/12), replay-clean + axiom-clean, with section-17 G1-G6 satisfied.",
+    "ref": "handover/preregistration/H_HET_2_DYNAMIC_MODEL_BUDGET_PREREG_2026-06-15.md#4",
+    "machine_check": "paired_mcnemar(delta_union) > 0 AND any(primary_b_witness) AND g1_recompute_byte_equal AND replay_failure==null"
+  },
+  "anchor": [
+    "handover/preregistration/H_HET_2_DYNAMIC_MODEL_BUDGET_PREREG_2026-06-15.md",
+    "handover/tracer_bullets/TB_DYNAMIC_MODEL_BUDGET_MARKET_charter_2026-06-15.md",
+    "handover/tracer_bullets/H_HET_2_ROUTING_POLICY_RULING_2026-06-15.md",
+    "handover/AUTORESEARCH_LOOP_DESIGN_2026-06-16.md",
+    "scripts/autoloop/README.md"
+  ],
+  "harness_files": [
+    "/Users/zephryj/work/turingosv4-converge/src/judges/lean_judge.rs",
+    "/Users/zephryj/work/turingosv4-converge/src/runtime/routing_policy.rs",
+    "/Users/zephryj/work/turingosv4-converge/src/runtime/budget_allocation_telemetry.rs",
+    "/Users/zephryj/work/turingosv4-converge/src/bin/verify_chaintape.rs"
+  ],
+  "config": {
+    "max_iterations": 12,
+    "token_cap": null,
+    "usd_cap": null,
+    "velocity_usd_per_hr": 15.0,
+    "dup_hash_K": 2,
+    "no_progress_K": 3,
+    "forbid_restricted_surface": true,
+    "restricted_surfaces": [
+      "src/kernel.rs", "src/bus.rs", "src/sdk/tools/wallet.rs",
+      "src/state/sequencer.rs", "src/state/typed_tx.rs", "src/bottom_white/cas/schema.rs"
+    ],
+    "reachability": [
+      {"name": "proxy_health", "cmd": "curl -s -o /dev/null -w '%{http_code}' http://localhost:8123/health | grep -q 200", "hint": "LLM gateway localhost:8123"},
+      {"name": "lean_bin", "cmd": "test -x $HOME/.elan/toolchains/leanprover--lean4---v4.24.0/bin/lean", "hint": "pinned Lean v4.24.0"},
+      {"name": "mathlib_built", "cmd": "test -d /Users/zephryj/work/mathlib4/.lake/build/lib", "hint": "mathlib4 oleans (pool theorems need mathlib)"},
+      {"name": "carrier_built", "cmd": "test -x /Users/zephryj/work/turingosv4-converge/target/debug/lean_market_agent", "hint": "cargo build --bin lean_market_agent"}
+    ],
+    "positive_control": {
+      "cmd": "cd /Users/zephryj/work/turingosv4-converge && rm -rf /tmp/autoloop_pc_repo /tmp/autoloop_pc_cas && mkdir -p /tmp/autoloop_pc_repo /tmp/autoloop_pc_cas && ./target/debug/lean_market_agent --runtime-repo /tmp/autoloop_pc_repo --cas /tmp/autoloop_pc_cas --run-id autoloop_pc --problem calib_core_add_comm --policy verify_ucb_price_floor --models 'deepseek-ai/DeepSeek-V4-Pro,Qwen/Qwen3-32B,zai-org/GLM-4.5-Air,Qwen/Qwen3.5-397B-A17B' --n-agents 4 --n-rounds 4 --seed 42 --bank tests/fixtures/lean_theorems.jsonl --proxy-url http://localhost:8123 --out /tmp/autoloop_pc_repo/manifest.json",
+      "manifest": "/tmp/autoloop_pc_repo/manifest.json",
+      "assert_field": "omega_reached",
+      "assert_value": true,
+      "timeout_s": 600,
+      "note": "known-solvable probe through the FULL pipeline; if it does not verify, the harness is broken -> abort, do NOT blame the experiment (rule out harness bug first)."
+    },
+    "negative_control": {
+      "mode": "exit",
+      "cmd": "cd /Users/zephryj/work/turingosv4-converge && cargo test --test lean_judge_axiom_gate 2>&1 | tail -2",
+      "expect_exit": 0,
+      "timeout_s": 600,
+      "note": "the axiom gate must REJECT non-whitelisted axioms / sorry; the test passing (exit 0) proves the verifier can say no."
+    },
+    "budget_binding": {
+      "estimate_cmd": "scripts/autoloop/estimate_calibration_cost.sh",
+      "note": "iteration-1 must run a 1-theorem canary on the same code path and assert affordable_N < repairable_N before the full ~37-theorem sweep; this hook records the estimate. Run under architect authz (paid prep)."
+    }
+  }
+}

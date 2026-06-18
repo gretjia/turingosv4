@@ -251,7 +251,7 @@ fn build_dag_view(workspace: &std::path::Path, session_id: &str) -> Result<Optio
                     let mut oracle_verified = false;
                     if work.proposal_cid.0 != [0u8; 32] {
                         if let Ok(tel) = read_proposal_telemetry(&cas, &work.proposal_cid) {
-                            tactic = tel.candidate_tactic.clone();
+                            tactic = tel.candidate_label.clone();
                             parent_tx = tel.parent_tx.as_ref().map(|t| t.0.clone());
                             if let Some(vr_cid) = tel.verification_result_cid.as_ref() {
                                 if let Ok(vr) = read_verification_result(&cas, vr_cid) {

@@ -445,12 +445,11 @@ pub fn tdma_verified_pput_micro(
     // progress (0/1): fully-verified terminal ⇔ every canonical stage Proceeded
     // (stages_total reached) AND nothing escalated/aborted. `stages_total == 0`
     // is not a verified proof (there is nothing to verify) → progress 0.
-    let progress: u64 =
-        if stages_total > 0 && stages_completed == stages_total && escalated_empty {
-            1
-        } else {
-            0
-        };
+    let progress: u64 = if stages_total > 0 && stages_completed == stages_total && escalated_empty {
+        1
+    } else {
+        0
+    };
     if progress == 0 {
         return 0;
     }
@@ -464,8 +463,7 @@ pub fn tdma_verified_pput_micro(
     }
     // Integer division — pure u64; identical body to
     // vpput_reconstruction::TaskVpput::compute_micro (which is private). NO f64.
-    crate::runtime::agent_scheduler::vpput_reconstruction::PPUT_MICRO_SCALE
-        .saturating_mul(progress)
+    crate::runtime::agent_scheduler::vpput_reconstruction::PPUT_MICRO_SCALE.saturating_mul(progress)
         / denom
 }
 
@@ -987,7 +985,11 @@ mod tests {
         assert!(v > 0, "verified proof must score > 0, got {v}");
         let c_i: u64 = 100 + 100;
         let t_i: u64 = 4;
-        assert_eq!(v, 1_000_000u64 / (c_i * t_i), "independent integer recompute");
+        assert_eq!(
+            v,
+            1_000_000u64 / (c_i * t_i),
+            "independent integer recompute"
+        );
 
         // Efficiency ordering: cheaper verified solve scores strictly higher.
         let cheap = tdma_verified_pput_micro(5, 5, true, 50, 50, 4); // denom 400
