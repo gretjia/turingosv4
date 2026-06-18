@@ -400,7 +400,7 @@ mod tests {
         // that the rename did NOT change the wire identity.
         assert_eq!(
             serde_json::to_string(&ObjectType::DomainProofResult).expect("serialize"),
-            "\"VerifierResult\"",
+            "\"LeanResult\"",
         );
         // De-Lean migration (2026-06-15): a historical `"LeanResult"` wire
         // string MUST still deserialize into the renamed `DomainProofResult`
@@ -408,7 +408,7 @@ mod tests {
         // every pre-migration CAS object reconstructs to the same in-memory
         // variant + canonical hash.
         assert_eq!(
-            serde_json::from_str::<ObjectType>("\"VerifierResult\"").expect("deserialize legacy"),
+            serde_json::from_str::<ObjectType>("\"LeanResult\"").expect("deserialize legacy"),
             ObjectType::DomainProofResult,
         );
         assert_eq!(

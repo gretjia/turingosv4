@@ -6,7 +6,7 @@
 # Usage: estimate_calibration_cost.sh <theorem> <model> <n_theorems> <n_models> <n_seeds> [n_rounds]
 # Prints a JSON projection on the last line.
 set -euo pipefail
-cd /Users/zephryj/work/turingosv4-converge
+cd "${REPO:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 # Fast path: route Lean verifies through the persistent verify-service
 # (A/B-oracle-proven byte-equivalent; ~130-260x faster than per-process lean).
 # Override the venv (with lean-interact) via TURINGOS_LEAN_VERIFY_PYTHON.
@@ -14,7 +14,7 @@ export TURINGOS_LEAN_VERIFY_PYTHON="${TURINGOS_LEAN_VERIFY_PYTHON:-/tmp/leanvenv
 
 THM="${1:-lm_det_2x2}"; MODEL="${2:-Qwen/Qwen3.5-397B-A17B}"
 NTHM="${3:-37}"; NMODELS="${4:-4}"; NSEEDS="${5:-3}"; NR="${6:-8}"
-MATHLIB=/Users/zephryj/work/mathlib4
+MATHLIB="${MATHLIB:-$HOME/work/mathlib4}"
 BIN=./target/debug/lean_market_agent
 repo=/tmp/autoloop_estimate_repo; cas=/tmp/autoloop_estimate_cas
 rm -rf "$repo" "$cas"; mkdir -p "$repo" "$cas"

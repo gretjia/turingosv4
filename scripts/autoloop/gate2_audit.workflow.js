@@ -11,7 +11,7 @@ export const meta = {
 // { repo, goal_predicate, iteration: { atom, claim, execute_summary, tape_repo, tape_cas, manifest } }
 const A = args || {}
 const it = A.iteration || {}
-const REPO = A.repo || '/Users/zephryj/work/turingosv4-converge'
+const REPO = A.repo || '.'
 
 const VERDICT_SCHEMA = {
   type: 'object', additionalProperties: false,
