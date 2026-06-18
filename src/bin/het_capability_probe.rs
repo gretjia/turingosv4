@@ -278,14 +278,18 @@ async fn call_model(
 /// Call with exponential-backoff retry on transient errors (network / rate-limit).
 /// Auth errors are never retried. After MAX_RETRIES exhausted, returns last error.
 /// Delays: 2, 4, 8, 16, 32, 64 s (base 2^i) ±30% jitter to reduce thundering herd.
+/// Returns `(result, http_attempts)` — the number of actual HTTP requests issued (1 +
+/// retries). The caller MUST charge `http_attempts` (not 1) against the API-call cap, or a
+/// flaky run can make up to `MAX_RETRIES + 1`× the advertised budget of paid calls (Codex P1).
 async fn call_model_with_retry(
     client: &reqwest::Client,
     endpoint: &str,
     model: &str,
     prompt: &str,
-) -> Result<LlmResponse, LlmError> {
+) -> (Result<LlmResponse, LlmError>, usize) {
     let mut rng = rand::thread_rng();
     let mut last_err = LlmError::Network("no attempts".to_string());
+    let mut http_attempts = 0usize;
 
     for attempt in 0..=MAX_RETRIES {
         if attempt > 0 {
@@ -300,16 +304,17 @@ async fn call_model_with_retry(
             sleep(Duration::from_secs(delay_secs)).await;
         }
 
+        http_attempts += 1;
         match call_model(client, endpoint, model, prompt).await {
-            Ok(r) => return Ok(r),
-            Err(LlmError::Auth) => return Err(LlmError::Auth), // auth never retries
+            Ok(r) => return (Ok(r), http_attempts),
+            Err(LlmError::Auth) => return (Err(LlmError::Auth), http_attempts), // auth never retries
             Err(e) => {
                 last_err = e;
             }
         }
     }
 
-    Err(last_err)
+    (Err(last_err), http_attempts)
 }
 
 /// Classify whether a response was cut off by the token budget — a REGIME artifact
@@ -550,11 +555,21 @@ fn strip_think_tags(s: &str) -> String {
 
 // ── LeanJudge builder (mirrors het_calibration_probe::build_judge) ────────────
 
-fn build_judge(theorem: &LeanTheorem, lean_bin: PathBuf, mathlib_lp: Option<&str>) -> LeanJudge {
+fn build_judge(
+    theorem: &LeanTheorem,
+    lean_bin: PathBuf,
+    mathlib_lp: Option<&str>,
+    mathlib_dir: Option<&std::path::Path>,
+) -> LeanJudge {
     let mut j = LeanJudge::new(theorem.preamble.clone());
     j.lean_bin = lean_bin;
-    // Use the mathlib dir as cwd so lake-relative olean paths resolve.
-    j.cwd = PathBuf::from("/Users/zephryj/work/mathlib4");
+    // Use the RESOLVED mathlib dir (already found by main via pointer file / known path) as cwd so
+    // lake-relative olean paths resolve on ANY host. Codex P1: was hardcoded
+    // /Users/zephryj/work/mathlib4 → on a non-Mac host every verify spawned in a wrong/nonexistent
+    // dir, turning capability records into infrastructure failures. Fall back to cwd (a valid path).
+    j.cwd = mathlib_dir
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
     j.timeout = Duration::from_secs(120);
     if theorem.needs_mathlib {
         if let Some(lp) = mathlib_lp {
@@ -770,9 +785,11 @@ async fn main() {
                 let prompt = build_proof_prompt(theorem);
 
                 // Call model — failures are recorded, not fatal.
-                let llm_result =
+                let (llm_result, http_attempts) =
                     call_model_with_retry(&client, &endpoint, model, &prompt).await;
-                call_count += 1;
+                // Charge every HTTP attempt (incl. retries) against the cap so MAX_CALLS is a
+                // real hard budget, not 1 logical call that can fan out to MAX_RETRIES+1 (Codex P1).
+                call_count += http_attempts;
 
                 let record = match llm_result {
                     Err(e) => {
@@ -838,12 +855,14 @@ async fn main() {
                                     let theorem_c = theorem.clone();
                                     let lean_bin_c = lean_bin.clone();
                                     let mathlib_lp_c = mathlib_lp.clone();
+                                    let mathlib_dir_c = mathlib_dir_path.clone();
                                     let body_c = body.clone();
                                     catch_unwind(AssertUnwindSafe(move || {
                                         let judge = build_judge(
                                             &theorem_c,
                                             lean_bin_c,
                                             mathlib_lp_c.as_deref(),
+                                            mathlib_dir_c.as_deref(),
                                         );
                                         judge.verify(&body_c)
                                     }))

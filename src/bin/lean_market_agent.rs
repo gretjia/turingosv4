@@ -2699,6 +2699,10 @@ async fn run(args: Args) -> Result<(), String> {
                 Ok(r) => r,
                 Err(e) => {
                     eprintln!("lm llm_err {agent}: {e:?}");
+                    // Budget (Codex P1): this tick already recorded its pull above, so a soft
+                    // API failure still spent the tick. Count it in step_idx so
+                    // budget_remaining (= rt_total_budget − step_idx) does not overstate remaining.
+                    step_idx += 1;
                     continue;
                 }
             };
@@ -2720,6 +2724,7 @@ async fn run(args: Args) -> Result<(), String> {
                 Some(v) => v,
                 None => {
                     parse_fails += 1;
+                    step_idx += 1; // budget (Codex P1): pull spent above — count the soft-failed tick
                     continue;
                 }
             };
@@ -2730,6 +2735,7 @@ async fn run(args: Args) -> Result<(), String> {
                 .to_string();
             if body.trim().is_empty() {
                 parse_fails += 1;
+                step_idx += 1; // budget (Codex P1): pull spent above — count the soft-failed tick
                 continue;
             }
             // OBL-018 (门0/D1): realign the model's proof_body — flush a flat tactic
