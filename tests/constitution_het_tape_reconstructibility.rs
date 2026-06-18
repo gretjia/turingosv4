@@ -37,7 +37,7 @@ use turingosv4::bottom_white::cas::store::CasStore;
 use turingosv4::bus::{BusConfig, TuringBus};
 use turingosv4::kernel::Kernel;
 use turingosv4::runtime::adapter::{
-    make_real_challengetx_signed_by, make_real_worktx_signed_by, make_synthetic_task_open,
+    make_real_challengetx_signed_by, make_real_task_open_signed_by, make_real_worktx_signed_by,
 };
 use turingosv4::runtime::agent_keypairs::AgentKeypairRegistry;
 use turingosv4::runtime::chain_derived_run_facts::compute_run_facts_from_chain;
@@ -86,15 +86,37 @@ async fn build_frozen_carrier_chain(
         bundle.sequencer.clone(),
     );
 
-    // The carrier opens a market TaskOpen first (Agent_user_0 sponsor).
+    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
+    let mut cas = CasStore::open(&cfg.cas_path).expect("open cas");
+
+    // The converge-branch sequencer is fail-closed on agent-tx ingress (de-Lean #345:
+    // verify_economic_agent_sig → AgentManifestRequired when no manifest is pinned, then
+    // AgentSignatureInvalid for an unregistered/zero-sig signer). The real carrier pins its
+    // registry manifest before submitting; mirror that. set_agent_pubkeys is once-only, so
+    // pre-mint EVERY signer (TaskOpen sponsor Agent_user_0, each per-node Agent_i, and the
+    // Chal_0 challenger) BEFORE pinning, then submit real-signed txs.
     let task = "lm-het-task";
-    let task_open = make_synthetic_task_open(task, "Agent_user_0", Hash::ZERO, "het-seed");
+    reg.get_or_create(&AgentId("Agent_user_0".into()))
+        .expect("mint sponsor key");
+    reg.get_or_create(&AgentId("Chal_0".into()))
+        .expect("mint challenger key");
+    for idx in 0..nodes {
+        reg.get_or_create(&AgentId(format!("Agent_{idx}")))
+            .expect("mint agent key");
+    }
+    bundle
+        .sequencer
+        .set_agent_pubkeys(std::sync::Arc::new(reg.manifest()))
+        .expect("pin agent manifest");
+
+    // The carrier opens a market TaskOpen first (Agent_user_0 sponsor), real-signed so it
+    // clears the fail-closed ingress gate.
+    let task_open =
+        make_real_task_open_signed_by(&mut reg, task, "Agent_user_0", Hash::ZERO, "het-seed", 1)
+            .expect("real TaskOpen");
     bus.submit_typed_tx(task_open)
         .await
         .expect("TaskOpen submit");
-
-    let mut reg = AgentKeypairRegistry::open(&cfg.runtime_repo_path).expect("open keypairs");
-    let mut cas = CasStore::open(&cfg.cas_path).expect("open cas");
 
     let mut ground_truth: Vec<(TxId, Option<TxId>, u64)> = Vec::new();
     let mut prev_work: Option<TxId> = None;
